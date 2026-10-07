@@ -52,7 +52,9 @@ export const courses: Course[] = [
       "Level 4 Certificate in Principles of Leadership and Management in Adult Care",
       "Level 5 Diploma in Leadership and Management for Adult Care",
     ],
-    image: "/courses/adult-care.jpg",
+    image: "/images/hero-learner.jpg",
+    imageAlt:
+      "Adult care learner in clinical study environment with course materials",
     seo_title: "Diploma in Adult Care (RQF) Levels 2, 3 & 4 | Smartminds",
     seo_description:
       "Study the regulated Level 2, 3, and 4 Diploma in Adult Care with live online classes, flexible payment plans, and experienced tutors.",
@@ -211,7 +213,8 @@ export const courses: Course[] = [
       "Level 5 Diploma in Teaching (FE and Skills)",
       "Assessor Qualifications (TAQA)",
     ],
-    image: "/courses/education-training.jpg",
+    image: "/images/tutor-teaching.jpg",
+    imageAlt: "Vocational tutor leading an adult education training session",
     seo_title: "Level 3 Award in Education and Training (AET) | Smartminds",
     seo_description:
       "Earn your Level 3 AET teaching qualification through live online tutor-led sessions. Flexible payment plans and full tutor mentorship.",
@@ -290,7 +293,9 @@ export const courses: Course[] = [
       "Level 4 Business and Professional Administration",
       "Level 5 Leadership and Management",
     ],
-    image: "/courses/business-admin.jpg",
+    image: "/images/certificate-moment.jpg",
+    imageAlt:
+      "Certified graduate holding accredited British qualification certificate",
     seo_title: "Diploma in Business Administration Levels 2 & 3 | Smartminds",
     seo_description:
       "Accredited business administration qualifications with live online training. Enrol today with flexible monthly instalments.",
@@ -408,7 +413,8 @@ export const courses: Course[] = [
       "Level 4 Certificate in Early Years Advanced Practice",
       "Level 5 Diploma in Leadership for Children and Young People's Services",
     ],
-    image: "/courses/early-years.jpg",
+    image: "/images/hero-learner.jpg",
+    imageAlt: "Early years childcare practitioner in modern education setting",
     seo_title: "Level 3 Diploma for the Early Years Educator | Smartminds",
     seo_description:
       "Gain your full licence to practise in nurseries and pre-schools with our Level 3 Early Years Educator diploma.",
@@ -490,7 +496,9 @@ export const courses: Course[] = [
       "Level 7 Strategic Management & Leadership",
       "University degree pathways in Healthcare Management",
     ],
-    image: "/courses/leadership-care.jpg",
+    image: "/images/certificate-moment.jpg",
+    imageAlt:
+      "Care home manager holding Level 5 leadership and management qualification award",
     seo_title:
       "Level 5 Diploma Leadership in Adult Care (CQC Registered Manager) | Smartminds",
     seo_description:
@@ -572,7 +580,9 @@ export const courses: Course[] = [
       "Level 3 Safeguarding Lead Training",
       "Level 3 Diploma in Adult Care",
     ],
-    image: "/courses/cpd-safeguarding.jpg",
+    image: "/images/tutor-teaching.jpg",
+    imageAlt:
+      "Accredited safeguarding instructor presenting statutory compliance guidance",
     seo_title:
       "Safeguarding Children and Vulnerable Adults CPD Certificate | Smartminds",
     seo_description:
@@ -652,7 +662,9 @@ export const courses: Course[] = [
       "Level 3 Certificate in Working in End of Life Care",
       "Level 3 Diploma in Adult Care",
     ],
-    image: "/courses/cpd-medication.jpg",
+    image: "/images/hero-learner.jpg",
+    imageAlt:
+      "Healthcare worker studying safe medication administration protocols",
     seo_title: "Safe Administration of Medication CPD Training | Smartminds",
     seo_description:
       "Live online CPD training on safe medication administration, MAR charts, and regulatory compliance in social care.",
@@ -736,7 +748,9 @@ export const courses: Course[] = [
       "GCSE Grade 7–9 target achievement",
     ],
     progression: ["A-Level Preparation", "Further education pathways"],
-    image: "/courses/tutoring-children.jpg",
+    image: "/images/tutor-teaching.jpg",
+    imageAlt:
+      "Dedicated one-on-one subject specialist teacher guiding student revision",
     seo_title: "1-on-1 Private Tutoring for Children (KS3 & GCSE) | Smartminds",
     seo_description:
       "Boost your child's academic confidence with live 1-on-1 private tutoring in English & Maths from verified DBS-checked tutors.",

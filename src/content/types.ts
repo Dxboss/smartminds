@@ -67,6 +67,7 @@ export interface Course {
   job_prospects: string[];
   progression: string[];
   image: string;
+  imageAlt?: string;
   seo_title: string;
   seo_description: string;
   published: boolean;

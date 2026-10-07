@@ -1,15 +1,11 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import Link from "next/link";
 import { Course } from "@/content/types";
-import { globalSettings } from "@/content/globals";
-import { defaultPlan6Months } from "@/content/plans";
-import { calculatePricing } from "@/content/pricing";
+import { CourseCard } from "@/components/course/CourseCard";
 import { Container } from "@/components/ui/Container";
 import { Heading } from "@/components/ui/Heading";
 import { Eyebrow } from "@/components/ui/Eyebrow";
-import { Tag } from "@/components/ui/Tag";
 import { Icon } from "@/components/ui/Icon";
 import { Button } from "@/components/ui/Button";
 
@@ -235,122 +231,14 @@ export const CoursesListingView: React.FC<CoursesListingViewProps> = ({
         {/* Course Cards Grid */}
         {filteredCourses.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredCourses.map((course) => {
-              const lowestLevel = course.levels[0];
-              const primaryPlan = lowestLevel?.plans[0] || defaultPlan6Months;
-              const pricing = lowestLevel
-                ? calculatePricing(lowestLevel, primaryPlan, globalSettings)
-                : null;
-
-              const levelLabels = course.levels.map((l) => l.level_label);
-              const levelRange =
-                levelLabels.length > 1
-                  ? `${levelLabels[0]} – ${levelLabels[levelLabels.length - 1]}`
-                  : levelLabels[0] || "Certificate";
-
-              return (
-                <article
-                  key={course.id}
-                  className="group bg-white rounded-lg border border-line p-6 shadow-subtle hover:border-navy-900/30 transition-all flex flex-col justify-between"
-                >
-                  <div>
-                    {/* Tags row */}
-                    <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-                      <span className="text-xs font-semibold uppercase tracking-wider text-gold-700">
-                        {course.category}
-                      </span>
-
-                      <div className="flex items-center gap-1.5">
-                        {course.funding === "funded" ||
-                        course.funding === "both" ? (
-                          <Tag variant="gold" className="text-xs">
-                            Funding Eligible
-                          </Tag>
-                        ) : null}
-                        <Tag variant="live" className="text-xs">
-                          Live Online
-                        </Tag>
-                      </div>
-                    </div>
-
-                    {/* Title */}
-                    <h2 className="font-heading text-xl font-bold text-navy-900 group-hover:text-navy-700 transition-colors mb-2 line-clamp-2">
-                      <Link href={`/courses/${course.slug}`}>
-                        {course.title}
-                      </Link>
-                    </h2>
-
-                    {/* Summary */}
-                    <p className="text-sm text-ink-soft leading-relaxed line-clamp-3 mb-6">
-                      {course.summary}
-                    </p>
-                  </div>
-
-                  {/* Card Footer Block */}
-                  <div className="pt-4 border-t border-line space-y-4">
-                    {/* Metadata line */}
-                    <div className="flex items-center justify-between text-xs text-ink-soft">
-                      <div className="flex items-center gap-1.5">
-                        <Icon
-                          name="graduation-cap"
-                          size={14}
-                          className="text-navy-900"
-                        />
-                        <span className="font-semibold text-navy-900">
-                          {levelRange}
-                        </span>
-                      </div>
-
-                      {course.awarding_body && (
-                        <div className="flex items-center gap-1 text-[11px] font-mono">
-                          <span>Awarding body:</span>
-                          <strong className="text-navy-900">
-                            {course.awarding_body}
-                          </strong>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Price display per PRD 10.2: From £X */}
-                    {pricing && (
-                      <div className="bg-paper rounded-sm border border-line p-3 flex items-center justify-between">
-                        <div>
-                          <span className="text-[11px] uppercase tracking-wider text-ink-soft block font-mono">
-                            From (Pay in Full)
-                          </span>
-                          <div className="flex items-baseline gap-1.5">
-                            <span className="font-heading font-bold text-lg text-navy-900">
-                              £{pricing.fullPayPrice}
-                            </span>
-                            <span className="text-xs line-through text-ink-soft">
-                              £{pricing.total}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="text-right">
-                          <span className="text-[11px] uppercase tracking-wider text-ink-soft block font-mono">
-                            Or spread
-                          </span>
-                          <span className="font-heading font-bold text-sm text-navy-700">
-                            £{pricing.monthly}/mo
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* CTA link */}
-                    <Link
-                      href={`/courses/${course.slug}`}
-                      className="w-full inline-flex items-center justify-center min-h-[44px] px-4 rounded-sm bg-navy-900 text-white hover:bg-navy-700 font-heading font-bold text-sm transition-colors"
-                    >
-                      <span>View details & pricing</span>
-                      <Icon name="arrow-right" size={15} className="ml-1.5" />
-                    </Link>
-                  </div>
-                </article>
-              );
-            })}
+            {filteredCourses.map((course, index) => (
+              <CourseCard
+                key={course.id}
+                course={course}
+                headingLevel="h2"
+                priority={index < 3}
+              />
+            ))}
           </div>
         ) : (
           /* Empty State per PRD 10.2 */
