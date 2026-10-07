@@ -6,6 +6,7 @@ import { siteConfig } from "@/content/siteConfig";
 import { Heading } from "@/components/ui/Heading";
 import { Icon } from "@/components/ui/Icon";
 import { Tag } from "@/components/ui/Tag";
+import { CalSchedulerEmbed } from "./CalSchedulerEmbed";
 
 export const BookingModal: React.FC = () => {
   const { isOpen, courseInterest, closeBooking } = useBooking();
@@ -88,23 +89,14 @@ export const BookingModal: React.FC = () => {
           </button>
         </div>
 
-        {/* Content Body: External Scheduler Placeholder Shell (Cal.com embed integration in Prompt 6) */}
-        <div className="p-6 sm:p-8 flex-1 overflow-y-auto space-y-6">
-          <div className="rounded-lg border-2 border-dashed border-line bg-paper/60 p-8 sm:p-12 text-center flex flex-col items-center justify-center">
-            <div className="w-14 h-14 rounded-sm bg-navy-900/10 text-navy-900 flex items-center justify-center mb-4">
-              <Icon name="calendar" size={28} />
-            </div>
-            <h3 className="font-heading text-xl font-bold text-navy-900 mb-2">
-              Appointment Scheduler
-            </h3>
-            <p className="text-sm text-ink-soft max-w-md mb-6 leading-relaxed">
-              Our interactive scheduling calendar loads here. Choose a 15-minute
-              slot that fits your schedule for a phone or video consultation.
-            </p>
-            <Tag variant="live">
-              Live consultation calendar (Prompt 6 integration slot)
-            </Tag>
-          </div>
+        {/* Content Body: Cal.com Embed Scheduler */}
+        <div className="p-5 sm:p-6 flex-1 overflow-y-auto space-y-5">
+          <CalSchedulerEmbed
+            courseInterest={courseInterest}
+            onBooked={() => {
+              // Optionally keep modal open with success message or let user review
+            }}
+          />
 
           {/* Consultation highlights */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">

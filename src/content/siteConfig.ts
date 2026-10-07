@@ -26,6 +26,11 @@ export interface SiteConfig {
     address: string;
     openingHours: string;
   };
+  booking: {
+    calLink: string;
+    embedUrl: string;
+    durationMinutes: number;
+  };
   navigation: NavItem[];
   legalLinks: NavItem[];
   accreditations: AccreditationItem[];
@@ -49,6 +54,11 @@ export const siteConfig: SiteConfig = {
       "https://wa.me/447000000000?text=Hello%20Smartminds%2C%20I%20would%20like%20free%20course%20advice",
     address: "London, United Kingdom", // PLACEHOLDER
     openingHours: "Monday to Friday: 9:00 AM – 6:00 PM GMT",
+  },
+  booking: {
+    calLink: "smartminds-training/15min", // PLACEHOLDER
+    embedUrl: "https://cal.com/smartminds-training/15min", // PLACEHOLDER
+    durationMinutes: 15,
   },
   navigation: [
     { label: "Courses", href: "/courses" },
