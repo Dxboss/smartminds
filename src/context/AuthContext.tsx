@@ -1,6 +1,11 @@
 "use client";
 
-import React, { createContext, useContext, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useMemo,
+  useSyncExternalStore,
+} from "react";
 import { useRouter } from "next/navigation";
 
 export type UserRole = "student" | "staff" | "owner_admin";
@@ -52,33 +57,61 @@ const DEMO_USERS: Record<UserRole, AuthUser> = {
 };
 
 const AUTH_STORAGE_KEY = "smartminds_auth_session_v1";
+const AUTH_CHANGE_EVENT = "smartminds_auth_updated";
+
+function subscribe(callback: () => void) {
+  if (typeof window === "undefined") return () => {};
+  window.addEventListener("storage", callback);
+  window.addEventListener(AUTH_CHANGE_EVENT, callback);
+  return () => {
+    window.removeEventListener("storage", callback);
+    window.removeEventListener(AUTH_CHANGE_EVENT, callback);
+  };
+}
+
+function getSnapshot(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return localStorage.getItem(AUTH_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function getServerSnapshot(): string | null {
+  return null;
+}
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [user, setUser] = useState<AuthUser | null>(() => {
-    if (typeof window === "undefined") return null;
+  const router = useRouter();
+  const rawUserJson = useSyncExternalStore(
+    subscribe,
+    getSnapshot,
+    getServerSnapshot
+  );
+
+  const user: AuthUser | null = useMemo(() => {
+    if (!rawUserJson) return null;
     try {
-      const stored = window.localStorage.getItem(AUTH_STORAGE_KEY);
-      return stored ? (JSON.parse(stored) as AuthUser) : null;
+      return JSON.parse(rawUserJson) as AuthUser;
     } catch {
       return null;
     }
-  });
-  const router = useRouter();
+  }, [rawUserJson]);
 
   const loginAs = (targetRole: UserRole) => {
     const demoUser = DEMO_USERS[targetRole];
-    setUser(demoUser);
     try {
       localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(demoUser));
+      window.dispatchEvent(new Event(AUTH_CHANGE_EVENT));
     } catch {
       // Storage write error
     }
 
-    // Role-based routing
     if (targetRole === "student") {
       router.push("/portal/student");
     } else if (targetRole === "staff") {
@@ -92,19 +125,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     email: string,
     targetRole: UserRole = "student"
   ): Promise<boolean> => {
-    // Derive user profile from email or role
     const profile: AuthUser = {
       id: `usr_${Date.now()}`,
-      name: email.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+      name: email
+        .split("@")[0]
+        .replace(/[._]/g, " ")
+        .replace(/\b\w/g, (c) => c.toUpperCase()),
       email,
       role: targetRole,
-      enrolledCourse: targetRole === "student" ? "Level 3 Diploma in Adult Care (RQF)" : undefined,
+      enrolledCourse:
+        targetRole === "student"
+          ? "Level 3 Diploma in Adult Care (RQF)"
+          : undefined,
       cohort: "2026 Academic Year",
     };
 
-    setUser(profile);
     try {
       localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(profile));
+      window.dispatchEvent(new Event(AUTH_CHANGE_EVENT));
     } catch {
       // Storage write error
     }
@@ -121,9 +159,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const logout = () => {
-    setUser(null);
     try {
       localStorage.removeItem(AUTH_STORAGE_KEY);
+      window.dispatchEvent(new Event(AUTH_CHANGE_EVENT));
     } catch {
       // Storage remove error
     }
