@@ -49,8 +49,12 @@ export default function RootLayout({
     <html
       lang="en-GB"
       className={`${sairaCondensed.variable} ${sourceSans3.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col font-body bg-paper text-ink selection:bg-gold-300 selection:text-navy-900">
+      <body
+        className="min-h-full flex flex-col font-body bg-paper text-ink selection:bg-gold-300 selection:text-navy-900"
+        suppressHydrationWarning
+      >
         <ConsentProvider>
           <OrganizationStructuredData />
           <UtmTracker />
