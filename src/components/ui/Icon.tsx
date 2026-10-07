@@ -21,7 +21,17 @@ export type IconName =
   | "user"
   | "info"
   | "sparkles"
-  | "external-link";
+  | "external-link"
+  | "log-out"
+  | "file-text"
+  | "video"
+  | "users"
+  | "credit-card"
+  | "download"
+  | "search"
+  | "bell"
+  | "check-circle"
+  | "alert-circle";
 
 export interface IconProps extends React.SVGAttributes<SVGElement> {
   name: IconName;
@@ -286,6 +296,244 @@ export const Icon: React.FC<IconProps> = ({
             strokeLinecap="round"
             strokeLinejoin="round"
           />
+        );
+
+      case "log-out":
+        return (
+          <>
+            <path
+              d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <polyline
+              points="16 17 21 12 16 7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <line
+              x1="21"
+              y1="12"
+              x2="9"
+              y2="12"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </>
+        );
+
+      case "file-text":
+        return (
+          <>
+            <path
+              d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <polyline
+              points="14 2 14 8 20 8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <line
+              x1="16"
+              y1="13"
+              x2="8"
+              y2="13"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <line
+              x1="16"
+              y1="17"
+              x2="8"
+              y2="17"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <polyline
+              points="10 9 9 9 8 9"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </>
+        );
+
+      case "video":
+        return (
+          <>
+            <polygon
+              points="23 7 16 12 23 17 23 7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <rect
+              x="1"
+              y="5"
+              width="15"
+              height="14"
+              rx="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </>
+        );
+
+      case "users":
+        return (
+          <>
+            <path
+              d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <circle
+              cx="9"
+              cy="7"
+              r="4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M23 21v-2a4 4 0 00-3-3.87"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M16 3.13a4 4 0 010 7.75"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </>
+        );
+
+      case "credit-card":
+        return (
+          <>
+            <rect
+              x="1"
+              y="4"
+              width="22"
+              height="16"
+              rx="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <line
+              x1="1"
+              y1="10"
+              x2="23"
+              y2="10"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </>
+        );
+
+      case "download":
+        return (
+          <>
+            <path
+              d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <polyline
+              points="7 10 12 15 17 10"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <line
+              x1="12"
+              y1="15"
+              x2="12"
+              y2="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </>
+        );
+
+      case "search":
+        return (
+          <>
+            <circle
+              cx="11"
+              cy="11"
+              r="8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <line
+              x1="21"
+              y1="21"
+              x2="16.65"
+              y2="16.65"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </>
+        );
+
+      case "bell":
+        return (
+          <>
+            <path
+              d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M13.73 21a2 2 0 01-3.46 0"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </>
+        );
+
+      case "check-circle":
+        return (
+          <>
+            <path
+              d="M22 11.08V12a10 10 0 11-5.93-9.14"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <polyline
+              points="22 4 12 14.01 9 11.01"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </>
+        );
+
+      case "alert-circle":
+        return (
+          <>
+            <circle
+              cx="12"
+              cy="12"
+              r="10"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <line
+              x1="12"
+              y1="8"
+              x2="12"
+              y2="12"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <line
+              x1="12"
+              y1="16"
+              x2="12.01"
+              y2="16"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </>
         );
 
       default:

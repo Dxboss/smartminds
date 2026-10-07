@@ -4,6 +4,7 @@ import "./globals.css";
 import { siteConfig } from "@/content/siteConfig";
 import { ConsentProvider } from "@/context/ConsentContext";
 import { BookingProvider } from "@/context/BookingContext";
+import { AuthProvider } from "@/context/AuthContext";
 import {
   Header,
   Footer,
@@ -56,41 +57,43 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <ConsentProvider>
-          <OrganizationStructuredData />
-          <UtmTracker />
-          <GoogleTagManager />
-          <BookingProvider>
-            {/* Staging & Preview Environment Notice per PRD 11 */}
-            <StagingBanner />
+          <AuthProvider>
+            <OrganizationStructuredData />
+            <UtmTracker />
+            <GoogleTagManager />
+            <BookingProvider>
+              {/* Staging & Preview Environment Notice per PRD 11 */}
+              <StagingBanner />
 
-            {/* Skip to Main Content Link for WCAG 2.2 AA Keyboard Navigation */}
-            <a
-              href="#main-content"
-              className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:px-4 focus:py-2.5 focus:bg-navy-900 focus:text-white focus:rounded-sm focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-gold-500 font-semibold text-sm transition-all"
-            >
-              Skip to main content
-            </a>
+              {/* Skip to Main Content Link for WCAG 2.2 AA Keyboard Navigation */}
+              <a
+                href="#main-content"
+                className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:px-4 focus:py-2.5 focus:bg-navy-900 focus:text-white focus:rounded-sm focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-gold-500 font-semibold text-sm transition-all"
+              >
+                Skip to main content
+              </a>
 
-            {/* Global Header */}
-            <Header />
+              {/* Global Header */}
+              <Header />
 
-            {/* Page Main Content with bottom padding on mobile for persistent bar */}
-            <main id="main-content" className="flex-1 pb-16 lg:pb-0">
-              {children}
-            </main>
+              {/* Page Main Content with bottom padding on mobile for persistent bar */}
+              <main id="main-content" className="flex-1 pb-16 lg:pb-0">
+                {children}
+              </main>
 
-            {/* Global Footer */}
-            <Footer />
+              {/* Global Footer */}
+              <Footer />
 
-            {/* Persistent Mobile Bottom Action Bar */}
-            <MobileBottomBar />
+              {/* Persistent Mobile Bottom Action Bar */}
+              <MobileBottomBar />
 
-            {/* Global Consultation Booking Modal Shell */}
-            <BookingModal />
+              {/* Global Consultation Booking Modal Shell */}
+              <BookingModal />
 
-            {/* Global Cookie Consent Banner & Preferences Modal */}
-            <CookieBanner />
-          </BookingProvider>
+              {/* Global Cookie Consent Banner & Preferences Modal */}
+              <CookieBanner />
+            </BookingProvider>
+          </AuthProvider>
         </ConsentProvider>
       </body>
     </html>

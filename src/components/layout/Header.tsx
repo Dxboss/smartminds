@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { siteConfig } from "@/content/siteConfig";
 import { useBooking } from "@/context/BookingContext";
+import { useAuth } from "@/context/AuthContext";
 import { Logo } from "./Logo";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
@@ -14,6 +15,14 @@ export const Header: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
   const { openBooking } = useBooking();
+  const { user, isAuthenticated, logout } = useAuth();
+
+  const portalHref =
+    user?.role === "student"
+      ? "/portal/student"
+      : user?.role === "staff"
+      ? "/portal/tutor"
+      : "/portal/admin";
 
   const [prevPathname, setPrevPathname] = useState(pathname);
 
@@ -72,7 +81,43 @@ export const Header: React.FC = () => {
           </nav>
 
           {/* Desktop Actions */}
-          <div className="hidden lg:flex items-center gap-4">
+          <div className="hidden lg:flex items-center gap-3">
+            {isAuthenticated ? (
+              <div className="flex items-center gap-2">
+                <Link
+                  href={portalHref}
+                  className="flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-navy-900 bg-paper border border-line rounded-sm hover:border-gold-500 transition-colors"
+                >
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="max-w-[130px] truncate">{user?.name}</span>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-navy-900 bg-white px-1.5 py-0.5 rounded border border-line">
+                    {user?.role === "student"
+                      ? "Learner"
+                      : user?.role === "staff"
+                      ? "Tutor"
+                      : "Admin"}
+                  </span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={logout}
+                  title="Sign out"
+                  className="p-2 text-ink-soft hover:text-navy-900 hover:bg-paper rounded-sm border border-transparent hover:border-line transition-colors"
+                  aria-label="Sign out of portal"
+                >
+                  <Icon name="log-out" size={17} />
+                </button>
+              </div>
+            ) : (
+              <Link
+                href="/login"
+                className="flex items-center gap-1.5 text-sm font-semibold text-navy-900 hover:text-gold-700 px-3 py-2 rounded-sm transition-colors"
+              >
+                <Icon name="user" size={16} />
+                <span>Log in</span>
+              </Link>
+            )}
+
             <Button variant="primary" size="md" onClick={() => openBooking()}>
               Get free advice
             </Button>
@@ -129,6 +174,58 @@ export const Header: React.FC = () => {
             </nav>
 
             <div className="pt-4 border-t border-line space-y-3">
+              {isAuthenticated ? (
+                <div className="p-3 bg-paper border border-line rounded-sm space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-bold text-navy-900">
+                        {user?.name}
+                      </p>
+                      <p className="text-xs text-ink-soft">
+                        {user?.role === "student"
+                          ? "Learner Portal"
+                          : user?.role === "staff"
+                          ? "Tutor Console"
+                          : "College Administrator"}
+                      </p>
+                    </div>
+                    <span className="text-xs px-2 py-0.5 bg-white border border-line font-medium text-navy-900 rounded">
+                      Active
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <Link
+                      href={portalHref}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center justify-center gap-1.5 py-2 px-3 bg-navy-900 text-white rounded-sm text-sm font-semibold"
+                    >
+                      <span>My Portal</span>
+                      <Icon name="arrow-right" size={14} />
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        logout();
+                      }}
+                      className="flex items-center justify-center gap-1.5 py-2 px-3 bg-white border border-line text-ink rounded-sm text-sm font-semibold hover:bg-paper"
+                    >
+                      <Icon name="log-out" size={14} />
+                      <span>Sign out</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <Link
+                  href="/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-full min-h-[44px] px-4 py-2.5 text-base font-semibold rounded-sm border border-navy-900 text-navy-900 flex items-center justify-center gap-2 hover:bg-navy-900 hover:text-white transition-colors"
+                >
+                  <Icon name="user" size={18} />
+                  <span>Student & Staff Login</span>
+                </Link>
+              )}
+
               <Button
                 variant="primary"
                 fullWidth

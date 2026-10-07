@@ -1,6 +1,24 @@
+import fs from "fs";
+import path from "path";
 import { NextRequest, NextResponse } from "next/server";
 import { submitLeadAction } from "@/app/actions/leadActions";
 import { checkRateLimit } from "@/lib/rateLimit";
+
+export async function GET() {
+  try {
+    const dataDir = path.join(process.cwd(), "data");
+    const filePath = path.join(dataDir, "dev_leads.json");
+    if (!fs.existsSync(filePath)) {
+      return NextResponse.json({ success: true, leads: [] });
+    }
+    const raw = fs.readFileSync(filePath, "utf-8");
+    const leads = JSON.parse(raw);
+    return NextResponse.json({ success: true, leads });
+  } catch (error) {
+    console.error("[API /api/leads GET] Error reading leads:", error);
+    return NextResponse.json({ success: false, leads: [] }, { status: 500 });
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
