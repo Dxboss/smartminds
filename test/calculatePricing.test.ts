@@ -104,7 +104,10 @@ describe("calculatePricing engine (PRD 10.4)", () => {
     assert.equal(result.finalPayment, 333.34);
     // Strict requirement: sum of instalments must equal price_gbp exactly
     assert.equal(result.total, 1000);
-    assert.equal(result.deposit + result.monthly * 2 + result.finalPayment, 1000);
+    assert.equal(
+      result.deposit + result.monthly * 2 + result.finalPayment,
+      1000
+    );
   });
 
   it("absorbs rounding remainder with percentage deposit (e.g. £1450, 15% deposit, 10 months)", () => {
@@ -117,7 +120,7 @@ describe("calculatePricing engine (PRD 10.4)", () => {
 
     const result = calculatePricing(level, plan, defaultGlobals);
 
-    assert.equal(result.deposit, 217.50);
+    assert.equal(result.deposit, 217.5);
     // Remaining = 1450 - 217.50 = 1232.50
     // 1232.50 / 10 = 123.25
     assert.equal(result.monthly, 123.25);
