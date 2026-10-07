@@ -71,10 +71,26 @@ export const courses: Course[] = [
           "Access to a computer and internet for live classes",
         ],
         units: [
-          { code: "AC2-01", title: "Principles of Communication in Adult Social Care", credits: 3 },
-          { code: "AC2-02", title: "Principles of Personal Development in Adult Social Care", credits: 3 },
-          { code: "AC2-03", title: "Duty of Care in Health and Social Care", credits: 2 },
-          { code: "AC2-04", title: "Equality and Inclusion in Adult Social Care", credits: 3 },
+          {
+            code: "AC2-01",
+            title: "Principles of Communication in Adult Social Care",
+            credits: 3,
+          },
+          {
+            code: "AC2-02",
+            title: "Principles of Personal Development in Adult Social Care",
+            credits: 3,
+          },
+          {
+            code: "AC2-03",
+            title: "Duty of Care in Health and Social Care",
+            credits: 2,
+          },
+          {
+            code: "AC2-04",
+            title: "Equality and Inclusion in Adult Social Care",
+            credits: 3,
+          },
         ],
         plans: [defaultPlan3Months, defaultPlan6Months],
       },
@@ -91,11 +107,31 @@ export const courses: Course[] = [
           "Commitment to weekly live evening sessions",
         ],
         units: [
-          { code: "AC3-01", title: "Promote Communication in Care Settings", credits: 3 },
-          { code: "AC3-02", title: "Promote Effective Personal Development in Care", credits: 3 },
-          { code: "AC3-03", title: "Promote Equality and Inclusion in Adult Social Care", credits: 4 },
-          { code: "AC3-04", title: "Promote Health, Safety and Wellbeing in Care Settings", credits: 6 },
-          { code: "AC3-05", title: "Responsibilities of a Care Worker", credits: 2 },
+          {
+            code: "AC3-01",
+            title: "Promote Communication in Care Settings",
+            credits: 3,
+          },
+          {
+            code: "AC3-02",
+            title: "Promote Effective Personal Development in Care",
+            credits: 3,
+          },
+          {
+            code: "AC3-03",
+            title: "Promote Equality and Inclusion in Adult Social Care",
+            credits: 4,
+          },
+          {
+            code: "AC3-04",
+            title: "Promote Health, Safety and Wellbeing in Care Settings",
+            credits: 6,
+          },
+          {
+            code: "AC3-05",
+            title: "Responsibilities of a Care Worker",
+            credits: 2,
+          },
         ],
         plans: [defaultPlan3Months, defaultPlan6Months, defaultPlan10Months],
       },
@@ -111,9 +147,21 @@ export const courses: Course[] = [
           "Lead role or senior responsibility in a social care environment",
         ],
         units: [
-          { code: "AC4-01", title: "Leadership and Management in Adult Care Settings", credits: 6 },
-          { code: "AC4-02", title: "Governance and Regulatory Processes", credits: 5 },
-          { code: "AC4-03", title: "Facilitate Person-Centred Assessment and Planning", credits: 6 },
+          {
+            code: "AC4-01",
+            title: "Leadership and Management in Adult Care Settings",
+            credits: 6,
+          },
+          {
+            code: "AC4-02",
+            title: "Governance and Regulatory Processes",
+            credits: 5,
+          },
+          {
+            code: "AC4-03",
+            title: "Facilitate Person-Centred Assessment and Planning",
+            credits: 6,
+          },
         ],
         plans: [defaultPlan6Months, defaultPlan10Months, defaultPlan12Months],
       },
@@ -182,9 +230,23 @@ export const courses: Course[] = [
           "Passion for teaching in your subject specialism",
         ],
         units: [
-          { code: "AET-01", title: "Understanding Roles, Responsibilities and Relationships in Education", credits: 3 },
-          { code: "AET-02", title: "Understanding and Using Inclusive Teaching and Learning Approaches", credits: 6 },
-          { code: "AET-03", title: "Understanding Assessment in Education and Training", credits: 3 },
+          {
+            code: "AET-01",
+            title:
+              "Understanding Roles, Responsibilities and Relationships in Education",
+            credits: 3,
+          },
+          {
+            code: "AET-02",
+            title:
+              "Understanding and Using Inclusive Teaching and Learning Approaches",
+            credits: 6,
+          },
+          {
+            code: "AET-03",
+            title: "Understanding Assessment in Education and Training",
+            credits: 3,
+          },
         ],
         plans: [defaultPlan3Months],
       },
@@ -246,9 +308,21 @@ export const courses: Course[] = [
           "Working knowledge of computer applications and email",
         ],
         units: [
-          { code: "BA2-01", title: "Communication in a Business Environment", credits: 3 },
-          { code: "BA2-02", title: "Principles of Business Administration", credits: 4 },
-          { code: "BA2-03", title: "Manage Personal Performance and Development", credits: 4 },
+          {
+            code: "BA2-01",
+            title: "Communication in a Business Environment",
+            credits: 3,
+          },
+          {
+            code: "BA2-02",
+            title: "Principles of Business Administration",
+            credits: 4,
+          },
+          {
+            code: "BA2-03",
+            title: "Manage Personal Performance and Development",
+            credits: 4,
+          },
         ],
         plans: [defaultPlan3Months, defaultPlan6Months],
       },
@@ -264,10 +338,26 @@ export const courses: Course[] = [
           "Ability to conduct research and draft business reports",
         ],
         units: [
-          { code: "BA3-01", title: "Principles of Business Communication and Information", credits: 4 },
-          { code: "BA3-02", title: "Principles of Business Administration and Strategy", credits: 6 },
-          { code: "BA3-03", title: "Manage Information and Data Systems", credits: 4 },
-          { code: "BA3-04", title: "Negotiate in a Business Environment", credits: 4 },
+          {
+            code: "BA3-01",
+            title: "Principles of Business Communication and Information",
+            credits: 4,
+          },
+          {
+            code: "BA3-02",
+            title: "Principles of Business Administration and Strategy",
+            credits: 6,
+          },
+          {
+            code: "BA3-03",
+            title: "Manage Information and Data Systems",
+            credits: 4,
+          },
+          {
+            code: "BA3-04",
+            title: "Negotiate in a Business Environment",
+            credits: 4,
+          },
         ],
         plans: [defaultPlan3Months, defaultPlan6Months, defaultPlan10Months],
       },
@@ -292,7 +382,8 @@ export const courses: Course[] = [
     awarding_reference: "601/4000/X", // PLACEHOLDER
     assessment_method: "criteria",
     funding: "both",
-    funding_notes: "Subject to government funding rules for 19+ learners. PLACEHOLDER",
+    funding_notes:
+      "Subject to government funding rules for 19+ learners. PLACEHOLDER",
     intro_video_url: null,
     free_textbook: true,
     faqs: [
@@ -336,10 +427,26 @@ export const courses: Course[] = [
           "Placement or employment in a registered early years setting (min 250 hours)",
         ],
         units: [
-          { code: "EYE-01", title: "Support Healthy Lifestyles for Children Through Exercise", credits: 3 },
-          { code: "EYE-02", title: "Promote Children's Emotional Well-being", credits: 4 },
-          { code: "EYE-03", title: "Understand the Needs of the Ill Child", credits: 2 },
-          { code: "EYE-04", title: "Plan, Lead and Review Play Opportunities", credits: 6 },
+          {
+            code: "EYE-01",
+            title: "Support Healthy Lifestyles for Children Through Exercise",
+            credits: 3,
+          },
+          {
+            code: "EYE-02",
+            title: "Promote Children's Emotional Well-being",
+            credits: 4,
+          },
+          {
+            code: "EYE-03",
+            title: "Understand the Needs of the Ill Child",
+            credits: 2,
+          },
+          {
+            code: "EYE-04",
+            title: "Plan, Lead and Review Play Opportunities",
+            credits: 6,
+          },
         ],
         plans: [defaultPlan6Months, defaultPlan10Months, defaultPlan12Months],
       },
@@ -384,7 +491,8 @@ export const courses: Course[] = [
       "University degree pathways in Healthcare Management",
     ],
     image: "/courses/leadership-care.jpg",
-    seo_title: "Level 5 Diploma Leadership in Adult Care (CQC Registered Manager) | Smartminds",
+    seo_title:
+      "Level 5 Diploma Leadership in Adult Care (CQC Registered Manager) | Smartminds",
     seo_description:
       "Achieve your CQC-recognised Level 5 Registered Manager qualification with live tutor mentorship and structured portfolio guidance.",
     published: true,
@@ -402,10 +510,26 @@ export const courses: Course[] = [
           "Authority to implement policies and lead staff teams",
         ],
         units: [
-          { code: "LM5-01", title: "Principles of Leadership and Management in Adult Care", credits: 8 },
-          { code: "LM5-02", title: "Regulatory Processes and Compliance in Adult Care", credits: 6 },
-          { code: "LM5-03", title: "Leading and Managing People in Care Services", credits: 6 },
-          { code: "LM5-04", title: "Governance, Quality and Outcome Management", credits: 8 },
+          {
+            code: "LM5-01",
+            title: "Principles of Leadership and Management in Adult Care",
+            credits: 8,
+          },
+          {
+            code: "LM5-02",
+            title: "Regulatory Processes and Compliance in Adult Care",
+            credits: 6,
+          },
+          {
+            code: "LM5-03",
+            title: "Leading and Managing People in Care Services",
+            credits: 6,
+          },
+          {
+            code: "LM5-04",
+            title: "Governance, Quality and Outcome Management",
+            credits: 8,
+          },
         ],
         plans: [defaultPlan6Months, defaultPlan10Months, defaultPlan12Months],
       },
@@ -449,7 +573,8 @@ export const courses: Course[] = [
       "Level 3 Diploma in Adult Care",
     ],
     image: "/courses/cpd-safeguarding.jpg",
-    seo_title: "Safeguarding Children and Vulnerable Adults CPD Certificate | Smartminds",
+    seo_title:
+      "Safeguarding Children and Vulnerable Adults CPD Certificate | Smartminds",
     seo_description:
       "Earn a recognised CPD certificate in Safeguarding Children and Vulnerable Adults. Live online interactive session.",
     published: true,
@@ -463,9 +588,18 @@ export const courses: Course[] = [
         guided_learning_hours: 6,
         entry_requirements: ["Open to all learners aged 16+"],
         units: [
-          { code: "CPD-SG1", title: "Recognising Signs and Indicators of Abuse" },
-          { code: "CPD-SG2", title: "Legal Frameworks and Reporting Procedures" },
-          { code: "CPD-SG3", title: "Multi-Agency Working and Confidentiality" },
+          {
+            code: "CPD-SG1",
+            title: "Recognising Signs and Indicators of Abuse",
+          },
+          {
+            code: "CPD-SG2",
+            title: "Legal Frameworks and Reporting Procedures",
+          },
+          {
+            code: "CPD-SG3",
+            title: "Multi-Agency Working and Confidentiality",
+          },
         ],
         plans: [
           {
@@ -531,11 +665,24 @@ export const courses: Course[] = [
         full_pay_discount_percent: 0,
         duration_text: "1 day (6 hours)",
         guided_learning_hours: 6,
-        entry_requirements: ["Working or intending to work in health or social care"],
+        entry_requirements: [
+          "Working or intending to work in health or social care",
+        ],
         units: [
-          { code: "CPD-MED1", title: "Legislation, Policy and Accountability in Medication Handling" },
-          { code: "CPD-MED2", title: "Routes of Administration and the Six Rights" },
-          { code: "CPD-MED3", title: "Medication Administration Records (MAR) and Error Protocols" },
+          {
+            code: "CPD-MED1",
+            title:
+              "Legislation, Policy and Accountability in Medication Handling",
+          },
+          {
+            code: "CPD-MED2",
+            title: "Routes of Administration and the Six Rights",
+          },
+          {
+            code: "CPD-MED3",
+            title:
+              "Medication Administration Records (MAR) and Error Protocols",
+          },
         ],
         plans: [
           {
@@ -588,10 +735,7 @@ export const courses: Course[] = [
       "Secondary school academic advancement",
       "GCSE Grade 7–9 target achievement",
     ],
-    progression: [
-      "A-Level Preparation",
-      "Further education pathways",
-    ],
+    progression: ["A-Level Preparation", "Further education pathways"],
     image: "/courses/tutoring-children.jpg",
     seo_title: "1-on-1 Private Tutoring for Children (KS3 & GCSE) | Smartminds",
     seo_description:
@@ -610,8 +754,15 @@ export const courses: Course[] = [
           "Parent or legal guardian consent required",
         ],
         units: [
-          { code: "TUT-KS3-1", title: "Diagnostic Skill Assessment and Gap Analysis" },
-          { code: "TUT-KS3-2", title: "Targeted Curriculum Focus (Algebra, Comprehension, Writing)" },
+          {
+            code: "TUT-KS3-1",
+            title: "Diagnostic Skill Assessment and Gap Analysis",
+          },
+          {
+            code: "TUT-KS3-2",
+            title:
+              "Targeted Curriculum Focus (Algebra, Comprehension, Writing)",
+          },
           { code: "TUT-KS3-3", title: "Term Progress Review and Assessment" },
         ],
         plans: [defaultPlan3Months],
@@ -628,9 +779,18 @@ export const courses: Course[] = [
           "Parent or legal guardian consent required",
         ],
         units: [
-          { code: "TUT-GCSE-1", title: "Exam Board Specification Review (AQA / Edexcel / OCR)" },
-          { code: "TUT-GCSE-2", title: "Past Paper Question Technique and Timed Practice" },
-          { code: "TUT-GCSE-3", title: "Mock Exam Marking and Grade Improvement Coaching" },
+          {
+            code: "TUT-GCSE-1",
+            title: "Exam Board Specification Review (AQA / Edexcel / OCR)",
+          },
+          {
+            code: "TUT-GCSE-2",
+            title: "Past Paper Question Technique and Timed Practice",
+          },
+          {
+            code: "TUT-GCSE-3",
+            title: "Mock Exam Marking and Grade Improvement Coaching",
+          },
         ],
         plans: [defaultPlan3Months, defaultPlan6Months],
       },

@@ -4,7 +4,12 @@ import "./globals.css";
 import { siteConfig } from "@/content/siteConfig";
 import { ConsentProvider } from "@/context/ConsentContext";
 import { BookingProvider } from "@/context/BookingContext";
-import { Header, Footer, MobileBottomBar, StagingBanner } from "@/components/layout";
+import {
+  Header,
+  Footer,
+  MobileBottomBar,
+  StagingBanner,
+} from "@/components/layout";
 import { BookingModal } from "@/components/booking/BookingModal";
 import { CookieBanner } from "@/components/consent/CookieBanner";
 

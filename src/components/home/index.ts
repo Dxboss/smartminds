@@ -1,0 +1,9 @@
+export { HeroSection } from "./HeroSection";
+export { TrustStrip } from "./TrustStrip";
+export { ChooseYourPath } from "./ChooseYourPath";
+export { HowItWorksTimeline } from "./HowItWorksTimeline";
+export { PricingFlexibility } from "./PricingFlexibility";
+export { FeaturedCourses } from "./FeaturedCourses";
+export { ReviewsAndTestimonials } from "./ReviewsAndTestimonials";
+export { HomeFAQ } from "./HomeFAQ";
+export { FinalCTABand } from "./FinalCTABand";

@@ -1,46 +1,58 @@
+import { Metadata } from "next";
 import {
-  Container,
-  Section,
-  Heading,
-  Button,
-  Tag,
-  Icon,
-} from "@/components/ui";
-import { BookingCTAButton } from "@/components/booking";
+  HeroSection,
+  TrustStrip,
+  ChooseYourPath,
+  HowItWorksTimeline,
+  PricingFlexibility,
+  FeaturedCourses,
+  ReviewsAndTestimonials,
+  HomeFAQ,
+  FinalCTABand,
+} from "@/components/home";
 
-export default function Home() {
+export const metadata: Metadata = {
+  title: "Smartminds Training College | Live Classes with Real Tutors",
+  description:
+    "Study recognised UK qualifications with live online evening classes led by expert tutors. Flexible monthly instalment plans and funded options in health, social care, and education.",
+  openGraph: {
+    title: "Smartminds Training College | Live Classes with Real Tutors",
+    description:
+      "Study recognised UK qualifications with live online evening classes led by expert tutors. Flexible monthly instalments with zero interest.",
+    type: "website",
+    locale: "en_GB",
+  },
+};
+
+export default function HomePage() {
   return (
-    <div className="bg-paper text-ink">
-      <Section variant="paper">
-        <Container>
-          <div className="max-w-3xl mx-auto text-center">
-            <div className="inline-flex items-center gap-2 mb-4">
-              <Icon name="star" className="text-gold-500 w-6 h-6" />
-              <Tag variant="navy">Smartminds Training College</Tag>
-              <Tag variant="gold">Phase 1a Preview</Tag>
-            </div>
+    <main className="bg-paper text-ink min-h-screen">
+      {/* 1. Hero */}
+      <HeroSection />
 
-            <Heading level="h1" className="text-navy-900 mb-4">
-              Live classes with real tutors.
-            </Heading>
+      {/* 2. Trust strip directly beneath hero */}
+      <TrustStrip />
 
-            <p className="text-lg text-ink-soft mb-8 leading-relaxed">
-              Qualifications that move your career forward. Pay in full and
-              save, or spread the cost at no extra charge with flexible monthly
-              instalments.
-            </p>
+      {/* 3. Choose your path by outcome */}
+      <ChooseYourPath />
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <BookingCTAButton variant="primary" size="lg">
-                Get free advice
-              </BookingCTAButton>
-              <Button href="/design-system" variant="outline" size="lg">
-                View Design System Showcase &rarr;
-              </Button>
-            </div>
-          </div>
-        </Container>
-      </Section>
-    </div>
+      {/* 4. How it works (4-step timeline + recordings callout) */}
+      <HowItWorksTimeline />
+
+      {/* 5. Pricing flexibility (split layout: pay in full / instalments / funded) */}
+      <PricingFlexibility />
+
+      {/* 6. Featured courses */}
+      <FeaturedCourses />
+
+      {/* 7. Reviews and photos (click-to-load TikTok embed guarded by consent) */}
+      <ReviewsAndTestimonials />
+
+      {/* 8. FAQ (accessible accordion) */}
+      <HomeFAQ />
+
+      {/* 9. Final CTA band on navy */}
+      <FinalCTABand />
+    </main>
   );
 }

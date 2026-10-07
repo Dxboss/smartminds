@@ -208,9 +208,7 @@ export const Footer: React.FC = () => {
             <p className="text-white/80 font-medium mb-1">
               {siteConfig.legalLine}
             </p>
-            <p>
-              &copy; 2026 Smartminds Training College. All rights reserved.
-            </p>
+            <p>&copy; 2026 Smartminds Training College. All rights reserved.</p>
           </div>
 
           <div className="flex flex-wrap items-center gap-4">
