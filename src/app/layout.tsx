@@ -4,7 +4,7 @@ import "./globals.css";
 import { siteConfig } from "@/content/siteConfig";
 import { ConsentProvider } from "@/context/ConsentContext";
 import { BookingProvider } from "@/context/BookingContext";
-import { Header, Footer, MobileBottomBar } from "@/components/layout";
+import { Header, Footer, MobileBottomBar, StagingBanner } from "@/components/layout";
 import { BookingModal } from "@/components/booking/BookingModal";
 import { CookieBanner } from "@/components/consent/CookieBanner";
 
@@ -45,6 +45,9 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col font-body bg-paper text-ink selection:bg-gold-300 selection:text-navy-900">
         <ConsentProvider>
           <BookingProvider>
+            {/* Staging & Preview Environment Notice per PRD 11 */}
+            <StagingBanner />
+
             {/* Global Header */}
             <Header />
 
