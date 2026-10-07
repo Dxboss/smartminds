@@ -10,6 +10,8 @@ import {
   ArcDivider,
   ArcMask,
 } from "@/components/ui";
+import { BookingCTAButton } from "@/components/booking";
+import { ConsentGuard } from "@/components/consent/ConsentGuard";
 
 export const metadata: Metadata = {
   title: "Design System Showcase",
@@ -130,35 +132,30 @@ const ICONS_LIST = [
 
 export default function DesignSystemPage() {
   return (
-    <main className="min-h-screen bg-paper text-ink pb-24">
-      {/* Top Bar */}
-      <header className="border-b border-line bg-white sticky top-0 z-50 py-4 shadow-subtle">
+    <div className="bg-paper text-ink pb-24">
+      {/* Internal Sub-Bar */}
+      <div className="border-b border-line bg-white/80 backdrop-blur py-3">
         <Container>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <Icon name="star" className="text-gold-500 w-5 h-5" />
-                <span className="font-heading text-2xl font-bold tracking-tight text-navy-900">
-                  SMARTMINDS
-                </span>
-                <Tag variant="navy">PRD Section 7</Tag>
-                <Tag variant="gold">noindex</Tag>
-              </div>
-              <p className="text-sm text-ink-soft mt-0.5">
-                Design system primitives, tokens, and responsive preview.
-              </p>
+            <div className="flex items-center gap-2">
+              <Icon name="star" className="text-gold-500 w-4 h-4" />
+              <span className="font-heading text-lg font-bold tracking-tight text-navy-900">
+                Design System Preview
+              </span>
+              <Tag variant="navy">PRD Section 7 &amp; 8</Tag>
+              <Tag variant="gold">noindex</Tag>
             </div>
             <div className="flex items-center gap-3">
               <Button href="/" variant="outline" size="sm">
-                Return Home
+                Return to Site
               </Button>
-              <Button variant="primary" size="sm">
-                Get free advice
-              </Button>
+              <BookingCTAButton variant="primary" size="sm">
+                Test Booking Modal
+              </BookingCTAButton>
             </div>
           </div>
         </Container>
-      </header>
+      </div>
 
       {/* Hero Intro */}
       <Section variant="white" className="border-b border-line">
@@ -661,6 +658,57 @@ export default function DesignSystemPage() {
           </div>
         </Container>
       </Section>
-    </main>
+
+      {/* 9. Cookie Consent & Third-Party Protection */}
+      <Section variant="white" className="border-t border-line">
+        <Container>
+          <div className="mb-8">
+            <Eyebrow tone="navy" className="mb-2">
+              PRD Section 16 Compliance
+            </Eyebrow>
+            <Heading level="h2" className="text-navy-900 mb-2">
+              ConsentGuard &amp; Script Isolation
+            </Heading>
+            <p className="text-ink-soft max-w-2xl">
+              Strict privacy rule: No third-party tracking scripts, analytics,
+              or interactive embeds load before explicit user consent. Test
+              below by toggling cookie consent in the banner or footer.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <ConsentGuard
+              category="embeds"
+              fallbackTitle="Interactive Video Embed Blocked"
+              fallbackDescription="Video embeds from third parties are held until interactive media cookies are permitted."
+            >
+              <div className="p-6 rounded-lg bg-navy-900 text-white text-center">
+                <Tag variant="live" className="mb-2">
+                  Embeds Allowed
+                </Tag>
+                <p className="text-sm">
+                  Video and interactive appointment embeds are active.
+                </p>
+              </div>
+            </ConsentGuard>
+
+            <ConsentGuard
+              category="analytics"
+              fallbackTitle="Analytics Tracking Inactive"
+              fallbackDescription="Analytics cookies are currently blocked. No user metrics or telemetry will fire."
+            >
+              <div className="p-6 rounded-lg bg-paper border border-line text-center">
+                <Tag variant="navy" className="mb-2">
+                  Analytics Active
+                </Tag>
+                <p className="text-sm text-navy-900">
+                  GA4 telemetry permitted by user consent.
+                </p>
+              </div>
+            </ConsentGuard>
+          </div>
+        </Container>
+      </Section>
+    </div>
   );
 }
