@@ -59,11 +59,21 @@ export default function RootLayout({
             {/* Staging & Preview Environment Notice per PRD 11 */}
             <StagingBanner />
 
+            {/* Skip to Main Content Link for WCAG 2.2 AA Keyboard Navigation */}
+            <a
+              href="#main-content"
+              className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:px-4 focus:py-2.5 focus:bg-navy-900 focus:text-white focus:rounded-sm focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-gold-500 font-semibold text-sm transition-all"
+            >
+              Skip to main content
+            </a>
+
             {/* Global Header */}
             <Header />
 
             {/* Page Main Content with bottom padding on mobile for persistent bar */}
-            <main className="flex-1 pb-16 lg:pb-0">{children}</main>
+            <main id="main-content" className="flex-1 pb-16 lg:pb-0">
+              {children}
+            </main>
 
             {/* Global Footer */}
             <Footer />

@@ -1,8 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { submitLeadAction } from "@/app/actions/leadActions";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 export async function POST(request: NextRequest) {
   try {
+    const ip =
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      request.headers.get("x-real-ip") ||
+      "api_client";
+    const rateCheck = checkRateLimit(`api_${ip}`, 15, 60000);
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Too many requests. Please try again shortly.",
+        },
+        { status: 429 }
+      );
+    }
+
     const json = await request.json();
     const result = await submitLeadAction(json);
 

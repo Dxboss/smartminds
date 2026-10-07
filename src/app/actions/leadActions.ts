@@ -3,6 +3,7 @@
 import fs from "fs";
 import path from "path";
 import { siteConfig } from "@/content/siteConfig";
+import { checkRateLimit } from "@/lib/rateLimit";
 import {
   freeAdviceSchema,
   fundedEligibilitySchema,
@@ -181,6 +182,28 @@ ${siteConfig.legalLine}
 export async function submitLeadAction(
   rawInput: Record<string, unknown>
 ): Promise<LeadSubmissionResult> {
+  // Rate limiting check
+  let clientIdentifier = "client";
+  try {
+    const { headers } = await import("next/headers");
+    const headerList = await headers();
+    clientIdentifier =
+      headerList.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      headerList.get("x-real-ip") ||
+      "client";
+  } catch {
+    // Graceful fallback when invoked outside HTTP request context (e.g. unit tests)
+  }
+
+  const rateCheck = checkRateLimit(`lead_${clientIdentifier}`, 15, 60000);
+  if (!rateCheck.allowed) {
+    return {
+      success: false,
+      message:
+        "Too many submission attempts. Please wait a minute before trying again.",
+    };
+  }
+
   const formType = (rawInput.type as string) || "free_advice";
 
   // 1. Zod Validation per form type
