@@ -13,6 +13,8 @@ import {
 import { BookingModal } from "@/components/booking/BookingModal";
 import { CookieBanner } from "@/components/consent/CookieBanner";
 import { UtmTracker } from "@/components/analytics/UtmTracker";
+import { GoogleTagManager } from "@/components/analytics/GoogleTagManager";
+import { OrganizationStructuredData } from "@/components/layout/OrganizationStructuredData";
 
 const sairaCondensed = Saira_Condensed({
   weight: ["600", "700"],
@@ -50,7 +52,9 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col font-body bg-paper text-ink selection:bg-gold-300 selection:text-navy-900">
         <ConsentProvider>
+          <OrganizationStructuredData />
           <UtmTracker />
+          <GoogleTagManager />
           <BookingProvider>
             {/* Staging & Preview Environment Notice per PRD 11 */}
             <StagingBanner />
