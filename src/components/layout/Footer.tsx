@@ -69,15 +69,6 @@ export const Footer: React.FC = () => {
                   Funded Options
                 </Link>
               </li>
-              <li>
-                <Link
-                  href="/design-system"
-                  className="text-gold-300/80 hover:text-gold-300 transition-colors hover:underline inline-flex items-center gap-1"
-                >
-                  <Icon name="star" size={12} className="text-gold-500" />
-                  Design System (Preview)
-                </Link>
-              </li>
             </ul>
           </div>
 
