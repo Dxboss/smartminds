@@ -766,3 +766,29 @@ export const seedAuditLog: AuditLogEntry[] = [
 ];
 
 export const seedFeedback: FeedbackItem[] = [];
+
+export interface OutboxMessage {
+  id: string;
+  recipientEmail: string;
+  recipientName?: string;
+  subject: string;
+  renderedBody: string;
+  templateKey?: string;
+  sentAt: string;
+  triggerEvent: string;
+}
+
+export const demoOutbox: OutboxMessage[] = [
+  {
+    id: "outbox-init-01",
+    recipientEmail: "maya.lin@example.com",
+    recipientName: "Maya Lin",
+    subject: "Welcome to Smartminds Training College — Diploma in Adult Care (Level 3)",
+    renderedBody:
+      "Dear Maya,\n\nWelcome to Smartminds Training College. Your enrolment on Diploma in Adult Care (Level 3) starting Autumn 2026 is now active. Your induction materials and study timetable are available on your student portal.",
+    templateKey: "welcome_induction",
+    sentAt: "2026-09-15T09:05:00Z",
+    triggerEvent: "Course Enrolment Induction",
+  },
+];
+

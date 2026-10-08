@@ -86,15 +86,22 @@ export default async function StaffDashboardPage() {
                   </div>
 
                   <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-line/60">
+                    <Link
+                      href={`/staff/classes/${cls.id}`}
+                      className="px-3 py-1.5 rounded-sm bg-navy-900 text-white text-xs font-semibold hover:bg-navy-700 transition-colors inline-flex items-center gap-1.5"
+                    >
+                      <Icon name="calendar" size={14} />
+                      <span>Manage timetable & attendance</span>
+                    </Link>
                     {cls.zoomLink && (
                       <a
                         href={cls.zoomLink}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="px-3 py-1.5 rounded-sm bg-navy-900 text-white text-xs font-semibold hover:bg-navy-700 transition-colors inline-flex items-center gap-1.5"
+                        className="px-3 py-1.5 rounded-sm border border-line text-navy-900 text-xs font-semibold hover:bg-paper transition-colors inline-flex items-center gap-1.5"
                       >
                         <Icon name="external-link" size={14} />
-                        <span>Launch Zoom classroom</span>
+                        <span>Launch Zoom</span>
                       </a>
                     )}
                     <span className="text-xs text-ink-soft">
@@ -182,6 +189,14 @@ export default async function StaffDashboardPage() {
                     </div>
                   </div>
                 ))}
+                <div className="pt-2 border-t border-line/60">
+                  <Link
+                    href="/staff/tasks"
+                    className="text-xs font-semibold text-navy-900 hover:text-navy-700 inline-flex items-center gap-1"
+                  >
+                    <span>View all assigned tasks &rarr;</span>
+                  </Link>
+                </div>
               </div>
             )}
           </div>
