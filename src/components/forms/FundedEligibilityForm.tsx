@@ -24,7 +24,7 @@ export const FundedEligibilityForm: React.FC<FundedEligibilityFormProps> = ({
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [courseInterest, setCourseInterest] = useState("");
-  const [employmentStatus, setEmploymentStatus] = useState("Employed");
+  const [employmentStatus, setEmploymentStatus] = useState("Employed (under £25k)");
   const [priorQualification, setPriorQualification] = useState("Below Level 3");
   const [postcode, setPostcode] = useState("");
   const [message, setMessage] = useState("");
@@ -266,16 +266,18 @@ export const FundedEligibilityForm: React.FC<FundedEligibilityFormProps> = ({
             onChange={(e) => setEmploymentStatus(e.target.value)}
             className="w-full px-3 py-2.5 rounded-sm border border-line bg-paper text-ink text-sm focus:outline-none focus:ring-2 focus:ring-navy-900 min-h-[44px]"
           >
-            <option value="Employed (Earning under £25,000)">
-              Employed (Under £25,000 threshold)
+            <option value="Employed (under £25k)">
+              Employed (under £25,000 threshold)
             </option>
-            <option value="Employed (Earning £25,000+) ">
+            <option value="Employed (£25k+)">
               Employed (£25,000 or above)
             </option>
             <option value="Unemployed / Jobseeker">
-              Unemployed (Receiving benefits / jobseeker)
+              Unemployed (seeking work)
             </option>
-            <option value="Self-employed">Self-employed</option>
+            <option value="Self-employed">
+              Self-employed
+            </option>
           </select>
         </div>
 
@@ -295,10 +297,10 @@ export const FundedEligibilityForm: React.FC<FundedEligibilityFormProps> = ({
             className="w-full px-3 py-2.5 rounded-sm border border-line bg-paper text-ink text-sm focus:outline-none focus:ring-2 focus:ring-navy-900 min-h-[44px]"
           >
             <option value="Below Level 3">
-              Below Level 3 (e.g. GCSEs, Level 1, Level 2)
+              Below Level 3 (GCSE / Level 1–2)
             </option>
             <option value="Level 3 or above">
-              Level 3 or higher (e.g. A-Levels, BTEC, Degree)
+              Level 3 or higher (A-Level / Level 3+)
             </option>
             <option value="No formal qualifications">
               No formal qualifications

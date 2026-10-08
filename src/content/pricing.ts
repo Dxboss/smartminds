@@ -93,3 +93,16 @@ export function calculatePricing(
 function roundPence(val: number): number {
   return Math.round((val + Number.EPSILON) * 100) / 100;
 }
+
+/**
+ * Formats a monetary amount in GBP to two decimal places with thousands separators per PRD 10.4.
+ * Examples: 445.5 -> £445.50, 1305 -> £1,305.00
+ */
+export function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat("en-GB", {
+    style: "currency",
+    currency: "GBP",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}

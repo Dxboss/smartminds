@@ -31,7 +31,8 @@ export type IconName =
   | "search"
   | "bell"
   | "check-circle"
-  | "alert-circle";
+  | "alert-circle"
+  | "plus";
 
 export interface IconProps extends React.SVGAttributes<SVGElement> {
   name: IconName;
@@ -530,6 +531,28 @@ export const Icon: React.FC<IconProps> = ({
               y1="16"
               x2="12.01"
               y2="16"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </>
+        );
+
+      case "plus":
+        return (
+          <>
+            <line
+              x1="12"
+              y1="5"
+              x2="12"
+              y2="19"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <line
+              x1="5"
+              y1="12"
+              x2="19"
+              y2="12"
               strokeLinecap="round"
               strokeLinejoin="round"
             />

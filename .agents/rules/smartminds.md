@@ -5,6 +5,19 @@ The absolute source of truth is [docs/PRD.md](file:///c:/Users/George/OneDrive/D
 
 ---
 
+## DEMO MODE RULES (apply to every task from now on):
+- This build is a clickable demo for client review. All data is sample data. Never use real personal data, real keys or real payment details.
+- Everything demo-only is controlled by DEMO_MODE=true (off by default; must be absent from any production build or the real domain).
+- Put ALL data access behind repository interfaces (CourseRepo, LearnerRepo, EnrolmentRepo, PaymentRepo, TaskRepo, BookingRepo, TemplateRepo, EntitlementRepo, FeedbackRepo, UserRepo). Implement them now with seeded in-memory/JSON data. A Supabase implementation will replace them later without changing screens.
+- Permissions are enforced in the repositories and in server-side route guards, not only by hiding UI. Admin staff must have NO access to PaymentRepo, even in the demo. Tutors see only their own classes and learners.
+- Role comes only from a signed server-side demo session. Never from the URL, local storage or form fields.
+- Locked modules (feature entitlements) show a clear "Not enabled yet, contact your developer" state, never an error.
+- Show a thin "Demo: sample data" bar on every portal page.
+- Follow the PRD design system and the "does not look AI-made" brief. Sentence-case headings, no emoji icons, two radii, restrained gold.
+- Do not invent real-world claims, statistics, reviews or credentials. Sample people and numbers must be obviously fictional.
+
+---
+
 ## 1. Technology Stack & Scope
 - **Tech Stack**: Next.js (App Router), TypeScript, Tailwind CSS.
 - **Backend / Payments**: Supabase and Stripe are for later phases. **DO NOT** add checkout, payment processing, or Stripe dependencies in this phase.

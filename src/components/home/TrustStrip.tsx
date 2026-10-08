@@ -45,7 +45,7 @@ export const TrustStrip: React.FC = () => {
               </div>
             </div>
 
-            {/* Rating info */}
+            {/* Rating info from content config */}
             <div>
               <div className="flex items-center gap-1 text-gold-500 mb-0.5">
                 {[...Array(5)].map((_, i) => (
@@ -57,14 +57,11 @@ export const TrustStrip: React.FC = () => {
                   />
                 ))}
                 <span className="font-heading font-bold text-sm text-navy-900 ml-1">
-                  4.9 / 5.0
+                  {siteConfig.reviews.ratingValue}
                 </span>
               </div>
               <p className="text-xs text-ink-soft leading-tight">
-                Rated by 120+ learners{" "}
-                <span className="text-[10px] uppercase font-mono opacity-60">
-                  (PLACEHOLDER)
-                </span>
+                {siteConfig.reviews.ratingCountText}
               </p>
             </div>
           </div>

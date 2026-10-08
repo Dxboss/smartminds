@@ -153,77 +153,38 @@ export default function AboutPage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            <div className="bg-white rounded-lg border border-line p-6 shadow-subtle space-y-4">
-              <div className="relative aspect-square rounded-sm overflow-hidden bg-line">
-                <Image
-                  src="/images/tutor-teaching.jpg"
-                  alt="Lead Tutor Health and Social Care"
-                  fill
-                  sizes="300px"
-                  className="object-cover"
-                />
+            {siteConfig.team.map((member, idx) => (
+              <div
+                key={idx}
+                className="bg-white rounded-lg border border-line p-6 shadow-subtle space-y-4"
+              >
+                <div className="relative aspect-square rounded-sm overflow-hidden bg-line">
+                  <Image
+                    src={member.image}
+                    alt={member.name}
+                    fill
+                    sizes="300px"
+                    className="object-cover"
+                  />
+                  {member.isPlaceholder && (
+                    <div className="absolute top-2 right-2 bg-navy-900/90 text-white text-[10px] font-mono px-2 py-0.5 rounded-sm">
+                      PLACEHOLDER
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <strong className="font-heading font-bold text-lg text-navy-900 block">
+                    {member.name}
+                  </strong>
+                  <span className="text-xs font-semibold text-gold-700 block mb-1">
+                    {member.role}
+                  </span>
+                  <p className="text-xs text-ink-soft leading-relaxed font-mono text-[11px]">
+                    {member.credentials}
+                  </p>
+                </div>
               </div>
-              <div>
-                <strong className="font-heading font-bold text-lg text-navy-900 block">
-                  Lead Academic Tutor
-                </strong>
-                <span className="text-xs font-semibold text-gold-700 block mb-1">
-                  Health & Social Care Faculty
-                </span>
-                <p className="text-xs text-ink-soft leading-relaxed">
-                  Over 15 years experience in NHS leadership and CQC registered
-                  management training.
-                </p>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg border border-line p-6 shadow-subtle space-y-4">
-              <div className="relative aspect-square rounded-sm overflow-hidden bg-line">
-                <Image
-                  src="/images/hero-learner.jpg"
-                  alt="Head of Education and Training"
-                  fill
-                  sizes="300px"
-                  className="object-cover"
-                />
-              </div>
-              <div>
-                <strong className="font-heading font-bold text-lg text-navy-900 block">
-                  Head of Teacher Training
-                </strong>
-                <span className="text-xs font-semibold text-gold-700 block mb-1">
-                  Education & AET Faculty
-                </span>
-                <p className="text-xs text-ink-soft leading-relaxed">
-                  Specialises in micro-teach evaluation, pedagogical assessment,
-                  and adult learner confidence.
-                </p>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg border border-line p-6 shadow-subtle space-y-4">
-              <div className="relative aspect-square rounded-sm overflow-hidden bg-line">
-                <Image
-                  src="/images/certificate-moment.jpg"
-                  alt="Student Welfare and Admissions Coordinator"
-                  fill
-                  sizes="300px"
-                  className="object-cover"
-                />
-              </div>
-              <div>
-                <strong className="font-heading font-bold text-lg text-navy-900 block">
-                  Learner Welfare & Support
-                </strong>
-                <span className="text-xs font-semibold text-gold-700 block mb-1">
-                  Admissions & Mentorship
-                </span>
-                <p className="text-xs text-ink-soft leading-relaxed">
-                  Guides learners from initial enrolment through portfolio
-                  submission and graduation.
-                </p>
-              </div>
-            </div>
+            ))}
           </div>
         </section>
 

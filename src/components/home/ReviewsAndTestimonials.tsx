@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Image from "next/image";
+import { siteConfig } from "@/content/siteConfig";
 import { Container } from "@/components/ui/Container";
 import { Section } from "@/components/ui/Section";
 import { Heading } from "@/components/ui/Heading";
@@ -10,45 +11,6 @@ import { Icon } from "@/components/ui/Icon";
 import { Tag } from "@/components/ui/Tag";
 import { Button } from "@/components/ui/Button";
 import { ConsentGuard } from "@/components/consent/ConsentGuard";
-
-interface Testimonial {
-  name: string;
-  roleOrCourse: string;
-  quote: string;
-  rating: number;
-  image?: string;
-  verified: boolean;
-}
-
-const TESTIMONIALS: Testimonial[] = [
-  {
-    name: "Abigail M.",
-    roleOrCourse: "Level 3 Diploma in Adult Care",
-    quote:
-      "Balancing 12-hour care shifts with study felt impossible before Smartminds. The evening classes fit around my rota, and having every session recorded meant I could rewatch medication administration units on my days off. I received my promotion to Senior Carer within two months of finishing.",
-    rating: 5,
-    image: "/images/hero-learner.jpg",
-    verified: true,
-  },
-  {
-    name: "David K.",
-    roleOrCourse: "Level 3 Award in Education & Training (AET)",
-    quote:
-      "The micro-teach session was what I was most anxious about, but the tutor was constructive and patient. The course gave me the exact teaching credentials I needed to start lecturing at my local FE college. Clear instalment schedule with no surprise charges.",
-    rating: 5,
-    image: "/images/tutor-teaching.jpg",
-    verified: true,
-  },
-  {
-    name: "Grace O.",
-    roleOrCourse: "Level 3 Early Years Educator (EYE)",
-    quote:
-      "I spread my course payments over 6 months, and it was so straightforward. The tutor feedback on my observation files was detailed and prompt. Now I am fully certified to practise as a nursery nurse.",
-    rating: 5,
-    image: "/images/certificate-moment.jpg",
-    verified: true,
-  },
-];
 
 export const ReviewsAndTestimonials: React.FC = () => {
   const [tiktokRequested, setTiktokRequested] = useState(false);
@@ -83,16 +45,16 @@ export const ReviewsAndTestimonials: React.FC = () => {
               ))}
             </div>
             <span className="font-heading font-bold text-navy-900 text-sm">
-              4.9/5.0 Verified Student Rating
+              {siteConfig.reviews.ratingValue} • {siteConfig.reviews.sourceText}
             </span>
           </div>
         </div>
 
         {/* Layout Grid: 3 Testimonials + 1 Video Spotlight Column */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Left Column: 3 Written Testimonials */}
+          {/* Left Column: 3 Written Testimonials from Content Config */}
           <div className="lg:col-span-7 space-y-6">
-            {TESTIMONIALS.map((t) => (
+            {siteConfig.testimonials.map((t) => (
               <div
                 key={t.name}
                 className="bg-white rounded-lg border border-line p-6 shadow-subtle hover:border-navy-900/30 transition-colors"
@@ -110,47 +72,28 @@ export const ReviewsAndTestimonials: React.FC = () => {
                           className="object-cover"
                         />
                       </div>
-                    ) : (
-                      <div className="w-12 h-12 rounded-full bg-navy-900 text-white font-heading font-bold flex items-center justify-center flex-shrink-0">
-                        {t.name.slice(0, 2)}
-                      </div>
-                    )}
-
+                    ) : null}
                     <div>
-                      <h3 className="font-heading font-bold text-base text-navy-900 leading-snug">
+                      <strong className="font-heading font-bold text-lg text-navy-900 block leading-tight">
                         {t.name}
-                      </h3>
-                      <span className="text-xs font-semibold text-gold-700 block">
+                      </strong>
+                      <span className="text-xs text-ink-soft block font-medium">
                         {t.roleOrCourse}
                       </span>
                     </div>
                   </div>
 
-                  {/* Rating Stars */}
-                  <div className="flex items-center gap-1 text-gold-500 flex-shrink-0">
-                    {[...Array(t.rating)].map((_, i) => (
-                      <Icon
-                        key={i}
-                        name="star"
-                        size={13}
-                        className="fill-gold-500 stroke-gold-700"
-                      />
-                    ))}
-                  </div>
+                  {/* PRD Item 5: Visibly flag placeholder status */}
+                  {t.isPlaceholder && (
+                    <span className="text-[10px] uppercase font-mono font-bold bg-navy-900/10 text-navy-900 px-2 py-0.5 rounded-sm">
+                      PLACEHOLDER
+                    </span>
+                  )}
                 </div>
 
-                {/* Review Text */}
                 <p className="text-sm text-ink-soft leading-relaxed italic">
                   &ldquo;{t.quote}&rdquo;
                 </p>
-
-                {/* Verified badge */}
-                {t.verified && (
-                  <div className="mt-4 pt-3 border-t border-line flex items-center gap-1.5 text-xs text-navy-900 font-semibold">
-                    <Icon name="check" size={14} className="text-navy-900" />
-                    <span>Verified Smartminds Graduate</span>
-                  </div>
-                )}
               </div>
             ))}
           </div>

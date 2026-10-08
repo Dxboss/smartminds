@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Icon } from "@/components/ui/Icon";
 
 export interface LogoProps {
-  variant?: "full-color" | "white";
+  variant?: "full-color" | "white" | "mark-only";
   className?: string;
 }
 
@@ -12,6 +12,7 @@ export const Logo: React.FC<LogoProps> = ({
   className = "",
 }) => {
   const isWhite = variant === "white";
+  const isMarkOnly = variant === "mark-only";
 
   const textColor = isWhite ? "text-white" : "text-navy-900";
   const subtextColor = isWhite ? "text-gold-300" : "text-navy-700";
@@ -73,18 +74,20 @@ export const Logo: React.FC<LogoProps> = ({
       </div>
 
       {/* Wordmark */}
-      <div className="flex flex-col leading-none">
-        <span
-          className={`font-heading text-2xl font-bold tracking-tight uppercase ${textColor} transition-colors`}
-        >
-          Smartminds
-        </span>
-        <span
-          className={`text-[9px] font-semibold tracking-[0.22em] uppercase ${subtextColor} transition-colors`}
-        >
-          Training College
-        </span>
-      </div>
+      {!isMarkOnly && (
+        <div className="flex flex-col leading-none">
+          <span
+            className={`font-heading text-2xl font-bold tracking-tight uppercase ${textColor} transition-colors`}
+          >
+            Smartminds
+          </span>
+          <span
+            className={`text-[9px] font-semibold tracking-[0.22em] uppercase ${subtextColor} transition-colors`}
+          >
+            Training College
+          </span>
+        </div>
+      )}
     </Link>
   );
 };

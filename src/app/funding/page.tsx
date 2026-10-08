@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import { siteConfig } from "@/content/siteConfig";
 import { Container } from "@/components/ui/Container";
 import { Heading } from "@/components/ui/Heading";
 import { Eyebrow } from "@/components/ui/Eyebrow";
@@ -67,13 +68,10 @@ export default function FundingPage() {
               </p>
               <div className="p-4 rounded-sm bg-paper border border-line space-y-2">
                 <span className="text-xs font-mono uppercase tracking-wider text-navy-900 font-bold block">
-                  Important Compliance Note (PLACEHOLDER)
+                  {siteConfig.funding.complianceWarning}
                 </span>
-                <p className="text-xs text-ink-soft leading-relaxed">
-                  Funding spaces are allocated on a regional basis and depend on
-                  verified local authority budgets. All submissions undergo
-                  initial administrative pre-screening before official funding
-                  registration.
+                <p className="text-xs text-ink-soft leading-relaxed font-mono">
+                  {siteConfig.funding.eligibilityNote}
                 </p>
               </div>
             </section>

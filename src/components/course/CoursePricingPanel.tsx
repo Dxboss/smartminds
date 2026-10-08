@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Course, CourseLevel, PaymentPlanTemplate } from "@/content/types";
 import { globalSettings } from "@/content/globals";
 import { defaultPlan6Months } from "@/content/plans";
-import { calculatePricing } from "@/content/pricing";
+import { calculatePricing, formatCurrency } from "@/content/pricing";
 import { Tag } from "@/components/ui/Tag";
 import { Icon } from "@/components/ui/Icon";
 import { BookingCTAButton } from "@/components/booking/BookingCTAButton";
@@ -150,15 +150,15 @@ export const CoursePricingPanel: React.FC<CoursePricingPanelProps> = ({
               </span>
               <div className="flex items-baseline gap-2">
                 <span className="font-heading font-bold text-3xl text-navy-900">
-                  £{pricing.fullPayPrice}
+                  {formatCurrency(pricing.fullPayPrice)}
                 </span>
                 <span className="text-sm line-through text-ink-soft">
-                  £{pricing.total}
+                  {formatCurrency(pricing.total)}
                 </span>
               </div>
               <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-gold-300/40 text-xs font-bold text-navy-900">
                 <Icon name="check" size={13} className="text-navy-900" />
-                <span>You save £{pricing.saving} with upfront settlement</span>
+                <span>You save {formatCurrency(pricing.saving)} with upfront settlement</span>
               </div>
             </div>
 
@@ -207,7 +207,7 @@ export const CoursePricingPanel: React.FC<CoursePricingPanelProps> = ({
               >
                 {plans.map((p, idx) => (
                   <option key={idx} value={idx}>
-                    {p.months} monthly instalments
+                    {p.months > 1 ? `${p.months} monthly instalments` : "Single full payment"}
                   </option>
                 ))}
               </select>
@@ -217,24 +217,27 @@ export const CoursePricingPanel: React.FC<CoursePricingPanelProps> = ({
               <div className="flex justify-between items-center text-xs">
                 <span className="text-ink-soft">Deposit required today:</span>
                 <span className="font-heading font-bold text-sm text-navy-900">
-                  £{pricing.deposit}
+                  {formatCurrency(pricing.deposit)}
                 </span>
               </div>
 
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-ink-soft">
-                  Monthly payment ({pricing.months} months):
-                </span>
-                <span className="font-heading font-bold text-sm text-navy-900">
-                  £{pricing.monthly}/mo
-                </span>
-              </div>
+              {/* Hide instalment line when months = 1 (PRD Item 1) */}
+              {pricing.months > 1 && (
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-ink-soft">
+                    Monthly payment ({pricing.months} months):
+                  </span>
+                  <span className="font-heading font-bold text-sm text-navy-900">
+                    {formatCurrency(pricing.monthly)}/mo
+                  </span>
+                </div>
+              )}
 
-              {pricing.finalPayment !== pricing.monthly && (
+              {pricing.months > 1 && pricing.finalPayment !== pricing.monthly && (
                 <div className="flex justify-between items-center text-xs text-ink-soft pt-1 border-t border-line/60">
                   <span>Final payment (absorbs remainder):</span>
                   <span className="font-mono text-navy-900 font-semibold">
-                    £{pricing.finalPayment}
+                    {formatCurrency(pricing.finalPayment)}
                   </span>
                 </div>
               )}
@@ -244,7 +247,7 @@ export const CoursePricingPanel: React.FC<CoursePricingPanelProps> = ({
                   Total course fee:
                 </span>
                 <span className="font-heading font-bold text-xl text-navy-900">
-                  £{pricing.total}
+                  {formatCurrency(pricing.total)}
                 </span>
               </div>
             </div>
@@ -309,7 +312,7 @@ export const CoursePricingPanel: React.FC<CoursePricingPanelProps> = ({
             {selectedLevel.level_label} Pricing
           </span>
           <span className="font-heading font-bold text-lg text-navy-900 leading-none">
-            {isFundedOnly ? "Funded (£0)" : `£${pricing.fullPayPrice}`}
+            {isFundedOnly ? "Funded (£0.00)" : formatCurrency(pricing.fullPayPrice)}
           </span>
         </div>
 

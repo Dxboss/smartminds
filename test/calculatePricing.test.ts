@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { calculatePricing } from "../src/content/pricing";
+import { calculatePricing, formatCurrency } from "../src/content/pricing";
 import { courses } from "../src/content/courses";
 import { globalSettings } from "../src/content/globals";
 
@@ -180,5 +180,12 @@ describe("calculatePricing engine (PRD 10.4)", () => {
     assert.equal(result.monthly, 175);
     assert.equal(result.finalPayment, 175);
     assert.equal(result.total, 800);
+  });
+
+  it("formatCurrency formats prices to two decimals with thousands separators", () => {
+    assert.equal(formatCurrency(445.5), "£445.50");
+    assert.equal(formatCurrency(1305), "£1,305.00");
+    assert.equal(formatCurrency(0), "£0.00");
+    assert.equal(formatCurrency(1234567.8), "£1,234,567.80");
   });
 });

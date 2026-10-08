@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { usePathname } from "next/navigation";
 import { siteConfig } from "@/content/siteConfig";
 import { useBooking } from "@/context/BookingContext";
 import { Button } from "@/components/ui/Button";
@@ -12,6 +13,12 @@ import { Icon } from "@/components/ui/Icon";
  */
 export const MobileBottomBar: React.FC = () => {
   const { openBooking } = useBooking();
+  const pathname = usePathname();
+
+  // Hide mobile action bar inside application portal
+  if (pathname.startsWith("/portal")) {
+    return null;
+  }
 
   return (
     <aside

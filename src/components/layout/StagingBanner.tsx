@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { usePathname } from "next/navigation";
 import { globalSettings } from "@/content/globals";
 import { Icon } from "@/components/ui/Icon";
 
@@ -10,8 +11,9 @@ import { Icon } from "@/components/ui/Icon";
  */
 export const StagingBanner: React.FC = () => {
   const [dismissed, setDismissed] = useState(false);
+  const pathname = usePathname();
 
-  if (!globalSettings.is_staging || dismissed) {
+  if (pathname.startsWith("/portal") || !globalSettings.is_staging || dismissed) {
     return null;
   }
 

@@ -44,6 +44,11 @@ export const Header: React.FC = () => {
     };
   }, [mobileMenuOpen]);
 
+  // Hide marketing website header completely inside application portal
+  if (pathname.startsWith("/portal")) {
+    return null;
+  }
+
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-line shadow-subtle transition-all">
       <Container>

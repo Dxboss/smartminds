@@ -2,7 +2,7 @@ import React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Course } from "@/content/types";
-import { calculatePricing } from "@/content/pricing";
+import { calculatePricing, formatCurrency } from "@/content/pricing";
 import { globalSettings } from "@/content/globals";
 import { defaultPlan6Months } from "@/content/plans";
 import { Icon } from "@/components/ui/Icon";
@@ -14,19 +14,20 @@ export interface CourseCardProps {
 }
 
 /**
- * CourseCover: Clean, breathable visual header.
- * Uses real photography when available, or a refined bespoke British academy
- * monograph cover when awaiting photography to avoid duplicate stock photos.
+ * CourseCover: Consistent visual header for all cards (PRD 7.4 & 10.2).
+ * Every card uses the exact same aspect-[16/9] ratio.
+ * When a dedicated photo exists, it is displayed.
+ * Where there is no photo, all cards receive the exact same neutral treatment.
  */
 const CourseCover: React.FC<{ course: Course; priority?: boolean }> = ({
   course,
   priority = false,
 }) => {
-  // Unique real photos for specific courses to prevent duplicate stock photos
   const hasDedicatedPhoto =
-    course.id === "course-adult-care" ||
-    course.id === "course-aet" ||
-    course.id === "course-leadership-care";
+    Boolean(course.image) &&
+    (course.id === "course-adult-care" ||
+      course.id === "course-aet" ||
+      course.id === "course-leadership-care");
 
   if (hasDedicatedPhoto && course.image) {
     return (
@@ -57,89 +58,41 @@ const CourseCover: React.FC<{ course: Course; priority?: boolean }> = ({
     );
   }
 
-  // Bespoke Monograph Academy Banners for categories awaiting real photography
-  const getMonographTheme = (category: string) => {
-    switch (category) {
-      case "Childcare & Early Years":
-        return {
-          icon: "book-open" as const,
-          faculty: "Early Years Faculty",
-          tag: "EYE Licence to Practise",
-          accentColor: "text-gold-300",
-        };
-      case "Business & Administration":
-        return {
-          icon: "sparkles" as const,
-          faculty: "Business & Management",
-          tag: "RQF Accredited",
-          accentColor: "text-gold-300",
-        };
-      case "Private Tutoring":
-        return {
-          icon: "graduation-cap" as const,
-          faculty: "1-on-1 Academic Tutoring",
-          tag: "KS3 & GCSE Maths & English",
-          accentColor: "text-gold-300",
-        };
-      case "Continuing Professional Development":
-      default:
-        return {
-          icon: "shield-check" as const,
-          faculty: "Healthcare & Social Care",
-          tag: "Certified Compliance Training",
-          accentColor: "text-gold-300",
-        };
-    }
-  };
-
-  const theme = getMonographTheme(course.category);
-
+  // PRD Item 2: Consistent neutral treatment across all cards lacking photography
   return (
-    <div className="relative aspect-[16/9] w-full overflow-hidden bg-navy-900 border-b border-line p-5 sm:p-6 flex flex-col justify-between text-white transition-all group-hover:bg-[#282578]">
-      {/* Subtle geometric architectural linework */}
-      <div
-        className="absolute inset-0 opacity-10 pointer-events-none"
-        style={{
-          backgroundImage:
-            "radial-gradient(circle at 100% 0%, rgba(217, 184, 74, 0.35) 0%, transparent 60%)",
-        }}
-        aria-hidden="true"
-      />
-
-      {/* Top Header inside Monograph */}
-      <div className="relative z-10 flex items-center justify-between">
-        <span className="text-[11px] font-mono uppercase tracking-widest text-gold-300 font-semibold">
-          {theme.faculty}
+    <div className="relative aspect-[16/9] w-full overflow-hidden bg-paper border-b border-line p-5 sm:p-6 flex flex-col justify-between text-navy-900 transition-colors">
+      {/* Top Header */}
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] font-mono uppercase tracking-wider text-ink-soft font-semibold">
+          {course.category}
         </span>
-        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm text-[10px] font-semibold bg-white/10 text-white border border-white/10">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm text-[10px] font-semibold bg-white text-navy-900 border border-line">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
           Live Online
         </span>
       </div>
 
-      {/* Center Motif with Icon & Short Title */}
-      <div className="relative z-10 flex items-center gap-3.5 my-auto py-2">
-        <div className="w-11 h-11 rounded-sm bg-white/10 border border-gold-500/30 flex items-center justify-center flex-shrink-0 group-hover:border-gold-500 transition-colors">
-          <Icon name={theme.icon} size={22} className="text-gold-500" />
+      {/* Center Motif with Uniform Neutral Icon */}
+      <div className="flex items-center gap-3.5 my-auto py-2">
+        <div className="w-11 h-11 rounded-sm bg-white border border-line flex items-center justify-center flex-shrink-0 text-navy-900 shadow-sm group-hover:border-navy-900/30 transition-colors">
+          <Icon name="graduation-cap" size={22} className="text-navy-900" />
         </div>
         <div className="min-w-0">
-          <span className="text-[11px] font-semibold text-white/70 block uppercase tracking-wider font-mono">
-            {theme.tag}
+          <span className="text-[11px] font-mono text-ink-soft block uppercase tracking-wider">
+            Smartminds College
           </span>
-          <strong className="font-heading font-bold text-lg sm:text-xl text-white leading-tight block truncate">
-            {course.title.replace(/\s*\([^)]*\)/g, "")}
+          <strong className="font-heading font-bold text-lg text-navy-900 leading-tight block truncate">
+            {course.awarding_body ? `Awarded by ${course.awarding_body}` : "Regulated Qualification"}
           </strong>
         </div>
       </div>
 
       {/* Bottom Rule */}
-      <div className="relative z-10 flex items-center justify-between text-[11px] text-white/60 font-mono pt-2 border-t border-white/10">
-        <span>Smartminds College</span>
-        {course.awarding_body && (
-          <span className="text-gold-300 font-semibold">
-            {course.awarding_body}
-          </span>
-        )}
+      <div className="flex items-center justify-between text-[11px] text-ink-soft font-mono pt-2 border-t border-line">
+        <span>Curriculum Delivery</span>
+        <span className="text-navy-900 font-semibold font-sans">
+          {course.type === "regulated" ? "RQF Regulated" : "CPD Accredited"}
+        </span>
       </div>
     </div>
   );
@@ -147,7 +100,10 @@ const CourseCover: React.FC<{ course: Course; priority?: boolean }> = ({
 
 /**
  * CourseCard: Spacious, breathable, human-designed course card.
- * Replaces choked stacked boxes with an open, elegant editorial structure.
+ * PRD 7.4 & 10.2:
+ * - Titles wrap naturally instead of truncating (no line-clamp-2).
+ * - Format all prices to two decimals with thousands separators (£445.50, £1,305.00).
+ * - Hide instalment line when months = 1.
  */
 export const CourseCard: React.FC<CourseCardProps> = ({
   course,
@@ -170,7 +126,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
 
   return (
     <article className="group bg-white rounded-lg border border-line shadow-subtle hover:border-navy-900/40 hover:shadow-md transition-all duration-300 flex flex-col justify-between overflow-hidden">
-      {/* 1. Spacious Visual Header (No heavy stickers covering faces) */}
+      {/* 1. Spacious Visual Header (Consistent aspect-[16/9] on all cards) */}
       <CourseCover course={course} priority={priority} />
 
       {/* 2. Open, Breathing Card Body */}
@@ -189,8 +145,8 @@ export const CourseCard: React.FC<CourseCardProps> = ({
             )}
           </div>
 
-          {/* Course Title */}
-          <HeadingTag className="font-heading text-2xl font-bold text-navy-900 group-hover:text-navy-700 transition-colors leading-tight line-clamp-2">
+          {/* Course Title: Wraps naturally instead of truncating (PRD Item 2) */}
+          <HeadingTag className="font-heading text-2xl font-bold text-navy-900 group-hover:text-navy-700 transition-colors leading-tight">
             <Link
               href={`/courses/${course.slug}`}
               className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 rounded-sm"
@@ -234,9 +190,9 @@ export const CourseCard: React.FC<CourseCardProps> = ({
           </div>
         </div>
 
-        {/* 3. Open, De-Choked Footer: Price on Left, Action on Right (No nested gray boxes) */}
+        {/* 3. Open Footer: Price on Left, Action on Right */}
         <div className="pt-5 border-t border-line flex items-end justify-between gap-4">
-          {/* Price Block */}
+          {/* Price Block (Formatted to two decimal places per PRD Item 1) */}
           {course.funding === "funded" ? (
             <div>
               <span className="text-[11px] uppercase tracking-wider text-ink-soft block font-mono">
@@ -256,20 +212,23 @@ export const CourseCard: React.FC<CourseCardProps> = ({
               </span>
               <div className="flex items-baseline gap-2">
                 <span className="font-heading font-bold text-2xl text-navy-900 leading-tight">
-                  £{pricing.fullPayPrice}
+                  {formatCurrency(pricing.fullPayPrice)}
                 </span>
                 {pricing.saving > 0 && (
                   <span className="text-xs line-through text-ink-soft">
-                    £{pricing.total}
+                    {formatCurrency(pricing.total)}
                   </span>
                 )}
               </div>
-              <span className="text-xs text-ink-soft block mt-0.5 font-medium">
-                Or spread{" "}
-                <strong className="text-navy-700 font-bold">
-                  £{pricing.monthly}/mo
-                </strong>
-              </span>
+              {/* Hide instalment line when months = 1 (PRD Item 1) */}
+              {pricing.months > 1 && (
+                <span className="text-xs text-ink-soft block mt-0.5 font-medium">
+                  Or spread{" "}
+                  <strong className="text-navy-700 font-bold">
+                    {formatCurrency(pricing.monthly)}/mo
+                  </strong>
+                </span>
+              )}
             </div>
           ) : null}
 

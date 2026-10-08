@@ -3,14 +3,13 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
-import { PortalHeader } from "@/components/portal/PortalHeader";
-import { Container } from "@/components/ui/Container";
+import { PortalShell, PortalMenuItem } from "@/components/portal/PortalShell";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 
 export default function StudentPortalPage() {
   const { user, isAuthenticated, loginAs } = useAuth();
-  const [activeTab, setActiveTab] = useState<"classes" | "units" | "recordings" | "instalments">("classes");
+  const [activeSection, setActiveSection] = useState("classes");
   const [assignmentSubmitted, setAssignmentSubmitted] = useState(false);
   const [assignmentNotes, setAssignmentNotes] = useState("");
   const [showLiveModal, setShowLiveModal] = useState(false);
@@ -19,44 +18,61 @@ export default function StudentPortalPage() {
   // If user is not logged in or in another role, give quick switcher banner
   if (!isAuthenticated || user?.role !== "student") {
     return (
-      <div className="min-h-screen bg-paper flex flex-col">
-        <PortalHeader
-          portalRole="student"
-          portalTitle="Learner Portal"
-          subtitle="Smartminds Virtual Learning Campus"
-        />
-        <main className="flex-1 flex items-center justify-center p-6">
-          <div className="max-w-md w-full bg-white p-8 rounded-md border border-line text-center space-y-4 shadow-card">
-            <div className="w-12 h-12 rounded-full bg-gold-300/30 text-navy-900 mx-auto flex items-center justify-center">
-              <Icon name="graduation-cap" size={24} />
-            </div>
-            <h1 className="font-heading text-2xl font-bold uppercase text-navy-900">
-              Learner Portal Access
-            </h1>
-            <p className="text-sm text-ink-soft">
-              You are currently not logged in as an enrolled student.
-            </p>
-            <div className="pt-2 space-y-2">
-              <Button
-                variant="primary"
-                fullWidth
-                size="md"
-                onClick={() => loginAs("student")}
-              >
-                1-Click Sign In as Sarah Jenkins (Student)
-              </Button>
-              <Link
-                href="/login"
-                className="block text-xs font-semibold text-ink-soft hover:text-navy-900 underline pt-2"
-              >
-                Go to standard login screen
-              </Link>
-            </div>
+      <div className="min-h-screen bg-paper flex items-center justify-center p-6">
+        <div className="max-w-md w-full bg-white p-8 rounded-md border border-line text-center space-y-4 shadow-card">
+          <div className="w-12 h-12 rounded-full bg-gold-300/30 text-navy-900 mx-auto flex items-center justify-center">
+            <Icon name="graduation-cap" size={24} />
           </div>
-        </main>
+          <h1 className="font-heading text-2xl font-bold uppercase text-navy-900">
+            Learner Portal Access
+          </h1>
+          <p className="text-sm text-ink-soft">
+            You are currently not logged in as an enrolled student.
+          </p>
+          <div className="pt-2 space-y-2">
+            <Button
+              variant="primary"
+              fullWidth
+              size="md"
+              onClick={() => loginAs("student")}
+            >
+              1-Click Sign In as Sarah Jenkins (Student)
+            </Button>
+            <Link
+              href="/login"
+              className="block text-xs font-semibold text-ink-soft hover:text-navy-900 underline pt-2"
+            >
+              Go to standard login screen
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }
+
+  const menuItems: PortalMenuItem[] = [
+    {
+      id: "classes",
+      label: "Live Classes & Timetable",
+      icon: "video",
+      badge: "Today",
+    },
+    {
+      id: "units",
+      label: "Course Units & Assignments",
+      icon: "book-open",
+    },
+    {
+      id: "recordings",
+      label: "Recorded Lectures Vault",
+      icon: "clock",
+    },
+    {
+      id: "instalments",
+      label: "Tuition & Instalments",
+      icon: "credit-card",
+    },
+  ];
 
   const courseUnits = [
     {
@@ -147,447 +163,398 @@ export default function StudentPortalPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-paper flex flex-col">
-      <PortalHeader
-        portalRole="student"
-        portalTitle="Learner Portal"
-        subtitle="Virtual Campus • Adult Care Faculty"
-      />
-
-      <main className="flex-1 py-8">
-        <Container>
-          {/* Welcome Banner & Enrolled Course Summary */}
-          <div className="bg-navy-900 text-white rounded-md p-6 sm:p-8 shadow-card mb-8 relative overflow-hidden">
-            {/* Subtle background arc */}
-            <div className="absolute right-0 top-0 bottom-0 w-1/3 opacity-10 pointer-events-none hidden md:block">
-              <svg viewBox="0 0 100 100" fill="none" className="w-full h-full text-gold-500">
-                <circle cx="100" cy="50" r="45" stroke="currentColor" strokeWidth="8" />
-              </svg>
+    <PortalShell
+      role="student"
+      portalTitle="Learner Portal"
+      portalSubtitle="Virtual Campus • Adult Care Faculty"
+      menuItems={menuItems}
+      activeSection={activeSection}
+      onSectionChange={setActiveSection}
+    >
+      <div className="space-y-8 max-w-7xl mx-auto">
+        {/* Course Progress & Welcome Card */}
+        <div className="bg-navy-900 text-white rounded-md p-6 sm:p-8 shadow-card relative overflow-hidden">
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="space-y-2">
+              <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded bg-gold-500/20 text-gold-300 text-xs font-bold uppercase tracking-wider">
+                <Icon name="check-circle" size={13} className="text-gold-300" />
+                <span>Verified Learner • ID: SM-9281</span>
+              </div>
+              <h1 className="font-heading text-3xl sm:text-4xl font-bold uppercase tracking-tight text-white">
+                Welcome back, {user?.name}
+              </h1>
+              <p className="text-sm text-paper/80 max-w-2xl">
+                {user?.enrolledCourse || "Level 3 Diploma in Adult Care (RQF)"} •{" "}
+                <span className="text-gold-300">{user?.cohort || "Cohort March 2026"}</span> • TQUK Regulated
+              </p>
             </div>
 
-            <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            {/* Academic Meter */}
+            <div className="bg-navy-700/80 border border-navy-700 p-4 rounded-sm min-w-[240px] space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-paper/80">Academic Progress</span>
+                <span className="font-bold text-gold-300">68%</span>
+              </div>
+              <div className="w-full h-2 bg-navy-900 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gold-500 rounded-full transition-all"
+                  style={{ width: "68%" }}
+                />
+              </div>
+              <p className="text-[11px] text-paper/70">12 of 18 Guided Units Completed</p>
+            </div>
+          </div>
+        </div>
+
+        {/* SECTION 1: Live Classes & Timetable */}
+        {activeSection === "classes" && (
+          <div className="space-y-8">
+            {/* Live Class Spotlight */}
+            <div className="bg-white rounded-md border-2 border-gold-500/60 p-6 sm:p-8 shadow-card space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <span className="relative flex h-3.5 w-3.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-red-600" />
+                  </span>
+                  <span className="text-xs uppercase font-bold tracking-wider text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded">
+                    Live Session Today
+                  </span>
+                  <span className="text-xs text-ink-soft">18:30 – 20:00 GMT (90 Mins)</span>
+                </div>
+
+                <span className="text-xs font-semibold text-navy-900 bg-paper px-3 py-1 rounded border border-line">
+                  Room: Virtual Lecture Hall B
+                </span>
+              </div>
+
               <div className="space-y-2">
-                <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded bg-gold-500/20 text-gold-300 text-xs font-bold uppercase tracking-wider">
-                  <Icon name="check-circle" size={13} className="text-gold-300" />
-                  <span>Enrolled & Verified • Student ID: SM-9281</span>
-                </div>
-                <h1 className="font-heading text-3xl sm:text-4xl font-bold uppercase tracking-tight text-white">
-                  Welcome back, {user?.name}
-                </h1>
-                <p className="text-sm text-paper/80 max-w-2xl">
-                  {user?.enrolledCourse || "Level 3 Diploma in Adult Care (RQF)"} •{" "}
-                  <span className="text-gold-300">{user?.cohort || "Cohort March 2026"}</span> • TQUK Awarding Body Reference 603/2823/1
+                <h2 className="font-heading text-2xl sm:text-3xl font-bold uppercase tracking-tight text-navy-900">
+                  Unit 304: Person-Centred Assessment & Care Planning
+                </h2>
+                <p className="text-base text-ink-soft max-w-3xl">
+                  Interactive workshop focusing on practical scenario analysis, holistic need assessments, and care plan documentation for Adult Care inspection compliance.
                 </p>
               </div>
 
-              {/* Course Progress Widget */}
-              <div className="bg-navy-700/80 border border-navy-700 p-4 rounded-sm min-w-[240px] space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-paper/80">Overall Academic Progress</span>
-                  <span className="font-bold text-gold-300">68%</span>
+              <div className="flex flex-wrap items-center gap-6 pt-2 border-t border-line text-sm text-ink-soft">
+                <div className="flex items-center gap-2">
+                  <Icon name="user" size={16} className="text-navy-900" />
+                  <span>Lead Tutor: <strong>Dr. Marcus Vance</strong></span>
                 </div>
-                <div className="w-full h-2 bg-navy-900 rounded-full overflow-hidden">
-                  <div className="h-full bg-gold-500 rounded-full transition-all" style={{ width: "68%" }} />
+                <div className="flex items-center gap-2">
+                  <Icon name="users" size={16} className="text-navy-900" />
+                  <span>16 Learners attending</span>
                 </div>
-                <p className="text-[11px] text-paper/70">
-                  12 of 18 Guided Units Completed
-                </p>
+              </div>
+
+              <div className="pt-2 flex flex-wrap gap-3">
+                <Button
+                  variant="primary"
+                  size="lg"
+                  onClick={() => setShowLiveModal(true)}
+                  className="min-h-[46px] flex items-center gap-2"
+                >
+                  <Icon name="video" size={18} />
+                  <span>Join Live Classroom</span>
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard?.writeText?.("https://meet.smartmindstraining.co.uk/room/unit-304-sarah");
+                    alert("Classroom link copied: https://meet.smartmindstraining.co.uk/room/unit-304-sarah");
+                  }}
+                  className="px-4 py-2.5 text-sm font-semibold rounded-sm border border-line bg-paper text-navy-900 hover:bg-white transition-colors min-h-[46px]"
+                >
+                  Copy Room Link
+                </button>
               </div>
             </div>
-          </div>
 
-          {/* Portal Navigation Tabs */}
-          <div className="flex items-center gap-2 border-b border-line mb-8 overflow-x-auto pb-1" role="tablist">
-            {[
-              { id: "classes" as const, label: "Live Classroom & Timetable", icon: "video" as const },
-              { id: "units" as const, label: "Course Units & Assignments", icon: "book-open" as const },
-              { id: "recordings" as const, label: "Recorded Lectures Vault", icon: "clock" as const },
-              { id: "instalments" as const, label: "Tuition & Instalment Schedule", icon: "credit-card" as const },
-            ].map((tab) => {
-              const isSelected = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={isSelected}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 py-3 px-4 text-sm font-semibold whitespace-nowrap rounded-t-sm border-b-2 transition-all min-h-[44px] ${
-                    isSelected
-                      ? "border-navy-900 text-navy-900 bg-white font-bold"
-                      : "border-transparent text-ink-soft hover:text-navy-900 hover:bg-white/50"
-                  }`}
-                >
-                  <Icon name={tab.icon} size={16} />
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* TAB 1: Live Classroom & Timetable */}
-          {activeTab === "classes" && (
-            <div className="space-y-8">
-              {/* Upcoming Live Class Spotlight Card */}
-              <div className="bg-white rounded-md border-2 border-gold-500/60 p-6 sm:p-8 shadow-card space-y-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <span className="relative flex h-3.5 w-3.5">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-                      <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-red-600" />
-                    </span>
-                    <span className="text-xs uppercase font-bold tracking-wider text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded">
-                      Live Session Today
-                    </span>
-                    <span className="text-xs text-ink-soft">18:30 – 20:00 GMT (90 Mins)</span>
+            {/* Timetable List */}
+            <div className="bg-white rounded-md border border-line p-6 shadow-subtle space-y-4">
+              <h3 className="font-heading text-xl font-bold uppercase text-navy-900">
+                Weekly Timetable
+              </h3>
+              <div className="divide-y divide-line">
+                <div className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-bold text-navy-900">Thursday 09 Oct • 18:30 – 19:30 GMT</p>
+                    <p className="text-xs text-ink-soft">Unit 304 Tutorial & Individual Assignment Q&A Surgery</p>
                   </div>
-
-                  <span className="text-xs font-semibold text-navy-900 bg-paper px-3 py-1 rounded border border-line">
-                    Room: Virtual Lecture Hall B
+                  <span className="text-xs font-semibold text-navy-900 bg-paper px-2.5 py-1 rounded border border-line self-start sm:self-auto">
+                    Optional 1-on-1 Surgery
                   </span>
                 </div>
+                <div className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-bold text-navy-900">Tuesday 14 Oct • 18:30 – 20:00 GMT</p>
+                    <p className="text-xs text-ink-soft">Unit 305: Role of the Care Worker</p>
+                  </div>
+                  <span className="text-xs font-semibold text-navy-900 bg-paper px-2.5 py-1 rounded border border-line self-start sm:self-auto">
+                    Scheduled Live Class
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
-                <div className="space-y-2">
-                  <h2 className="font-heading text-2xl sm:text-3xl font-bold uppercase tracking-tight text-navy-900">
-                    Unit 304: Person-Centred Assessment & Care Planning
+        {/* SECTION 2: Course Units & Assignments */}
+        {activeSection === "units" && (
+          <div className="space-y-8">
+            <div className="bg-white rounded-md border border-line shadow-card overflow-hidden">
+              <div className="p-6 border-b border-line flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h2 className="font-heading text-2xl font-bold uppercase text-navy-900">
+                    Guided Qualification Units
                   </h2>
-                  <p className="text-base text-ink-soft max-w-3xl">
-                    Live interactive workshop focusing on practical scenario analysis, holistic need assessments, and care plan documentation for Adult Care inspection compliance.
+                  <p className="text-xs text-ink-soft">
+                    Level 3 Diploma in Adult Care (RQF) • Total credits: 58
                   </p>
                 </div>
-
-                <div className="flex flex-wrap items-center gap-6 pt-2 border-t border-line text-sm text-ink-soft">
-                  <div className="flex items-center gap-2">
-                    <Icon name="user" size={16} className="text-navy-900" />
-                    <span>Lead Tutor: <strong>Dr. Marcus Vance</strong></span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Icon name="users" size={16} className="text-navy-900" />
-                    <span>16 Learners attending</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Icon name="shield-check" size={16} className="text-gold-500" />
-                    <span>Attendance counts toward Guided Learning Hours</span>
-                  </div>
-                </div>
-
-                <div className="pt-2 flex flex-wrap gap-3">
-                  <Button
-                    variant="primary"
-                    size="lg"
-                    onClick={() => setShowLiveModal(true)}
-                    className="min-h-[46px] flex items-center gap-2"
-                  >
-                    <Icon name="video" size={18} />
-                    <span>Join Live Classroom</span>
-                  </Button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigator.clipboard?.writeText?.("https://meet.smartmindstraining.co.uk/room/unit-304-sarah");
-                      alert("Classroom link copied to clipboard: https://meet.smartmindstraining.co.uk/room/unit-304-sarah");
-                    }}
-                    className="px-4 py-2.5 text-sm font-semibold rounded-sm border border-line bg-paper text-navy-900 hover:bg-white transition-colors min-h-[46px]"
-                  >
-                    Copy Room Link
-                  </button>
-                </div>
+                <span className="text-xs font-bold text-navy-900 bg-gold-300/30 px-3 py-1 rounded border border-gold-500/30">
+                  4 Units Passed • 1 Awaiting Mark • 1 In Progress
+                </span>
               </div>
 
-              {/* Weekly Schedule */}
-              <div className="bg-white rounded-md border border-line p-6 shadow-subtle space-y-4">
-                <h3 className="font-heading text-xl font-bold uppercase text-navy-900">
-                  Remaining Timetable This Week
-                </h3>
-                <div className="divide-y divide-line">
-                  <div className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div>
-                      <p className="text-sm font-bold text-navy-900">Thursday 09 Oct • 18:30 – 19:30 GMT</p>
-                      <p className="text-xs text-ink-soft">Unit 304 Tutorial & Individual Assignment Q&A Surgery</p>
-                    </div>
-                    <span className="text-xs font-semibold text-navy-900 bg-paper px-2.5 py-1 rounded border border-line self-start sm:self-auto">
-                      Optional 1-on-1 Surgery
-                    </span>
-                  </div>
-                  <div className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div>
-                      <p className="text-sm font-bold text-navy-900">Tuesday 14 Oct • 18:30 – 20:00 GMT</p>
-                      <p className="text-xs text-ink-soft">Unit 305: Understanding the Role of the Adult Social Care Worker</p>
-                    </div>
-                    <span className="text-xs font-semibold text-navy-900 bg-paper px-2.5 py-1 rounded border border-line self-start sm:self-auto">
-                      Scheduled Live Class
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 2: Course Units & Assignments */}
-          {activeTab === "units" && (
-            <div className="space-y-8">
-              {/* Unit List */}
-              <div className="bg-white rounded-md border border-line shadow-card overflow-hidden">
-                <div className="p-6 border-b border-line flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
-                    <h2 className="font-heading text-2xl font-bold uppercase text-navy-900">
-                      Guided Qualification Units
-                    </h2>
-                    <p className="text-xs text-ink-soft">
-                      Level 3 Diploma in Adult Care (RQF) • Total credits: 58
-                    </p>
-                  </div>
-                  <span className="text-xs font-bold text-navy-900 bg-gold-300/30 px-3 py-1 rounded border border-gold-500/30">
-                    4 Units Assessed • 1 Awaiting Mark • 1 In Progress
-                  </span>
-                </div>
-
-                <div className="divide-y divide-line">
-                  {courseUnits.map((unit) => (
-                    <div key={unit.code} className="p-6 hover:bg-paper/30 transition-colors space-y-3">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                        <div className="flex items-center gap-3">
-                          <span className="font-heading font-bold text-lg text-navy-900">
-                            {unit.code}
-                          </span>
-                          <span className="text-xs text-ink-soft bg-paper px-2 py-0.5 rounded border border-line">
-                            {unit.credits} Credits
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`text-xs font-bold px-2.5 py-1 rounded border ${
-                              unit.status === "passed"
-                                ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                                : unit.status === "in_progress"
-                                ? "bg-gold-300/30 text-navy-900 border-gold-500/50"
-                                : unit.status === "submitted"
-                                ? "bg-blue-50 text-blue-800 border-blue-200"
-                                : "bg-paper text-ink-soft border-line"
-                            }`}
-                          >
-                            {unit.grade}
-                          </span>
-                        </div>
-                      </div>
-
-                      <h3 className="text-base font-semibold text-navy-900">
-                        {unit.title}
-                      </h3>
-
-                      <p className="text-xs text-ink-soft bg-paper p-3 rounded-sm border border-line">
-                        <strong>Assessor Note:</strong> {unit.feedback}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Assignment Submission Box */}
-              <div className="bg-white rounded-md border border-line p-6 sm:p-8 shadow-card space-y-4">
-                <div className="flex items-center gap-2">
-                  <Icon name="file-text" size={20} className="text-navy-900" />
-                  <h3 className="font-heading text-xl font-bold uppercase text-navy-900">
-                    Submit Assignment for Unit 304
-                  </h3>
-                </div>
-                <p className="text-sm text-ink-soft">
-                  Upload your completed care plan assessment case study (PDF or DOCX format, maximum 25MB).
-                </p>
-
-                {assignmentSubmitted ? (
-                  <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-sm text-sm text-emerald-900 space-y-2">
-                    <div className="flex items-center gap-2 font-bold">
-                      <Icon name="check-circle" size={18} className="text-emerald-700" />
-                      <span>Assignment successfully submitted for grading!</span>
-                    </div>
-                    <p className="text-xs text-emerald-800">
-                      Your assessor Dr. Marcus Vance has been notified. You will receive written feedback within 5 working days.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-4 pt-2">
-                    <div className="border-2 border-dashed border-line hover:border-gold-500 rounded-sm p-6 text-center bg-paper cursor-pointer transition-colors">
-                      <Icon name="download" size={28} className="text-navy-900 mx-auto mb-2 rotate-180" />
-                      <p className="text-sm font-semibold text-navy-900">
-                        Drag & drop assignment file here, or click to browse
-                      </p>
-                      <p className="text-xs text-ink-soft mt-1">
-                        Accepted: Unit304_SarahJenkins_v1.pdf or .docx
-                      </p>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label htmlFor="student-notes" className="text-xs font-semibold text-navy-900">
-                        Optional notes for your tutor
-                      </label>
-                      <textarea
-                        id="student-notes"
-                        rows={3}
-                        value={assignmentNotes}
-                        onChange={(e) => setAssignmentNotes(e.target.value)}
-                        placeholder="e.g. Please refer to Section 3 for my observation log signed by the residential home manager."
-                        className="w-full p-3 text-sm bg-paper border border-line rounded-sm focus:outline-none focus:ring-2 focus:ring-navy-900"
-                      />
-                    </div>
-
-                    <Button
-                      variant="primary"
-                      size="md"
-                      onClick={() => setAssignmentSubmitted(true)}
-                    >
-                      Submit Assignment to Tutor
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* TAB 3: Recorded Lectures Vault */}
-          {activeTab === "recordings" && (
-            <div className="space-y-6">
-              <div className="bg-white rounded-md border border-line p-6 shadow-card space-y-2">
-                <h2 className="font-heading text-2xl font-bold uppercase text-navy-900">
-                  Recorded Classroom Video Vault
-                </h2>
-                <p className="text-sm text-ink-soft">
-                  Missed a live class or want to review before submitting an assessment? Stream previous cohorts sessions at 1080p with lecture slides.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {recordings.map((rec) => (
-                  <div key={rec.id} className="bg-white rounded-md border border-line p-5 shadow-subtle flex flex-col justify-between space-y-4">
-                    <div className="space-y-2">
-                      <div className="aspect-video bg-navy-900 rounded-sm flex items-center justify-center relative group overflow-hidden">
-                        <div className="w-12 h-12 rounded-full bg-gold-500 text-navy-900 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform cursor-pointer"
-                          onClick={() => setSelectedVideo(rec.title)}
-                        >
-                          <svg className="w-5 h-5 ml-1 fill-current" viewBox="0 0 24 24">
-                            <path d="M8 5v14l11-7z" />
-                          </svg>
-                        </div>
-                        <span className="absolute bottom-2 right-2 text-[10px] font-bold bg-black/70 text-white px-1.5 py-0.5 rounded">
-                          {rec.duration}
+              <div className="divide-y divide-line">
+                {courseUnits.map((unit) => (
+                  <div key={unit.code} className="p-6 hover:bg-paper/30 transition-colors space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-3">
+                        <span className="font-heading font-bold text-lg text-navy-900">
+                          {unit.code}
+                        </span>
+                        <span className="text-xs text-ink-soft bg-paper px-2 py-0.5 rounded border border-line">
+                          {unit.credits} Credits
                         </span>
                       </div>
-                      <div className="flex items-center justify-between text-xs text-ink-soft pt-1">
-                        <span>{rec.date}</span>
-                        <span>{rec.tutor}</span>
-                      </div>
-                      <h3 className="text-sm font-bold text-navy-900 leading-snug">
-                        {rec.title}
-                      </h3>
+                      <span
+                        className={`text-xs font-bold px-2.5 py-1 rounded border ${
+                          unit.status === "passed"
+                            ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                            : unit.status === "in_progress"
+                            ? "bg-gold-300/30 text-navy-900 border-gold-500/50"
+                            : unit.status === "submitted"
+                            ? "bg-blue-50 text-blue-800 border-blue-200"
+                            : "bg-paper text-ink-soft border-line"
+                        }`}
+                      >
+                        {unit.grade}
+                      </span>
                     </div>
 
-                    <div className="pt-2 border-t border-line flex items-center justify-between">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedVideo(rec.title)}
-                        className="text-xs font-bold text-navy-900 hover:text-gold-700 underline flex items-center gap-1"
-                      >
-                        <Icon name="video" size={14} />
-                        <span>Watch Replay</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => alert(`Downloading slides: ${rec.slidesPdf}`)}
-                        className="text-xs text-ink-soft hover:text-navy-900 flex items-center gap-1"
-                        title="Download Lecture Slides PDF"
-                      >
-                        <Icon name="download" size={13} />
-                        <span>Slides (.PDF)</span>
-                      </button>
-                    </div>
+                    <h3 className="text-base font-semibold text-navy-900">{unit.title}</h3>
+                    <p className="text-xs text-ink-soft bg-paper p-3 rounded-sm border border-line">
+                      <strong>Assessor Note:</strong> {unit.feedback}
+                    </p>
                   </div>
                 ))}
               </div>
             </div>
-          )}
 
-          {/* TAB 4: Tuition & Instalment Schedule */}
-          {activeTab === "instalments" && (
-            <div className="space-y-8">
-              <div className="bg-white rounded-md border border-line p-6 sm:p-8 shadow-card space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
-                    <h2 className="font-heading text-2xl font-bold uppercase text-navy-900">
-                      Tuition & Instalment Plan Ledger
-                    </h2>
-                    <p className="text-xs text-ink-soft">
-                      6-Month Flexible Payment Schedule • Total Course Fee: £1,350.00
+            {/* Assignment Submission Box */}
+            <div className="bg-white rounded-md border border-line p-6 sm:p-8 shadow-card space-y-4">
+              <h3 className="font-heading text-xl font-bold uppercase text-navy-900">
+                Submit Assignment for Unit 304
+              </h3>
+              <p className="text-sm text-ink-soft">
+                Upload your completed care plan assessment case study (PDF or DOCX format).
+              </p>
+
+              {assignmentSubmitted ? (
+                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-sm text-sm text-emerald-900 space-y-2">
+                  <div className="flex items-center gap-2 font-bold">
+                    <Icon name="check-circle" size={18} className="text-emerald-700" />
+                    <span>Assignment successfully submitted for grading!</span>
+                  </div>
+                  <p className="text-xs text-emerald-800">
+                    Your assessor Dr. Marcus Vance has been notified.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4 pt-2">
+                  <div className="border-2 border-dashed border-line hover:border-gold-500 rounded-sm p-6 text-center bg-paper cursor-pointer transition-colors">
+                    <Icon name="download" size={28} className="text-navy-900 mx-auto mb-2 rotate-180" />
+                    <p className="text-sm font-semibold text-navy-900">
+                      Drag & drop assignment file here, or click to browse
+                    </p>
+                    <p className="text-xs text-ink-soft mt-1">
+                      Accepted: Unit304_SarahJenkins_v1.pdf or .docx
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => alert("Downloading official VAT tuition payment receipt (PDF)")}
-                    className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-navy-900 bg-paper border border-line rounded-sm hover:bg-white transition-colors self-start sm:self-auto"
+
+                  <div className="space-y-1">
+                    <label htmlFor="student-notes" className="text-xs font-semibold text-navy-900">
+                      Optional notes for your tutor
+                    </label>
+                    <textarea
+                      id="student-notes"
+                      rows={3}
+                      value={assignmentNotes}
+                      onChange={(e) => setAssignmentNotes(e.target.value)}
+                      placeholder="e.g. Please refer to Section 3 for my observation log."
+                      className="w-full p-3 text-sm bg-paper border border-line rounded-sm focus:outline-none focus:ring-2 focus:ring-navy-900"
+                    />
+                  </div>
+
+                  <Button
+                    variant="primary"
+                    size="md"
+                    onClick={() => setAssignmentSubmitted(true)}
                   >
-                    <Icon name="download" size={15} />
-                    <span>Download Official VAT Receipt</span>
-                  </button>
+                    Submit Assignment to Tutor
+                  </Button>
                 </div>
+              )}
+            </div>
+          </div>
+        )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-                  <div className="bg-paper p-4 rounded-sm border border-line">
-                    <p className="text-xs text-ink-soft">Total Paid to Date</p>
-                    <p className="text-2xl font-heading font-bold text-navy-900">£750.00</p>
-                    <span className="text-[11px] text-emerald-700 font-semibold">Deposit + 3 Instalments</span>
-                  </div>
-                  <div className="bg-paper p-4 rounded-sm border border-line">
-                    <p className="text-xs text-ink-soft">Next Payment Due</p>
-                    <p className="text-2xl font-heading font-bold text-navy-900">£200.00</p>
-                    <span className="text-[11px] text-amber-700 font-semibold">Due 01 May 2026</span>
-                  </div>
-                  <div className="bg-paper p-4 rounded-sm border border-line">
-                    <p className="text-xs text-ink-soft">Remaining Balance</p>
-                    <p className="text-2xl font-heading font-bold text-navy-900">£600.00</p>
-                    <span className="text-[11px] text-ink-soft font-semibold">3 Instalments Remaining</span>
-                  </div>
-                </div>
+        {/* SECTION 3: Recorded Lectures Vault */}
+        {activeSection === "recordings" && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-md border border-line p-6 shadow-card space-y-2">
+              <h2 className="font-heading text-2xl font-bold uppercase text-navy-900">
+                Recorded Classroom Video Vault
+              </h2>
+              <p className="text-sm text-ink-soft">
+                Missed a live class or want to review? Stream past sessions at 1080p with lecture slides.
+              </p>
+            </div>
 
-                <div className="overflow-x-auto pt-4">
-                  <table className="w-full text-left text-sm">
-                    <thead>
-                      <tr className="border-b border-line text-xs font-bold uppercase text-navy-900 bg-paper/50">
-                        <th className="py-3 px-4">Item</th>
-                        <th className="py-3 px-4">Amount</th>
-                        <th className="py-3 px-4">Due Date</th>
-                        <th className="py-3 px-4">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-line">
-                      {instalmentPlan.map((item, idx) => (
-                        <tr key={idx} className="hover:bg-paper/30">
-                          <td className="py-3 px-4 font-semibold text-navy-900">{item.label}</td>
-                          <td className="py-3 px-4 font-bold text-navy-900">{item.amount}</td>
-                          <td className="py-3 px-4 text-ink-soft">{item.dueDate}</td>
-                          <td className="py-3 px-4">
-                            <span
-                              className={`text-[11px] font-bold px-2.5 py-0.5 rounded border uppercase ${
-                                item.status === "paid"
-                                  ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                                  : item.status === "upcoming"
-                                  ? "bg-amber-50 text-amber-900 border-amber-200"
-                                  : "bg-paper text-ink-soft border-line"
-                              }`}
-                            >
-                              {item.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {recordings.map((rec) => (
+                <div
+                  key={rec.id}
+                  className="bg-white rounded-md border border-line p-5 shadow-subtle flex flex-col justify-between space-y-4"
+                >
+                  <div className="space-y-2">
+                    <div
+                      className="aspect-video bg-navy-900 rounded-sm flex items-center justify-center relative group overflow-hidden cursor-pointer"
+                      onClick={() => setSelectedVideo(rec.title)}
+                    >
+                      <div className="w-12 h-12 rounded-full bg-gold-500 text-navy-900 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                        <svg className="w-5 h-5 ml-1 fill-current" viewBox="0 0 24 24">
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                      </div>
+                      <span className="absolute bottom-2 right-2 text-[10px] font-bold bg-black/70 text-white px-1.5 py-0.5 rounded">
+                        {rec.duration}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-ink-soft pt-1">
+                      <span>{rec.date}</span>
+                      <span>{rec.tutor}</span>
+                    </div>
+                    <h3 className="text-sm font-bold text-navy-900 leading-snug">{rec.title}</h3>
+                  </div>
+
+                  <div className="pt-2 border-t border-line flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedVideo(rec.title)}
+                      className="text-xs font-bold text-navy-900 hover:text-gold-700 underline flex items-center gap-1"
+                    >
+                      <Icon name="video" size={14} />
+                      <span>Watch Replay</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => alert(`Downloading slides: ${rec.slidesPdf}`)}
+                      className="text-xs text-ink-soft hover:text-navy-900 flex items-center gap-1"
+                      title="Download Slides PDF"
+                    >
+                      <Icon name="download" size={13} />
+                      <span>Slides (.PDF)</span>
+                    </button>
+                  </div>
                 </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* SECTION 4: Tuition & Instalments */}
+        {activeSection === "instalments" && (
+          <div className="bg-white rounded-md border border-line p-6 sm:p-8 shadow-card space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="font-heading text-2xl font-bold uppercase text-navy-900">
+                  Tuition & Payment Plan Ledger
+                </h2>
+                <p className="text-xs text-ink-soft">
+                  6-Month Flexible Payment Schedule • Total Course Fee: £1,350.00
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => alert("Downloading official VAT tuition payment receipt (PDF)")}
+                className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-navy-900 bg-paper border border-line rounded-sm hover:bg-white transition-colors self-start sm:self-auto"
+              >
+                <Icon name="download" size={15} />
+                <span>Download VAT Receipt</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-paper p-4 rounded-sm border border-line">
+                <p className="text-xs text-ink-soft">Total Paid to Date</p>
+                <p className="text-2xl font-heading font-bold text-navy-900">£750.00</p>
+                <span className="text-[11px] text-emerald-700 font-semibold">Deposit + 3 Instalments</span>
+              </div>
+              <div className="bg-paper p-4 rounded-sm border border-line">
+                <p className="text-xs text-ink-soft">Next Payment Due</p>
+                <p className="text-2xl font-heading font-bold text-navy-900">£200.00</p>
+                <span className="text-[11px] text-amber-700 font-semibold">Due 01 May 2026</span>
+              </div>
+              <div className="bg-paper p-4 rounded-sm border border-line">
+                <p className="text-xs text-ink-soft">Remaining Balance</p>
+                <p className="text-2xl font-heading font-bold text-navy-900">£600.00</p>
+                <span className="text-[11px] text-ink-soft font-semibold">3 Instalments Remaining</span>
               </div>
             </div>
-          )}
-        </Container>
-      </main>
 
-      {/* Live Classroom Modal Simulator */}
+            <div className="overflow-x-auto pt-2">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-line text-xs font-bold uppercase text-navy-900 bg-paper/50">
+                    <th className="py-3 px-4">Item</th>
+                    <th className="py-3 px-4">Amount</th>
+                    <th className="py-3 px-4">Due Date</th>
+                    <th className="py-3 px-4">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {instalmentPlan.map((item, idx) => (
+                    <tr key={idx} className="hover:bg-paper/30">
+                      <td className="py-3 px-4 font-semibold text-navy-900">{item.label}</td>
+                      <td className="py-3 px-4 font-bold text-navy-900">{item.amount}</td>
+                      <td className="py-3 px-4 text-ink-soft">{item.dueDate}</td>
+                      <td className="py-3 px-4">
+                        <span
+                          className={`text-[11px] font-bold px-2.5 py-0.5 rounded border uppercase ${
+                            item.status === "paid"
+                              ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                              : item.status === "upcoming"
+                              ? "bg-amber-50 text-amber-900 border-amber-200"
+                              : "bg-paper text-ink-soft border-line"
+                          }`}
+                        >
+                          {item.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Live Classroom Modal */}
       {showLiveModal && (
         <div
           role="dialog"
@@ -598,7 +565,7 @@ export default function StudentPortalPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-navy-900 font-bold font-heading text-xl uppercase">
                 <Icon name="video" size={22} className="text-red-600" />
-                <span>Smartminds Virtual Classroom</span>
+                <span>Virtual Classroom</span>
               </div>
               <button
                 type="button"
@@ -611,14 +578,10 @@ export default function StudentPortalPage() {
             </div>
 
             <div className="p-4 bg-paper rounded-sm border border-line space-y-2">
-              <p className="text-xs uppercase font-bold text-navy-900">Current Session Details</p>
+              <p className="text-xs uppercase font-bold text-navy-900">Current Session</p>
               <p className="text-sm font-bold text-navy-900">Unit 304: Person-Centred Assessment & Care Planning</p>
               <p className="text-xs text-ink-soft">Tutor: Dr. Marcus Vance • Audio & Video Ready</p>
             </div>
-
-            <p className="text-sm text-ink-soft">
-              Connecting to secure Google Meet / Zoom institutional classroom bridge with your student credentials (Sarah Jenkins - ID 9281).
-            </p>
 
             <div className="flex items-center gap-3 pt-2">
               <Button
@@ -630,13 +593,9 @@ export default function StudentPortalPage() {
                   setShowLiveModal(false);
                 }}
               >
-                Launch Classroom in New Tab
+                Launch Room in New Tab
               </Button>
-              <Button
-                variant="outline"
-                size="md"
-                onClick={() => setShowLiveModal(false)}
-              >
+              <Button variant="outline" size="md" onClick={() => setShowLiveModal(false)}>
                 Cancel
               </Button>
             </div>
@@ -668,9 +627,9 @@ export default function StudentPortalPage() {
 
             <div className="aspect-video bg-navy-900 rounded-sm flex flex-col items-center justify-center text-white p-6 text-center space-y-3">
               <Icon name="video" size={40} className="text-gold-500 animate-pulse" />
-              <p className="font-heading text-lg font-bold">1080p Lecture Playback Stream</p>
-              <p className="text-xs text-paper/70 max-w-md">
-                Recorded live session. Speed controls (1x, 1.25x, 1.5x) and closed captions available in the player controls.
+              <p className="font-heading text-lg font-bold">1080p Lecture Playback</p>
+              <p className="text-xs text-paper/70">
+                Speed controls & closed captions ready.
               </p>
             </div>
 
@@ -682,6 +641,6 @@ export default function StudentPortalPage() {
           </div>
         </div>
       )}
-    </div>
+    </PortalShell>
   );
 }

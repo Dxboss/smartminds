@@ -1,0 +1,277 @@
+import { Course, CourseLevel, PaymentPlanTemplate } from "@/content/types";
+
+export type UserRole =
+  | "student"
+  | "tutor"
+  | "admin_staff"
+  | "owner_admin"
+  | "super_admin";
+
+export interface SessionUser {
+  id: string;
+  email: string;
+  name: string;
+  role: UserRole;
+  learnerId?: string;
+  tutorId?: string;
+}
+
+export class PermissionDeniedError extends Error {
+  constructor(message: string = "Access denied: insufficient permissions.") {
+    super(message);
+    this.name = "PermissionDeniedError";
+  }
+}
+
+export interface Learner {
+  id: string;
+  userId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  enrolmentDate: string;
+  accessStatus: "active" | "paused";
+  notes?: string;
+}
+
+export interface ClassCohort {
+  id: string;
+  name: string;
+  courseId: string;
+  courseLevelLabel: string;
+  tutorId: string;
+  tutorName: string;
+  intakeLabel: string;
+  scheduleDescription: string;
+  nextSessionDate?: string;
+  zoomLink?: string;
+}
+
+export interface ClassSession {
+  id: string;
+  classId: string;
+  title: string;
+  scheduledAt: string;
+  durationMinutes: number;
+  zoomLink?: string;
+  recordingUrl?: string;
+  attendanceTracked?: boolean;
+}
+
+export type EnrolmentStatus = "active" | "paused" | "completed" | "cancelled";
+export type FundingStatus = "self_pay" | "funded";
+
+export interface Enrolment {
+  id: string;
+  learnerId: string;
+  courseId: string;
+  courseSlug: string;
+  courseTitle: string;
+  courseLevelLabel: string;
+  classId: string;
+  enrolledAt: string;
+  status: EnrolmentStatus;
+  fundingType: FundingStatus;
+  assessmentMethod: "criteria" | "completion" | "quiz";
+  completedUnits: string[];
+  certificateIssued?: boolean;
+}
+
+export type PaymentMethod = "stripe" | "bank_transfer" | "manual";
+export type PaymentStatus = "paid" | "due" | "overdue" | "cancelled";
+
+export interface PaymentRecord {
+  id: string;
+  enrolmentId: string;
+  learnerId: string;
+  learnerName: string;
+  courseTitle: string;
+  amountGbp: number;
+  method: PaymentMethod;
+  reference: string;
+  status: "paid" | "refunded";
+  paidAt: string;
+  notes?: string;
+}
+
+export interface PaymentScheduleItem {
+  id: string;
+  enrolmentId: string;
+  learnerId: string;
+  instalmentNumber: number;
+  totalInstalments: number;
+  amountGbp: number;
+  dueDate: string;
+  status: PaymentStatus;
+  paidAt?: string;
+  graceExpiryDate: string;
+}
+
+export interface LearnerPaymentPlanSummary {
+  enrolmentId: string;
+  courseTitle: string;
+  totalAmountGbp: number;
+  totalPaidGbp: number;
+  balanceRemainingGbp: number;
+  nextDueDate?: string;
+  nextDueAmountGbp?: number;
+  status: "up_to_date" | "due" | "overdue" | "settled";
+  schedule: PaymentScheduleItem[];
+  history: PaymentRecord[];
+}
+
+export interface LedgerSummary {
+  receivedThisMonthGbp: number;
+  totalOutstandingGbp: number;
+  overdueLearnersCount: number;
+  upcomingInstalmentsCount: number;
+}
+
+export interface Assignment {
+  id: string;
+  classId: string;
+  tutorId: string;
+  unitCode: string;
+  title: string;
+  instructions: string;
+  deadline: string;
+  createdAt: string;
+}
+
+export type SubmissionStatus = "submitted" | "not_submitted" | "marked";
+export type UnitResultOutcome = "achieved" | "not_yet_achieved" | "pending";
+
+export interface Submission {
+  id: string;
+  assignmentId: string;
+  learnerId: string;
+  learnerName: string;
+  unitCode: string;
+  fileName?: string;
+  fileSizeBytes?: number;
+  submittedAt?: string;
+  status: SubmissionStatus;
+  outcome?: UnitResultOutcome;
+  feedback?: string;
+  markedByTutorId?: string;
+  markedAt?: string;
+}
+
+export type TaskPriority = "low" | "medium" | "high";
+export type TaskStatus = "pending" | "in_progress" | "completed";
+
+export interface Task {
+  id: string;
+  title: string;
+  description: string;
+  assignedToId: string;
+  assignedToName: string;
+  assignedByRole: "owner_admin" | "super_admin";
+  deadline: string;
+  status: TaskStatus;
+  isOverdue: boolean;
+  createdAt: string;
+  completedAt?: string;
+}
+
+export interface Booking {
+  id: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  courseInterest: string;
+  scheduledAt: string;
+  status: "confirmed" | "completed" | "rescheduled" | "cancelled";
+  timeZone: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface AvailabilityRule {
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  slotDurationMinutes: number;
+}
+
+export interface BlockedDay {
+  date: string;
+  reason?: string;
+}
+
+export interface MessageTemplate {
+  id: string;
+  key: string;
+  title: string;
+  subject: string;
+  bodyTemplate: string;
+  allowedPlaceholders: string[];
+  category: "enrolment" | "attendance" | "assignment" | "payment" | "general";
+}
+
+export interface MessageLogEntry {
+  id: string;
+  templateId: string;
+  sentByUserId: string;
+  sentByRole: UserRole;
+  recipientEmail: string;
+  subject: string;
+  renderedBody: string;
+  sentAt: string;
+}
+
+export type FeatureModuleKey =
+  | "payments_ledger"
+  | "booking_native"
+  | "tutors_management"
+  | "tasks"
+  | "student_portal"
+  | "assignments_grading"
+  | "recordings"
+  | "evidence_packs"
+  | "ai_submission_checks"
+  | "advanced_reports"
+  | "mobile_app";
+
+export interface FeatureEntitlement {
+  module_key: FeatureModuleKey;
+  name: string;
+  description: string;
+  enabled: boolean;
+  enabled_by: string;
+  enabled_at: string;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  actorUserId: string;
+  actorEmail: string;
+  actorRole: UserRole;
+  action: string;
+  details: string;
+  timestamp: string;
+}
+
+export interface FeedbackItem {
+  id: string;
+  pageUrl: string;
+  role: UserRole;
+  reviewerName: string;
+  note: string;
+  status: "new" | "accepted" | "done";
+  createdAt: string;
+}
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  name: string;
+  role: UserRole;
+  active: boolean;
+  createdAt: string;
+  tutorId?: string;
+  learnerId?: string;
+}
+
+export type { Course, CourseLevel, PaymentPlanTemplate };

@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import { courses } from "@/content";
+import { courses, formatCurrency } from "@/content";
 import { Container } from "@/components/ui/Container";
 import { Heading } from "@/components/ui/Heading";
 import { Eyebrow } from "@/components/ui/Eyebrow";
@@ -135,7 +135,7 @@ export default function CPDPage() {
                         Fee
                       </span>
                       <strong className="font-heading font-bold text-xl text-navy-900">
-                        £{level?.price_gbp || 95}
+                        {formatCurrency(level?.price_gbp || 95)}
                       </strong>
                     </div>
 

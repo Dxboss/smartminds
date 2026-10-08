@@ -2,6 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { siteConfig } from "@/content/siteConfig";
 import { useConsent } from "@/context/ConsentContext";
 import { Logo } from "./Logo";
@@ -11,6 +12,12 @@ import { Tag } from "@/components/ui/Tag";
 
 export const Footer: React.FC = () => {
   const { openManage } = useConsent();
+  const pathname = usePathname();
+
+  // Hide marketing website footer completely inside application portal
+  if (pathname.startsWith("/portal")) {
+    return null;
+  }
 
   return (
     <footer className="bg-navy-900 text-white pt-16 pb-24 lg:pb-16 border-t border-navy-700/60">
@@ -114,19 +121,19 @@ export const Footer: React.FC = () => {
             </h3>
             <ul className="space-y-3 text-sm text-white/80">
               <li className="flex items-start gap-2.5">
-                <Icon name="phone" size={18} className="text-gold-500 mt-0.5" />
+                <Icon name="phone" size={18} className="text-gold-500 mt-0.5 flex-shrink-0" />
                 <a
                   href={`tel:${siteConfig.contact.phone}`}
-                  className="hover:text-white transition-colors"
+                  className="hover:text-white transition-colors inline-block whitespace-nowrap"
                 >
                   {siteConfig.contact.phoneDisplay}
                 </a>
               </li>
               <li className="flex items-start gap-2.5">
-                <Icon name="mail" size={18} className="text-gold-500 mt-0.5" />
+                <Icon name="mail" size={18} className="text-gold-500 mt-0.5 flex-shrink-0" />
                 <a
-                  href={`mailto:${siteConfig.contact.email}`}
-                  className="hover:text-white transition-colors break-all"
+                  href="mailto:info@smartmindstraining.co.uk"
+                  className="hover:text-white transition-colors inline-block whitespace-nowrap"
                 >
                   {siteConfig.contact.email}
                 </a>
@@ -135,7 +142,7 @@ export const Footer: React.FC = () => {
                 <Icon
                   name="whatsapp"
                   size={18}
-                  className="text-gold-500 mt-0.5"
+                  className="text-gold-500 mt-0.5 flex-shrink-0"
                 />
                 <a
                   href={siteConfig.contact.whatsappUrl}
@@ -143,7 +150,10 @@ export const Footer: React.FC = () => {
                   rel="noopener noreferrer"
                   className="hover:text-white transition-colors"
                 >
-                  WhatsApp: {siteConfig.contact.whatsappDisplay}
+                  WhatsApp:{" "}
+                  <span className="inline-block whitespace-nowrap">
+                    {siteConfig.contact.whatsappDisplay}
+                  </span>
                 </a>
               </li>
               <li className="flex items-start gap-2.5">

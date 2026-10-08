@@ -1,100 +1,282 @@
 "use client";
 
 import React, { useState } from "react";
-import { useAuth, UserRole } from "@/context/AuthContext";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
+import {
+  authenticateUser,
+  confirmRoleSelection,
+  AvailableRole,
+  RoleType,
+} from "@/app/login/actions";
 
 export const LoginForm: React.FC = () => {
-  const { loginAs, loginWithCredentials } = useAuth();
-  const [selectedRole, setSelectedRole] = useState<UserRole>("student");
+  const router = useRouter();
+
+  // Screen state: "credentials" | "select_role" | "requires_2fa"
+  const [step, setStep] = useState<"credentials" | "select_role" | "requires_2fa">(
+    "credentials"
+  );
+
+  // Form fields
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [keepSignedIn, setKeepSignedIn] = useState(false); // Unticked by default per PRD
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [showForgotPasswordInfo, setShowForgotPasswordInfo] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Server-determined state
+  const [availableRoles, setAvailableRoles] = useState<AvailableRole[]>([]);
+
+  // Staging evaluation demo access flag (off by default, never in production)
+  const isDemoMode =
+    process.env.NEXT_PUBLIC_DEMO_MODE === "true" ||
+    process.env.DEMO_MODE === "true";
+
+  const handleCredentialsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage("");
+    setShowForgotPasswordInfo(false);
 
     if (!email || !email.includes("@")) {
-      setErrorMessage("Please enter a valid college email address.");
+      setErrorMessage("Please enter a valid email address.");
       return;
     }
 
-    if (!password || password.length < 4) {
-      setErrorMessage("Please enter your password (minimum 4 characters).");
+    if (!password || password.length < 6) {
+      setErrorMessage("Please enter your password (minimum 6 characters).");
       return;
     }
 
     setIsLoading(true);
     try {
-      await loginWithCredentials(email, selectedRole);
+      // The client sends only credentials. The SERVER reads the user's role.
+      const result = await authenticateUser({
+        email,
+        password,
+        keepSignedIn,
+      });
+
+      if (!result.success) {
+        setErrorMessage(result.error || "Authentication failed. Please verify your details.");
+        setIsLoading(false);
+        return;
+      }
+
+      // Case 1: Account holds multiple roles -> user picks which area to enter
+      if (result.requiresRoleSelection && result.availableRoles) {
+        setAvailableRoles(result.availableRoles);
+        setStep("select_role");
+        setIsLoading(false);
+        return;
+      }
+
+      // Case 2: Staff or Admin role -> requires second verification step
+      if (result.requires2FA) {
+        setStep("requires_2fa");
+        setIsLoading(false);
+        return;
+      }
+
+      // Case 3: Single role ready for redirect (e.g. student)
+      if (result.redirectUrl) {
+        router.push(result.redirectUrl);
+        return;
+      }
+
+      setIsLoading(false);
     } catch {
-      setErrorMessage("Authentication failed. Please verify your details.");
+      setErrorMessage("A connection error occurred. Please try again.");
       setIsLoading(false);
     }
   };
 
-  const roleTabInfo = [
-    {
-      role: "student" as UserRole,
-      label: "Learner Portal",
-      description: "Class timetable, course units, homework & payment plan",
-    },
-    {
-      role: "staff" as UserRole,
-      label: "Tutor Console",
-      description: "Live sessions, cohort roster, and assignment grading",
-    },
-    {
-      role: "owner_admin" as UserRole,
-      label: "Admin / Owner",
-      description: "Live leads inbox, student enrolments & tuition ledger",
-    },
-  ];
+  const handleRoleSelection = async (role: RoleType) => {
+    setIsLoading(true);
+    setErrorMessage("");
 
-  return (
-    <div className="w-full max-w-xl mx-auto space-y-8">
-      {/* Role Switcher Tabs */}
-      <div className="bg-paper p-1.5 rounded-sm border border-line">
-        <div className="grid grid-cols-3 gap-1" role="tablist" aria-label="Login Role Selection">
-          {roleTabInfo.map((tab) => {
-            const isSelected = selectedRole === tab.role;
-            return (
+    try {
+      const result = await confirmRoleSelection(email, role);
+
+      if (result.requires2FA) {
+        setStep("requires_2fa");
+        setIsLoading(false);
+        return;
+      }
+
+      if (result.redirectUrl) {
+        router.push(result.redirectUrl);
+        return;
+      }
+
+      setIsLoading(false);
+    } catch {
+      setErrorMessage("Could not route to the selected area. Please try again.");
+      setIsLoading(false);
+    }
+  };
+
+  const handleResetToCredentials = () => {
+    setStep("credentials");
+    setAvailableRoles([]);
+    setErrorMessage("");
+    setIsLoading(false);
+  };
+
+  // =========================================================================
+  // Screen 1: Multi-role area selection
+  // (Server identified several roles; user picks which area to enter)
+  // =========================================================================
+  if (step === "select_role") {
+    return (
+      <div className="w-full max-w-xl mx-auto space-y-6">
+        <div className="bg-white rounded-md border border-line shadow-card p-6 sm:p-8 space-y-6">
+          <div className="text-center space-y-2 border-b border-line pb-5">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm bg-navy-900/5 text-navy-900 text-xs font-semibold">
+              <Icon name="users" size={14} />
+              <span>Multi-Role Account</span>
+            </div>
+            <h2 className="font-heading text-2xl sm:text-3xl font-bold uppercase text-navy-900">
+              Select Area to Enter
+            </h2>
+            <p className="text-sm text-ink-soft">
+              Your account ({email}) is authorised for multiple areas. Please choose which portal to open.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            {availableRoles.map((item) => (
               <button
-                key={tab.role}
+                key={item.role}
                 type="button"
-                role="tab"
-                aria-selected={isSelected}
-                onClick={() => {
-                  setSelectedRole(tab.role);
-                  setErrorMessage("");
-                }}
-                className={`py-3 px-2 text-center text-sm font-semibold rounded-sm transition-all min-h-[44px] flex flex-col items-center justify-center ${
-                  isSelected
-                    ? "bg-white text-navy-900 shadow-sm border border-line font-bold"
-                    : "text-ink-soft hover:text-navy-900 hover:bg-white/60"
-                }`}
+                onClick={() => handleRoleSelection(item.role)}
+                disabled={isLoading}
+                className="w-full text-left p-4 rounded-sm border border-line bg-paper hover:bg-white hover:border-navy-900 transition-all flex items-center justify-between group min-h-[56px]"
               >
-                <span>{tab.label}</span>
+                <div className="space-y-1 pr-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-navy-900">
+                      {item.label}
+                    </span>
+                    <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-sm bg-white border border-line text-ink-soft">
+                      {item.role === "staff" ? "Tutor" : item.role === "admin" ? "Staff" : "Learner"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-ink-soft">{item.description}</p>
+                </div>
+                <div className="w-8 h-8 rounded-full bg-white border border-line flex items-center justify-center text-navy-900 group-hover:bg-navy-900 group-hover:text-white transition-colors flex-shrink-0">
+                  <Icon name="chevron-right" size={16} />
+                </div>
               </button>
-            );
-          })}
+            ))}
+          </div>
+
+          <div className="pt-2 text-center">
+            <button
+              type="button"
+              onClick={handleResetToCredentials}
+              className="text-xs font-semibold text-ink-soft hover:text-navy-900 inline-flex items-center gap-1.5"
+            >
+              <Icon name="arrow-left" size={14} />
+              <span>Sign in with a different account</span>
+            </button>
+          </div>
         </div>
       </div>
+    );
+  }
 
-      {/* Role explanation */}
-      <div className="text-center px-4">
-        <p className="text-sm text-ink-soft">
-          {roleTabInfo.find((r) => r.role === selectedRole)?.description}
-        </p>
+  // =========================================================================
+  // Screen 2: Two-Step Verification Placeholder Screen
+  // (Staff & Admin roles get a second verification step. Not faked.)
+  // =========================================================================
+  if (step === "requires_2fa") {
+    return (
+      <div className="w-full max-w-xl mx-auto space-y-6">
+        <div className="bg-white rounded-md border border-line shadow-card p-6 sm:p-8 space-y-6">
+          <div className="text-center space-y-2">
+            <div className="w-12 h-12 rounded-full bg-navy-900/5 text-navy-900 mx-auto flex items-center justify-center">
+              <Icon name="shield-check" size={24} />
+            </div>
+            {/* PRD Item 1: Heading in sentence case matching other headings */}
+            <h2 className="font-heading text-2xl sm:text-3xl font-bold text-navy-900">
+              Two-step verification
+            </h2>
+            <p className="text-sm text-ink-soft">
+              Staff and administrative accounts require a second verification factor before access is granted.
+            </p>
+          </div>
+
+          {/*
+            PRD Item 3: Do not display an account name or role on this screen unless
+            it came from a verified server session.
+            Roles and account identities are NEVER read from browser storage (localStorage),
+            URL search parameters, or client form fields.
+          */}
+
+          {/* PRD Item 2: Plain message for visitors */}
+          <div className="p-4 bg-paper rounded-sm border border-line text-center space-y-1">
+            <p className="text-sm font-semibold text-navy-900">
+              Staff sign-in opens soon. If you are a student, your login details are sent when you enrol.
+            </p>
+          </div>
+
+          {/*
+            PRD Item 2: Technical developer notice is shown ONLY when the DEMO_MODE environment
+            flag is true (off by default and excluded from production).
+            TODO: Phase 1b - Integrate Supabase Auth MFA / TOTP verification (PRD Section 12.1 & 17).
+          */}
+          {isDemoMode && (
+            <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-sm space-y-2">
+              <div className="flex items-start gap-2.5">
+                <Icon name="info" size={18} className="text-navy-900 mt-0.5 flex-shrink-0" />
+                <div className="space-y-1">
+                  <p className="text-xs font-bold text-navy-900">
+                    Developer Notice (DEMO_MODE=true)
+                  </p>
+                  <p className="text-xs text-ink-soft leading-relaxed">
+                    Real two-step verification using an authenticator app (TOTP) is specified for Phase 1b Supabase Auth rollout. Live access is restricted until authentication services and 2FA secrets are provisioned.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              fullWidth
+              size="md"
+              onClick={handleResetToCredentials}
+              className="min-h-[44px]"
+            >
+              <Icon name="arrow-left" size={16} />
+              <span>Return to sign in</span>
+            </Button>
+          </div>
+        </div>
+
+        {/* Security line */}
+        <div className="text-center text-xs text-ink-soft flex items-center justify-center gap-2">
+          <Icon name="shield-check" size={16} className="text-navy-900" />
+          <span>Protected sign-in. Staff accounts use two-step verification.</span>
+        </div>
       </div>
+    );
+  }
 
+  // =========================================================================
+  // Screen 3: Standard Single Sign-In Form (PRD Section 3 & 12.1)
+  // =========================================================================
+  return (
+    <div className="w-full max-w-xl mx-auto space-y-6">
       {/* Main Login Card */}
       <div className="bg-white rounded-md border border-line shadow-card p-6 sm:p-8">
-        <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+        <form onSubmit={handleCredentialsSubmit} className="space-y-5" noValidate>
           {errorMessage && (
             <div
               role="alert"
@@ -105,53 +287,61 @@ export const LoginForm: React.FC = () => {
             </div>
           )}
 
+          {showForgotPasswordInfo && (
+            <div
+              role="status"
+              className="p-3.5 bg-paper border border-line rounded-sm text-xs text-ink-soft space-y-1.5"
+            >
+              <p className="font-semibold text-navy-900 flex items-center gap-1.5">
+                <Icon name="info" size={14} />
+                <span>Password Reset Support</span>
+              </p>
+              <p className="leading-relaxed">
+                To reset your password, contact college support at{" "}
+                <a
+                  href="mailto:admissions@smartmindstraining.co.uk"
+                  className="font-medium text-navy-900 underline"
+                >
+                  admissions@smartmindstraining.co.uk
+                </a>
+                . Automated self-service password recovery will be enabled with Phase 1b authentication.
+              </p>
+            </div>
+          )}
+
           {/* Email input */}
           <div className="space-y-1.5">
             <label
-              htmlFor="college-email"
+              htmlFor="email"
               className="block text-sm font-semibold text-navy-900"
             >
-              Registered Email Address
+              Email address
             </label>
-            <div className="relative">
-              <input
-                id="college-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder={
-                  selectedRole === "student"
-                    ? "learner@example.co.uk"
-                    : selectedRole === "staff"
-                    ? "tutor@smartmindstraining.co.uk"
-                    : "admin@smartmindstraining.co.uk"
-                }
-                autoComplete="email"
-                required
-                className="w-full px-3.5 py-3 text-base text-ink bg-paper border border-line rounded-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-navy-900 focus:border-transparent transition-colors min-h-[44px]"
-              />
-            </div>
-            <p className="text-xs text-ink-soft">
-              Enter the email address registered during your enrolment or induction.
-            </p>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@smartmindstraining.co.uk"
+              autoComplete="email"
+              required
+              className="w-full px-3.5 py-3 text-base text-ink bg-paper border border-line rounded-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-navy-900 focus:border-transparent transition-colors min-h-[44px]"
+            />
           </div>
 
           {/* Password input */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <label
-                htmlFor="college-password"
+                htmlFor="password"
                 className="block text-sm font-semibold text-navy-900"
               >
                 Password
               </label>
               <button
                 type="button"
-                onClick={() =>
-                  alert(
-                    "Password reset request received. Please contact college support at info@smartmindstraining.co.uk if you are locked out."
-                  )
-                }
+                onClick={() => setShowForgotPasswordInfo(!showForgotPasswordInfo)}
                 className="text-xs text-navy-900 hover:text-gold-700 underline font-medium"
               >
                 Forgot password?
@@ -159,7 +349,8 @@ export const LoginForm: React.FC = () => {
             </div>
             <div className="relative">
               <input
-                id="college-password"
+                id="password"
+                name="password"
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -174,28 +365,30 @@ export const LoginForm: React.FC = () => {
                 className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-ink-soft hover:text-navy-900 min-w-[44px] justify-center"
                 aria-label={showPassword ? "Hide password" : "Show password"}
               >
-                <Icon name="info" size={18} />
+                <Icon name={showPassword ? "close" : "info"} size={18} />
               </button>
             </div>
           </div>
 
-          {/* Remember Me */}
+          {/* Keep me signed in (unticked by default) */}
           <div className="flex items-center gap-2 pt-1">
             <input
-              id="remember-session"
+              id="keep-signed-in"
+              name="keepSignedIn"
               type="checkbox"
-              defaultChecked
-              className="w-4 h-4 rounded border-line text-navy-900 focus:ring-navy-900"
+              checked={keepSignedIn}
+              onChange={(e) => setKeepSignedIn(e.target.checked)}
+              className="w-4 h-4 rounded-sm border-line text-navy-900 focus:ring-navy-900"
             />
             <label
-              htmlFor="remember-session"
-              className="text-sm text-ink-soft select-none"
+              htmlFor="keep-signed-in"
+              className="text-sm text-ink-soft select-none cursor-pointer"
             >
-              Keep me signed in on this device
+              Keep me signed in
             </label>
           </div>
 
-          {/* Submit CTA */}
+          {/* Single Submit Button */}
           <Button
             type="submit"
             variant="primary"
@@ -210,88 +403,67 @@ export const LoginForm: React.FC = () => {
                 <span>Signing in...</span>
               </span>
             ) : (
-              <span>Sign in to {roleTabInfo.find((r) => r.role === selectedRole)?.label}</span>
+              <span>Sign in</span>
             )}
           </Button>
         </form>
 
-        {/* 1-Click Preview Demo Accounts for Pair Programming & Testing */}
-        <div className="mt-8 pt-6 border-t border-line space-y-3">
-          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-navy-900">
-            <span className="w-2 h-2 rounded-full bg-gold-500" />
-            <span>Instant Preview Access (1-Click Evaluation)</span>
+        {/*
+          Staging Preview Demo Access (Strictly gated by DEMO_MODE environment flag;
+          off by default and never included in standard production builds).
+        */}
+        {isDemoMode && (
+          <div className="mt-8 pt-6 border-t border-line space-y-3">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-navy-900">
+              <span className="w-2 h-2 rounded-full bg-gold-500" />
+              <span>Staging Preview Test Credentials (DEMO_MODE=true)</span>
+            </div>
+            <p className="text-xs text-ink-soft">
+              Click any role to test server-side authentication and routing:
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setEmail("sarah.jenkins@example.co.uk");
+                  setPassword("password123");
+                }}
+                className="p-2.5 text-left bg-paper hover:bg-white border border-line rounded-sm text-xs"
+              >
+                <span className="font-bold text-navy-900 block">Student</span>
+                <span className="text-[11px] text-ink-soft block">Learner route</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEmail("marcus.vance@smartmindstraining.co.uk");
+                  setPassword("password123");
+                }}
+                className="p-2.5 text-left bg-paper hover:bg-white border border-line rounded-sm text-xs"
+              >
+                <span className="font-bold text-navy-900 block">Tutor (Staff)</span>
+                <span className="text-[11px] text-ink-soft block">Triggers 2FA</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEmail("multi.role@smartmindstraining.co.uk");
+                  setPassword("password123");
+                }}
+                className="p-2.5 text-left bg-paper hover:bg-white border border-line rounded-sm text-xs"
+              >
+                <span className="font-bold text-navy-900 block">Multi-Role</span>
+                <span className="text-[11px] text-ink-soft block">Area picker</span>
+              </button>
+            </div>
           </div>
-          <p className="text-xs text-ink-soft">
-            Test any of the 3 portal environments directly without entering credentials:
-          </p>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
-            <button
-              type="button"
-              onClick={() => loginAs("student")}
-              className="p-3 text-left bg-paper hover:bg-gold-300/20 border border-line hover:border-gold-500 rounded-sm transition-all group"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-navy-900">Sarah Jenkins</span>
-                <span className="text-[10px] uppercase font-bold text-navy-900 bg-white px-1.5 py-0.5 rounded border border-line">
-                  Learner
-                </span>
-              </div>
-              <p className="text-[11px] text-ink-soft mt-1 leading-snug">
-                Adult Care Diploma
-              </p>
-              <span className="text-[11px] font-semibold text-navy-900 group-hover:text-gold-700 mt-2 flex items-center gap-1">
-                Open Learner Portal <Icon name="arrow-right" size={12} />
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => loginAs("staff")}
-              className="p-3 text-left bg-paper hover:bg-gold-300/20 border border-line hover:border-gold-500 rounded-sm transition-all group"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-navy-900">Dr. M. Vance</span>
-                <span className="text-[10px] uppercase font-bold text-navy-900 bg-white px-1.5 py-0.5 rounded border border-line">
-                  Tutor
-                </span>
-              </div>
-              <p className="text-[11px] text-ink-soft mt-1 leading-snug">
-                Faculty Assessor
-              </p>
-              <span className="text-[11px] font-semibold text-navy-900 group-hover:text-gold-700 mt-2 flex items-center gap-1">
-                Open Tutor Console <Icon name="arrow-right" size={12} />
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => loginAs("owner_admin")}
-              className="p-3 text-left bg-paper hover:bg-gold-300/20 border border-line hover:border-gold-500 rounded-sm transition-all group"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-navy-900">College Admin</span>
-                <span className="text-[10px] uppercase font-bold text-navy-900 bg-white px-1.5 py-0.5 rounded border border-line">
-                  Owner
-                </span>
-              </div>
-              <p className="text-[11px] text-ink-soft mt-1 leading-snug">
-                Leads & Enrolments
-              </p>
-              <span className="text-[11px] font-semibold text-navy-900 group-hover:text-gold-700 mt-2 flex items-center gap-1">
-                Open Admin Hub <Icon name="arrow-right" size={12} />
-              </span>
-            </button>
-          </div>
-        </div>
+        )}
       </div>
 
-      {/* Security note */}
+      {/* Neutral Security Note (Replaces 256-bit encrypted claim) */}
       <div className="text-center text-xs text-ink-soft flex items-center justify-center gap-2">
-        <Icon name="shield-check" size={16} className="text-navy-900" />
-        <span>
-          256-bit encrypted college portal access. Protected under Smartminds College Information Security Policy.
-        </span>
+        <Icon name="shield-check" size={16} className="text-navy-900 flex-shrink-0" />
+        <span>Protected sign-in. Staff accounts use two-step verification.</span>
       </div>
     </div>
   );

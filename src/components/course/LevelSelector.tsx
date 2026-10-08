@@ -2,6 +2,7 @@
 
 import React from "react";
 import { CourseLevel } from "@/content/types";
+import { formatCurrency } from "@/content/pricing";
 
 interface LevelSelectorProps {
   levels: CourseLevel[];
@@ -60,7 +61,7 @@ export const LevelSelector: React.FC<LevelSelectorProps> = ({
                     : "bg-navy-900/10 text-ink-soft"
                 }`}
               >
-                £{level.price_gbp}
+                {formatCurrency(level.price_gbp)}
               </span>
             </button>
           );
