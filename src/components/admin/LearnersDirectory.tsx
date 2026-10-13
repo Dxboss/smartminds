@@ -6,6 +6,8 @@ import { Learner, Enrolment, ClassCohort } from "@/lib/repositories/types";
 import {
   moveLearnerClassAction,
   assignLearnerTutorAndSessionAction,
+  archiveLearnerAction,
+  restoreLearnerAction,
 } from "@/app/admin/actions";
 
 interface Props {
@@ -19,9 +21,9 @@ export const LearnersDirectory: React.FC<Props> = ({
   initialEnrolments,
   classes,
 }) => {
-  const [learners] = useState<Learner[]>(initialLearners);
+  const [learners, setLearners] = useState<Learner[]>(initialLearners);
   const [enrolments, setEnrolments] = useState<Enrolment[]>(initialEnrolments);
-  const [filter, setFilter] = useState<"all" | "active" | "paused" | "funded">("all");
+  const [filter, setFilter] = useState<"all" | "active" | "paused" | "funded" | "archived">("all");
   const [search, setSearch] = useState("");
 
   // Tutor & Cohort Allocation Modal State
@@ -30,6 +32,12 @@ export const LearnersDirectory: React.FC<Props> = ({
   const [selectedTutor, setSelectedTutor] = useState<string>("Dr. Eleanor Vance");
   const [selectedTiming, setSelectedTiming] = useState<"afternoon" | "evening">("evening");
   const [isMoving, setIsMoving] = useState(false);
+
+  // Archive & Safe Removal Modal State
+  const [archivingLearner, setArchivingLearner] = useState<Learner | null>(null);
+  const [archiveReason, setArchiveReason] = useState<string>("Course Completed / Graduated");
+  const [isArchiving, setIsArchiving] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
 
   // View Details Modal State
   const [selectedLearner, setSelectedLearner] = useState<Learner | null>(null);
@@ -45,6 +53,46 @@ export const LearnersDirectory: React.FC<Props> = ({
         "Dr. Eleanor Vance"
     );
     setSelectedTiming(enr.sessionTiming || "evening");
+  };
+
+  const handleArchiveLearner = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!archivingLearner) return;
+
+    setIsArchiving(true);
+    try {
+      const res = await archiveLearnerAction(archivingLearner.id, archiveReason);
+      setLearners((prev) =>
+        prev.map((l) => (l.id === archivingLearner.id ? res.learner : l))
+      );
+      setArchivingLearner(null);
+      setFeedback(
+        `Learner ${archivingLearner.firstName} ${archivingLearner.lastName} has been archived. Their academic records, submissions, and payments remain legally preserved.`
+      );
+      setTimeout(() => setFeedback(null), 5000);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to archive learner");
+    } finally {
+      setIsArchiving(false);
+    }
+  };
+
+  const handleRestoreLearner = async (learner: Learner) => {
+    setIsRestoring(true);
+    try {
+      const res = await restoreLearnerAction(learner.id);
+      setLearners((prev) =>
+        prev.map((l) => (l.id === learner.id ? res.learner : l))
+      );
+      setFeedback(
+        `Learner ${learner.firstName} ${learner.lastName} has been restored to active student status.`
+      );
+      setTimeout(() => setFeedback(null), 5000);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to restore learner");
+    } finally {
+      setIsRestoring(false);
+    }
   };
 
   const handleMoveCohort = async (e: React.FormEvent) => {
@@ -93,9 +141,18 @@ export const LearnersDirectory: React.FC<Props> = ({
     const enr = enrolments.find((e) => e.learnerId === learner.id);
 
     // Filter tab
-    if (filter === "active" && learner.accessStatus !== "active") return false;
-    if (filter === "paused" && learner.accessStatus !== "paused") return false;
-    if (filter === "funded" && enr?.fundingType !== "funded") return false;
+    if (filter === "archived") {
+      if (learner.accessStatus !== "archived") return false;
+    } else if (filter === "all") {
+      if (learner.accessStatus === "archived" && !search.trim()) return false;
+    } else if (filter === "active") {
+      if (learner.accessStatus !== "active") return false;
+    } else if (filter === "paused") {
+      if (learner.accessStatus !== "paused") return false;
+    } else if (filter === "funded") {
+      if (enr?.fundingType !== "funded") return false;
+      if (learner.accessStatus === "archived") return false;
+    }
 
     // Search query
     if (search.trim()) {
@@ -121,24 +178,43 @@ export const LearnersDirectory: React.FC<Props> = ({
         </div>
       )}
 
-
       {/* Controls: Search & Tabs */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-2 border-b border-line pb-2 sm:pb-0 sm:border-none">
-          {(["all", "active", "paused", "funded"] as const).map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => setFilter(tab)}
-              className={`px-3 py-1.5 rounded-sm text-xs font-semibold capitalize transition-colors ${
-                filter === tab
-                  ? "bg-navy-900 text-white"
-                  : "bg-paper text-ink-soft hover:text-ink border border-line"
-              }`}
-            >
-              {tab === "funded" ? "Workplace funded" : tab}
-            </button>
-          ))}
+        <div className="flex items-center gap-2 border-b border-line pb-2 sm:pb-0 sm:border-none flex-wrap">
+          {(["all", "active", "paused", "funded", "archived"] as const).map((tab) => {
+            const count =
+              tab === "archived"
+                ? learners.filter((l) => l.accessStatus === "archived").length
+                : tab === "active"
+                ? learners.filter((l) => l.accessStatus === "active").length
+                : tab === "paused"
+                ? learners.filter((l) => l.accessStatus === "paused").length
+                : undefined;
+
+            return (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setFilter(tab)}
+                className={`px-3 py-1.5 rounded-sm text-xs font-semibold capitalize transition-colors flex items-center gap-1.5 cursor-pointer ${
+                  filter === tab
+                    ? "bg-navy-900 text-white"
+                    : "bg-paper text-ink-soft hover:text-ink border border-line"
+                }`}
+              >
+                <span>{tab === "funded" ? "Workplace funded" : tab}</span>
+                {count !== undefined && count > 0 && (
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                      filter === tab ? "bg-white/20 text-white" : "bg-line text-ink"
+                    }`}
+                  >
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
         <div className="relative w-full sm:w-72">
@@ -181,13 +257,26 @@ export const LearnersDirectory: React.FC<Props> = ({
                   const enr = enrolments.find((e) => e.learnerId === learner.id);
                   const assignedClass = classes.find((c) => c.id === enr?.classId);
                   const isPaused = learner.accessStatus === "paused";
+                  const isArchived = learner.accessStatus === "archived";
 
                   return (
-                    <tr key={learner.id} className="hover:bg-paper/40 transition-colors">
+                    <tr
+                      key={learner.id}
+                      className={`hover:bg-paper/40 transition-colors ${
+                        isArchived ? "bg-slate-50/50 opacity-80" : ""
+                      }`}
+                    >
                       <td className="py-3 px-4">
-                        <span className="font-bold text-navy-900 block text-sm">
-                          {learner.firstName} {learner.lastName}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-navy-900 block text-sm">
+                            {learner.firstName} {learner.lastName}
+                          </span>
+                          {isArchived && (
+                            <span className="px-1.5 py-0.2 rounded-xs bg-slate-200 text-slate-700 text-[9px] font-bold uppercase tracking-wider">
+                              Archived
+                            </span>
+                          )}
+                        </div>
                         <div className="text-[11px] text-ink-soft">
                           <span>{learner.email}</span> · <span>{learner.phone}</span>
                         </div>
@@ -212,7 +301,9 @@ export const LearnersDirectory: React.FC<Props> = ({
                       <td className="py-3 px-4">
                         <span
                           className={`px-2 py-0.5 rounded-sm font-semibold text-[10px] capitalize border ${
-                            isPaused
+                            isArchived
+                              ? "bg-slate-100 text-slate-700 border-slate-300"
+                              : isPaused
                               ? "bg-amber-50 text-amber-800 border-amber-200"
                               : "bg-emerald-50 text-emerald-800 border-emerald-200"
                           }`}
@@ -239,18 +330,44 @@ export const LearnersDirectory: React.FC<Props> = ({
                           <button
                             type="button"
                             onClick={() => setSelectedLearner(learner)}
-                            className="px-2.5 py-1 text-xs text-navy-900 font-semibold hover:underline"
+                            className="px-2.5 py-1 text-xs text-navy-900 font-semibold hover:underline cursor-pointer"
                           >
                             Details
                           </button>
-                          {enr && (
+                          {isArchived ? (
                             <button
                               type="button"
-                              onClick={() => openMoveModal(enr)}
-                              className="px-2.5 py-1 rounded-sm border border-navy-900 text-navy-900 text-xs font-semibold hover:bg-navy-900 hover:text-white transition-colors"
+                              onClick={() => handleRestoreLearner(learner)}
+                              disabled={isRestoring}
+                              className="px-2.5 py-1 rounded-sm border border-emerald-600 bg-emerald-50 text-emerald-800 hover:bg-emerald-600 hover:text-white text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1"
+                              title="Restore learner account to active student roster"
                             >
-                              Assign Tutor / Session
+                              <Icon name="undo" size={12} />
+                              <span>Restore</span>
                             </button>
+                          ) : (
+                            <>
+                              {enr && (
+                                <button
+                                  type="button"
+                                  onClick={() => openMoveModal(enr)}
+                                  className="px-2.5 py-1 rounded-sm border border-navy-900 text-navy-900 text-xs font-semibold hover:bg-navy-900 hover:text-white transition-colors cursor-pointer"
+                                >
+                                  Assign Tutor / Session
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setArchivingLearner(learner);
+                                  setArchiveReason("Course Completed / Graduated");
+                                }}
+                                className="px-2.5 py-1 rounded-sm border border-line text-ink-soft hover:text-red-700 hover:border-red-300 hover:bg-red-50 text-xs font-medium transition-colors cursor-pointer"
+                                title="Safely remove or archive learner while preserving records"
+                              >
+                                Archive / Remove
+                              </button>
+                            </>
                           )}
                         </div>
                       </td>
@@ -384,6 +501,91 @@ export const LearnersDirectory: React.FC<Props> = ({
         </div>
       )}
 
+      {/* Archive / Safe Removal Modal */}
+      {archivingLearner && (
+        <div className="fixed inset-0 z-50 bg-navy-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-md border border-line p-6 max-w-md w-full space-y-4 shadow-xl">
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="font-heading text-xl font-bold text-navy-900">
+                  Archive Learner Record
+                </h3>
+                <p className="text-xs text-ink-soft mt-0.5">
+                  Safely remove {archivingLearner.firstName} {archivingLearner.lastName} from active roster.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setArchivingLearner(null)}
+                className="text-ink-soft hover:text-navy-900 text-lg leading-none p-1 cursor-pointer"
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="p-3 rounded-sm bg-amber-50/80 border border-amber-200 text-xs text-amber-900 flex items-start gap-2.5">
+              <Icon name="info" size={16} className="text-amber-700 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <span className="font-bold block">Why Archive Instead of Permanent Delete?</span>
+                <p className="text-[11px] text-amber-800 leading-relaxed">
+                  To comply with awarding body regulations (e.g. NCFE / Pearson) and financial auditing laws, student grades, assignments, and payment receipts are retained permanently. The student will lose portal access immediately, but their historical records can be viewed or restored at any time.
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleArchiveLearner} className="space-y-4 text-xs">
+              <div>
+                <label className="font-bold text-navy-900 block mb-1">
+                  Reason for Archival / Removal
+                </label>
+                <select
+                  value={archiveReason}
+                  onChange={(e) => setArchiveReason(e.target.value)}
+                  className="w-full px-3 py-2 rounded-sm border border-line bg-paper text-ink font-semibold focus:outline-none focus:ring-1 focus:ring-navy-900"
+                >
+                  <option value="Course Completed / Graduated">
+                    Course Completed / Graduated
+                  </option>
+                  <option value="Learner Withdrew from Study">
+                    Learner Withdrew from Study
+                  </option>
+                  <option value="Non-Attendance / Inactive Account">
+                    Non-Attendance / Inactive Account
+                  </option>
+                  <option value="Transferred to Another Institution">
+                    Transferred to Another Institution
+                  </option>
+                  <option value="Duplicate Record / Administrative Cleanup">
+                    Duplicate Record / Administrative Cleanup
+                  </option>
+                  <option value="Other / Special Circumstances">
+                    Other / Special Circumstances
+                  </option>
+                </select>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-line">
+                <button
+                  type="button"
+                  onClick={() => setArchivingLearner(null)}
+                  className="px-3.5 py-2 rounded-sm border border-line text-ink-soft hover:text-navy-900 text-xs font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isArchiving}
+                  className="px-4 py-2 rounded-sm bg-red-700 hover:bg-red-800 text-white font-bold text-xs transition-colors shadow-xs cursor-pointer flex items-center gap-1.5"
+                >
+                  <Icon name="trash" size={14} />
+                  <span>{isArchiving ? "Archiving..." : "Confirm Archival"}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Learner Details Modal (Strictly Zero Payments) */}
       {selectedLearner && (() => {
         const enr = enrolments.find((e) => e.learnerId === selectedLearner.id);
@@ -402,6 +604,8 @@ export const LearnersDirectory: React.FC<Props> = ({
                       className={`px-2 py-0.2 rounded-sm text-[10px] font-semibold border ${
                         selectedLearner.accessStatus === "active"
                           ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                          : selectedLearner.accessStatus === "archived"
+                          ? "bg-slate-100 text-slate-700 border-slate-300"
                           : "bg-amber-50 text-amber-800 border-amber-200"
                       }`}
                     >
@@ -415,11 +619,24 @@ export const LearnersDirectory: React.FC<Props> = ({
                 <button
                   type="button"
                   onClick={() => setSelectedLearner(null)}
-                  className="text-ink-soft hover:text-navy-900 text-lg leading-none p-1"
+                  className="text-ink-soft hover:text-navy-900 text-lg leading-none p-1 cursor-pointer"
                 >
                   &times;
                 </button>
               </div>
+
+              {selectedLearner.accessStatus === "archived" && (
+                <div className="p-3 rounded-sm bg-slate-50 border border-slate-200 text-xs text-slate-800 flex items-start gap-2.5">
+                  <Icon name="info" size={16} className="text-slate-600 shrink-0 mt-0.5" />
+                  <div>
+                    <strong className="block font-semibold">Account Archived & Removed from Active Roster</strong>
+                    <p className="text-[11px] text-slate-600 mt-0.5">
+                      Archived on {selectedLearner.archivedAt ? new Date(selectedLearner.archivedAt).toLocaleDateString("en-GB") : "Recorded"}:{" "}
+                      <span className="italic font-medium">{selectedLearner.archiveReason || "Administrative archival"}</span>. All qualification records, coursework submissions, and payment receipts remain permanently preserved.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-4 text-xs">
                 {/* Contact Information */}

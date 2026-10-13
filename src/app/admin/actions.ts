@@ -298,6 +298,68 @@ export async function assignLearnerTutorAndSessionAction(
   return { success: true, enrolment };
 }
 
+export async function archiveLearnerAction(learnerId: string, reason?: string) {
+  const session = await getServerSession();
+  assertAdminAuthorized(session);
+
+  const { getLearnerRepo } = await import("@/lib/repositories");
+  const repo = getLearnerRepo();
+  const updated = await repo.updateLearnerStatus(session!, learnerId, "archived", reason);
+
+  // Sync to persisted records
+  try {
+    const { loadPersistedRecords } = await import("@/lib/persistedData");
+    const store = loadPersistedRecords();
+    const pLearner = store.learners?.find((l) => l.id === learnerId);
+    if (pLearner) {
+      pLearner.accessStatus = "archived";
+      pLearner.archivedAt = updated.archivedAt;
+      pLearner.archiveReason = updated.archiveReason;
+      const fs = await import("fs");
+      const path = await import("path");
+      const filePath = path.join(process.cwd(), "data", "persisted_records.json");
+      fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+    }
+  } catch (err) {
+    console.error("[archiveLearnerAction] Persist sync error:", err);
+  }
+
+  revalidatePath("/admin/learners");
+  revalidatePath("/staff");
+  return { success: true, learner: updated };
+}
+
+export async function restoreLearnerAction(learnerId: string) {
+  const session = await getServerSession();
+  assertAdminAuthorized(session);
+
+  const { getLearnerRepo } = await import("@/lib/repositories");
+  const repo = getLearnerRepo();
+  const updated = await repo.updateLearnerStatus(session!, learnerId, "active");
+
+  // Sync to persisted records
+  try {
+    const { loadPersistedRecords } = await import("@/lib/persistedData");
+    const store = loadPersistedRecords();
+    const pLearner = store.learners?.find((l) => l.id === learnerId);
+    if (pLearner) {
+      pLearner.accessStatus = "active";
+      delete pLearner.archivedAt;
+      delete pLearner.archiveReason;
+      const fs = await import("fs");
+      const path = await import("path");
+      const filePath = path.join(process.cwd(), "data", "persisted_records.json");
+      fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+    }
+  } catch (err) {
+    console.error("[restoreLearnerAction] Persist sync error:", err);
+  }
+
+  revalidatePath("/admin/learners");
+  revalidatePath("/staff");
+  return { success: true, learner: updated };
+}
+
 
 export async function approveFundedEnrolmentAction(
   enquiryId: string,

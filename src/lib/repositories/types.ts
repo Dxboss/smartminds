@@ -35,10 +35,12 @@ export interface Learner {
   email: string;
   phone: string;
   enrolmentDate: string;
-  accessStatus: "active" | "paused";
+  accessStatus: "active" | "paused" | "archived";
   notes?: string;
   courseId?: string;
   courseTitle?: string;
+  archivedAt?: string;
+  archiveReason?: string;
 }
 
 export interface ClassCohort {

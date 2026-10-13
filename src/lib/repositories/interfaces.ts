@@ -36,7 +36,8 @@ export interface LearnerRepo {
   updateLearnerStatus(
     actor: SessionUser,
     id: string,
-    status: "active" | "paused"
+    status: "active" | "paused" | "archived",
+    archiveReason?: string
   ): Promise<Learner>;
 }
 

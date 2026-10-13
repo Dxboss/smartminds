@@ -60,7 +60,8 @@ export class MemoryLearnerRepo implements LearnerRepo {
   async updateLearnerStatus(
     actor: SessionUser,
     id: string,
-    status: "active" | "paused"
+    status: "active" | "paused" | "archived",
+    archiveReason?: string
   ): Promise<Learner> {
     if (actor.role !== "admin_staff" && actor.role !== "owner_admin" && actor.role !== "super_admin") {
       throw new PermissionDeniedError(
@@ -74,6 +75,27 @@ export class MemoryLearnerRepo implements LearnerRepo {
     }
 
     learner.accessStatus = status;
+    if (status === "archived") {
+      learner.archivedAt = new Date().toISOString();
+      if (archiveReason) learner.archiveReason = archiveReason;
+    } else {
+      delete learner.archivedAt;
+      delete learner.archiveReason;
+    }
+
+    // Also update seedLearners in-memory reference if present
+    const seedMatch = seedLearners.find((s) => s.id === id);
+    if (seedMatch) {
+      seedMatch.accessStatus = status;
+      if (status === "archived") {
+        seedMatch.archivedAt = learner.archivedAt;
+        seedMatch.archiveReason = learner.archiveReason;
+      } else {
+        delete seedMatch.archivedAt;
+        delete seedMatch.archiveReason;
+      }
+    }
+
     return { ...learner };
   }
 }
