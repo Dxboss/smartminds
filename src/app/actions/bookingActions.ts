@@ -181,9 +181,28 @@ export async function createPublicBookingAction(input: CreateBookingInput) {
     triggerEvent: "New Public Consultation Booking Alert",
   });
 
+  // Sync booked consultation directly into Admissions Pipeline under "contacted" stage
+  try {
+    const { saveEnquiryToStore } = await import("@/lib/persistedData");
+    saveEnquiryToStore({
+      id: `enq-booking-${created.id}`,
+      fullName: input.fullName.trim(),
+      email: input.email.trim().toLowerCase(),
+      phone: input.phone.trim(),
+      courseInterest: input.courseInterest || "General Course Advice",
+      formType: "consultation_booking",
+      stage: "contacted",
+      notes: `Consultation Booked: ${formattedDate} (${platform === "google_meet" ? "Google Meet Video" : "Phone Call"})${input.notes?.trim() ? ` | Note: ${input.notes.trim()}` : ""}`,
+      submittedAt: new Date().toISOString(),
+    });
+  } catch (syncErr) {
+    console.error("[bookingActions] Failed to sync booking into pipeline store:", syncErr);
+  }
+
   try {
     revalidatePath("/admin");
     revalidatePath("/admin/bookings");
+    revalidatePath("/admin/pipeline");
   } catch {}
 
   return {

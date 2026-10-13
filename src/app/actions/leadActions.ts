@@ -2,6 +2,7 @@
 
 import fs from "fs";
 import path from "path";
+import { revalidatePath } from "next/cache";
 import { siteConfig } from "@/content/siteConfig";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { sendEmail } from "@/lib/email";
@@ -319,6 +320,30 @@ export async function submitLeadAction(
 
   // Always record local dev lead for offline/dev verification
   recordDevLead(leadRow);
+
+  // Sync enquiry into the Admissions Pipeline board
+  try {
+    const { saveEnquiryToStore } = await import("@/lib/persistedData");
+    saveEnquiryToStore({
+      id: leadId,
+      fullName: parsed.name.trim(),
+      email: parsed.email.trim().toLowerCase(),
+      phone: parsed.phone?.trim() || "Not provided",
+      courseInterest: leadRow.course_interest || "General Enquiry",
+      formType: parsed.type === "funded_eligibility" ? "funding_check" : parsed.type,
+      stage: "new",
+      notes: leadRow.message || `Inbound website enquiry via ${parsed.type.replace(/_/g, " ")}.`,
+      employmentStatus: (extra_data.employment_status as string) || undefined,
+      workplaceLocation: (extra_data.postcode as string) || undefined,
+      submittedAt: consent_at,
+    });
+    try {
+      revalidatePath("/admin/pipeline");
+      revalidatePath("/admin");
+    } catch {}
+  } catch (syncErr) {
+    console.error("[leadActions] Failed to sync enquiry to pipeline store:", syncErr);
+  }
 
   // 5. Send Resend notification and auto-reply
   await sendEmails({

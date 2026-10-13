@@ -1,7 +1,8 @@
 import React from "react";
 import { redirect } from "next/navigation";
 import { getServerSession } from "@/lib/session";
-import { seedEnquiries, seedClasses } from "@/lib/repositories/seedData";
+import { seedClasses } from "@/lib/repositories/seedData";
+import { listAllEnquiries } from "@/lib/persistedData";
 import { EnquiryPipelineBoard } from "@/components/admin/EnquiryPipelineBoard";
 
 export const instant = false;
@@ -21,6 +22,8 @@ export default async function AdminPipelinePage() {
     redirect("/login");
   }
 
+  const enquiries = listAllEnquiries();
+
   const availableCohorts = seedClasses.map((c) => ({
     id: c.id,
     name: `${c.name} (${c.intakeLabel})`,
@@ -38,7 +41,7 @@ export default async function AdminPipelinePage() {
       </div>
 
       <EnquiryPipelineBoard
-        initialEnquiries={seedEnquiries}
+        initialEnquiries={enquiries}
         availableCohorts={availableCohorts}
       />
     </div>

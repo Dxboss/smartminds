@@ -47,6 +47,8 @@ export const EnquiryPipelineBoard: React.FC<Props> = ({
   const [selectedCohortId, setSelectedCohortId] = useState(availableCohorts[0]?.id || "");
   const [enrollingId, setEnrollingId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [dragOverCol, setDragOverCol] = useState<string | null>(null);
 
   const handleStageChange = async (enquiryId: string, newStage: EnquiryStage) => {
     try {
@@ -144,7 +146,26 @@ export const EnquiryPipelineBoard: React.FC<Props> = ({
           return (
             <div
               key={col.id}
-              className="bg-paper/70 rounded-md border border-line flex flex-col max-h-[800px]"
+              onDragOver={(e) => {
+                e.preventDefault();
+                if (dragOverCol !== col.id) setDragOverCol(col.id);
+              }}
+              onDragLeave={(e) => {
+                if (e.currentTarget === e.target) setDragOverCol(null);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragOverCol(null);
+                const enquiryId = e.dataTransfer.getData("text/plain") || draggedId;
+                if (enquiryId) {
+                  handleStageChange(enquiryId, col.id);
+                }
+              }}
+              className={`rounded-md border flex flex-col max-h-[800px] transition-all duration-150 ${
+                dragOverCol === col.id
+                  ? "bg-navy-50/50 border-navy-900 ring-2 ring-navy-900/20"
+                  : "bg-paper/70 border-line"
+              }`}
             >
               {/* Column Header */}
               <div className="p-4 border-b border-line bg-white rounded-t-md">
@@ -180,7 +201,20 @@ export const EnquiryPipelineBoard: React.FC<Props> = ({
                     return (
                       <div
                         key={enq.id}
-                        className="p-4 rounded-sm bg-white border border-line space-y-2.5 shadow-sm text-xs hover:border-navy-900/40 transition-colors"
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData("text/plain", enq.id);
+                          setDraggedId(enq.id);
+                        }}
+                        onDragEnd={() => {
+                          setDraggedId(null);
+                          setDragOverCol(null);
+                        }}
+                        className={`p-4 rounded-sm bg-white border border-line space-y-2.5 shadow-sm text-xs hover:border-navy-900/40 transition-all cursor-grab active:cursor-grabbing ${
+                          draggedId === enq.id
+                            ? "opacity-40 scale-[0.98] ring-1 ring-navy-900/40"
+                            : ""
+                        }`}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div>
@@ -191,8 +225,23 @@ export const EnquiryPipelineBoard: React.FC<Props> = ({
                               {dateFormatted}
                             </span>
                           </div>
-                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-sm bg-navy-900/5 text-navy-900 border border-line uppercase">
-                            {enq.formType.replace("_", " ")}
+                          <span
+                            className={`text-[10px] font-semibold px-2 py-0.5 rounded-sm border uppercase flex items-center gap-1 shrink-0 ${
+                              enq.formType === "consultation_booking"
+                                ? "bg-navy-900 text-gold-300 border-navy-900 font-bold shadow-2xs"
+                                : enq.formType === "funding_check"
+                                ? "bg-amber-50 text-amber-900 border-amber-200 font-bold"
+                                : "bg-navy-900/5 text-navy-900 border-line"
+                            }`}
+                          >
+                            {enq.formType === "consultation_booking" && (
+                              <Icon name="calendar" size={11} className="text-gold-300" />
+                            )}
+                            <span>
+                              {enq.formType === "consultation_booking"
+                                ? "Booked Call"
+                                : enq.formType.replace(/_/g, " ")}
+                            </span>
                           </span>
                         </div>
 

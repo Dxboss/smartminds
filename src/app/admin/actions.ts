@@ -48,14 +48,20 @@ export async function updateEnquiryStageAction(
   assertAdminAuthorized(session);
 
   const enquiry = seedEnquiries.find((e) => e.id === enquiryId);
-  if (!enquiry) {
-    throw new Error(`Enquiry ${enquiryId} not found.`);
+  if (enquiry) {
+    enquiry.stage = stage;
+    if (notes) {
+      enquiry.notes = notes;
+    }
   }
 
-  enquiry.stage = stage;
-  if (notes) {
-    enquiry.notes = notes;
-  }
+  try {
+    const { updateEnquiryInStore } = await import("@/lib/persistedData");
+    updateEnquiryInStore(enquiryId, {
+      stage,
+      ...(notes ? { notes } : {}),
+    });
+  } catch {}
 
   revalidatePath("/admin");
   revalidatePath("/admin/pipeline");
@@ -284,7 +290,9 @@ export async function approveFundedEnrolmentAction(
   const session = await getServerSession();
   assertAdminAuthorized(session);
 
-  const enquiry = seedEnquiries.find((e) => e.id === enquiryId);
+  const { listAllEnquiries, updateEnquiryInStore } = await import("@/lib/persistedData");
+  const allEnqs = listAllEnquiries();
+  const enquiry = seedEnquiries.find((e) => e.id === enquiryId) || allEnqs.find((e) => e.id === enquiryId);
   if (!enquiry) {
     throw new Error(`Enquiry ${enquiryId} not found.`);
   }
@@ -294,6 +302,13 @@ export async function approveFundedEnrolmentAction(
   // 1. Mark enquiry as enrolled
   enquiry.stage = "enrolled";
   enquiry.notes = `${enquiry.notes ? enquiry.notes + " | " : ""}Workplace funding criteria verified and approved. Enrolled on ${targetClass.name}.`;
+
+  try {
+    updateEnquiryInStore(enquiryId, {
+      stage: "enrolled",
+      notes: enquiry.notes,
+    });
+  } catch {}
 
   // 2. Create learner account in seed data if not existing
   const nameParts = enquiry.fullName.split(" ");

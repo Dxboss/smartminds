@@ -210,7 +210,14 @@ export interface EnquiryLead {
   email: string;
   phone: string;
   courseInterest: string;
-  formType: "free_advice" | "funding_check" | "private_tutoring" | "contact";
+  formType:
+    | "free_advice"
+    | "funding_check"
+    | "private_tutoring"
+    | "contact"
+    | "consultation_booking"
+    | "general_contact"
+    | string;
   stage: EnquiryStage;
   notes?: string;
   employmentStatus?: string;

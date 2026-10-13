@@ -9,6 +9,7 @@ import {
   AvailabilityRule,
   Booking,
   CohortScheduleConfig,
+  EnquiryLead,
 } from "@/lib/repositories/types";
 
 export interface PersistedUserRecord {
@@ -36,6 +37,7 @@ export interface PersistedRecordsStore {
   blockedDays?: BlockedDay[];
   availabilityRules?: AvailabilityRule[];
   bookings?: Booking[];
+  enquiries?: EnquiryLead[];
   globalGraceDays?: number;
   cohortSchedule?: CohortScheduleConfig;
 }
@@ -93,6 +95,7 @@ export function loadPersistedRecords(): PersistedRecordsStore {
       blockedDays: Array.isArray(parsed.blockedDays) ? parsed.blockedDays : undefined,
       availabilityRules: Array.isArray(parsed.availabilityRules) ? parsed.availabilityRules : undefined,
       bookings: Array.isArray(parsed.bookings) ? parsed.bookings : undefined,
+      enquiries: Array.isArray(parsed.enquiries) ? parsed.enquiries : [],
       globalGraceDays: typeof parsed.globalGraceDays === "number" ? parsed.globalGraceDays : undefined,
       cohortSchedule:
         parsed.cohortSchedule && typeof parsed.cohortSchedule === "object"
@@ -850,4 +853,82 @@ export function wipeAllDemoData(): { success: boolean; message: string } {
     throw new Error(err instanceof Error ? err.message : "Failed to wipe demo data");
   }
 }
+
+export function saveEnquiryToStore(enquiry: EnquiryLead): void {
+  try {
+    const store = loadPersistedRecords();
+    if (!store.enquiries) store.enquiries = [];
+    const existingIdx = store.enquiries.findIndex((e) => e.id === enquiry.id);
+    if (existingIdx >= 0) {
+      store.enquiries[existingIdx] = { ...store.enquiries[existingIdx], ...enquiry };
+    } else {
+      store.enquiries.unshift(enquiry);
+    }
+    const filePath = getStoreFilePath();
+    fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const seedData = require("@/lib/repositories/seedData");
+      if (Array.isArray(seedData.seedEnquiries)) {
+        const sIdx = seedData.seedEnquiries.findIndex((e: any) => e.id === enquiry.id);
+        if (sIdx >= 0) {
+          seedData.seedEnquiries[sIdx] = { ...seedData.seedEnquiries[sIdx], ...enquiry };
+        } else {
+          seedData.seedEnquiries.unshift(enquiry);
+        }
+      }
+    } catch {}
+  } catch (err) {
+    console.error("[persistedData] Failed to save enquiry to store:", err);
+  }
+}
+
+export function updateEnquiryInStore(enquiryId: string, updates: Partial<EnquiryLead>): void {
+  try {
+    const store = loadPersistedRecords();
+    if (!store.enquiries) store.enquiries = [];
+    const idx = store.enquiries.findIndex((e) => e.id === enquiryId);
+    if (idx >= 0) {
+      store.enquiries[idx] = { ...store.enquiries[idx], ...updates };
+      const filePath = getStoreFilePath();
+      fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+    }
+
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const seedData = require("@/lib/repositories/seedData");
+      if (Array.isArray(seedData.seedEnquiries)) {
+        const sIdx = seedData.seedEnquiries.findIndex((e: any) => e.id === enquiryId);
+        if (sIdx >= 0) {
+          seedData.seedEnquiries[sIdx] = { ...seedData.seedEnquiries[sIdx], ...updates };
+        }
+      }
+    } catch {}
+  } catch (err) {
+    console.error("[persistedData] Failed to update enquiry in store:", err);
+  }
+}
+
+export function listAllEnquiries(): EnquiryLead[] {
+  const store = loadPersistedRecords();
+  const list: EnquiryLead[] = store.enquiries ? [...store.enquiries] : [];
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const seedData = require("@/lib/repositories/seedData");
+    if (Array.isArray(seedData.seedEnquiries)) {
+      for (const se of seedData.seedEnquiries) {
+        if (!list.some((e) => e.id === se.id)) {
+          list.push(se);
+        }
+      }
+    }
+  } catch {}
+
+  return list.sort(
+    (a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
+  );
+}
+
 
