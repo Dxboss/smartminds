@@ -39,6 +39,11 @@ export async function middleware(request: NextRequest) {
 
     // Not authenticated -> redirect to /login
     if (!session) {
+      // Allow Server Actions through so action handlers can return a typed sessionExpired response
+      // rather than crashing with "An unexpected response was received from the server" on HTTP 307
+      if (request.headers.has("next-action")) {
+        return NextResponse.next();
+      }
       const loginUrl = new URL("/login", request.url);
       loginUrl.searchParams.set("from", pathname);
       return NextResponse.redirect(loginUrl);

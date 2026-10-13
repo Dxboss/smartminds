@@ -45,9 +45,26 @@ export async function updateEnquiryStageAction(
   notes?: string
 ) {
   const session = await getServerSession();
-  assertAdminAuthorized(session);
+  if (
+    !isTestEnv &&
+    (!session ||
+      (session.role !== "admin_staff" &&
+        session.role !== "owner_admin" &&
+        session.role !== "super_admin"))
+  ) {
+    return {
+      success: false,
+      error: "Session expired or unauthorized. Please sign in again.",
+      sessionExpired: !session,
+    };
+  }
 
-  const enquiry = seedEnquiries.find((e) => e.id === enquiryId);
+  const { listAllEnquiries, updateEnquiryInStore } = await import("@/lib/persistedData");
+  const allEnqs = listAllEnquiries();
+  const enquiry =
+    seedEnquiries.find((e) => e.id === enquiryId) ||
+    allEnqs.find((e) => e.id === enquiryId);
+
   if (enquiry) {
     enquiry.stage = stage;
     if (notes) {
@@ -56,7 +73,6 @@ export async function updateEnquiryStageAction(
   }
 
   try {
-    const { updateEnquiryInStore } = await import("@/lib/persistedData");
     updateEnquiryInStore(enquiryId, {
       stage,
       ...(notes ? { notes } : {}),

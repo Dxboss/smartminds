@@ -52,12 +52,12 @@ const DEMO_USERS: Record<UserRole, AuthUser> = {
     cohort: "Lead Tutor & Assessor",
   },
   owner_admin: {
-    id: "usr_admin_01",
-    name: "College Administration",
-    email: "admissions@smartmindstraining.co.uk",
+    id: "user-owner-01",
+    name: "Millie Davis",
+    email: "millie@smartmindstraining.co.uk",
     role: "owner_admin",
     enrolledCourse: "Smartminds Empire Ltd",
-    cohort: "Owner / Administrator",
+    cohort: "Training Director & Centre Lead",
   },
   super_admin: {
     id: "usr_super_george",

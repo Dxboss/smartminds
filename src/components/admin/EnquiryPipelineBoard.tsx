@@ -52,7 +52,16 @@ export const EnquiryPipelineBoard: React.FC<Props> = ({
 
   const handleStageChange = async (enquiryId: string, newStage: EnquiryStage) => {
     try {
-      await updateEnquiryStageAction(enquiryId, newStage);
+      const res = await updateEnquiryStageAction(enquiryId, newStage);
+      if (res && "success" in res && !res.success) {
+        if (res.sessionExpired) {
+          alert("Your session has timed out due to inactivity. Redirecting to sign in...");
+          window.location.href = "/login?from=/admin/pipeline&reason=timeout";
+          return;
+        }
+        alert(res.error || "Failed to update stage");
+        return;
+      }
       setEnquiries((prev) =>
         prev.map((e) => (e.id === enquiryId ? { ...e, stage: newStage } : e))
       );
@@ -65,11 +74,20 @@ export const EnquiryPipelineBoard: React.FC<Props> = ({
 
   const handleSaveNote = async (enquiryId: string) => {
     try {
-      await updateEnquiryStageAction(
+      const res = await updateEnquiryStageAction(
         enquiryId,
         enquiries.find((e) => e.id === enquiryId)?.stage || "new",
         tempNote.trim()
       );
+      if (res && "success" in res && !res.success) {
+        if (res.sessionExpired) {
+          alert("Your session has timed out due to inactivity. Redirecting to sign in...");
+          window.location.href = "/login?from=/admin/pipeline&reason=timeout";
+          return;
+        }
+        alert(res.error || "Failed to update note");
+        return;
+      }
       setEnquiries((prev) =>
         prev.map((e) => (e.id === enquiryId ? { ...e, notes: tempNote.trim() } : e))
       );
@@ -210,15 +228,18 @@ export const EnquiryPipelineBoard: React.FC<Props> = ({
                           setDraggedId(null);
                           setDragOverCol(null);
                         }}
-                        className={`p-4 rounded-sm bg-white border border-line space-y-2.5 shadow-sm text-xs hover:border-navy-900/40 transition-all cursor-grab active:cursor-grabbing ${
+                        className={`p-4 rounded-sm bg-white border border-line space-y-2.5 shadow-sm text-xs hover:border-navy-900/40 transition-all cursor-grab active:cursor-grabbing min-w-0 overflow-hidden ${
                           draggedId === enq.id
                             ? "opacity-40 scale-[0.98] ring-1 ring-navy-900/40"
                             : ""
                         }`}
                       >
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <span className="font-bold text-navy-900 text-sm block">
+                        <div className="flex items-start justify-between gap-2 min-w-0">
+                          <div className="min-w-0 flex-1">
+                            <span
+                              className="font-bold text-navy-900 text-sm block truncate"
+                              title={enq.fullName}
+                            >
                               {enq.fullName}
                             </span>
                             <span className="text-[11px] text-ink-soft font-mono">
@@ -245,14 +266,27 @@ export const EnquiryPipelineBoard: React.FC<Props> = ({
                           </span>
                         </div>
 
-                        <div className="space-y-1 text-ink-soft">
-                          <div className="font-medium text-navy-900">
+                        <div className="space-y-1.5 text-ink-soft min-w-0">
+                          <div className="font-medium text-navy-900 line-clamp-2 leading-snug">
                             {enq.courseInterest}
                           </div>
-                          <div>Email: {enq.email}</div>
-                          <div>Tel: {enq.phone}</div>
+                          <div className="text-[11px] flex items-start gap-1 min-w-0 leading-tight">
+                            <span className="text-ink-soft shrink-0">Email:</span>
+                            <span
+                              className="font-mono text-navy-900 font-medium break-all select-all min-w-0"
+                              title={enq.email}
+                            >
+                              {enq.email}
+                            </span>
+                          </div>
+                          <div className="text-[11px] flex items-center gap-1 min-w-0 leading-tight">
+                            <span className="text-ink-soft shrink-0">Tel:</span>
+                            <span className="font-medium text-navy-900 break-all">
+                              {enq.phone}
+                            </span>
+                          </div>
                           {enq.employmentStatus && (
-                            <div className="text-[11px] text-ink-soft">
+                            <div className="text-[11px] text-ink-soft truncate">
                               Work: <strong>{enq.employmentStatus}</strong>
                               {enq.workplaceLocation ? ` (${enq.workplaceLocation})` : ""}
                             </div>
