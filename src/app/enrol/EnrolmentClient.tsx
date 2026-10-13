@@ -266,6 +266,11 @@ export const EnrolmentClient: React.FC<Props> = ({
           fullName: effectiveName,
           email: effectiveEmail,
           phone: effectivePhone,
+          dob: accountType === "existing" ? undefined : dob,
+          address: accountType === "existing" ? undefined : address,
+          postcode: accountType === "existing" ? undefined : postcode,
+          preferredSession,
+          couponCode: appliedCoupon?.code,
           paymentOption,
           origin: window.location.origin,
         });

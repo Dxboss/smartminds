@@ -21,6 +21,11 @@ interface PageProps {
     fullName?: string;
     email?: string;
     phone?: string;
+    dob?: string;
+    address?: string;
+    postcode?: string;
+    preferredSession?: "afternoon" | "evening";
+    couponCode?: string;
     paymentOption?: "full" | "instalments";
     planId?: string;
   }>;
@@ -41,6 +46,11 @@ export default async function EnrolSuccessPage({ searchParams }: PageProps) {
     fullName: params.fullName,
     email: params.email,
     phone: params.phone || "07700900000",
+    dob: params.dob,
+    address: params.address,
+    postcode: params.postcode,
+    preferredSession: params.preferredSession,
+    couponCode: params.couponCode,
     paymentOption: params.paymentOption || "full",
     termsAccepted: true,
     cardNumberLast4: "Stripe",

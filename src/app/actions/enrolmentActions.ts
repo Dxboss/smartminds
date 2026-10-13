@@ -79,10 +79,18 @@ export async function processSelfEnrolmentAction(input: EnrolmentFormInput) {
 
   if (!existingLearnerCheck) {
     if (!input.dob || !input.dob.trim()) {
-      throw new Error("Date of birth is required for new learner registration.");
+      if (input.cardNumberLast4 === "Stripe") {
+        input.dob = "To be confirmed upon onboarding";
+      } else {
+        throw new Error("Date of birth is required for new learner registration.");
+      }
     }
     if (!input.address || !input.address.trim()) {
-      throw new Error("Home address and postcode are required for new learner registration.");
+      if (input.cardNumberLast4 === "Stripe") {
+        input.address = "Address provided via Stripe Checkout";
+      } else {
+        throw new Error("Home address and postcode are required for new learner registration.");
+      }
     }
   }
 
@@ -451,6 +459,11 @@ export async function createStripeCheckoutAction(input: {
   fullName: string;
   email: string;
   phone: string;
+  dob?: string;
+  address?: string;
+  postcode?: string;
+  preferredSession?: "afternoon" | "evening";
+  couponCode?: string;
   paymentOption: "full" | "instalments";
   origin: string;
 }): Promise<{ hasStripe: boolean; checkoutUrl?: string; message?: string }> {
@@ -485,19 +498,23 @@ export async function createStripeCheckoutAction(input: {
     input.paymentOption === "full" ? pricing.fullPayPrice : pricing.deposit;
   const unitAmountPence = Math.round(amountCharged * 100);
 
+  const successUrl = new URL(`${input.origin}/enrol/success`);
+  successUrl.searchParams.set("session_id", "{CHECKOUT_SESSION_ID}");
+  successUrl.searchParams.set("courseId", course.id);
+  successUrl.searchParams.set("levelLabel", level.level_label);
+  successUrl.searchParams.set("fullName", input.fullName);
+  successUrl.searchParams.set("email", input.email);
+  successUrl.searchParams.set("phone", input.phone);
+  successUrl.searchParams.set("paymentOption", input.paymentOption);
+  successUrl.searchParams.set("planId", input.planId);
+  if (input.dob) successUrl.searchParams.set("dob", input.dob);
+  if (input.address) successUrl.searchParams.set("address", input.address);
+  if (input.postcode) successUrl.searchParams.set("postcode", input.postcode);
+  if (input.preferredSession) successUrl.searchParams.set("preferredSession", input.preferredSession);
+  if (input.couponCode) successUrl.searchParams.set("couponCode", input.couponCode);
+
   const params = new URLSearchParams();
-  params.append(
-    "success_url",
-    `${input.origin}/enrol/success?session_id={CHECKOUT_SESSION_ID}&courseId=${encodeURIComponent(
-      course.id
-    )}&levelLabel=${encodeURIComponent(
-      level.level_label
-    )}&fullName=${encodeURIComponent(input.fullName)}&email=${encodeURIComponent(
-      input.email
-    )}&phone=${encodeURIComponent(input.phone)}&paymentOption=${
-      input.paymentOption
-    }&planId=${input.planId}`
-  );
+  params.append("success_url", successUrl.toString());
   params.append("cancel_url", `${input.origin}/enrol?course=${course.id}&cancelled=1`);
   params.append("customer_email", input.email.trim().toLowerCase());
   // Note: Modern Stripe accounts manage payment methods dynamically via Stripe Dashboard (Cards, Apple Pay, Google Pay)
@@ -508,6 +525,14 @@ export async function createStripeCheckoutAction(input: {
     "line_items[0][price_data][product_data][name]",
     `${course.title} (${level.level_label})`
   );
+
+  // Stripe session metadata for record keeping and auditing
+  params.append("metadata[courseId]", course.id);
+  params.append("metadata[fullName]", input.fullName);
+  params.append("metadata[email]", input.email);
+  if (input.dob) params.append("metadata[dob]", input.dob);
+  if (input.address) params.append("metadata[address]", input.address);
+  if (input.postcode) params.append("metadata[postcode]", input.postcode);
   params.append(
     "line_items[0][price_data][product_data][description]",
     input.paymentOption === "full"
