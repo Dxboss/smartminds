@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { courses } from "@/content/courses";
 import { processSelfEnrolmentAction } from "@/app/actions/enrolmentActions";
 import { Icon } from "@/components/ui/Icon";
@@ -32,6 +33,7 @@ interface PageProps {
 }
 
 export default async function EnrolSuccessPage({ searchParams }: PageProps) {
+  await connection();
   const params = await searchParams;
 
   if (!params.courseId || !params.fullName || !params.email) {
