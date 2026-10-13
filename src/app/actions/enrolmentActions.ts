@@ -500,7 +500,7 @@ export async function createStripeCheckoutAction(input: {
   );
   params.append("cancel_url", `${input.origin}/enrol?course=${course.id}&cancelled=1`);
   params.append("customer_email", input.email.trim().toLowerCase());
-  params.append("payment_method_types[0]", "card");
+  // Note: Modern Stripe accounts manage payment methods dynamically via Stripe Dashboard (Cards, Apple Pay, Google Pay)
   params.append("mode", "payment");
   params.append("line_items[0][price_data][currency]", "gbp");
   params.append("line_items[0][price_data][unit_amount]", unitAmountPence.toString());

@@ -925,84 +925,56 @@ export const EnrolmentClient: React.FC<Props> = ({
                 </h2>
               </div>
 
-              <div className="p-4 rounded-sm bg-paper border border-line space-y-3">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <span className="text-xs font-bold text-navy-900 flex items-center gap-1.5">
-                    <Icon name="credit-card" size={16} />
-                    <span>Credit / Debit Card</span>
-                  </span>
+              {/* Secure Payment Review Panel */}
+              <div className="p-5 rounded-sm bg-paper border border-line space-y-4">
+                <div className="flex items-center justify-between flex-wrap gap-2 pb-3 border-b border-line">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-full bg-navy-900 text-gold-300 flex items-center justify-center">
+                      <Icon name="shield-check" size={15} />
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-navy-900 block leading-tight">
+                        Secured by Stripe
+                      </span>
+                      <span className="text-[10px] text-ink-soft">
+                        256-bit SSL encrypted • Apple Pay • Google Pay • Debit/Credit Card
+                      </span>
+                    </div>
+                  </div>
                   <PaymentCardTrustIcons />
                 </div>
 
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-[11px] font-semibold text-ink-soft">
-                      Card Number
-                    </span>
-                    <span className="text-[10px] font-mono text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-xs font-semibold">
-                      Demo Test Card
+                <div className="bg-white p-4 rounded-xs border border-line space-y-2.5">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-ink-soft">Enrolment Plan:</span>
+                    <span className="font-bold text-navy-900">
+                      {paymentOption === "full"
+                        ? "Full Tuition (10% Upfront Discount Applied)"
+                        : `${pricing?.months || 6}-Month Instalment Plan (0% APR)`}
                     </span>
                   </div>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      name="demo_card_number"
-                      id="demo_card_number"
-                      readOnly
-                      autoComplete="off"
-                      data-lpignore="true"
-                      data-form-type="other"
-                      tabIndex={-1}
-                      value={cardNumber}
-                      className="w-full px-3.5 py-2 pl-9 rounded-sm border border-line bg-paper/50 text-sm font-mono text-navy-900 focus:outline-none min-h-[40px] cursor-default select-all"
-                    />
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft pointer-events-none">
-                      <Icon name="shield-check" size={15} className="text-navy-900" />
-                    </div>
+                  <div className="flex justify-between items-center text-sm pt-2 border-t border-line/60">
+                    <span className="font-bold text-navy-900">Amount Due Today:</span>
+                    <span className="font-heading text-xl font-bold text-navy-900">
+                      {formatCurrency(amountToChargeNow)}
+                    </span>
                   </div>
+                  {paymentOption === "instalments" && pricing && (
+                    <p className="text-[11px] text-ink-soft pt-1 leading-relaxed">
+                      Your initial deposit of <strong>{formatCurrency(pricing.deposit)}</strong> is charged today. Remaining tuition is divided into {pricing.months} monthly payments of {formatCurrency(pricing.monthly)}.
+                    </p>
+                  )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <span className="block text-[11px] font-semibold text-ink-soft mb-1">
-                      Expiry Date
-                    </span>
-                    <input
-                      type="text"
-                      name="demo_card_expiry"
-                      id="demo_card_expiry"
-                      readOnly
-                      autoComplete="off"
-                      data-lpignore="true"
-                      data-form-type="other"
-                      tabIndex={-1}
-                      value={cardExpiry}
-                      className="w-full px-3 py-2 rounded-sm border border-line bg-paper/50 text-sm font-mono text-navy-900 focus:outline-none min-h-[40px] cursor-default select-all"
-                    />
-                  </div>
-                  <div>
-                    <span className="block text-[11px] font-semibold text-ink-soft mb-1">
-                      Security Code (CVC)
-                    </span>
-                    <input
-                      type="text"
-                      name="demo_card_cvc"
-                      id="demo_card_cvc"
-                      readOnly
-                      autoComplete="off"
-                      data-lpignore="true"
-                      data-form-type="other"
-                      tabIndex={-1}
-                      value={cardCvc}
-                      className="w-full px-3 py-2 rounded-sm border border-line bg-paper/50 text-sm font-mono text-navy-900 focus:outline-none min-h-[40px] cursor-default select-all"
-                    />
-                  </div>
+                <div className="p-3 rounded-xs bg-navy-50/60 border border-navy-900/10 text-xs text-navy-900 space-y-1">
+                  <p className="font-bold flex items-center gap-1.5 text-navy-900">
+                    <Icon name="lock" size={13} className="text-navy-900 shrink-0" />
+                    <span>How your payment is completed:</span>
+                  </p>
+                  <p className="text-[11px] text-ink-soft leading-relaxed pl-5">
+                    Clicking the button below connects to Stripe’s secure payment checkout. You can pay using your preferred method—including Apple Pay, Google Pay, or any UK/international bank card. Your student account activates immediately upon confirmation.
+                  </p>
                 </div>
-
-                <p className="text-[11px] text-ink-soft flex items-center gap-1.5 pt-0.5">
-                  <Icon name="check-circle" size={13} className="text-emerald-700 shrink-0" />
-                  <span>Sandbox environment: Pre-filled with demo card for instant activation. No live card required.</span>
-                </p>
               </div>
 
               {/* Terms Checkbox */}
@@ -1031,13 +1003,19 @@ export const EnrolmentClient: React.FC<Props> = ({
                 variant="primary"
                 size="lg"
                 disabled={isPending}
-                className="w-full font-bold text-base py-3.5 cursor-pointer"
+                className="w-full font-bold text-base py-3.5 cursor-pointer shadow-md hover:shadow-lg transition-all"
               >
                 {isPending ? (
-                  <span>Processing Enrolment & Activating Account...</span>
+                  <span className="flex items-center justify-center gap-2">
+                    <Icon name="refresh" size={16} className="animate-spin" />
+                    <span>Connecting to Secure Checkout...</span>
+                  </span>
                 ) : (
-                  <span>
-                    Pay {formatCurrency(amountToChargeNow)} & Activate Enrolment &rarr;
+                  <span className="flex items-center justify-center gap-2">
+                    <Icon name="lock" size={16} />
+                    <span>
+                      Pay {formatCurrency(amountToChargeNow)} Securely via Stripe &rarr;
+                    </span>
                   </span>
                 )}
               </Button>
