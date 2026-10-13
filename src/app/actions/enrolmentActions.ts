@@ -425,13 +425,17 @@ export async function processSelfEnrolmentAction(input: EnrolmentFormInput) {
     triggerEvent: "Student Self-Enrolment & Payment Confirmed",
   });
 
-  // 9. Revalidate Portal Routes
-  revalidatePath("/admin");
-  revalidatePath("/admin/learners");
-  revalidatePath("/admin/payments");
-  revalidatePath("/student");
-  revalidatePath("/student/courses");
-  revalidatePath("/student/enrolments");
+  // 9. Revalidate Portal Routes (only permitted during Server Action executions)
+  try {
+    revalidatePath("/admin");
+    revalidatePath("/admin/learners");
+    revalidatePath("/admin/payments");
+    revalidatePath("/student");
+    revalidatePath("/student/courses");
+    revalidatePath("/student/enrolments");
+  } catch {
+    // In Next.js, revalidatePath cannot be invoked during Server Component render (e.g. /enrol/success)
+  }
 
   return {
     success: true,

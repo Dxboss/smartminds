@@ -11,6 +11,7 @@ export const metadata: Metadata = {
   description: "Your official enrolment and payment have been confirmed.",
 };
 
+export const dynamic = "force-dynamic";
 export const instant = false;
 
 interface PageProps {
