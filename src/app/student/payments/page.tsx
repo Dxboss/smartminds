@@ -3,6 +3,8 @@ import { getServerSession } from "@/lib/session";
 import { getPaymentRepo } from "@/lib/repositories";
 import { StudentPaymentsClient } from "@/components/student/StudentPaymentsClient";
 
+export const instant = false;
+
 export default async function StudentPaymentsPage() {
   const session = await getServerSession();
   if (!session) return null;
