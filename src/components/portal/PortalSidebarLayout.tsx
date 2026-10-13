@@ -167,7 +167,7 @@ export const PortalSidebarLayout: React.FC<PortalSidebarLayoutProps> = ({
           {/* Sidebar Header / Brand */}
           <div
             className={`h-16 flex items-center border-b border-line shrink-0 ${
-              collapsed ? "justify-center px-2" : "justify-between px-4"
+              collapsed ? "justify-center px-2" : "px-4"
             }`}
           >
             {collapsed ? (
@@ -183,39 +183,27 @@ export const PortalSidebarLayout: React.FC<PortalSidebarLayoutProps> = ({
                 />
               </Link>
             ) : (
-              <>
-                <Link
-                  href={navItems[0]?.href || "#"}
-                  className="flex items-center gap-2.5 overflow-hidden min-w-0"
-                  title="Smartminds College Portal"
-                >
-                  <div className="relative flex items-center justify-center shrink-0">
-                    <img
-                      src="/images/logo-color.png"
-                      alt="Smartminds Training College"
-                      className="h-9 w-auto object-contain"
-                    />
-                  </div>
-                  <div className="min-w-0 transition-opacity duration-200">
-                    <span className="font-heading font-bold text-base tracking-tight text-navy-900 block truncate leading-tight">
-                      SMARTMINDS
-                    </span>
-                    <span className="text-[10px] font-semibold text-gold-700 block uppercase tracking-wider truncate">
-                      {portalTitle}
-                    </span>
-                  </div>
-                </Link>
-
-                <button
-                  type="button"
-                  onClick={() => setCollapsed(true)}
-                  className="p-1.5 rounded-sm text-ink-soft hover:text-navy-900 hover:bg-paper transition-colors shrink-0 cursor-pointer"
-                  title="Collapse sidebar"
-                  aria-label="Collapse sidebar"
-                >
-                  <Icon name="chevron-left" size={16} />
-                </button>
-              </>
+              <Link
+                href={navItems[0]?.href || "#"}
+                className="flex items-center gap-2.5 overflow-hidden min-w-0"
+                title="Smartminds College Portal"
+              >
+                <div className="relative flex items-center justify-center shrink-0">
+                  <img
+                    src="/images/logo-color.png"
+                    alt="Smartminds Training College"
+                    className="h-9 w-auto object-contain"
+                  />
+                </div>
+                <div className="min-w-0 transition-opacity duration-200">
+                  <span className="font-heading font-bold text-base tracking-tight text-navy-900 block truncate leading-tight">
+                    SMARTMINDS
+                  </span>
+                  <span className="text-[10px] font-semibold text-gold-700 block uppercase tracking-wider truncate">
+                    {portalTitle}
+                  </span>
+                </div>
+              </Link>
             )}
           </div>
 
