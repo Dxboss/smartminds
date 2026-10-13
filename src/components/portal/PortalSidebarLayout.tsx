@@ -221,22 +221,17 @@ export const PortalSidebarLayout: React.FC<PortalSidebarLayoutProps> = ({
 
           {/* User Profile Mini Card */}
           <div
-            className={`border-b border-line bg-paper/50 shrink-0 ${
+            className={`border-b border-line bg-paper/50 shrink-0 overflow-hidden ${
               collapsed ? "py-3 px-2 flex justify-center" : "p-3"
             }`}
           >
             {collapsed ? (
-              <div className="relative group flex justify-center">
+              <div className="flex justify-center">
                 <div
                   className="w-10 h-10 rounded-full bg-navy-900 text-gold-300 flex items-center justify-center font-bold text-xs shrink-0 shadow-xs ring-2 ring-line cursor-default"
                   title={`${user.name} (${roleBadge})`}
                 >
                   {user.name.charAt(0)}
-                </div>
-                {/* Hover Tooltip for Collapsed Avatar */}
-                <div className="absolute left-full ml-3 px-3 py-1.5 bg-navy-900 text-white text-xs rounded-sm opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50 shadow-md">
-                  <p className="font-bold text-white leading-tight">{user.name}</p>
-                  <p className="text-[10px] text-gold-300">{roleBadge}</p>
                 </div>
               </div>
             ) : (
@@ -259,8 +254,8 @@ export const PortalSidebarLayout: React.FC<PortalSidebarLayoutProps> = ({
             )}
           </div>
 
-          {/* Navigation Links - clean scroll without ugly OS scrollbar */}
-          <nav className="flex-1 overflow-y-auto no-scrollbar p-2 space-y-1">
+          {/* Navigation Links - clean scroll without ugly OS scrollbar or horizontal shift */}
+          <nav className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar p-2 space-y-1">
             {navItems.map((item) => {
               const isActive =
                 pathname === item.href ||
@@ -274,7 +269,8 @@ export const PortalSidebarLayout: React.FC<PortalSidebarLayoutProps> = ({
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`w-10 h-10 mx-auto flex items-center justify-center rounded-sm transition-all group relative cursor-pointer ${
+                    title={item.badge ? `${item.label} (${item.badge})` : item.label}
+                    className={`w-10 h-10 mx-auto flex items-center justify-center rounded-sm transition-all cursor-pointer relative shrink-0 ${
                       isActive
                         ? "bg-navy-900 text-white shadow-xs font-bold"
                         : "text-ink-soft hover:bg-paper hover:text-navy-900"
@@ -293,15 +289,6 @@ export const PortalSidebarLayout: React.FC<PortalSidebarLayoutProps> = ({
                     {item.badge && (
                       <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-gold-500 ring-2 ring-white" />
                     )}
-                    {/* Floating Hover Tooltip */}
-                    <div className="absolute left-full ml-3 px-2.5 py-1.5 bg-navy-900 text-white text-xs font-semibold rounded-sm opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50 shadow-md">
-                      <span>{item.label}</span>
-                      {item.badge && (
-                        <span className="ml-1.5 px-1 py-0.2 rounded-xs bg-white/20 text-[10px] text-gold-300 font-bold">
-                          {item.badge}
-                        </span>
-                      )}
-                    </div>
                   </Link>
                 );
               }
@@ -346,42 +333,36 @@ export const PortalSidebarLayout: React.FC<PortalSidebarLayoutProps> = ({
           </nav>
 
           {/* Sidebar Footer: Public site link & Sign out */}
-          <div className="p-2 pb-5 border-t border-line space-y-1 bg-paper/30 shrink-0">
+          <div className="p-2 pb-5 border-t border-line space-y-1 bg-paper/30 shrink-0 overflow-hidden">
             {collapsed ? (
               <div className="flex flex-col items-center space-y-1.5">
                 <Link
                   href="/"
-                  className="w-10 h-10 rounded-sm flex items-center justify-center text-ink-soft hover:text-navy-900 hover:bg-paper transition-colors group relative cursor-pointer"
+                  title="Return to Public Website"
+                  className="w-10 h-10 rounded-sm flex items-center justify-center text-ink-soft hover:text-navy-900 hover:bg-paper transition-colors cursor-pointer shrink-0"
                   aria-label="Return to Public Website"
                 >
                   <Icon name="external-link" size={16} />
-                  <div className="absolute left-full ml-3 px-2.5 py-1.5 bg-navy-900 text-white text-xs font-semibold rounded-sm opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50 shadow-md">
-                    Public Website
-                  </div>
                 </Link>
 
                 <button
                   type="button"
                   onClick={() => setIsPasswordModalOpen(true)}
-                  className="w-10 h-10 rounded-sm flex items-center justify-center text-ink-soft hover:text-navy-900 hover:bg-paper transition-colors group relative cursor-pointer"
+                  title="Change Password"
+                  className="w-10 h-10 rounded-sm flex items-center justify-center text-ink-soft hover:text-navy-900 hover:bg-paper transition-colors cursor-pointer shrink-0"
                   aria-label="Change Password"
                 >
                   <Icon name="shield-check" size={16} />
-                  <div className="absolute left-full ml-3 px-2.5 py-1.5 bg-navy-900 text-white text-xs font-semibold rounded-sm opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50 shadow-md">
-                    Change Password
-                  </div>
                 </button>
 
                 <button
                   type="button"
                   onClick={handleSignOut}
-                  className="w-10 h-10 rounded-sm flex items-center justify-center text-red-700 hover:bg-red-50 hover:text-red-900 transition-colors group relative cursor-pointer"
+                  title="Sign out"
+                  className="w-10 h-10 rounded-sm flex items-center justify-center text-red-700 hover:bg-red-50 hover:text-red-900 transition-colors cursor-pointer shrink-0"
                   aria-label="Sign out"
                 >
                   <Icon name="log-out" size={16} />
-                  <div className="absolute left-full ml-3 px-2.5 py-1.5 bg-navy-900 text-white text-xs font-semibold rounded-sm opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50 shadow-md">
-                    Sign out
-                  </div>
                 </button>
               </div>
             ) : (
