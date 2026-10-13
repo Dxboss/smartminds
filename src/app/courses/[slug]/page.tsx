@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { courses } from "@/content";
+import { getCourseRepo } from "@/lib/repositories";
 import { CourseDetailClient, CourseStructuredData } from "@/components/course";
 
 interface CoursePageProps {
@@ -10,7 +10,9 @@ interface CoursePageProps {
 }
 
 export async function generateStaticParams() {
-  return courses
+  const courseRepo = getCourseRepo();
+  const allCourses = await courseRepo.listCourses();
+  return allCourses
     .filter((c) => c.published)
     .map((c) => ({
       slug: c.slug,
@@ -21,7 +23,8 @@ export async function generateMetadata({
   params,
 }: CoursePageProps): Promise<Metadata> {
   const { slug } = await params;
-  const course = courses.find((c) => c.slug === slug);
+  const courseRepo = getCourseRepo();
+  const course = await courseRepo.getCourseBySlug(slug);
 
   if (!course) {
     return {
@@ -46,7 +49,11 @@ export async function generateMetadata({
 
 export default async function CourseDetailPage({ params }: CoursePageProps) {
   const { slug } = await params;
-  const course = courses.find((c) => c.slug === slug);
+  const courseRepo = getCourseRepo();
+  const [course, allCourses] = await Promise.all([
+    courseRepo.getCourseBySlug(slug),
+    courseRepo.listCourses(),
+  ]);
 
   if (!course || !course.published) {
     notFound();
@@ -55,7 +62,7 @@ export default async function CourseDetailPage({ params }: CoursePageProps) {
   return (
     <main>
       <CourseStructuredData course={course} />
-      <CourseDetailClient course={course} allCourses={courses} />
+      <CourseDetailClient course={course} allCourses={allCourses} />
     </main>
   );
 }

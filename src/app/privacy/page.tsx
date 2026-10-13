@@ -1,5 +1,7 @@
 import { Metadata } from "next";
 import { siteConfig } from "@/content/siteConfig";
+import { collegePagesData } from "@/lib/repositories/seedData";
+import { SectionRenderer } from "@/components/cms/SectionRenderer";
 import { Container } from "@/components/ui/Container";
 import { Heading } from "@/components/ui/Heading";
 import { Eyebrow } from "@/components/ui/Eyebrow";
@@ -15,6 +17,20 @@ export const metadata: Metadata = {
 };
 
 export default function PrivacyPage() {
+  const sections = collegePagesData["/privacy"];
+
+  if (sections && sections.length > 0) {
+    return (
+      <main className="bg-paper min-h-screen">
+        {sections
+          .filter((sec) => sec.enabled)
+          .map((sec) => (
+            <SectionRenderer key={sec.id} section={sec} />
+          ))}
+      </main>
+    );
+  }
+
   return (
     <main className="bg-paper min-h-screen py-10 md:py-16">
       <Container>
@@ -29,7 +45,7 @@ export default function PrivacyPage() {
             Privacy Policy
           </Heading>
           <p className="text-xs text-ink-soft mb-8 font-mono">
-            Last Updated: 07 October 2026 • Effective Version 1.0 (PLACEHOLDER)
+            Last Updated: 10 October 2026 • Effective Version 1.0
           </p>
 
           <LegalDraftBanner />
@@ -43,8 +59,7 @@ export default function PrivacyPage() {
                 Smartminds Training College is a trading name of{" "}
                 <strong>Smartminds Empire Ltd</strong>, a private limited
                 company registered in England and Wales under Company No.
-                13492661. Our registered address is London, United Kingdom
-                (PLACEHOLDER).
+                13492661. Our registered office is 62 High Street, Aveley, South Ockendon, RM15 4BX, United Kingdom.
               </p>
               <p>
                 We are committed to protecting the privacy and confidentiality

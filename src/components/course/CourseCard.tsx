@@ -14,96 +14,87 @@ export interface CourseCardProps {
 }
 
 /**
- * CourseCover: Consistent visual header for all cards (PRD 7.4 & 10.2).
- * Every card uses the exact same aspect-[16/9] ratio.
- * When a dedicated photo exists, it is displayed.
- * Where there is no photo, all cards receive the exact same neutral treatment.
+ * Maps each course to an authentic British FE college photograph.
+ */
+const getCourseImage = (course: Course): string => {
+  if (course.image && course.image.startsWith("/images/")) {
+    return course.image;
+  }
+  const id = course.id.toLowerCase();
+  const cat = course.category.toLowerCase();
+
+  if (cat.includes("child") || id.includes("child") || id.includes("cypw") || id.includes("early")) {
+    return "/images/early-years-training.jpg";
+  }
+  if (cat.includes("teaching") || id.includes("aet") || id.includes("tutor") || id.includes("education")) {
+    return "/images/teacher-training.jpg";
+  }
+  if (id.includes("cava") || id.includes("safeguard") || id.includes("iqa")) {
+    return "/images/tutor-teaching.jpg";
+  }
+  if (id.includes("certificate") || id.includes("residential")) {
+    return "/images/certificate-moment.jpg";
+  }
+  return "/images/adult-care-training.jpg";
+};
+
+/**
+ * CourseCover: Authentic British Further Education prospectus visual header.
+ * Uses high-resolution contextual educational photography with institutional badges.
  */
 const CourseCover: React.FC<{ course: Course; priority?: boolean }> = ({
   course,
   priority = false,
 }) => {
-  const hasDedicatedPhoto =
-    Boolean(course.image) &&
-    (course.id === "course-adult-care" ||
-      course.id === "course-aet" ||
-      course.id === "course-leadership-care");
+  const photoSrc = getCourseImage(course);
 
-  if (hasDedicatedPhoto && course.image) {
-    return (
-      <div className="relative aspect-[16/9] w-full overflow-hidden bg-paper border-b border-line">
-        <Image
-          src={course.image}
-          alt={course.imageAlt || course.title}
-          fill
-          priority={priority}
-          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 380px"
-          className="object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
-        />
-
-        {/* Subtle Bottom Scrim for depth */}
-        <div
-          className="absolute inset-0 bg-gradient-to-t from-navy-900/40 via-transparent to-transparent pointer-events-none"
-          aria-hidden="true"
-        />
-
-        {/* Discreet Live Online Indicator */}
-        <div className="absolute top-3 right-3 pointer-events-none">
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm text-[11px] font-semibold bg-navy-900/90 text-white backdrop-blur-md shadow-sm border border-white/10">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-            Live Online
-          </span>
-        </div>
-      </div>
-    );
-  }
-
-  // PRD Item 2: Consistent neutral treatment across all cards lacking photography
   return (
-    <div className="relative aspect-[16/9] w-full overflow-hidden bg-paper border-b border-line p-5 sm:p-6 flex flex-col justify-between text-navy-900 transition-colors">
-      {/* Top Header */}
-      <div className="flex items-center justify-between">
-        <span className="text-[11px] font-mono uppercase tracking-wider text-ink-soft font-semibold">
-          {course.category}
+    <div className="relative aspect-[16/9] w-full overflow-hidden bg-navy-900 border-b border-line">
+      <Image
+        src={photoSrc}
+        alt={course.imageAlt || `${course.title} training at Smartminds Training College`}
+        fill
+        priority={priority}
+        loading={priority ? "eager" : undefined}
+        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 380px"
+        className="object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
+      />
+
+      {/* Subtle depth scrim */}
+      <div
+        className="absolute inset-0 bg-gradient-to-t from-navy-950/85 via-navy-950/25 to-transparent pointer-events-none"
+        aria-hidden="true"
+      />
+
+      {/* Top Badges */}
+      <div className="absolute top-3 inset-x-3 flex items-center justify-between pointer-events-none">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm text-[11px] font-semibold bg-navy-900/90 text-gold-300 backdrop-blur-md shadow-sm border border-gold-500/30">
+          <Icon name="shield-check" size={13} className="text-gold-300" />
+          {course.type === "regulated" ? "Ofqual RQF" : "CPD Accredited"}
         </span>
-        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm text-[10px] font-semibold bg-white text-navy-900 border border-line">
+        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm text-[10px] font-semibold bg-white/95 text-navy-900 backdrop-blur-md shadow-sm">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-          Live Online
+          Live Interactive Seminars
         </span>
       </div>
 
-      {/* Center Motif with Uniform Neutral Icon */}
-      <div className="flex items-center gap-3.5 my-auto py-2">
-        <div className="w-11 h-11 rounded-sm bg-white border border-line flex items-center justify-center flex-shrink-0 text-navy-900 shadow-sm group-hover:border-navy-900/30 transition-colors">
-          <Icon name="graduation-cap" size={22} className="text-navy-900" />
-        </div>
-        <div className="min-w-0">
-          <span className="text-[11px] font-mono text-ink-soft block uppercase tracking-wider">
-            Smartminds College
+      {/* Bottom Qualification Number / Awarding Body Strip */}
+      <div className="absolute bottom-2.5 inset-x-3 pointer-events-none flex items-center justify-between text-[11px] text-white/95">
+        <span className="font-mono text-white/80 text-[10px] uppercase tracking-wider">
+          {course.awarding_reference ? `QN: ${course.awarding_reference}` : "British Regulated"}
+        </span>
+        {course.awarding_body && (
+          <span className="font-semibold text-white text-[11px] bg-black/30 px-2 py-0.5 rounded-sm backdrop-blur-sm">
+            {course.awarding_body}
           </span>
-          <strong className="font-heading font-bold text-lg text-navy-900 leading-tight block truncate">
-            {course.awarding_body ? `Awarded by ${course.awarding_body}` : "Regulated Qualification"}
-          </strong>
-        </div>
-      </div>
-
-      {/* Bottom Rule */}
-      <div className="flex items-center justify-between text-[11px] text-ink-soft font-mono pt-2 border-t border-line">
-        <span>Curriculum Delivery</span>
-        <span className="text-navy-900 font-semibold font-sans">
-          {course.type === "regulated" ? "RQF Regulated" : "CPD Accredited"}
-        </span>
+        )}
       </div>
     </div>
   );
 };
 
 /**
- * CourseCard: Spacious, breathable, human-designed course card.
- * PRD 7.4 & 10.2:
- * - Titles wrap naturally instead of truncating (no line-clamp-2).
- * - Format all prices to two decimals with thousands separators (£445.50, £1,305.00).
- * - Hide instalment line when months = 1.
+ * CourseCard: Spacious, editorial, human-designed course card.
  */
 export const CourseCard: React.FC<CourseCardProps> = ({
   course,
@@ -125,14 +116,14 @@ export const CourseCard: React.FC<CourseCardProps> = ({
   const HeadingTag = headingLevel;
 
   return (
-    <article className="group bg-white rounded-lg border border-line shadow-subtle hover:border-navy-900/40 hover:shadow-md transition-all duration-300 flex flex-col justify-between overflow-hidden">
-      {/* 1. Spacious Visual Header (Consistent aspect-[16/9] on all cards) */}
+    <article className="group bg-white rounded-md border border-line shadow-subtle hover:border-navy-900/50 hover:shadow-md transition-all duration-300 flex flex-col justify-between overflow-hidden">
+      {/* 1. Authentic Visual Header */}
       <CourseCover course={course} priority={priority} />
 
-      {/* 2. Open, Breathing Card Body */}
+      {/* 2. Card Body */}
       <div className="p-6 sm:p-7 flex flex-col flex-1 justify-between space-y-6">
         <div className="space-y-3">
-          {/* Eyebrow: Category & Awarding Body */}
+          {/* Eyebrow: Category & Faculty */}
           <div className="flex items-center justify-between gap-2 text-xs font-semibold tracking-wider uppercase text-gold-700">
             <span>{course.category}</span>
             {course.awarding_body && (
@@ -145,7 +136,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
             )}
           </div>
 
-          {/* Course Title: Wraps naturally instead of truncating (PRD Item 2) */}
+          {/* Course Title: Wraps naturally with no truncation */}
           <HeadingTag className="font-heading text-2xl font-bold text-navy-900 group-hover:text-navy-700 transition-colors leading-tight">
             <Link
               href={`/courses/${course.slug}`}
@@ -160,7 +151,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
             {course.summary}
           </p>
 
-          {/* Airy Metadata Chips */}
+          {/* Metadata Chips */}
           <div className="flex flex-wrap items-center gap-2 pt-2">
             <span className="inline-flex items-center gap-1.5 text-xs text-navy-900 font-semibold bg-paper px-2.5 py-1 rounded-sm border border-line">
               <Icon
@@ -184,15 +175,15 @@ export const CourseCard: React.FC<CourseCardProps> = ({
 
             {(course.funding === "funded" || course.funding === "both") && (
               <span className="inline-flex items-center gap-1 text-xs text-gold-700 font-semibold bg-gold-300/20 px-2.5 py-1 rounded-sm border border-gold-500/30">
-                Funded Route
+                Funded Route Available
               </span>
             )}
           </div>
         </div>
 
-        {/* 3. Open Footer: Price on Left, Action on Right */}
+        {/* 3. Footer: Price on Left, Action on Right */}
         <div className="pt-5 border-t border-line flex items-end justify-between gap-4">
-          {/* Price Block (Formatted to two decimal places per PRD Item 1) */}
+          {/* Price Block */}
           {course.funding === "funded" ? (
             <div>
               <span className="text-[11px] uppercase tracking-wider text-ink-soft block font-mono">
@@ -220,24 +211,37 @@ export const CourseCard: React.FC<CourseCardProps> = ({
                   </span>
                 )}
               </div>
-              {/* Hide instalment line when months = 1 (PRD Item 1) */}
               {pricing.months > 1 && (
                 <span className="text-xs text-ink-soft block mt-0.5 font-medium">
-                  Or spread{" "}
-                  <strong className="text-navy-700 font-bold">
-                    {formatCurrency(pricing.monthly)}/mo
-                  </strong>
+                  {pricing.deposit > 0 ? (
+                    <>
+                      <strong className="text-navy-900 font-semibold">
+                        {formatCurrency(pricing.deposit)}
+                      </strong>{" "}
+                      dep +{" "}
+                      <strong className="text-navy-700 font-bold">
+                        {formatCurrency(pricing.monthly)}/mo
+                      </strong>
+                    </>
+                  ) : (
+                    <>
+                      Or spread{" "}
+                      <strong className="text-navy-700 font-bold">
+                        {formatCurrency(pricing.monthly)}/mo
+                      </strong>
+                    </>
+                  )}
                 </span>
               )}
             </div>
           ) : null}
 
-          {/* Crisp Action Button */}
+          {/* Action Button: Human Education Copy */}
           <Link
             href={`/courses/${course.slug}`}
-            className="inline-flex items-center justify-center min-h-[44px] px-5 rounded-sm bg-navy-900 text-white hover:bg-navy-700 active:bg-navy-900 font-heading font-bold text-sm tracking-wide transition-all shadow-subtle group-hover:bg-navy-700 group-hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gold-500 flex-shrink-0"
+            className="inline-flex items-center justify-center min-h-[44px] px-4 sm:px-5 rounded-sm bg-navy-900 text-white hover:bg-navy-700 active:bg-navy-900 font-heading font-bold text-sm tracking-wide transition-all shadow-subtle group-hover:bg-navy-700 group-hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gold-500 flex-shrink-0"
           >
-            <span>Details</span>
+            <span>View Syllabus & Fees</span>
             <Icon
               name="arrow-right"
               size={15}

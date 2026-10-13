@@ -11,6 +11,8 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
+export const instant = false;
+
 export default async function TutorClassDetailPage({ params }: PageProps) {
   const session = await getServerSession();
   if (!session) return null;
@@ -90,6 +92,8 @@ export default async function TutorClassDetailPage({ params }: PageProps) {
         sessionId={primarySession.id}
         initialScheduledAt={primarySession.scheduledAt}
         initialZoomLink={primarySession.zoomLink}
+        initialRecordingUrl={primarySession.recordingUrl}
+        cohortZoomLink={cls.zoomLink}
         learners={classLearners}
       />
     </div>

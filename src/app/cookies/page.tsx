@@ -1,4 +1,6 @@
 import { Metadata } from "next";
+import { collegePagesData } from "@/lib/repositories/seedData";
+import { SectionRenderer } from "@/components/cms/SectionRenderer";
 import { Container } from "@/components/ui/Container";
 import { Heading } from "@/components/ui/Heading";
 import { Eyebrow } from "@/components/ui/Eyebrow";
@@ -14,6 +16,20 @@ export const metadata: Metadata = {
 };
 
 export default function CookiesPage() {
+  const sections = collegePagesData["/cookies"];
+
+  if (sections && sections.length > 0) {
+    return (
+      <main className="bg-paper min-h-screen">
+        {sections
+          .filter((sec) => sec.enabled)
+          .map((sec) => (
+            <SectionRenderer key={sec.id} section={sec} />
+          ))}
+      </main>
+    );
+  }
+
   return (
     <main className="bg-paper min-h-screen py-10 md:py-16">
       <Container>
@@ -28,7 +44,7 @@ export default function CookiesPage() {
             Cookie Policy
           </Heading>
           <p className="text-xs text-ink-soft mb-8 font-mono">
-            Last Updated: 07 October 2026 • Version 1.0 (PLACEHOLDER)
+            Last Updated: 10 October 2026 • Version 1.0
           </p>
 
           <LegalDraftBanner />

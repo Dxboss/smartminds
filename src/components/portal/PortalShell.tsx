@@ -52,6 +52,11 @@ export const PortalShell: React.FC<PortalShellProps> = ({
       badge: "Executive Admin",
       color: "bg-amber-500/20 text-gold-300 border-gold-500/40",
     },
+    super_admin: {
+      title: "Super Admin Governance",
+      badge: "Master Governance",
+      color: "bg-purple-500/20 text-purple-300 border-purple-500/40",
+    },
   };
 
   const currentRoleInfo = roleLabels[role] || roleLabels.owner_admin;
@@ -324,10 +329,10 @@ export const PortalShell: React.FC<PortalShellProps> = ({
 
           {/* Top Bar Actions */}
           <div className="flex items-center gap-3">
-            {/* Live Campus Connection Dot */}
+            {/* Live System Status Dot */}
             <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Campus Online</span>
+              <span>Portal Connected</span>
             </div>
 
             {/* Active User Badge */}

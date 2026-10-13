@@ -14,6 +14,7 @@ export type IconName =
   | "shield-check"
   | "whatsapp"
   | "chevron-down"
+  | "chevron-up"
   | "chevron-right"
   | "chevron-left"
   | "menu"
@@ -32,7 +33,25 @@ export type IconName =
   | "bell"
   | "check-circle"
   | "alert-circle"
-  | "plus";
+  | "plus"
+  | "cookie"
+  | "monitor"
+  | "tablet"
+  | "smartphone"
+  | "eye"
+  | "eye-off"
+  | "copy"
+  | "trash"
+  | "grip-vertical"
+  | "layers"
+  | "home"
+  | "building"
+  | "message-square"
+  | "edit"
+  | "undo"
+  | "redo"
+  | "play"
+  | "pause";
 
 export interface IconProps extends React.SVGAttributes<SVGElement> {
   name: IconName;
@@ -556,6 +575,319 @@ export const Icon: React.FC<IconProps> = ({
               strokeLinecap="round"
               strokeLinejoin="round"
             />
+          </>
+        );
+
+      case "cookie":
+        return (
+          <>
+            <path
+              d="M12 2a10 10 0 1010 10 4 4 0 01-5-5 4 4 0 01-5-5z"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <circle cx="8.5" cy="8.5" r="1" fill="currentColor" stroke="none" />
+            <circle cx="16" cy="15.5" r="1" fill="currentColor" stroke="none" />
+            <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
+            <circle cx="10" cy="16.5" r="1" fill="currentColor" stroke="none" />
+            <circle cx="7.5" cy="13.5" r="1" fill="currentColor" stroke="none" />
+          </>
+        );
+
+      case "chevron-up":
+        return (
+          <path
+            d="M18 15l-6-6-6 6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        );
+
+      case "monitor":
+        return (
+          <>
+            <rect
+              x="2"
+              y="3"
+              width="20"
+              height="14"
+              rx="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <line
+              x1="8"
+              y1="21"
+              x2="16"
+              y2="21"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <line
+              x1="12"
+              y1="17"
+              x2="12"
+              y2="21"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </>
+        );
+
+      case "tablet":
+        return (
+          <>
+            <rect
+              x="4"
+              y="2"
+              width="16"
+              height="20"
+              rx="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <line
+              x1="12"
+              y1="18"
+              x2="12.01"
+              y2="18"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </>
+        );
+
+      case "smartphone":
+        return (
+          <>
+            <rect
+              x="5"
+              y="2"
+              width="14"
+              height="20"
+              rx="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <line
+              x1="12"
+              y1="18"
+              x2="12.01"
+              y2="18"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </>
+        );
+
+      case "eye":
+        return (
+          <>
+            <path
+              d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <circle
+              cx="12"
+              cy="12"
+              r="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </>
+        );
+
+      case "eye-off":
+        return (
+          <>
+            <path
+              d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <line
+              x1="1"
+              y1="1"
+              x2="23"
+              y2="23"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </>
+        );
+
+      case "copy":
+        return (
+          <>
+            <rect
+              x="9"
+              y="9"
+              width="13"
+              height="13"
+              rx="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </>
+        );
+
+      case "trash":
+        return (
+          <>
+            <polyline
+              points="3 6 5 6 21 6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </>
+        );
+
+      case "grip-vertical":
+        return (
+          <>
+            <circle cx="9" cy="12" r="1.25" fill="currentColor" stroke="none" />
+            <circle cx="9" cy="5" r="1.25" fill="currentColor" stroke="none" />
+            <circle cx="9" cy="19" r="1.25" fill="currentColor" stroke="none" />
+            <circle cx="15" cy="12" r="1.25" fill="currentColor" stroke="none" />
+            <circle cx="15" cy="5" r="1.25" fill="currentColor" stroke="none" />
+            <circle cx="15" cy="19" r="1.25" fill="currentColor" stroke="none" />
+          </>
+        );
+
+      case "layers":
+        return (
+          <>
+            <polygon
+              points="12 2 2 7 12 12 22 7 12 2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <polyline
+              points="2 17 12 22 22 17"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <polyline
+              points="2 12 12 17 22 12"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </>
+        );
+
+      case "home":
+        return (
+          <>
+            <path
+              d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <polyline
+              points="9 22 9 12 15 12 15 22"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </>
+        );
+
+      case "building":
+        return (
+          <>
+            <rect
+              x="4"
+              y="2"
+              width="16"
+              height="20"
+              rx="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <line x1="9" y1="6" x2="9.01" y2="6" strokeLinecap="round" />
+            <line x1="15" y1="6" x2="15.01" y2="6" strokeLinecap="round" />
+            <line x1="9" y1="10" x2="9.01" y2="10" strokeLinecap="round" />
+            <line x1="15" y1="10" x2="15.01" y2="10" strokeLinecap="round" />
+            <line x1="9" y1="14" x2="9.01" y2="14" strokeLinecap="round" />
+            <line x1="15" y1="14" x2="15.01" y2="14" strokeLinecap="round" />
+            <path d="M10 22v-4h4v4" strokeLinecap="round" strokeLinejoin="round" />
+          </>
+        );
+
+      case "message-square":
+        return (
+          <path
+            d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        );
+
+      case "edit":
+        return (
+          <path
+            d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        );
+
+      case "undo":
+        return (
+          <>
+            <path
+              d="M3 7v6h6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </>
+        );
+
+      case "redo":
+        return (
+          <>
+            <path
+              d="M21 7v6h-6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M3 17a9 9 0 019-9 9 9 0 016 2.3L21 13"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </>
+        );
+
+      case "play":
+        return (
+          <polygon
+            points="5 3 19 12 5 21 5 3"
+            fill="currentColor"
+            stroke="none"
+          />
+        );
+
+      case "pause":
+        return (
+          <>
+            <rect x="6" y="4" width="4" height="16" fill="currentColor" stroke="none" />
+            <rect x="14" y="4" width="4" height="16" fill="currentColor" stroke="none" />
           </>
         );
 

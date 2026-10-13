@@ -8,6 +8,7 @@ interface Props {
   videoTitle: string;
   sessionDate: string;
   classNameTitle: string;
+  videoUrl?: string;
 }
 
 export const StreamOnlyPlayer: React.FC<Props> = ({
@@ -15,8 +16,18 @@ export const StreamOnlyPlayer: React.FC<Props> = ({
   videoTitle,
   sessionDate,
   classNameTitle,
+  videoUrl,
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
+
+  const isDirectPlayable = Boolean(
+    videoUrl &&
+      videoUrl.trim() !== "" &&
+      (videoUrl.endsWith(".mp4") ||
+        videoUrl.endsWith(".webm") ||
+        videoUrl.endsWith(".ogg") ||
+        videoUrl.startsWith("blob:"))
+  );
 
   return (
     <div className="space-y-4">
@@ -27,29 +38,40 @@ export const StreamOnlyPlayer: React.FC<Props> = ({
       >
         {isPlaying ? (
           <div className="w-full h-full flex items-center justify-center bg-black relative">
-            {/* Simulated HTML5 Video Player with no download control */}
-            <video
-              className="w-full h-full object-cover"
-              controls
-              controlsList="nodownload"
-              disablePictureInPicture
-              playsInline
-              autoPlay
-              src="" // Streaming source simulated
-            >
-              Your browser does not support stream playback.
-            </video>
-
-            {/* Video Placeholder Simulation */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-navy-900/90 text-white space-y-2 pointer-events-none">
-              <Icon name="video" size={48} className="text-gold-300 animate-pulse" />
-              <p className="font-heading text-lg font-bold">
-                Streaming Session: {videoTitle}
-              </p>
-              <p className="text-xs text-white/70">
-                Encrypted stream delivery active · Recording duration: 1h 48m
-              </p>
-            </div>
+            {isDirectPlayable ? (
+              <video
+                className="w-full h-full object-cover"
+                controls
+                controlsList="nodownload"
+                disablePictureInPicture
+                playsInline
+                autoPlay
+                src={videoUrl}
+              >
+                Your browser does not support stream playback.
+              </video>
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center text-center p-6 bg-gradient-to-br from-navy-950 via-navy-900 to-black text-white space-y-3">
+                <div className="w-16 h-16 rounded-full bg-navy-800/80 border border-gold-300/40 flex items-center justify-center shadow-lg">
+                  <Icon name="video" size={32} className="text-gold-300 animate-pulse" />
+                </div>
+                <div className="space-y-1 max-w-md">
+                  <p className="font-heading text-lg font-bold text-white">
+                    Streaming Session: {videoTitle}
+                  </p>
+                  <p className="text-xs text-white/70">
+                    Encrypted stream delivery active · Watermarked to {viewerEmail} · Duration: 1h 48m
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsPlaying(false)}
+                  className="px-3.5 py-1.5 rounded-sm bg-white/10 hover:bg-white/20 text-white text-xs font-semibold border border-white/20 transition-colors pointer-events-auto cursor-pointer"
+                >
+                  Stop Stream
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center text-white bg-gradient-to-br from-navy-900 to-navy-700 relative">

@@ -5,6 +5,8 @@ import { getLearnerRepo, getTaskRepo } from "@/lib/repositories";
 import { seedClasses, seedAssignments } from "@/lib/repositories/seedData";
 import { Icon } from "@/components/ui/Icon";
 
+export const instant = false;
+
 export default async function StaffDashboardPage() {
   const session = await getServerSession();
   if (!session) return null;
@@ -27,13 +29,13 @@ export default async function StaffDashboardPage() {
         <div className="space-y-1">
           <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-sm bg-navy-900/5 text-navy-900 text-xs font-semibold">
             <Icon name="users" size={14} />
-            <span>Tutor Faculty Area</span>
+            <span>Assessor & Tutor Console</span>
           </div>
           <h1 className="font-heading text-3xl sm:text-4xl font-bold text-navy-900">
-            Instructor Console: {session.name}
+            Tutor & Assessor Workspace: {session.name}
           </h1>
           <p className="text-sm text-ink-soft">
-            Manage your live classroom timetable, assignment criteria marking, and student academic progress.
+            Manage your live online cohorts, assignment criteria marking, and learner qualification progress.
           </p>
         </div>
 
@@ -157,7 +159,7 @@ export default async function StaffDashboardPage() {
             <div className="flex items-center gap-2 border-b border-line pb-4">
               <Icon name="check" size={20} className="text-navy-900" />
               <h2 className="font-heading text-xl font-bold text-navy-900">
-                Tasks from Principal
+                Directives from Centre Management
               </h2>
             </div>
 

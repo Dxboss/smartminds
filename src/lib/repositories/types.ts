@@ -14,6 +14,10 @@ export interface SessionUser {
   role: UserRole;
   learnerId?: string;
   tutorId?: string;
+  mustChangePassword?: boolean;
+  isImpersonating?: boolean;
+  impersonatorEmail?: string;
+  originalRole?: UserRole;
 }
 
 export class PermissionDeniedError extends Error {
@@ -33,6 +37,8 @@ export interface Learner {
   enrolmentDate: string;
   accessStatus: "active" | "paused";
   notes?: string;
+  courseId?: string;
+  courseTitle?: string;
 }
 
 export interface ClassCohort {
@@ -44,6 +50,7 @@ export interface ClassCohort {
   tutorName: string;
   intakeLabel: string;
   scheduleDescription: string;
+  sessionTiming?: "afternoon" | "evening";
   nextSessionDate?: string;
   zoomLink?: string;
 }
@@ -70,6 +77,8 @@ export interface Enrolment {
   courseTitle: string;
   courseLevelLabel: string;
   classId: string;
+  sessionTiming?: "afternoon" | "evening";
+  tutorName?: string;
   enrolledAt: string;
   status: EnrolmentStatus;
   fundingType: FundingStatus;
@@ -110,7 +119,13 @@ export interface PaymentScheduleItem {
 
 export interface LearnerPaymentPlanSummary {
   enrolmentId: string;
+  learnerId?: string;
+  learnerName?: string;
+  learnerEmail?: string;
+  learnerPhone?: string;
   courseTitle: string;
+  levelLabel?: string;
+  planMonths?: number;
   totalAmountGbp: number;
   totalPaidGbp: number;
   balanceRemainingGbp: number;
@@ -159,7 +174,7 @@ export interface Submission {
 }
 
 export type TaskPriority = "low" | "medium" | "high";
-export type TaskStatus = "pending" | "in_progress" | "completed";
+export type TaskStatus = "pending" | "in_progress" | "completed" | "reviewed";
 
 export interface Task {
   id: string;
@@ -173,6 +188,34 @@ export interface Task {
   isOverdue: boolean;
   createdAt: string;
   completedAt?: string;
+  // Admin review and satisfaction
+  adminFeedback?: string;
+  adminSatisfaction?: "satisfied" | "needs_revision" | "unsatisfied";
+  reviewedAt?: string;
+  reviewedByAdminName?: string;
+  // Overdue red flag & disciplinary penalty
+  isRedFlagged?: boolean;
+  redFlagReason?: string;
+  redFlaggedAt?: string;
+  penaltyApplied?: boolean;
+  penaltyNote?: string;
+  bonusReductionAmount?: number;
+}
+
+export type EnquiryStage = "new" | "contacted" | "enrolled" | "lost";
+
+export interface EnquiryLead {
+  id: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  courseInterest: string;
+  formType: "free_advice" | "funding_check" | "private_tutoring" | "contact";
+  stage: EnquiryStage;
+  notes?: string;
+  employmentStatus?: string;
+  workplaceLocation?: string;
+  submittedAt: string;
 }
 
 export interface Booking {
@@ -186,6 +229,23 @@ export interface Booking {
   timeZone: string;
   notes?: string;
   createdAt: string;
+  assignedStaffId?: string;
+  assignedStaffName?: string;
+  meetingPlatform?: "google_meet" | "phone" | "zoom";
+  meetingLink?: string;
+}
+
+export interface CohortSessionTimingConfig {
+  timeLabel: string;
+  startTime: string;
+  endTime: string;
+  description: string;
+  zoomUrl: string;
+}
+
+export interface CohortScheduleConfig {
+  afternoon: CohortSessionTimingConfig;
+  evening: CohortSessionTimingConfig;
 }
 
 export interface AvailabilityRule {
@@ -272,6 +332,8 @@ export interface UserProfile {
   createdAt: string;
   tutorId?: string;
   learnerId?: string;
+  specialism?: string;
+  department?: string;
 }
 
 export type { Course, CourseLevel, PaymentPlanTemplate };

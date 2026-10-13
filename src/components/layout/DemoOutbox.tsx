@@ -9,10 +9,16 @@ interface Props {
 }
 
 export const DemoOutbox: React.FC<Props> = ({ messages = [] }) => {
+  const isDemo =
+    process.env.NEXT_PUBLIC_DEMO_MODE === "true" ||
+    process.env.DEMO_MODE === "true";
+
   const [isOpen, setIsOpen] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState<OutboxMessage | null>(
     messages[0] || null
   );
+
+  if (!isDemo) return null;
 
   return (
     <>
@@ -147,7 +153,7 @@ export const DemoOutbox: React.FC<Props> = ({ messages = [] }) => {
                       <div className="p-3 bg-blue-50 border border-blue-200 rounded-sm text-[11px] text-blue-900 flex items-center gap-2">
                         <Icon name="info" size={14} className="text-blue-700 flex-shrink-0" />
                         <span>
-                          Simulated email dispatch per PRD Section 12.5. No external SMTP services are called in demo mode.
+                          Simulated email dispatch. Outbox queue logs messages in demonstration environment.
                         </span>
                       </div>
                     </div>

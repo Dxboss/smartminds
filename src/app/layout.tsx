@@ -1,3 +1,4 @@
+import React, { Suspense } from "react";
 import type { Metadata } from "next";
 import { Saira_Condensed, Source_Sans_3 } from "next/font/google";
 import "./globals.css";
@@ -10,12 +11,21 @@ import {
   Footer,
   MobileBottomBar,
   StagingBanner,
+  ImpersonationBannerSlot,
 } from "@/components/layout";
 import { BookingModal } from "@/components/booking/BookingModal";
 import { CookieBanner } from "@/components/consent/CookieBanner";
+import { InactivityTimer } from "@/components/auth/InactivityTimer";
 import { UtmTracker } from "@/components/analytics/UtmTracker";
 import { GoogleTagManager } from "@/components/analytics/GoogleTagManager";
 import { OrganizationStructuredData } from "@/components/layout/OrganizationStructuredData";
+import {
+  HeaderNavConfig,
+  FooterConfig,
+  defaultHeaderNavConfig,
+  defaultFooterConfig,
+} from "@/lib/repositories/seedData";
+import { getPersistentSiteTheme } from "@/lib/siteTheme";
 
 const sairaCondensed = Saira_Condensed({
   weight: ["600", "700"],
@@ -46,9 +56,14 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const theme = getPersistentSiteTheme();
+  const headerConfig = (theme.headerNav || defaultHeaderNavConfig) as HeaderNavConfig;
+  const footerConfig = (theme.footer || defaultFooterConfig) as FooterConfig;
+
   return (
     <html
       lang="en-GB"
+      data-scroll-behavior="smooth"
       className={`${sairaCondensed.variable} ${sourceSans3.variable} h-full antialiased`}
       suppressHydrationWarning
     >
@@ -62,6 +77,11 @@ export default function RootLayout({
             <UtmTracker />
             <GoogleTagManager />
             <BookingProvider>
+              {/* Impersonation active banner for Superadmin streamed inside Suspense */}
+              <Suspense fallback={null}>
+                <ImpersonationBannerSlot />
+              </Suspense>
+
               {/* Staging & Preview Environment Notice per PRD 11 */}
               <StagingBanner />
 
@@ -74,15 +94,15 @@ export default function RootLayout({
               </a>
 
               {/* Global Header */}
-              <Header />
+              <Header config={headerConfig} />
 
-              {/* Page Main Content with bottom padding on mobile for persistent bar */}
-              <main id="main-content" className="flex-1 pb-16 lg:pb-0">
+              {/* Page Main Content */}
+              <main id="main-content" className="flex-1">
                 {children}
               </main>
 
               {/* Global Footer */}
-              <Footer />
+              <Footer config={footerConfig} headerConfig={headerConfig} />
 
               {/* Persistent Mobile Bottom Action Bar */}
               <MobileBottomBar />
@@ -92,6 +112,9 @@ export default function RootLayout({
 
               {/* Global Cookie Consent Banner & Preferences Modal */}
               <CookieBanner />
+
+              {/* Inactivity Security Auto-Logout Watcher */}
+              <InactivityTimer />
             </BookingProvider>
           </AuthProvider>
         </ConsentProvider>

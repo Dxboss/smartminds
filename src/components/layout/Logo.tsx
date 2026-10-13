@@ -1,90 +1,68 @@
 import React from "react";
 import Link from "next/link";
-import { Icon } from "@/components/ui/Icon";
 
 export interface LogoProps {
   variant?: "full-color" | "white" | "mark-only";
   className?: string;
+  logoType?: "vector" | "crest" | "image";
+  logoImageUrl?: string;
+  logoHeight?: number;
+  siteName?: string;
+  tagline?: string;
 }
 
 export const Logo: React.FC<LogoProps> = ({
   variant = "full-color",
   className = "",
+  logoImageUrl,
+  logoHeight = 42,
+  siteName = "Smartminds",
+  tagline = "Training College",
 }) => {
   const isWhite = variant === "white";
-  const isMarkOnly = variant === "mark-only";
-
-  const textColor = isWhite ? "text-white" : "text-navy-900";
-  const subtextColor = isWhite ? "text-gold-300" : "text-navy-700";
-  const arcStrokeColor = isWhite ? "stroke-gold-300" : "stroke-navy-900";
+  const defaultLogoSrc = isWhite ? "/images/logo-white.png" : "/images/logo-color.png";
+  const isPhotoAsset =
+    logoImageUrl &&
+    (logoImageUrl.includes("hero-learner") ||
+      logoImageUrl.includes("teacher-training") ||
+      logoImageUrl.includes("adult-care") ||
+      logoImageUrl.includes("early-years") ||
+      logoImageUrl.includes("tutor-teaching") ||
+      logoImageUrl.includes("certificate-moment"));
+  const logoSrc = logoImageUrl && !isPhotoAsset ? logoImageUrl : defaultLogoSrc;
 
   return (
     <Link
       href="/"
-      className={`inline-flex items-center gap-3 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${className}`.trim()}
-      aria-label="Smartminds Training College Home"
+      className={`inline-flex items-center gap-2.5 sm:gap-3 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${className}`.trim()}
+      aria-label={`${siteName} ${tagline} Home`}
     >
-      {/* Signature emblem: Crescent arc with dual reaching figures and celestial star */}
-      <div className="relative w-10 h-10 flex-shrink-0 flex items-center justify-center">
-        <svg
-          viewBox="0 0 44 44"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          className="w-full h-full"
-          aria-hidden="true"
-        >
-          {/* Crescent arc sweep */}
-          <path
-            d="M38 12C36 28 24 38 10 38C6 38 3 37 1 35C15 42 32 36 38 22C40 18 40 15 38 12Z"
-            className="fill-gold-500"
-          />
-          {/* Dynamic inner contour arc */}
-          <path
-            d="M8 32C18 36 30 30 35 18"
-            className={arcStrokeColor}
-            strokeWidth="2"
-            strokeLinecap="round"
-          />
-          {/* Left figure reaching */}
-          <circle cx="16" cy="18" r="2.5" className="fill-gold-500" />
-          <path
-            d="M11 28C11 24 14 22 17 21L21 26"
-            className={arcStrokeColor}
-            strokeWidth="2"
-            strokeLinecap="round"
-          />
-          {/* Right figure reaching higher */}
-          <circle cx="24" cy="13" r="2.5" className="fill-gold-300" />
-          <path
-            d="M19 25C20 20 23 17 26 16L30 22"
-            className={arcStrokeColor}
-            strokeWidth="2"
-            strokeLinecap="round"
-          />
-        </svg>
-
-        {/* Central star shining between reaching figures */}
-        <div className="absolute top-1 right-2 text-gold-500 transform group-hover:scale-110 transition-transform">
-          <Icon
-            name="star"
-            size={14}
-            className="fill-gold-500 stroke-gold-700"
-          />
-        </div>
+      <div className="relative flex items-center justify-center flex-shrink-0">
+        <img
+          src={logoSrc}
+          alt={`${siteName} ${tagline}`}
+          style={{ height: `${logoHeight}px`, width: "auto" }}
+          className="object-contain max-h-[56px] transition-transform group-hover:scale-[1.02]"
+        />
       </div>
 
-      {/* Wordmark */}
-      {!isMarkOnly && (
-        <div className="flex flex-col leading-none">
+      {variant !== "mark-only" && (
+        <div className="flex flex-col justify-center leading-none select-none">
           <span
-            className={`font-heading text-2xl font-bold tracking-tight uppercase ${textColor} transition-colors`}
+            className={`font-heading text-lg sm:text-xl font-bold tracking-tight uppercase transition-colors ${
+              isWhite
+                ? "text-white group-hover:text-gold-300"
+                : "text-navy-900 group-hover:text-navy-700"
+            }`}
           >
-            Smartminds
+            {siteName}
           </span>
           <span
-            className={`text-[9px] font-semibold tracking-[0.22em] uppercase ${subtextColor} transition-colors`}
+            className={`text-[9px] sm:text-[10px] font-semibold tracking-widest uppercase mt-0.5 ${
+              isWhite ? "text-gold-300" : "text-ink-soft"
+            }`}
           >
-            Training College
+            {tagline}
           </span>
         </div>
       )}

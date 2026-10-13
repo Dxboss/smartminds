@@ -15,8 +15,14 @@ export const MobileBottomBar: React.FC = () => {
   const { openBooking } = useBooking();
   const pathname = usePathname();
 
-  // Hide mobile action bar inside application portal
-  if (pathname.startsWith("/portal")) {
+  // Hide mobile action bar inside authenticated portals
+  if (
+    pathname.startsWith("/portal") ||
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/staff") ||
+    pathname.startsWith("/student") ||
+    pathname.startsWith("/super")
+  ) {
     return null;
   }
 

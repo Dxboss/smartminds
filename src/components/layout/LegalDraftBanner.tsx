@@ -1,7 +1,12 @@
 import React from "react";
 import { Icon } from "@/components/ui/Icon";
+import { globalSettings } from "@/content/globals";
 
 export const LegalDraftBanner: React.FC = () => {
+  if (!globalSettings.is_staging) {
+    return null;
+  }
+
   return (
     <aside
       aria-label="Legal draft status notice"

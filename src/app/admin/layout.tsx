@@ -4,11 +4,36 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getServerSession } from "@/lib/session";
 import { DemoModeBanner } from "@/components/layout/DemoModeBanner";
+import { DemoOutbox } from "@/components/layout/DemoOutbox";
+import { demoOutbox } from "@/lib/repositories/seedData";
+import { Icon } from "@/components/ui/Icon";
+import { PortalSidebarLayout } from "@/components/portal/PortalSidebarLayout";
+
+
+
+export const instant = false;
 
 export const metadata: Metadata = {
   title: "Administration | Smartminds Training College",
   description: "College operations, admissions pipeline, learner management, and financials.",
 };
+
+const STAFF_NAV = [
+  { href: "/admin", label: "Overview", icon: "shield-check" as const },
+  { href: "/admin/pipeline", label: "Pipeline", icon: "users" as const },
+  { href: "/admin/bookings", label: "Bookings", icon: "calendar" as const },
+  { href: "/admin/learners", label: "Learners", icon: "graduation-cap" as const },
+  { href: "/admin/messages", label: "Messages", icon: "mail" as const },
+  { href: "/admin/tasks", label: "Tasks", icon: "check-circle" as const },
+];
+
+const OWNER_EXTRA_NAV = [
+  { href: "/admin/payments", label: "Payments ledger", icon: "credit-card" as const },
+  { href: "/admin/courses", label: "Courses & prices", icon: "book-open" as const },
+  { href: "/admin/staff", label: "Staff & Tutors", icon: "users" as const },
+  { href: "/admin/availability", label: "Availability", icon: "clock" as const },
+  { href: "/admin/cms", label: "Site Content & CMS", icon: "file-text" as const },
+];
 
 export default async function AdminLayout({
   children,
@@ -32,99 +57,23 @@ export default async function AdminLayout({
   const isOwnerOrSuper =
     session.role === "owner_admin" || session.role === "super_admin";
 
+  const allNavLinks = isOwnerOrSuper
+    ? [...STAFF_NAV, ...OWNER_EXTRA_NAV]
+    : STAFF_NAV;
+
   return (
-    <div className="min-h-screen bg-paper flex flex-col">
-      <DemoModeBanner user={session} />
-
-      <header className="bg-white border-b border-line sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-6">
-              <Link href="/admin" className="flex items-center gap-2">
-                <span className="font-heading text-xl font-bold tracking-tight text-navy-900">
-                  SMARTMINDS
-                </span>
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-sm bg-navy-900 text-gold-300 uppercase">
-                  {isOwnerOrSuper ? "Owner Admin" : "Staff Hub"}
-                </span>
-              </Link>
-
-              <nav className="hidden lg:flex items-center gap-1 text-sm font-semibold text-ink-soft">
-                <Link
-                  href="/admin"
-                  className="px-3 py-1.5 rounded-sm text-navy-900 bg-navy-900/5 font-bold"
-                >
-                  Overview
-                </Link>
-
-                {/* Common operational links */}
-                <Link
-                  href="/admin/learners"
-                  className="px-3 py-1.5 rounded-sm hover:text-navy-900 hover:bg-paper transition-colors"
-                >
-                  Learners
-                </Link>
-                <Link
-                  href="/admin/bookings"
-                  className="px-3 py-1.5 rounded-sm hover:text-navy-900 hover:bg-paper transition-colors"
-                >
-                  Bookings
-                </Link>
-                <Link
-                  href="/admin/templates"
-                  className="px-3 py-1.5 rounded-sm hover:text-navy-900 hover:bg-paper transition-colors"
-                >
-                  Messages
-                </Link>
-
-                {/* Owner-only administrative links (Strictly hidden from admin staff) */}
-                {isOwnerOrSuper && (
-                  <>
-                    <Link
-                      href="/admin/payments"
-                      className="px-3 py-1.5 rounded-sm hover:text-navy-900 hover:bg-paper transition-colors text-navy-900 font-bold"
-                    >
-                      Payments ledger
-                    </Link>
-                    <Link
-                      href="/admin/courses"
-                      className="px-3 py-1.5 rounded-sm hover:text-navy-900 hover:bg-paper transition-colors"
-                    >
-                      Courses & prices
-                    </Link>
-                    <Link
-                      href="/admin/tutors"
-                      className="px-3 py-1.5 rounded-sm hover:text-navy-900 hover:bg-paper transition-colors"
-                    >
-                      Staff
-                    </Link>
-                    <Link
-                      href="/admin/availability"
-                      className="px-3 py-1.5 rounded-sm hover:text-navy-900 hover:bg-paper transition-colors"
-                    >
-                      Availability
-                    </Link>
-                  </>
-                )}
-              </nav>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className="text-right hidden sm:block">
-                <p className="text-xs font-bold text-navy-900">{session.name}</p>
-                <p className="text-[11px] text-ink-soft">
-                  {isOwnerOrSuper ? "College Principal" : "Office Administrator"}
-                </p>
-              </div>
-              <div className="w-8 h-8 rounded-full bg-navy-900 text-gold-300 flex items-center justify-center font-bold text-xs">
-                {session.name.charAt(0)}
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <main className="flex-1 py-8">{children}</main>
-    </div>
+    <PortalSidebarLayout
+      user={session}
+      portalTitle={isOwnerOrSuper ? "Management Console" : "Operations Hub"}
+      roleBadge={isOwnerOrSuper ? "Director" : "Staff"}
+      roleSubtitle={
+        isOwnerOrSuper
+          ? "Training Director & Centre Lead"
+          : "Operations Administrator"
+      }
+      navItems={allNavLinks}
+    >
+      {children}
+    </PortalSidebarLayout>
   );
 }

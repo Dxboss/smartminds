@@ -7,6 +7,8 @@ import { Eyebrow } from "@/components/ui/Eyebrow";
 import { Tag } from "@/components/ui/Tag";
 import { Icon } from "@/components/ui/Icon";
 import { Button } from "@/components/ui/Button";
+import { collegePagesData } from "@/lib/repositories/seedData";
+import { SectionRenderer } from "@/components/cms/SectionRenderer";
 
 export const metadata: Metadata = {
   title: "About Us | Smartminds Training College",
@@ -24,6 +26,19 @@ export const metadata: Metadata = {
 };
 
 export default function AboutPage() {
+  const customSections = collegePagesData["/about"];
+  if (customSections && customSections.length > 0) {
+    return (
+      <main className="bg-paper text-ink min-h-screen">
+        {customSections
+          .filter((sec) => sec.enabled)
+          .map((sec) => (
+            <SectionRenderer key={sec.id} section={sec} />
+          ))}
+      </main>
+    );
+  }
+
   return (
     <main className="bg-paper min-h-screen py-10 md:py-16">
       <Container>
@@ -166,11 +181,6 @@ export default function AboutPage() {
                     sizes="300px"
                     className="object-cover"
                   />
-                  {member.isPlaceholder && (
-                    <div className="absolute top-2 right-2 bg-navy-900/90 text-white text-[10px] font-mono px-2 py-0.5 rounded-sm">
-                      PLACEHOLDER
-                    </div>
-                  )}
                 </div>
                 <div>
                   <strong className="font-heading font-bold text-lg text-navy-900 block">

@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { courses } from "@/content";
+import { getCourseRepo } from "@/lib/repositories";
 import { CoursesListingView } from "@/components/course/CoursesListingView";
 
 export const metadata: Metadata = {
@@ -14,8 +14,10 @@ export const metadata: Metadata = {
   },
 };
 
-export default function CoursesPage() {
-  const publishedCourses = courses.filter((c) => c.published);
+export default async function CoursesPage() {
+  const courseRepo = getCourseRepo();
+  const allCourses = await courseRepo.listCourses();
+  const publishedCourses = allCourses.filter((c) => c.published);
 
   return (
     <main>

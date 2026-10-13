@@ -172,7 +172,7 @@ export const FundedEligibilityForm: React.FC<FundedEligibilityFormProps> = ({
           required
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="e.g. Michael Davies"
+          placeholder="e.g. Jane Doe"
           className="w-full px-3 py-2.5 rounded-sm border border-line bg-paper text-ink text-sm focus:outline-none focus:ring-2 focus:ring-navy-900 min-h-[44px]"
         />
         {result?.fieldErrors?.name && (
@@ -197,7 +197,7 @@ export const FundedEligibilityForm: React.FC<FundedEligibilityFormProps> = ({
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="michael@example.co.uk"
+            placeholder="name@example.co.uk"
             className="w-full px-3 py-2.5 rounded-sm border border-line bg-paper text-ink text-sm focus:outline-none focus:ring-2 focus:ring-navy-900 min-h-[44px]"
           />
           {result?.fieldErrors?.email && (

@@ -6,7 +6,7 @@ import { siteConfig } from "@/content/siteConfig";
 import { Heading } from "@/components/ui/Heading";
 import { Icon } from "@/components/ui/Icon";
 import { Tag } from "@/components/ui/Tag";
-import { CalSchedulerEmbed } from "./CalSchedulerEmbed";
+import { NativeScheduler } from "./NativeScheduler";
 
 export const BookingModal: React.FC = () => {
   const { isOpen, courseInterest, closeBooking } = useBooking();
@@ -89,12 +89,12 @@ export const BookingModal: React.FC = () => {
           </button>
         </div>
 
-        {/* Content Body: Cal.com Embed Scheduler */}
+        {/* Content Body: Native Calendar & Slot Scheduler */}
         <div className="p-5 sm:p-6 flex-1 overflow-y-auto space-y-5">
-          <CalSchedulerEmbed
+          <NativeScheduler
             courseInterest={courseInterest}
             onBooked={() => {
-              // Optionally keep modal open with success message or let user review
+              // Confirmation shown inside scheduler
             }}
           />
 

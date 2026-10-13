@@ -10,6 +10,8 @@ import {
 import { formatCurrency } from "@/content/pricing";
 import { Icon } from "@/components/ui/Icon";
 
+export const instant = false;
+
 export default async function AdminDashboardPage() {
   const session = await getServerSession();
   if (!session) return null;
@@ -184,15 +186,69 @@ export default async function AdminDashboardPage() {
 
       {/* Case 2: Administrative Staff Workspace (NO PAYMENTS) */}
       {!isOwnerOrSuper && (
-        <div className="p-4 rounded-sm bg-blue-50 border border-blue-200 text-xs text-blue-900 flex items-start gap-2.5">
-          <Icon name="shield-check" size={18} className="text-blue-700 mt-0.5 flex-shrink-0" />
-          <div className="space-y-0.5">
-            <span className="font-bold block">
-              Data Security Rule (PRD Section 3 & 12.4):
-            </span>
-            <p className="leading-relaxed">
-              Administrative staff have strictly zero access to student payment amounts, bank balances, or fee totals. You can view learner access status (&quot;active / paused&quot;) to support classroom admissions.
-            </p>
+        <div className="space-y-6">
+
+          {/* Operational Metrics */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <Link
+              href="/admin/pipeline"
+              className="p-5 rounded-md bg-white border border-line shadow-sm hover:border-navy-900/50 transition-colors space-y-1 block"
+            >
+              <span className="text-xs font-semibold text-ink-soft uppercase tracking-wider block">
+                Admissions leads
+              </span>
+              <span className="font-heading text-3xl font-bold text-navy-900 block">
+                8 Active
+              </span>
+              <span className="text-[11px] text-navy-700 font-medium inline-flex items-center gap-1">
+                View pipeline &rarr;
+              </span>
+            </Link>
+
+            <Link
+              href="/admin/bookings"
+              className="p-5 rounded-md bg-white border border-line shadow-sm hover:border-navy-900/50 transition-colors space-y-1 block"
+            >
+              <span className="text-xs font-semibold text-ink-soft uppercase tracking-wider block">
+                Consultations
+              </span>
+              <span className="font-heading text-3xl font-bold text-navy-900 block">
+                {bookings.length} Booked
+              </span>
+              <span className="text-[11px] text-navy-700 font-medium inline-flex items-center gap-1">
+                Manage schedule &rarr;
+              </span>
+            </Link>
+
+            <Link
+              href="/admin/learners"
+              className="p-5 rounded-md bg-white border border-line shadow-sm hover:border-navy-900/50 transition-colors space-y-1 block"
+            >
+              <span className="text-xs font-semibold text-ink-soft uppercase tracking-wider block">
+                Enrolled learners
+              </span>
+              <span className="font-heading text-3xl font-bold text-navy-900 block">
+                {learners.length} Records
+              </span>
+              <span className="text-[11px] text-navy-700 font-medium inline-flex items-center gap-1">
+                Cohort directory &rarr;
+              </span>
+            </Link>
+
+            <Link
+              href="/admin/tasks"
+              className="p-5 rounded-md bg-white border border-line shadow-sm hover:border-navy-900/50 transition-colors space-y-1 block"
+            >
+              <span className="text-xs font-semibold text-ink-soft uppercase tracking-wider block">
+                Assigned tasks
+              </span>
+              <span className="font-heading text-3xl font-bold text-navy-900 block">
+                {tasks.filter((t) => t.status !== "completed").length} Pending
+              </span>
+              <span className="text-[11px] text-navy-700 font-medium inline-flex items-center gap-1">
+                View tasks &rarr;
+              </span>
+            </Link>
           </div>
         </div>
       )}

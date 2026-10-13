@@ -16,6 +16,8 @@ export interface Unit {
   code: string;
   title: string;
   credits?: number;
+  learningOutcomes?: string[];
+  mandatory?: boolean;
 }
 
 export interface FAQ {
@@ -82,3 +84,14 @@ export interface GlobalSettings {
   default_grace_days: number;
   is_staging: boolean;
 }
+
+export interface Coupon {
+  code: string;
+  type: "percent" | "fixed";
+  value: number; // e.g. 15 for 15% or 50 for £50
+  label: string;
+  description: string;
+  active: boolean;
+  expiryDate?: string;
+}
+

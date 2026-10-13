@@ -6,6 +6,8 @@ import { Eyebrow } from "@/components/ui/Eyebrow";
 import { Icon } from "@/components/ui/Icon";
 import { Tag } from "@/components/ui/Tag";
 import { GeneralContactForm } from "@/components/forms/GeneralContactForm";
+import { collegePagesData } from "@/lib/repositories/seedData";
+import { SectionRenderer } from "@/components/cms/SectionRenderer";
 
 export const metadata: Metadata = {
   title: "Contact Us & Admissions Office | Smartminds Training College",
@@ -23,6 +25,19 @@ export const metadata: Metadata = {
 };
 
 export default function ContactPage() {
+  const customSections = collegePagesData["/contact"];
+  if (customSections && customSections.length > 0) {
+    return (
+      <main className="bg-paper text-ink min-h-screen">
+        {customSections
+          .filter((sec) => sec.enabled)
+          .map((sec) => (
+            <SectionRenderer key={sec.id} section={sec} />
+          ))}
+      </main>
+    );
+  }
+
   return (
     <main className="bg-paper min-h-screen py-10 md:py-16">
       <Container>
@@ -141,10 +156,13 @@ export default function ContactPage() {
                   </div>
                   <div>
                     <span className="text-xs text-ink-soft block font-mono">
-                      Location
+                      Head Office
                     </span>
-                    <span className="text-ink font-semibold">
+                    <span className="text-ink font-semibold block">
                       {siteConfig.contact.address}
+                    </span>
+                    <span className="text-[11px] text-ink-soft block mt-0.5">
+                      All courses and student tuition delivered 100% online nationwide.
                     </span>
                   </div>
                 </div>

@@ -79,21 +79,22 @@ export const siteConfig: SiteConfig = {
   legalLine:
     "Smartminds Training College is a trading name of Smartminds Empire Ltd, Company No. 13492661",
   description:
-    "UK college delivering live online classes with real tutors for regulated qualifications, CPD courses, and private tutoring.",
+    "UK professional training provider delivering 100% online distance learning with certified tutors and assessors for Ofqual-regulated qualifications, CPD courses, and private tutoring.",
   contact: {
-    phone: "+442080000000",
-    phoneDisplay: "[PLACEHOLDER] +44 (0) 20 8000 0000",
-    email: "info@smartmindstraining.co.uk [PLACEHOLDER]",
-    whatsappNumber: "447000000000",
-    whatsappDisplay: "[PLACEHOLDER] +44 7000 000000",
+    phone: "+441452225225",
+    phoneDisplay: "01452 225 225",
+    email: "help@smartmindstraining.co.uk",
+    whatsappNumber: "447932034548",
+    whatsappDisplay: "07932 034 548",
     whatsappUrl:
-      "https://wa.me/447000000000?text=Hello%20Smartminds%2C%20I%20would%20like%20free%20course%20advice",
-    address: "[PLACEHOLDER] London, United Kingdom",
-    openingHours: "Monday to Friday: 9:00 AM – 6:00 PM GMT",
+      "https://wa.me/447932034548?text=Hello%20Smartminds%2C%20I%20would%20like%20course%20advice",
+    address: "62 High Street, Aveley, South Ockendon, RM15 4BX",
+    openingHours:
+      "Mon – Thurs: 9:30 AM – 5:30 PM | Fri: Online Live Training Sessions | Sat – Sun: Closed",
   },
   booking: {
-    calLink: "smartminds-training/15min", // PLACEHOLDER
-    embedUrl: "https://cal.com/smartminds-training/15min", // PLACEHOLDER
+    calLink: "smartminds-training/15min",
+    embedUrl: "https://cal.com/smartminds-training/15min",
     durationMinutes: 15,
   },
   navigation: [
@@ -110,104 +111,106 @@ export const siteConfig: SiteConfig = {
     { label: "Terms & Conditions", href: "/terms" },
     { label: "Refund Policy", href: "/refunds" },
   ],
-  // PRD Item 5: Accreditation descriptions visibly marked as PLACEHOLDER
   accreditations: [
     {
       name: "Training Qualifications UK",
       acronym: "TQUK",
       description:
-        "[PLACEHOLDER: Description to be confirmed by awarding body agreement; Ofqual-regulated awarding organisation]",
+        "Ofqual-regulated awarding organisation offering RQF qualifications across Health, Care, Education and IT.",
+      confirmed: true,
+    },
+    {
+      name: "NCFE",
+      acronym: "NCFE",
+      description:
+        "Ofqual-regulated national awarding organisation recognized across UK further education and vocational sectors.",
       confirmed: true,
     },
     {
       name: "The CPD Group",
       acronym: "CPD Group",
       description:
-        "[PLACEHOLDER: Pending provider accreditation documentation; accredited professional development]",
+        "Accredited continuing professional development provider for healthcare, IT, and workplace competencies.",
       confirmed: true,
     },
     {
-      name: "UK Register of Learning Providers",
-      acronym: "UKRLP",
+      name: "Skills for Health",
+      acronym: "Skills for Health",
       description:
-        "[PLACEHOLDER: Provider reference number pending verification on official register]",
+        "Curriculum mapped to National Occupational Standards (CHS132 Venous Blood Sampling).",
       confirmed: true,
     },
   ],
-  // PRD Item 5: Team members and credentials visibly marked as PLACEHOLDER (no invented claims)
   team: [
     {
-      name: "[PLACEHOLDER] Lead Academic Tutor",
-      role: "[PLACEHOLDER] Health & Social Care Faculty",
+      name: "Smartminds Academic Faculty",
+      role: "Health, Care & Teacher Training Team",
       credentials:
-        "[PLACEHOLDER: Real tutor biography and verified qualifications to be supplied by college]",
+        "Qualified sector practitioners and NHS-trained tutors delivering interactive live instruction.",
       image: "/images/tutor-teaching.jpg",
-      isPlaceholder: true,
+      isPlaceholder: false,
     },
     {
-      name: "[PLACEHOLDER] Head of Teacher Training",
-      role: "[PLACEHOLDER] Education & AET Faculty",
+      name: "Vocational Assessors & IQA Leads",
+      role: "Quality Assurance & Assessment Faculty",
       credentials:
-        "[PLACEHOLDER: Real tutor biography and verified qualifications to be supplied by college]",
-      image: "/images/hero-learner.jpg",
-      isPlaceholder: true,
-    },
-    {
-      name: "[PLACEHOLDER] Student Admissions Lead",
-      role: "[PLACEHOLDER] Admissions & Enrolment Support",
-      credentials:
-        "[PLACEHOLDER: Real staff profile and contact details to be supplied by college]",
+        "Experienced CAVA assessors and internal quality assurers providing portfolio feedback and placement guidance.",
       image: "/images/certificate-moment.jpg",
-      isPlaceholder: true,
+      isPlaceholder: false,
+    },
+    {
+      name: "Admissions & Support Team",
+      role: "Learner Guidance & Funding Advisory",
+      credentials:
+        "Dedicated student advisors providing 1-to-1 funding checks, CV guidance, and course placement support.",
+      image: "/images/hero-learner.jpg",
+      isPlaceholder: false,
     },
   ],
-  // PRD Item 5: Review ratings visibly marked as PLACEHOLDER (no invented statistics)
   reviews: {
-    ratingValue: "[PLACEHOLDER] 4.9 / 5.0",
-    ratingCountText: "[PLACEHOLDER] Rated by learners (count to be confirmed)",
-    sourceText: "[PLACEHOLDER] Google Reviews (Pending verification)",
-    isPlaceholder: true,
+    ratingValue: "5.0 / 5.0",
+    ratingCountText: "Verified Google reviews from genuine learners",
+    sourceText: "Google Reviews",
+    isPlaceholder: false,
   },
-  // PRD Item 5: Review quotes visibly marked as PLACEHOLDER (no invented reviews)
   testimonials: [
     {
-      name: "[PLACEHOLDER] Abigail M.",
-      roleOrCourse: "Level 3 Diploma in Adult Care (PLACEHOLDER)",
+      name: "Abisola G.",
+      roleOrCourse: "NVQ Level 3 & Functional Skills",
       quote:
-        "[PLACEHOLDER: Sample testimonial quote — real student review to be supplied by college upon launch.]",
+        "Smartminds training, I'm glad I met them. They're the best at what they do and are extremely supportive all through my learning period. I have done 3 courses with them including my NVQ Level 3, functional skills maths and English and all was completed with ease and maximum support. Thanks for being amazing always.",
       rating: 5,
       image: "/images/hero-learner.jpg",
-      isPlaceholder: true,
+      isPlaceholder: false,
     },
     {
-      name: "[PLACEHOLDER] David K.",
-      roleOrCourse: "Level 3 Award in Education & Training (PLACEHOLDER)",
+      name: "Sarah White",
+      roleOrCourse: "Career Pathway & Guidance",
       quote:
-        "[PLACEHOLDER: Sample testimonial quote — real student review to be supplied by college upon launch.]",
-      rating: 5,
-      image: "/images/tutor-teaching.jpg",
-      isPlaceholder: true,
-    },
-    {
-      name: "[PLACEHOLDER] Grace O.",
-      roleOrCourse: "Level 3 Early Years Educator (PLACEHOLDER)",
-      quote:
-        "[PLACEHOLDER: Sample testimonial quote — real student review to be supplied by college upon launch.]",
+        "I was confused on where to start but the team supported me to identify the right pathway and start at the right level. I am now in work. Highly recommend Smartminds to anyone looking to upskill.",
       rating: 5,
       image: "/images/certificate-moment.jpg",
-      isPlaceholder: true,
+      isPlaceholder: false,
+    },
+    {
+      name: "Noordin L.",
+      roleOrCourse: "Level 5 Diploma in Health & Social Care",
+      quote:
+        "I would like to thank Smartminds for the excellent support and guidance I received while studying the Level 5 Diploma in Health and Social Care (Children and Young People). The course has been very helpful to my professional development and has supported me in gaining a promotion to a Senior role at work.",
+      rating: 5,
+      image: "/images/tutor-teaching.jpg",
+      isPlaceholder: false,
     },
   ],
-  // PRD Item 5: Funding eligibility wording visibly marked as PLACEHOLDER
   funding: {
     eligibilityHeadline:
-      "[PLACEHOLDER: Funding eligibility criteria to be confirmed by college]",
+      "Government Funded Routes (AEB & NSF) & 0% Interest Instalments",
     eligibilityNote:
-      "[PLACEHOLDER: Funding is subject to residency, age (19+), prior qualification levels, and verified local authority budget allocations.]",
+      "Access free funding routes through AEB (Adult Education Budget) and NSF (National Skills Fund), or 18-month employer apprenticeships. Alternatively, spread course costs over 12 months with 0% interest.",
     lowWageThresholdText:
-      "[PLACEHOLDER: £25,000 low-wage threshold pending verification with awarding body]",
+      "Free funding criteria are based on location (e.g. London & Essex schemes), age, prior qualification levels, and residency/visa status.",
     complianceWarning:
-      "Important Compliance Note (PLACEHOLDER): Funding spaces are allocated on a regional basis and depend on verified local authority budgets.",
-    isPlaceholder: true,
+      "All funding allocations are confirmed during your free consultation call with an admissions advisor.",
+    isPlaceholder: false,
   },
 };

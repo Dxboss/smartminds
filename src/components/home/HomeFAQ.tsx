@@ -67,61 +67,173 @@ const FAQ_ITEMS: FAQItem[] = [
   },
 ];
 
-export const HomeFAQ: React.FC = () => {
+export interface HomeFAQProps {
+  headline?: string;
+  subheadline?: string;
+  items?: { title: string; desc?: string; tag?: string }[];
+  bgColor?: "white" | "paper" | "navy" | "cream";
+  columns?: 2 | 3 | 4;
+  isEditor?: boolean;
+  onSelectElement?: (
+    elementKey:
+      | "headline"
+      | "subheadline"
+      | "badge"
+      | "button"
+      | "secondaryButton"
+      | "image"
+      | "item"
+      | "bg",
+    itemIndex?: number
+  ) => void;
+}
+
+export const HomeFAQ: React.FC<HomeFAQProps> = ({
+  headline = "Everything you need to know before enrolling",
+  subheadline = "Clear answers about class schedules, Ofqual accreditation, flexible instalment plans, and tutor support.",
+  items,
+  bgColor = "white",
+  columns = 4,
+  isEditor,
+  onSelectElement,
+}) => {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
+  const isDark = bgColor === "navy";
 
   const toggleIndex = (index: number) => {
     setOpenIndex((prev) => (prev === index ? null : index));
   };
 
+  const displayList: FAQItem[] =
+    items && items.length > 0
+      ? items.map((it) => ({
+          question: it.title,
+          answer: it.desc || "",
+          category: it.tag || "General",
+        }))
+      : FAQ_ITEMS;
+
   return (
-    <Section variant="white" className="border-b border-line">
+    <Section variant={bgColor} className="border-b border-line">
       <Container>
         {/* Section Header */}
         <div className="text-center max-w-2xl mx-auto mb-12">
-          <Eyebrow tone="navy" className="mb-2">
+          <Eyebrow tone={isDark ? "gold" : "navy"} className="mb-2">
             Frequently Asked Questions
           </Eyebrow>
-          <Heading level="h2" className="text-navy-900 mb-3">
-            Everything you need to know before enrolling
-          </Heading>
-          <p className="text-ink-soft text-base sm:text-lg leading-relaxed">
-            Clear answers about class schedules, Ofqual accreditation, flexible
-            instalment plans, and tutor support.
-          </p>
+          <div
+            onClick={(e) => {
+              if (isEditor && onSelectElement) {
+                e.stopPropagation();
+                onSelectElement("headline");
+              }
+            }}
+            className={
+              isEditor
+                ? "cursor-pointer group/h relative hover:outline hover:outline-dashed hover:outline-2 hover:outline-gold-500 rounded-sm inline-block"
+                : ""
+            }
+          >
+            <Heading level="h2" className={`mb-3 ${isDark ? "text-white" : "text-navy-900"}`}>
+              {headline}
+            </Heading>
+            {isEditor && (
+              <span className="hidden group-hover/h:inline-flex absolute -top-4 right-0 z-30 px-1 py-0.5 rounded-xs bg-navy-900 text-gold-300 text-[8px] font-bold shadow-xs whitespace-nowrap">
+                FAQ Title ✎
+              </span>
+            )}
+          </div>
+          <div
+            onClick={(e) => {
+              if (isEditor && onSelectElement) {
+                e.stopPropagation();
+                onSelectElement("subheadline");
+              }
+            }}
+            className={
+              isEditor
+                ? "cursor-pointer group/sh relative hover:outline hover:outline-dashed hover:outline-2 hover:outline-gold-500 rounded-sm inline-block"
+                : ""
+            }
+          >
+            <p className={`text-base sm:text-lg leading-relaxed ${isDark ? "text-paper/85" : "text-ink-soft"}`}>
+              {subheadline}
+            </p>
+            {isEditor && (
+              <span className="hidden group-hover/sh:inline-flex absolute -top-4 right-0 z-30 px-1 py-0.5 rounded-xs bg-navy-900 text-gold-300 text-[8px] font-bold shadow-xs whitespace-nowrap">
+                FAQ Subtitle ✎
+              </span>
+            )}
+          </div>
         </div>
 
-        {/* Accordion List */}
-        <div className="max-w-3xl mx-auto space-y-3.5">
-          {FAQ_ITEMS.map((item, index) => {
+        {/* Dynamic Accordion List (supports 1, 2, or 3 columns) */}
+        <div
+          className={
+            columns === 2
+              ? "max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4 items-start"
+              : columns === 3
+              ? "max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-start"
+              : "max-w-3xl mx-auto space-y-3.5"
+          }
+        >
+          {displayList.map((item, index) => {
             const isOpen = openIndex === index;
             const headingId = `faq-heading-${index}`;
             const panelId = `faq-panel-${index}`;
 
             return (
               <div
-                key={item.question}
+                key={index}
+                onClick={() => {
+                  if (isEditor && onSelectElement) {
+                    onSelectElement("item", index);
+                  }
+                }}
                 className={`rounded-lg border transition-all ${
-                  isOpen
-                    ? "border-navy-900/40 bg-paper shadow-subtle"
-                    : "border-line bg-white hover:border-navy-900/20"
+                  isDark
+                    ? isOpen
+                      ? "border-gold-500/60 bg-white/10 shadow-subtle text-white"
+                      : "border-white/10 bg-white/5 hover:border-gold-500/40 text-white"
+                    : isOpen
+                    ? "border-navy-900/40 bg-paper shadow-subtle text-ink"
+                    : "border-line bg-white hover:border-navy-900/20 text-ink"
+                } ${
+                  isEditor
+                    ? "group/faq relative hover:outline hover:outline-dashed hover:outline-2 hover:outline-gold-500 cursor-pointer"
+                    : ""
                 }`}
               >
+                {isEditor && (
+                  <span className="hidden group-hover/faq:inline-flex absolute -top-3.5 right-4 z-30 px-1.5 py-0.5 rounded-xs bg-navy-900 text-gold-300 text-[9px] font-bold shadow-xs whitespace-nowrap">
+                    FAQ Question #{index + 1} ✎
+                  </span>
+                )}
                 <button
                   type="button"
                   id={headingId}
                   aria-expanded={isOpen}
                   aria-controls={panelId}
-                  onClick={() => toggleIndex(index)}
-                  className="w-full text-left p-5 sm:p-6 flex items-center justify-between gap-4 min-h-[44px] focus:outline-none focus:ring-2 focus:ring-navy-900 rounded-lg"
+                  onClick={(e) => {
+                    toggleIndex(index);
+                    if (isEditor && onSelectElement) {
+                      e.stopPropagation();
+                      onSelectElement("item", index);
+                    }
+                  }}
+                  className="w-full text-left p-5 sm:p-6 flex items-center justify-between gap-4 min-h-[44px] focus:outline-none rounded-lg"
                 >
-                  <span className="font-heading font-bold text-lg text-navy-900 leading-snug">
+                  <span className={`font-heading font-bold text-lg leading-snug ${isDark ? "text-white" : "text-navy-900"}`}>
                     {item.question}
                   </span>
 
                   <span
                     className={`w-8 h-8 rounded-sm flex items-center justify-center flex-shrink-0 transition-transform ${
-                      isOpen
+                      isDark
+                        ? isOpen
+                          ? "bg-gold-500 text-navy-900 rotate-180"
+                          : "bg-white/10 text-gold-300"
+                        : isOpen
                         ? "bg-navy-900 text-white rotate-180"
                         : "bg-paper text-navy-900"
                     }`}
@@ -135,7 +247,11 @@ export const HomeFAQ: React.FC = () => {
                     id={panelId}
                     role="region"
                     aria-labelledby={headingId}
-                    className="px-5 pb-5 sm:px-6 sm:pb-6 pt-0 text-sm text-ink-soft leading-relaxed border-t border-line/60 mt-1"
+                    className={`px-5 pb-5 sm:px-6 sm:pb-6 pt-0 text-sm leading-relaxed border-t mt-1 ${
+                      isDark
+                        ? "text-paper/85 border-white/10"
+                        : "text-ink-soft border-line/60"
+                    }`}
                   >
                     <p className="pt-3">{item.answer}</p>
                   </div>

@@ -28,9 +28,9 @@ export interface ConsentContextType {
 
 const DEFAULT_PREFERENCES: ConsentPreferences = {
   necessary: true,
-  analytics: false,
-  marketing: false,
-  embeds: false,
+  analytics: true,
+  marketing: true,
+  embeds: true,
 };
 
 const CONSENT_STORAGE_KEY = "smartminds_cookie_consent_v1";

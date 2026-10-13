@@ -1,0 +1,152 @@
+{
+  "headerNav": {
+    "logoType": "vector",
+    "logoImageUrl": "",
+    "logoHeight": 44,
+    "siteName": "Smartminds",
+    "tagline": "Training College",
+    "announcementActive": true,
+    "announcementText": "Autumn & Winter 2026 Cohorts Enrolling Now — Spread Fees over 12 Months with 0% Interest",
+    "announcementLink": "/courses",
+    "supportPhone": "01452 225 225",
+    "whatsappNumber": "07932 034 548",
+    "ctaButtonText": "Get free advice",
+    "ctaButtonLink": "/book",
+    "navLinks": [
+      {
+        "id": "nav-1",
+        "label": "Courses",
+        "href": "/courses",
+        "children": [
+          {
+            "id": "sub-1",
+            "label": "Diploma in Adult Care (Level 3)",
+            "href": "/courses/diploma-in-adult-care",
+            "desc": "RQF accredited qualification for senior healthcare workers.",
+            "badge": "Level 3"
+          },
+          {
+            "id": "sub-2",
+            "label": "Children & Young People's Workforce",
+            "href": "/courses/children-young-people-workforce",
+            "desc": "Nursery & early years educator practitioner pathway.",
+            "badge": "Level 3"
+          },
+          {
+            "id": "sub-3",
+            "label": "All Accredited Diplomas",
+            "href": "/courses",
+            "desc": "Browse our complete prospectus of regulated qualifications."
+          }
+        ]
+      },
+      {
+        "id": "nav-2",
+        "label": "CPD",
+        "href": "/cpd"
+      },
+      {
+        "id": "nav-3",
+        "label": "Private Tutoring",
+        "href": "/private-tutoring"
+      },
+      {
+        "id": "nav-5",
+        "label": "About",
+        "href": "/about",
+        "children": [
+          {
+            "id": "sub-4",
+            "label": "About Smartminds College",
+            "href": "/about",
+            "desc": "Our mission, educational values, and tutor faculty."
+          },
+          {
+            "id": "sub-5",
+            "label": "Safeguarding & Student Welfare",
+            "href": "/safeguarding-student-welfare",
+            "desc": "Our safeguarding framework and student support commitments."
+          }
+        ]
+      },
+      {
+        "id": "nav-6",
+        "label": "Contact",
+        "href": "/contact"
+      }
+    ]
+  },
+  "footer": {
+    "logoType": "crest",
+    "logoImageUrl": "",
+    "logoHeight": 44,
+    "siteName": "Smartminds",
+    "tagline": "Training College",
+    "bioText": "UK professional training provider delivering 100% online distance learning with certified tutors and assessors for Ofqual-regulated qualifications, CPD courses, and private tutoring.",
+    "badge1": "Live Online Classes",
+    "badge2": "UK Registered Provider",
+    "exploreLinks": [
+      {
+        "id": "f-1",
+        "label": "All Qualifications",
+        "href": "/courses"
+      },
+      {
+        "id": "f-2",
+        "label": "CPD Short Courses",
+        "href": "/cpd"
+      },
+      {
+        "id": "f-3",
+        "label": "Private Tutoring",
+        "href": "/private-tutoring"
+      },
+      {
+        "id": "f-4",
+        "label": "Funded Options",
+        "href": "/funding"
+      }
+    ],
+    "collegeLinks": [
+      {
+        "id": "f-5",
+        "label": "About Smartminds",
+        "href": "/about"
+      },
+      {
+        "id": "f-6",
+        "label": "Contact & Location",
+        "href": "/contact"
+      },
+      {
+        "id": "f-7",
+        "label": "Privacy Policy",
+        "href": "/privacy"
+      },
+      {
+        "id": "f-8",
+        "label": "Cookie Policy",
+        "href": "/cookies"
+      },
+      {
+        "id": "f-9",
+        "label": "Terms & Conditions",
+        "href": "/terms"
+      },
+      {
+        "id": "f-10",
+        "label": "Refund Policy",
+        "href": "/refunds"
+      }
+    ],
+    "phone": "01452 225 225",
+    "email": "help@smartmindstraining.co.uk",
+    "whatsappNumber": "07932 034 548",
+    "openingHours": "Mon – Thurs: 9:30 AM – 5:30 PM | Fri: Online Sessions",
+    "headOfficeAddress": "62 High Street, Aveley, South Ockendon, RM15 4BX",
+    "accreditationHeadline": "Accreditations & Awarding Organisations",
+    "accreditationSubtext": "Recognised British qualifications delivered through regulated frameworks.",
+    "legalLine": "Smartminds Training College is a trading name of Smartminds Empire Ltd, Company No. 13492661",
+    "copyrightText": "© 2026 Smartminds Training College. All rights reserved."
+  }
+}

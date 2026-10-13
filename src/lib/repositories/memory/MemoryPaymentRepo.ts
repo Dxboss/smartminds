@@ -3,6 +3,7 @@ import {
   LedgerSummary,
   LearnerPaymentPlanSummary,
   PaymentRecord,
+  PaymentScheduleItem,
   PermissionDeniedError,
   SessionUser,
 } from "../types";
@@ -12,10 +13,22 @@ import {
   seedEnrolments,
   seedLearners,
 } from "../seedData";
+import {
+  syncPersistedRecords,
+  updatePaymentScheduleStatusInStore,
+  savePersistedRecord,
+} from "@/lib/persistedData";
 
 export class MemoryPaymentRepo implements PaymentRepo {
-  private records: PaymentRecord[] = [...seedPaymentRecords];
-  private schedules = [...seedPaymentSchedules];
+  private get records(): PaymentRecord[] {
+    syncPersistedRecords();
+    return seedPaymentRecords;
+  }
+
+  private get schedules(): PaymentScheduleItem[] {
+    syncPersistedRecords();
+    return seedPaymentSchedules;
+  }
 
   private assertNoAdminOrTutorAccess(actor: SessionUser): void {
     if (actor.role === "admin_staff") {
@@ -50,6 +63,33 @@ export class MemoryPaymentRepo implements PaymentRepo {
       result = result.filter((r) => r.status === filter.status);
     }
     return result.map((r) => ({ ...r }));
+  }
+
+  async getPaymentSchedules(
+    actor: SessionUser,
+    filter?: { learnerId?: string; status?: string }
+  ): Promise<PaymentScheduleItem[]> {
+    this.assertNoAdminOrTutorAccess(actor);
+
+    if (actor.role === "student") {
+      if (!actor.learnerId || (filter?.learnerId && filter.learnerId !== actor.learnerId)) {
+        throw new PermissionDeniedError(
+          "Students can only access their own payment schedules."
+        );
+      }
+      return this.schedules
+        .filter((s) => s.learnerId === actor.learnerId)
+        .map((s) => ({ ...s }));
+    }
+
+    let result = [...this.schedules];
+    if (filter?.learnerId) {
+      result = result.filter((s) => s.learnerId === filter.learnerId);
+    }
+    if (filter?.status) {
+      result = result.filter((s) => s.status === filter.status);
+    }
+    return result.map((s) => ({ ...s }));
   }
 
   async getLedgerSummary(actor: SessionUser): Promise<LedgerSummary> {
@@ -100,6 +140,7 @@ export class MemoryPaymentRepo implements PaymentRepo {
 
     const schedules = this.schedules.filter((s) => s.learnerId === learnerId);
     const history = this.records.filter((r) => r.learnerId === learnerId);
+    const learner = seedLearners.find((l) => l.id === learnerId);
 
     const totalPaid = history
       .filter((r) => r.status === "paid")
@@ -120,9 +161,18 @@ export class MemoryPaymentRepo implements PaymentRepo {
       status = "up_to_date";
     }
 
+    const totalInstalmentsCount =
+      schedules.length > 0 ? schedules[0].totalInstalments : undefined;
+
     return {
       enrolmentId: enrolment.id,
+      learnerId,
+      learnerName: learner ? `${learner.firstName} ${learner.lastName}` : undefined,
+      learnerEmail: learner?.email,
+      learnerPhone: learner?.phone,
       courseTitle: enrolment.courseTitle,
+      levelLabel: enrolment.courseLevelLabel,
+      planMonths: totalInstalmentsCount,
       totalAmountGbp: Math.round(totalAmount * 100) / 100,
       totalPaidGbp: Math.round(totalPaid * 100) / 100,
       balanceRemainingGbp: Math.round(balanceRemaining * 100) / 100,
@@ -132,6 +182,76 @@ export class MemoryPaymentRepo implements PaymentRepo {
       schedule: schedules.map((s) => ({ ...s })),
       history: history.map((r) => ({ ...r })),
     };
+  }
+
+  async getAllLearnerPaymentPlans(
+    actor: SessionUser
+  ): Promise<LearnerPaymentPlanSummary[]> {
+    this.assertNoAdminOrTutorAccess(actor);
+
+    if (actor.role === "student") {
+      throw new PermissionDeniedError(
+        "Students cannot view platform-wide learner payment plans."
+      );
+    }
+
+    const summaries: LearnerPaymentPlanSummary[] = [];
+    const seenLearners = new Set<string>();
+
+    for (const enr of seedEnrolments) {
+      if (seenLearners.has(enr.learnerId)) continue;
+      seenLearners.add(enr.learnerId);
+
+      const learner = seedLearners.find((l) => l.id === enr.learnerId);
+      const schedules = this.schedules.filter((s) => s.learnerId === enr.learnerId);
+      const history = this.records.filter((r) => r.learnerId === enr.learnerId);
+
+      // Only include if has schedules or has payment history
+      if (schedules.length === 0 && history.length === 0) continue;
+
+      const totalPaid = history
+        .filter((r) => r.status === "paid")
+        .reduce((sum, r) => sum + r.amountGbp, 0);
+
+      const totalScheduled = schedules.reduce((sum, s) => sum + s.amountGbp, 0);
+      const totalAmount = totalScheduled > 0 ? totalScheduled : totalPaid;
+      const balanceRemaining = Math.max(0, totalAmount - totalPaid);
+
+      const nextDue = schedules.find((s) => s.status === "due" || s.status === "overdue");
+
+      let status: LearnerPaymentPlanSummary["status"] = "settled";
+      if (schedules.some((s) => s.status === "overdue")) {
+        status = "overdue";
+      } else if (schedules.some((s) => s.status === "due")) {
+        status = "due";
+      } else if (balanceRemaining > 0) {
+        status = "up_to_date";
+      }
+
+      const totalInstalmentsCount =
+        schedules.length > 0 ? schedules[0].totalInstalments : undefined;
+
+      summaries.push({
+        enrolmentId: enr.id,
+        learnerId: enr.learnerId,
+        learnerName: learner ? `${learner.firstName} ${learner.lastName}` : "Learner",
+        learnerEmail: learner?.email,
+        learnerPhone: learner?.phone,
+        courseTitle: enr.courseTitle,
+        levelLabel: enr.courseLevelLabel,
+        planMonths: totalInstalmentsCount,
+        totalAmountGbp: Math.round(totalAmount * 100) / 100,
+        totalPaidGbp: Math.round(totalPaid * 100) / 100,
+        balanceRemainingGbp: Math.round(balanceRemaining * 100) / 100,
+        nextDueDate: nextDue?.dueDate,
+        nextDueAmountGbp: nextDue?.amountGbp,
+        status,
+        schedule: schedules.map((s) => ({ ...s })),
+        history: history.map((r) => ({ ...r })),
+      });
+    }
+
+    return summaries;
   }
 
   async markBankTransferReceived(
@@ -169,7 +289,25 @@ export class MemoryPaymentRepo implements PaymentRepo {
       notes: data.notes,
     };
 
-    this.records.push(newRecord);
+    seedPaymentRecords.unshift(newRecord);
+
+    // If there is an unpaid schedule item for this learner, mark it as paid!
+    const earliestUnpaid = seedPaymentSchedules.find(
+      (s) => s.learnerId === data.learnerId && (s.status === "due" || s.status === "overdue")
+    );
+    if (earliestUnpaid) {
+      earliestUnpaid.status = "paid";
+      earliestUnpaid.paidAt = newRecord.paidAt;
+      updatePaymentScheduleStatusInStore(earliestUnpaid.id, {
+        status: "paid",
+        paidAt: newRecord.paidAt,
+      });
+    }
+
+    // Persist new payment record to store
+    savePersistedRecord({
+      paymentRecord: newRecord,
+    });
 
     // If learner was paused for overdue payment, activate access
     if (learner && learner.accessStatus === "paused") {
@@ -218,3 +356,4 @@ export class MemoryPaymentRepo implements PaymentRepo {
     return [headers.join(","), ...rows.map((row) => row.join(","))].join("\n");
   }
 }
+

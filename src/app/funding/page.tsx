@@ -6,6 +6,8 @@ import { Eyebrow } from "@/components/ui/Eyebrow";
 import { Tag } from "@/components/ui/Tag";
 import { Icon } from "@/components/ui/Icon";
 import { FundedEligibilityForm } from "@/components/forms/FundedEligibilityForm";
+import { collegePagesData } from "@/lib/repositories/seedData";
+import { SectionRenderer } from "@/components/cms/SectionRenderer";
 
 export const metadata: Metadata = {
   title:
@@ -24,6 +26,19 @@ export const metadata: Metadata = {
 };
 
 export default function FundingPage() {
+  const customSections = collegePagesData["/funding"];
+  if (customSections && customSections.length > 0) {
+    return (
+      <main className="bg-paper text-ink min-h-screen">
+        {customSections
+          .filter((sec) => sec.enabled)
+          .map((sec) => (
+            <SectionRenderer key={sec.id} section={sec} />
+          ))}
+      </main>
+    );
+  }
+
   return (
     <main className="bg-paper min-h-screen py-10 md:py-16">
       <Container>

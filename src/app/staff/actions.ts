@@ -12,13 +12,32 @@ import {
 } from "@/lib/repositories/seedData";
 import { getTaskRepo } from "@/lib/repositories";
 import { revalidatePath } from "next/cache";
+import { sendEmail } from "@/lib/email";
+import { getBaseUrl } from "@/lib/baseUrl";
+import {
+  buildZoomClassScheduledEmail,
+  buildZoomClassReminderEmail,
+  buildZoomClassRecordingReadyEmail,
+} from "@/lib/emailTemplates";
+
+import {
+  savePersistedCohort,
+  savePersistedClassSession,
+} from "@/lib/persistedData";
 
 // In-memory attendance map: `${sessionId}_${learnerId}` -> boolean
 const sessionAttendance: Record<string, boolean> = {};
 
 export async function updateSessionScheduleAction(
   sessionId: string,
-  data: { scheduledAt?: string; zoomLink?: string }
+  data: {
+    scheduledAt?: string;
+    zoomLink?: string;
+    title?: string;
+    recordingUrl?: string;
+    updateCohortRecurringLink?: boolean;
+    updateReason?: string;
+  }
 ) {
   const session = await getServerSession();
   if (!session || (session.role !== "tutor" && session.role !== "owner_admin" && session.role !== "super_admin")) {
@@ -30,10 +49,101 @@ export async function updateSessionScheduleAction(
 
   if (data.scheduledAt) s.scheduledAt = data.scheduledAt;
   if (data.zoomLink !== undefined) s.zoomLink = data.zoomLink;
+  if (data.title) s.title = data.title;
+  if (data.recordingUrl !== undefined) s.recordingUrl = data.recordingUrl;
+
+  const cls = seedClasses.find((c) => c.id === s.classId);
+
+  // If recurring link update requested, update the cohort's recurring Zoom link
+  if (data.updateCohortRecurringLink && data.zoomLink && cls) {
+    cls.zoomLink = data.zoomLink;
+    savePersistedCohort(cls);
+  }
+
+  // Persist session to disk
+  savePersistedClassSession(s);
+
+  // Automatically inform College Admin / Leadership of schedule adjustment
+  if (data.updateReason) {
+    try {
+      const taskRepo = getTaskRepo();
+      await taskRepo.createTask(session, {
+        title: `Cohort Timetable Update: ${cls?.name || s.title}`,
+        description: `Tutor ${cls?.tutorName || session.name} updated timetable/link. Reason: ${data.updateReason}`,
+        assignedToId: "user-admin-001",
+        assignedToName: "College Administration",
+        assignedByRole: "owner_admin",
+        deadline: new Date(Date.now() + 86400000 * 2).toISOString().split("T")[0],
+        status: "pending",
+      });
+    } catch (taskErr) {
+      console.warn("[Admin alert creation warning]:", taskErr);
+    }
+  }
+
+  // If a recording was attached, dispatch recording notifications
+  if (data.recordingUrl && data.recordingUrl.trim().length > 0) {
+    await updateSessionRecordingAction(sessionId, data.recordingUrl);
+  }
+
+  // Trigger automated email dispatch to all enrolled learners in this cohort
+  const classEnrolments = seedEnrolments.filter((e) => e.classId === s.classId);
+  const baseUrl = getBaseUrl();
+
+  const formattedDate = new Date(s.scheduledAt).toLocaleDateString("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+  const formattedTime = new Date(s.scheduledAt).toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  for (const enr of classEnrolments) {
+    const learner = seedLearners.find((l) => l.id === enr.learnerId);
+    if (learner) {
+      const emailPayload = buildZoomClassScheduledEmail({
+        studentName: `${learner.firstName} ${learner.lastName}`,
+        courseTitle: cls?.name || "Accredited Programme",
+        sessionTitle: s.title,
+        scheduledDate: formattedDate,
+        scheduledTime: formattedTime,
+        tutorName: cls?.tutorName || session.name || "Dr. Eleanor Vance",
+        portalUrl: `${baseUrl}/student`,
+      });
+
+      // Dispatch via central email service
+      await sendEmail({
+        to: learner.email,
+        recipientName: `${learner.firstName} ${learner.lastName}`,
+        department: "students",
+        subject: emailPayload.subject,
+        text: emailPayload.text,
+        html: emailPayload.html,
+        templateKey: "zoom_class_scheduled",
+        triggerEvent: "Tutor Live Zoom Class Scheduled",
+      });
+
+      // Record in system outbox
+      demoOutbox.unshift({
+        id: `outbox-zoom-${Date.now()}-${learner.id}`,
+        recipientEmail: learner.email,
+        recipientName: `${learner.firstName} ${learner.lastName}`,
+        subject: emailPayload.subject,
+        renderedBody: emailPayload.text,
+        templateKey: "zoom_class_scheduled",
+        sentAt: new Date().toISOString(),
+        triggerEvent: "Tutor Live Zoom Class Notification",
+      });
+    }
+  }
 
   revalidatePath("/staff");
   revalidatePath(`/staff/classes/${s.classId}`);
-  return { success: true };
+  revalidatePath("/student");
+  return { success: true, notifiedCount: classEnrolments.length };
 }
 
 export async function updateSessionRecordingAction(
@@ -50,9 +160,115 @@ export async function updateSessionRecordingAction(
 
   s.recordingUrl = recordingUrl;
 
+  // Dispatch immediate recording ready email to enrolled cohort learners
+  const cls = seedClasses.find((c) => c.id === s.classId);
+  const classEnrolments = seedEnrolments.filter((e) => e.classId === s.classId);
+  const baseUrl = getBaseUrl();
+
+  const formattedDate = new Date(s.scheduledAt).toLocaleDateString("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
+  for (const enr of classEnrolments) {
+    const learner = seedLearners.find((l) => l.id === enr.learnerId);
+    if (learner) {
+      const emailPayload = buildZoomClassRecordingReadyEmail({
+        studentName: `${learner.firstName} ${learner.lastName}`,
+        courseTitle: cls?.name || "Accredited Programme",
+        sessionTitle: s.title,
+        sessionDate: formattedDate,
+        tutorName: cls?.tutorName || session.name || "Dr. Eleanor Vance",
+        recordingsUrl: `${baseUrl}/student/recordings`,
+      });
+
+      await sendEmail({
+        to: learner.email,
+        recipientName: `${learner.firstName} ${learner.lastName}`,
+        department: "students",
+        subject: emailPayload.subject,
+        text: emailPayload.text,
+        html: emailPayload.html,
+        templateKey: "zoom_class_recording_ready",
+        triggerEvent: "Class Session Recording Ready",
+      });
+
+      demoOutbox.unshift({
+        id: `outbox-rec-${Date.now()}-${learner.id}`,
+        recipientEmail: learner.email,
+        recipientName: `${learner.firstName} ${learner.lastName}`,
+        subject: emailPayload.subject,
+        renderedBody: emailPayload.text,
+        templateKey: "zoom_class_recording_ready",
+        sentAt: new Date().toISOString(),
+        triggerEvent: "Catch-up Class Recording Published",
+      });
+    }
+  }
+
   revalidatePath("/staff/recordings");
   revalidatePath("/student/recordings");
-  return { success: true };
+  return { success: true, notifiedCount: classEnrolments.length };
+}
+
+export async function sendClassSessionReminderAction(sessionId: string) {
+  const session = await getServerSession();
+  if (!session || (session.role !== "tutor" && session.role !== "owner_admin" && session.role !== "super_admin")) {
+    throw new Error("Unauthorized: Tutor session required.");
+  }
+
+  const s = seedSessions.find((item) => item.id === sessionId);
+  if (!s) throw new Error(`Session ${sessionId} not found.`);
+
+  const cls = seedClasses.find((c) => c.id === s.classId);
+  const classEnrolments = seedEnrolments.filter((e) => e.classId === s.classId);
+  const baseUrl = getBaseUrl();
+
+  const formattedTime = new Date(s.scheduledAt).toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  for (const enr of classEnrolments) {
+    const learner = seedLearners.find((l) => l.id === enr.learnerId);
+    if (learner) {
+      const emailPayload = buildZoomClassReminderEmail({
+        studentName: `${learner.firstName} ${learner.lastName}`,
+        courseTitle: cls?.name || "Accredited Programme",
+        sessionTitle: s.title,
+        scheduledTime: formattedTime,
+        tutorName: cls?.tutorName || session.name || "Dr. Eleanor Vance",
+        zoomLink: s.zoomLink,
+        portalUrl: `${baseUrl}/student`,
+      });
+
+      await sendEmail({
+        to: learner.email,
+        recipientName: `${learner.firstName} ${learner.lastName}`,
+        department: "students",
+        subject: emailPayload.subject,
+        text: emailPayload.text,
+        html: emailPayload.html,
+        templateKey: "zoom_class_20min_reminder",
+        triggerEvent: "20-Minute Live Zoom Class Reminder",
+      });
+
+      demoOutbox.unshift({
+        id: `outbox-remind-${Date.now()}-${learner.id}`,
+        recipientEmail: learner.email,
+        recipientName: `${learner.firstName} ${learner.lastName}`,
+        subject: emailPayload.subject,
+        renderedBody: emailPayload.text,
+        templateKey: "zoom_class_20min_reminder",
+        sentAt: new Date().toISOString(),
+        triggerEvent: "20-Min Live Class Reminder",
+      });
+    }
+  }
+
+  return { success: true, remindedCount: classEnrolments.length };
 }
 
 export async function toggleAttendanceAction(

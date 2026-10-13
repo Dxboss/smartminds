@@ -29,14 +29,14 @@ export const DEMO_USERS: Record<UserRole, SessionUser> = {
   },
   owner_admin: {
     id: "user-owner-01",
-    email: "kemi.adeleke@smartmindstraining.co.uk",
-    name: "Kemi Adeleke",
+    email: "millie@smartmindstraining.co.uk",
+    name: "Millie Davis",
     role: "owner_admin",
   },
   super_admin: {
-    id: "user-super-01",
-    email: "super.admin@smartmindstraining.co.uk",
-    name: "Dev Super Admin",
+    id: "user-super-george",
+    email: "thegeorgedigitals@gmail.com",
+    name: "David George",
     role: "super_admin",
   },
 };

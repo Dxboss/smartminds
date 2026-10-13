@@ -3,6 +3,8 @@ import { getServerSession } from "@/lib/session";
 import { getLearnerRepo } from "@/lib/repositories";
 import { Icon } from "@/components/ui/Icon";
 
+export const instant = false;
+
 export default async function StudentProfilePage() {
   const session = await getServerSession();
   if (!session) return null;
@@ -103,7 +105,7 @@ export default async function StudentProfilePage() {
                 Live interactive class reminders
               </span>
               <p className="text-xs text-ink-soft">
-                Receive an email notice with Zoom meeting room link 2 hours before each class session.
+                Receive an email alert before each live class with a direct link to launch your session from your student portal.
               </p>
             </div>
           </label>

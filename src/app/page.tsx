@@ -1,15 +1,9 @@
 import { Metadata } from "next";
 import {
-  HeroSection,
-  TrustStrip,
-  ChooseYourPath,
-  HowItWorksTimeline,
-  PricingFlexibility,
-  FeaturedCourses,
-  ReviewsAndTestimonials,
-  HomeFAQ,
-  FinalCTABand,
-} from "@/components/home";
+  collegePagesData,
+  defaultPageBuilderSections,
+} from "@/lib/repositories/seedData";
+import { SectionRenderer } from "@/components/cms/SectionRenderer";
 
 export const metadata: Metadata = {
   title: "Smartminds Training College | Live Classes with Real Tutors",
@@ -25,34 +19,15 @@ export const metadata: Metadata = {
 };
 
 export default function HomePage() {
+  const sections = collegePagesData["/"] || defaultPageBuilderSections;
+
   return (
     <main className="bg-paper text-ink min-h-screen">
-      {/* 1. Hero */}
-      <HeroSection />
-
-      {/* 2. Trust strip directly beneath hero */}
-      <TrustStrip />
-
-      {/* 3. Choose your path by outcome */}
-      <ChooseYourPath />
-
-      {/* 4. How it works (4-step timeline + recordings callout) */}
-      <HowItWorksTimeline />
-
-      {/* 5. Pricing flexibility (split layout: pay in full / instalments / funded) */}
-      <PricingFlexibility />
-
-      {/* 6. Featured courses */}
-      <FeaturedCourses />
-
-      {/* 7. Reviews and photos (click-to-load TikTok embed guarded by consent) */}
-      <ReviewsAndTestimonials />
-
-      {/* 8. FAQ (accessible accordion) */}
-      <HomeFAQ />
-
-      {/* 9. Final CTA band on navy */}
-      <FinalCTABand />
+      {sections
+        .filter((sec) => sec.enabled)
+        .map((sec) => (
+          <SectionRenderer key={sec.id} section={sec} />
+        ))}
     </main>
   );
 }

@@ -1,0 +1,632 @@
+"use client";
+
+import React, { useState } from "react";
+import { Icon } from "@/components/ui/Icon";
+import { UserProfile, ClassCohort, Booking, Task } from "@/lib/repositories/types";
+import {
+  inviteStaffMemberAction,
+  toggleStaffStatusAction,
+  removeStaffMemberAction,
+} from "@/app/admin/actions";
+
+interface Props {
+  initialUsers: UserProfile[];
+  classes: ClassCohort[];
+  bookings: Booking[];
+  tasks: Task[];
+  userRole: string;
+}
+
+export const StaffDirectory: React.FC<Props> = ({
+  initialUsers,
+  classes,
+  bookings,
+  tasks,
+  userRole,
+}) => {
+  const [users, setUsers] = useState<UserProfile[]>(initialUsers);
+  const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [feedback, setFeedback] = useState<string | null>(null);
+
+  // Invite modal state
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [inviteName, setInviteName] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<"tutor" | "admin_staff">("tutor");
+  const [inviteDepartment, setInviteDepartment] = useState("");
+  const [inviteSpecialism, setInviteSpecialism] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const isOwnerOrSuper = userRole === "owner_admin" || userRole === "super_admin";
+
+  // Filtered users
+  const filteredUsers = users.filter((u) => {
+    if (roleFilter !== "all") {
+      if (roleFilter === "tutors" && u.role !== "tutor") return false;
+      if (roleFilter === "admin_staff" && u.role !== "admin_staff") return false;
+      if (roleFilter === "active" && !u.active) return false;
+      if (roleFilter === "inactive" && u.active) return false;
+    }
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const matchName = u.name.toLowerCase().includes(q);
+      const matchEmail = u.email.toLowerCase().includes(q);
+      const matchSpec = u.specialism?.toLowerCase().includes(q) || false;
+      const matchDept = u.department?.toLowerCase().includes(q) || false;
+      if (!matchName && !matchEmail && !matchSpec && !matchDept) return false;
+    }
+
+    return true;
+  });
+
+  // Calculate workload metrics
+  const getTutorClasses = (tutorId?: string) => {
+    if (!tutorId) return [];
+    return classes.filter((c) => c.tutorId === tutorId);
+  };
+
+  const getStaffBookings = (userId: string) => {
+    return bookings.filter((b) => b.assignedStaffId === userId);
+  };
+
+  const getStaffTasks = (userId: string) => {
+    return tasks.filter((t) => t.assignedToId === userId && t.status !== "completed");
+  };
+
+  const handleToggleStatus = async (userId: string, currentStatus: boolean) => {
+    if (!isOwnerOrSuper) return;
+    try {
+      const res = await toggleStaffStatusAction(userId);
+      setUsers((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, active: res.user.active } : u))
+      );
+      setFeedback(
+        `Staff member status updated: ${res.user.name} is now ${
+          res.user.active ? "Active" : "Inactive"
+        }.`
+      );
+      setTimeout(() => setFeedback(null), 4000);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to update staff status");
+    }
+  };
+
+  const handleRemoveStaff = async (userId: string, userName: string) => {
+    if (!isOwnerOrSuper) return;
+    const confirmed = window.confirm(
+      `Are you sure you want to permanently remove ${userName} from the staff directory? This will delete their account and revoke all portal permissions immediately.`
+    );
+    if (!confirmed) return;
+
+    try {
+      await removeStaffMemberAction(userId);
+      setUsers((prev) => prev.filter((u) => u.id !== userId));
+      setFeedback(`Staff member ${userName} has been permanently removed.`);
+      setTimeout(() => setFeedback(null), 4000);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to remove staff member");
+    }
+  };
+
+  const handleInviteSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteName.trim() || !inviteEmail.trim()) return;
+
+    setIsSubmitting(true);
+    try {
+      const res = await inviteStaffMemberAction({
+        name: inviteName,
+        email: inviteEmail,
+        role: inviteRole,
+        department: inviteDepartment || undefined,
+        specialism: inviteSpecialism || undefined,
+      });
+
+      setUsers((prev) => [...prev, res.user]);
+      setIsModalOpen(false);
+      setInviteName("");
+      setInviteEmail("");
+      setInviteDepartment("");
+      setInviteSpecialism("");
+      setFeedback(
+        `Invitation issued to ${res.user.name}. Onboarding notification dispatched to Outbox.`
+      );
+      setTimeout(() => setFeedback(null), 5000);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to send staff invitation");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Metrics summary
+  const totalTutors = users.filter((u) => u.role === "tutor").length;
+  const totalAdminStaff = users.filter((u) => u.role === "admin_staff").length;
+  const activeStaff = users.filter((u) => u.active).length;
+
+  return (
+    <div className="space-y-6">
+      {feedback && (
+        <div
+          role="status"
+          className="p-4 rounded-sm bg-emerald-50 border border-emerald-200 text-xs font-semibold text-emerald-900 flex items-center gap-2"
+        >
+          <Icon name="check-circle" size={16} className="text-emerald-700" />
+          <span>{feedback}</span>
+        </div>
+      )}
+
+      {/* College Staff KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white p-5 rounded-md border border-line shadow-sm">
+          <div className="flex items-center justify-between text-ink-soft mb-2">
+            <span className="text-xs font-semibold uppercase tracking-wider">
+              Total Active Staff
+            </span>
+            <Icon name="users" size={18} className="text-navy-900" />
+          </div>
+          <div className="font-heading text-3xl font-bold text-navy-900">
+            {activeStaff}
+          </div>
+          <div className="text-[11px] text-ink-soft mt-1">
+            Across teaching & operations
+          </div>
+        </div>
+
+        <div className="bg-white p-5 rounded-md border border-line shadow-sm">
+          <div className="flex items-center justify-between text-ink-soft mb-2">
+            <span className="text-xs font-semibold uppercase tracking-wider">
+              Tutors & Assessors
+            </span>
+            <Icon name="graduation-cap" size={18} className="text-navy-700" />
+          </div>
+          <div className="font-heading text-3xl font-bold text-navy-900">
+            {totalTutors}
+          </div>
+          <div className="text-[11px] text-ink-soft mt-1">
+            Delivering live online evening cohorts
+          </div>
+        </div>
+
+        <div className="bg-white p-5 rounded-md border border-line shadow-sm">
+          <div className="flex items-center justify-between text-ink-soft mb-2">
+            <span className="text-xs font-semibold uppercase tracking-wider">
+              Admissions & Admin
+            </span>
+            <Icon name="calendar" size={18} className="text-navy-700" />
+          </div>
+          <div className="font-heading text-3xl font-bold text-navy-900">
+            {totalAdminStaff}
+          </div>
+          <div className="text-[11px] text-ink-soft mt-1">
+            Managing advisory appointments & onboarding
+          </div>
+        </div>
+
+        <div className="bg-paper p-5 rounded-md border border-line shadow-sm flex flex-col justify-between">
+          <div className="flex items-center gap-2 text-ink-soft mb-1">
+            <Icon name="shield-check" size={18} className="text-emerald-700 shrink-0" />
+            <span className="text-xs font-bold text-navy-900">
+              Financial Access Barrier
+            </span>
+          </div>
+          <p className="text-[11px] text-ink-soft leading-relaxed mt-1">
+            Strict repository permission barrier enforced: Administrative staff have{" "}
+            <strong className="text-navy-900 font-semibold">zero access</strong> to
+            payment records or ledgers.
+          </p>
+        </div>
+      </div>
+
+      {/* Directory Controls Bar */}
+      <div className="bg-white p-4 rounded-md border border-line shadow-sm flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+        {/* Filters */}
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <span className="text-ink-soft font-semibold mr-1">Filter:</span>
+          {[
+            { id: "all", label: `All Staff (${users.length})` },
+            { id: "tutors", label: `Tutors (${totalTutors})` },
+            { id: "admin_staff", label: `Administrative Staff (${totalAdminStaff})` },
+            { id: "active", label: "Active" },
+            { id: "inactive", label: "Inactive" },
+          ].map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              onClick={() => setRoleFilter(f.id)}
+              className={`px-3 py-1.5 rounded-sm font-semibold transition-colors ${
+                roleFilter === f.id
+                  ? "bg-navy-900 text-white"
+                  : "bg-paper text-ink-soft hover:text-ink border border-line"
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Search & Actions */}
+        <div className="flex items-center gap-3">
+          <div className="relative flex-1 sm:w-64">
+            <input
+              type="text"
+              placeholder="Search name, specialism, email..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-8 pr-3 py-1.5 text-xs rounded-sm border border-line bg-paper text-ink focus:outline-none focus:ring-1 focus:ring-navy-900"
+            />
+            <div className="absolute left-2.5 top-2 text-ink-soft pointer-events-none">
+              <Icon name="search" size={14} />
+            </div>
+          </div>
+
+          {isOwnerOrSuper && (
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(true)}
+              className="px-3.5 py-1.5 bg-navy-900 hover:bg-navy-700 text-white rounded-sm text-xs font-semibold flex items-center gap-1.5 transition-colors whitespace-nowrap shadow-sm"
+            >
+              <Icon name="plus" size={14} />
+              <span>Add Staff Member</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Staff Directory Table */}
+      <div className="bg-white rounded-md border border-line shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead>
+              <tr className="border-b border-line text-ink-soft font-semibold bg-paper/60">
+                <th className="py-3 px-4">Staff Member</th>
+                <th className="py-3 px-4">Role & Security Band</th>
+                <th className="py-3 px-4">Faculty / Department</th>
+                <th className="py-3 px-4">Assigned Workload</th>
+                <th className="py-3 px-4">Status</th>
+                {isOwnerOrSuper && <th className="py-3 px-4 text-right">Actions</th>}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {filteredUsers.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-ink-soft">
+                    No staff members match the selected criteria.
+                  </td>
+                </tr>
+              ) : (
+                filteredUsers.map((u) => {
+                  const tutorCohorts = getTutorClasses(u.tutorId);
+                  const staffBookings = getStaffBookings(u.id);
+                  const openTasks = getStaffTasks(u.id);
+
+                  return (
+                    <tr key={u.id} className="hover:bg-paper/40 transition-colors">
+                      {/* Name & Contact */}
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-navy-900 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                            {u.name
+                              .split(" ")
+                              .map((n) => n[0])
+                              .join("")
+                              .slice(0, 2)}
+                          </div>
+                          <div>
+                            <strong className="text-navy-900 block font-semibold text-xs">
+                              {u.name}
+                            </strong>
+                            <span className="text-[11px] text-ink-soft block font-mono">
+                              {u.email}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Role & Security Band */}
+                      <td className="py-3.5 px-4">
+                        <div className="space-y-1">
+                          <span
+                            className={`inline-flex px-2 py-0.5 rounded-sm text-[10px] font-bold uppercase tracking-wider ${
+                              u.role === "owner_admin" || u.role === "super_admin"
+                                ? "bg-amber-100 text-amber-900 border border-amber-200"
+                                : u.role === "tutor"
+                                ? "bg-navy-50 text-navy-900 border border-navy-200"
+                                : "bg-blue-50 text-blue-900 border border-blue-200"
+                            }`}
+                          >
+                            {u.role === "owner_admin"
+                              ? "Centre Director"
+                              : u.role === "super_admin"
+                              ? "Super Admin"
+                              : u.role === "tutor"
+                              ? "Tutor / Assessor"
+                              : "Administrative Staff"}
+                          </span>
+
+                          {u.role === "admin_staff" && (
+                            <span className="block text-[10px] text-ink-soft">
+                              No financial ledger access
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Department & Specialism */}
+                      <td className="py-3.5 px-4">
+                        <span className="font-semibold text-navy-900 block">
+                          {u.department || "General Operations"}
+                        </span>
+                        <span className="text-[11px] text-ink-soft block line-clamp-1">
+                          {u.specialism || "Staff Member"}
+                        </span>
+                      </td>
+
+                      {/* Workload */}
+                      <td className="py-3.5 px-4">
+                        {u.role === "tutor" ? (
+                          tutorCohorts.length > 0 ? (
+                            <div className="space-y-1">
+                              <span className="text-[11px] font-semibold text-navy-900 block">
+                                {tutorCohorts.length} Live Cohort{tutorCohorts.length > 1 ? "s" : ""}
+                              </span>
+                              <div className="flex flex-wrap gap-1">
+                                {tutorCohorts.map((c) => (
+                                  <span
+                                    key={c.id}
+                                    className="px-1.5 py-0.5 rounded-sm text-[10px] bg-paper text-ink-soft border border-line"
+                                  >
+                                    {c.courseLevelLabel}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-[11px] text-ink-soft">
+                              No cohorts assigned
+                            </span>
+                          )
+                        ) : u.role === "admin_staff" ? (
+                          <div className="space-y-0.5 text-[11px]">
+                            <div className="text-navy-900 font-medium">
+                              {staffBookings.length} Assigned Consultation{staffBookings.length === 1 ? "" : "s"}
+                            </div>
+                            <div className="text-ink-soft">
+                              {openTasks.length} Open Task{openTasks.length === 1 ? "" : "s"}
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-[11px] text-ink-soft">
+                            Centre Leadership & Oversight
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Status */}
+                      <td className="py-3.5 px-4">
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm text-[10px] font-bold uppercase tracking-wider ${
+                            u.active
+                              ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                              : "bg-paper text-ink-soft border border-line"
+                          }`}
+                        >
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              u.active ? "bg-emerald-600" : "bg-ink-soft"
+                            }`}
+                          />
+                          {u.active ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+
+                      {/* Actions */}
+                      {isOwnerOrSuper && (
+                        <td className="py-3.5 px-4 text-right">
+                          {u.role !== "owner_admin" && u.role !== "super_admin" ? (
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleToggleStatus(u.id, u.active)}
+                                className={`px-2.5 py-1 rounded-sm border text-xs font-semibold transition-colors ${
+                                  u.active
+                                    ? "bg-paper hover:bg-rose-50 text-ink-soft hover:text-rose-700 border-line hover:border-rose-200"
+                                    : "bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200"
+                                }`}
+                              >
+                                {u.active ? "Deactivate" : "Activate"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveStaff(u.id, u.name)}
+                                className="px-2.5 py-1 rounded-sm border border-line hover:border-red-300 bg-white hover:bg-red-50 text-ink-soft hover:text-red-700 text-xs font-semibold transition-colors"
+                                title={`Permanently remove ${u.name}`}
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-[11px] text-ink-soft italic">
+                              Protected
+                            </span>
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Invite Modal */}
+      {isModalOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-900/60 backdrop-blur-xs"
+        >
+          <div className="bg-white rounded-md border border-line shadow-xl max-w-lg w-full p-6 space-y-5 animate-in fade-in duration-150">
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="font-heading text-xl font-bold text-navy-900">
+                  Invite New Staff Member
+                </h3>
+                <p className="text-xs text-ink-soft mt-1">
+                  Issue an official college credentials invitation to an assessor or administrator.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="text-ink-soft hover:text-navy-900 p-1"
+                aria-label="Close modal"
+              >
+                <Icon name="close" size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleInviteSubmit} className="space-y-4 text-xs">
+              <div>
+                <label className="font-bold text-navy-900 block mb-1">
+                  Full Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Staff Full Name"
+                  value={inviteName}
+                  onChange={(e) => setInviteName(e.target.value)}
+                  className="w-full px-3 py-2 rounded-sm border border-line bg-paper text-ink focus:outline-none focus:ring-1 focus:ring-navy-900"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-navy-900 block mb-1">
+                  College Email Address *
+                </label>
+                <input
+                  type="email"
+                  required
+                  placeholder="e.g. staff.member@smartmindstraining.co.uk"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  className="w-full px-3 py-2 rounded-sm border border-line bg-paper text-ink focus:outline-none focus:ring-1 focus:ring-navy-900"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-navy-900 block mb-1">
+                  Role Assignment *
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <label
+                    className={`p-3 rounded-sm border cursor-pointer flex flex-col gap-1 transition-colors ${
+                      inviteRole === "tutor"
+                        ? "border-navy-900 bg-navy-50/50"
+                        : "border-line bg-paper"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="role"
+                        value="tutor"
+                        checked={inviteRole === "tutor"}
+                        onChange={() => setInviteRole("tutor")}
+                        className="text-navy-900 focus:ring-navy-900"
+                      />
+                      <span className="font-bold text-navy-900">Tutor / Assessor</span>
+                    </div>
+                    <span className="text-[11px] text-ink-soft">
+                      Live online teaching, assignments & learner marking.
+                    </span>
+                  </label>
+
+                  <label
+                    className={`p-3 rounded-sm border cursor-pointer flex flex-col gap-1 transition-colors ${
+                      inviteRole === "admin_staff"
+                        ? "border-navy-900 bg-navy-50/50"
+                        : "border-line bg-paper"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="role"
+                        value="admin_staff"
+                        checked={inviteRole === "admin_staff"}
+                        onChange={() => setInviteRole("admin_staff")}
+                        className="text-navy-900 focus:ring-navy-900"
+                      />
+                      <span className="font-bold text-navy-900">Administrative Staff</span>
+                    </div>
+                    <span className="text-[11px] text-ink-soft">
+                      Consultation bookings & onboarding. Zero financial access.
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label className="font-bold text-navy-900 block mb-1">
+                  Faculty / Department
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Health & Social Care Faculty or Admissions Team"
+                  value={inviteDepartment}
+                  onChange={(e) => setInviteDepartment(e.target.value)}
+                  className="w-full px-3 py-2 rounded-sm border border-line bg-paper text-ink focus:outline-none focus:ring-1 focus:ring-navy-900"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-navy-900 block mb-1">
+                  Specialism / Focus Area
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Level 3 Adult Care Assessor or Admissions Coordinator"
+                  value={inviteSpecialism}
+                  onChange={(e) => setInviteSpecialism(e.target.value)}
+                  className="w-full px-3 py-2 rounded-sm border border-line bg-paper text-ink focus:outline-none focus:ring-1 focus:ring-navy-900"
+                />
+              </div>
+
+              {inviteRole === "admin_staff" && (
+                <div className="p-3 rounded-sm bg-amber-50 border border-amber-200 text-[11px] text-amber-900 flex items-start gap-2">
+                  <Icon name="shield-check" size={16} className="text-amber-700 shrink-0 mt-0.5" />
+                  <span>
+                    Governance note: Administrative staff can be assigned to handle online appointments and admissions, but are blocked from viewing student payment ledgers or fee collections.
+                  </span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-line">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-3 py-2 rounded-sm border border-line bg-paper text-ink-soft hover:text-ink font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-4 py-2 rounded-sm bg-navy-900 hover:bg-navy-700 text-white font-semibold transition-colors disabled:opacity-50"
+                >
+                  {isSubmitting ? "Issuing Invitation..." : "Send Staff Invitation"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

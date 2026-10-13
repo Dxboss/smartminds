@@ -259,24 +259,21 @@ export const CoursePricingPanel: React.FC<CoursePricingPanelProps> = ({
           </div>
         )}
 
-        {/* Phase 1a CTA Buttons per PRD 10.4: Disabled with "Enrolment opens soon" + "Talk to us" */}
+        {/* Open Enrolment CTA Button */}
         <div className="pt-4 border-t border-line space-y-3">
-          <button
-            type="button"
-            disabled
-            className="w-full min-h-[44px] px-4 py-2.5 rounded-sm bg-navy-900/15 text-navy-900/60 font-heading font-bold text-sm cursor-not-allowed text-center border border-navy-900/20"
-            aria-disabled="true"
+          <Link
+            href={`/enrol?course=${course.id}`}
+            className="w-full inline-flex items-center justify-center min-h-[44px] px-5 rounded-sm bg-navy-900 text-white hover:bg-navy-700 font-heading font-bold text-sm transition-colors text-center shadow-sm"
           >
-            Enrolment opens soon
-          </button>
+            Enrol & Secure Your Place &rarr;
+          </Link>
 
           <BookingCTAButton variant="outline" size="md" className="w-full">
             Talk to an adviser
           </BookingCTAButton>
 
           <p className="text-center text-[11px] text-ink-soft">
-            Online enrolment launches shortly. Book an advice call to reserve
-            your space on the next intake.
+            Online enrolment is open. Secure your place now with 10% upfront savings or 0% interest instalments.
           </p>
         </div>
       </div>

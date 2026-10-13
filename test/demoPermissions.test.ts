@@ -112,10 +112,14 @@ describe("Prompt D1: Demo Permissions & Data Layer Security Suite", () => {
     test("tutor can only list learners enrolled in their assigned classes", async () => {
       const myLearners = await learnerRepo.listLearners(tutorEleanor);
       assert.ok(myLearners.length > 0);
-      // Dr. Eleanor Vance teaches class-care-l3 (learners 1 to 6)
+      // Dr. Eleanor Vance teaches class-care-l3
       for (const learner of myLearners) {
-        const num = parseInt(learner.id.replace("learner-", ""), 10);
-        assert.ok(num >= 1 && num <= 6);
+        const enrolments = await enrolmentRepo.listEnrolments(
+          superAdminDev,
+          { learnerId: learner.id }
+        );
+        const inEleanorClass = enrolments.some((e) => e.classId === "class-care-l3");
+        assert.ok(inEleanorClass, `Learner ${learner.id} should be in Eleanor's class`);
       }
     });
 
@@ -232,7 +236,7 @@ describe("Prompt D1: Demo Permissions & Data Layer Security Suite", () => {
         enrolmentId: "enrolment-005",
         amountGbp: 192.5,
         reference: "BACS-OWNER-TEST",
-        notes: "Bank transfer reconciled by Principal",
+        notes: "Bank transfer reconciled by Centre Director",
       });
 
       assert.equal(transfer.amountGbp, 192.5);

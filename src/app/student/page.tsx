@@ -6,6 +6,7 @@ import {
   getEnrolmentRepo,
   getPaymentRepo,
 } from "@/lib/repositories";
+import { getCohortSchedule } from "@/lib/persistedData";
 import {
   seedAssignments,
   seedSubmissions,
@@ -14,12 +15,23 @@ import {
 } from "@/lib/repositories/seedData";
 import { Icon } from "@/components/ui/Icon";
 import { formatCurrency } from "@/content/pricing";
+import { ChangePasswordPrompt } from "@/components/student/ChangePasswordPrompt";
+
+export const instant = false;
 
 export default async function StudentDashboardPage() {
   const session = await getServerSession();
   if (!session) return null;
 
-  const learnerId = session.learnerId || "learner-001";
+  let learnerId = session.learnerId;
+  if (!learnerId) {
+    const { seedLearners } = await import("@/lib/repositories/seedData");
+    const found = seedLearners.find(
+      (l) => l.email.toLowerCase() === session.email.toLowerCase()
+    );
+    learnerId = found?.id || "learner-001";
+  }
+
   const learnerRepo = getLearnerRepo();
   const enrolmentRepo = getEnrolmentRepo();
   const paymentRepo = getPaymentRepo();
@@ -33,6 +45,12 @@ export default async function StudentDashboardPage() {
   const assignedClass = seedClasses.find((c) => c.id === primaryEnrolment?.classId);
   const nextSession = seedSessions.find((s) => s.classId === assignedClass?.id);
 
+  const cohortSchedule = getCohortSchedule();
+  const effectiveZoomLink =
+    primaryEnrolment?.sessionTiming === "evening"
+      ? cohortSchedule.evening.zoomUrl || nextSession?.zoomLink || "https://zoom.us"
+      : cohortSchedule.afternoon.zoomUrl || nextSession?.zoomLink || "https://zoom.us";
+
   // Assignments due & submissions for this learner
   const mySubmissions = seedSubmissions.filter((s) => s.learnerId === learnerId);
   const markedResults = mySubmissions.filter((s) => s.status === "marked");
@@ -40,8 +58,67 @@ export default async function StudentDashboardPage() {
     (a) => a.classId === assignedClass?.id && !mySubmissions.some((s) => s.assignmentId === a.id && s.status === "marked")
   );
 
+  // Check upcoming/overdue payment status
+  const unpaidItems = paymentSummary?.schedule?.filter((s) => s.status !== "paid") || [];
+  const now = new Date();
+  const urgentPayment = unpaidItems.find((s) => {
+    if (s.status === "overdue") return true;
+    const dueTime = new Date(s.dueDate).getTime();
+    const diffDays = Math.ceil((dueTime - now.getTime()) / (1000 * 60 * 60 * 24));
+    return diffDays <= 5; // Due within 5 days or overdue
+  });
+  const isOverdue = urgentPayment?.status === "overdue";
+  const daysUntilDue = urgentPayment
+    ? Math.ceil((new Date(urgentPayment.dueDate).getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+    : null;
+
+  const isAccessPaused =
+    learner?.accessStatus === "paused" || primaryEnrolment?.status === "paused";
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+      {/* Temporary Password Security Prompt */}
+      {session.mustChangePassword && (
+        <ChangePasswordPrompt userEmail={session.email} />
+      )}
+
+      {/* Urgent / Upcoming Instalment Banner */}
+      {urgentPayment && (
+        <div
+          className={`p-4 rounded-md border flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm ${
+            isOverdue
+              ? "bg-rose-50 border-rose-200 text-rose-900"
+              : "bg-amber-50 border-amber-200 text-amber-900"
+          }`}
+        >
+          <div className="flex items-start sm:items-center gap-3">
+            <div
+              className={`p-2 rounded-sm shrink-0 ${
+                isOverdue ? "bg-rose-100 text-rose-700" : "bg-amber-100 text-amber-800"
+              }`}
+            >
+              <Icon name="credit-card" size={20} />
+            </div>
+            <div>
+              <div className="font-heading font-bold text-base">
+                {isOverdue ? "Tuition instalment overdue" : "Upcoming tuition instalment reminder"}
+              </div>
+              <p className="text-xs opacity-90 mt-0.5">
+                {isOverdue
+                  ? `Instalment ${urgentPayment.instalmentNumber} (${formatCurrency(urgentPayment.amountGbp)}) was due on ${urgentPayment.dueDate}. Please clear balance or notify college admissions to avoid study access interruption.`
+                  : `Instalment ${urgentPayment.instalmentNumber} (${formatCurrency(urgentPayment.amountGbp)}) is due in ${daysUntilDue} day${daysUntilDue === 1 ? "" : "s"} (${urgentPayment.dueDate}).`}
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/student/payments"
+            className="px-4 py-2.5 rounded-sm bg-navy-900 text-white text-xs font-bold hover:bg-navy-700 transition-colors shrink-0 text-center inline-flex items-center justify-center gap-1.5 shadow-sm min-h-[44px]"
+          >
+            <span>View & pay instalment</span>
+            <Icon name="arrow-right" size={14} />
+          </Link>
+        </div>
+      )}
       {/* Welcome & Access Status Banner */}
       <div className="bg-white rounded-md border border-line p-6 sm:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-sm">
         <div className="space-y-1.5">
@@ -125,20 +202,47 @@ export default async function StudentDashboardPage() {
                   </p>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3 pt-2">
-                  <a
-                    href={nextSession.zoomLink || "https://zoom.us"}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-4 py-2 rounded-sm bg-navy-900 text-white text-xs font-bold hover:bg-navy-700 transition-colors inline-flex items-center gap-1.5 shadow-sm min-h-[44px]"
-                  >
-                    <Icon name="external-link" size={14} />
-                    <span>Join live Zoom classroom (Placeholder)</span>
-                  </a>
-                  <span className="text-xs text-ink-soft">
-                    Virtual classroom opens 10 minutes prior to session
-                  </span>
-                </div>
+                {isAccessPaused ? (
+                  <div className="p-4 rounded-sm bg-amber-50 border border-amber-200 space-y-3">
+                    <div className="flex items-start gap-3">
+                      <div className="p-1.5 rounded-sm bg-amber-100 text-amber-800 shrink-0 mt-0.5">
+                        <Icon name="alert-circle" size={16} />
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="text-xs font-bold text-navy-900">
+                          Live classroom access paused
+                        </p>
+                        <p className="text-xs text-ink-soft">
+                          Access to live interactive Zoom sessions is temporarily paused due to an outstanding instalment balance. Once payment is completed, your live seminar link will unlock instantly.
+                        </p>
+                      </div>
+                    </div>
+                    <div>
+                      <Link
+                        href="/student/payments"
+                        className="px-4 py-2 rounded-sm bg-navy-900 text-white text-xs font-bold hover:bg-navy-700 transition-colors inline-flex items-center gap-1.5 shadow-sm min-h-[44px]"
+                      >
+                        <Icon name="credit-card" size={14} />
+                        <span>Settle outstanding instalment</span>
+                      </Link>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap items-center gap-3 pt-2">
+                    <a
+                      href={effectiveZoomLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-4 py-2 rounded-sm bg-navy-900 text-white text-xs font-bold hover:bg-navy-700 transition-colors inline-flex items-center gap-1.5 shadow-sm min-h-[44px]"
+                    >
+                      <Icon name="external-link" size={14} />
+                      <span>Join live Zoom classroom</span>
+                    </a>
+                    <span className="text-xs text-ink-soft">
+                      Virtual classroom opens 10 minutes prior to session
+                    </span>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="p-6 rounded-sm bg-paper text-center space-y-1">
@@ -300,15 +404,14 @@ export default async function StudentDashboardPage() {
                   </div>
                 )}
 
-                <div className="pt-1">
-                  <button
-                    type="button"
-                    disabled
-                    title="Pay now is disabled in demo mode"
-                    className="w-full py-2.5 rounded-sm bg-navy-900/30 text-white text-xs font-bold cursor-not-allowed text-center min-h-[44px]"
+                <div className="pt-2">
+                  <Link
+                    href="/student/payments"
+                    className="w-full py-2.5 rounded-sm bg-navy-900 text-white text-xs font-bold hover:bg-navy-700 transition-colors text-center inline-flex items-center justify-center gap-1.5 min-h-[44px] shadow-sm"
                   >
-                    Pay now (Disabled in demo)
-                  </button>
+                    <span>View schedule & pay (£{urgentPayment ? urgentPayment.amountGbp : paymentSummary.nextDueAmountGbp || 0})</span>
+                    <Icon name="arrow-right" size={14} />
+                  </Link>
                 </div>
               </div>
             ) : (

@@ -3,7 +3,7 @@ import { Container } from "@/components/ui/Container";
 import { Heading } from "@/components/ui/Heading";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 import { Tag } from "@/components/ui/Tag";
-import { CalSchedulerEmbed } from "@/components/booking/CalSchedulerEmbed";
+import { NativeScheduler } from "@/components/booking/NativeScheduler";
 
 export const metadata: Metadata = {
   title: "Book Free Course Advice Call | Smartminds Training College",
@@ -44,9 +44,9 @@ export default function BookPage() {
             </p>
           </div>
 
-          {/* Embedded Scheduler Card */}
+          {/* College Consultation Scheduler Card */}
           <div className="bg-white rounded-lg border border-line p-6 sm:p-8 shadow-subtle">
-            <CalSchedulerEmbed />
+            <NativeScheduler />
           </div>
 
           {/* Consultation Reassurance */}

@@ -1,6 +1,6 @@
 import React from "react";
 
-export type SectionVariant = "paper" | "white" | "navy";
+export type SectionVariant = "paper" | "white" | "navy" | "cream";
 
 export interface SectionProps extends React.HTMLAttributes<HTMLElement> {
   variant?: SectionVariant;
@@ -20,6 +20,7 @@ export const Section: React.FC<SectionProps> = ({
     paper: "bg-paper text-ink",
     white: "bg-white text-ink",
     navy: "bg-navy-900 text-white",
+    cream: "bg-gold-50/70 text-ink",
   }[variant];
 
   // 64px mobile (py-16 = 4rem = 64px), 96px desktop (md:py-24 = 6rem = 96px)

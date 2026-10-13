@@ -178,7 +178,7 @@ export const PrivateTutoringForm: React.FC<PrivateTutoringFormProps> = ({
             required
             value={parentName}
             onChange={(e) => setParentName(e.target.value)}
-            placeholder="e.g. Rachel Thomas"
+            placeholder="e.g. Jane Doe"
             className="w-full px-3 py-2 rounded-sm border border-line bg-white text-ink text-sm focus:outline-none focus:ring-2 focus:ring-navy-900 min-h-[44px]"
           />
         </div>
@@ -197,7 +197,7 @@ export const PrivateTutoringForm: React.FC<PrivateTutoringFormProps> = ({
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="rachel@example.com"
+              placeholder="parent@example.co.uk"
               className="w-full px-3 py-2 rounded-sm border border-line bg-white text-ink text-sm focus:outline-none focus:ring-2 focus:ring-navy-900 min-h-[44px]"
             />
           </div>
@@ -324,8 +324,7 @@ export const PrivateTutoringForm: React.FC<PrivateTutoringFormProps> = ({
           <span>
             I confirm that I am the parent or legal guardian of the named
             student and consent to enquiring on their behalf. All tutors are
-            enhanced DBS checked in line with our safeguarding policy
-            (PLACEHOLDER: safeguarding policy supplied by owner).{" "}
+            enhanced DBS checked in line with our safeguarding policy.{" "}
             <span className="text-navy-900 font-bold">*</span>
           </span>
         </label>

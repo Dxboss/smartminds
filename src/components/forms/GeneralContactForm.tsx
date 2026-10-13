@@ -168,7 +168,7 @@ export const GeneralContactForm: React.FC<GeneralContactFormProps> = ({
           required
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="e.g. David Williams"
+          placeholder="e.g. Jane Doe"
           className="w-full px-3 py-2.5 rounded-sm border border-line bg-paper text-ink text-sm focus:outline-none focus:ring-2 focus:ring-navy-900 min-h-[44px]"
         />
         {result?.fieldErrors?.name && (
@@ -193,7 +193,7 @@ export const GeneralContactForm: React.FC<GeneralContactFormProps> = ({
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="david@example.co.uk"
+            placeholder="name@example.co.uk"
             className="w-full px-3 py-2.5 rounded-sm border border-line bg-paper text-ink text-sm focus:outline-none focus:ring-2 focus:ring-navy-900 min-h-[44px]"
           />
           {result?.fieldErrors?.email && (

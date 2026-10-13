@@ -166,7 +166,7 @@ export default function StudentPortalPage() {
     <PortalShell
       role="student"
       portalTitle="Learner Portal"
-      portalSubtitle="Virtual Campus • Adult Care Faculty"
+      portalSubtitle="Online Study Portal • Health & Social Care"
       menuItems={menuItems}
       activeSection={activeSection}
       onSectionChange={setActiveSection}

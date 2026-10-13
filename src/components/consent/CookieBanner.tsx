@@ -1,13 +1,15 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useConsent } from "@/context/ConsentContext";
 import { Button } from "@/components/ui/Button";
 import { Heading } from "@/components/ui/Heading";
 import { Icon } from "@/components/ui/Icon";
 
 export const CookieBanner: React.FC = () => {
+  const pathname = usePathname();
   const {
     hasResponded,
     isManageOpen,
@@ -18,6 +20,11 @@ export const CookieBanner: React.FC = () => {
     openManage,
     closeManage,
   } = useConsent();
+
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Temporary local state while in the Manage modal
   const [tempAnalytics, setTempAnalytics] = useState(preferences.analytics);
@@ -40,8 +47,14 @@ export const CookieBanner: React.FC = () => {
     });
   };
 
-  // If user has already responded and manage modal is closed, show nothing
-  if (hasResponded && !isManageOpen) {
+  const isPortal =
+    pathname.startsWith("/portal") ||
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/staff") ||
+    pathname.startsWith("/student") ||
+    pathname.startsWith("/super");
+
+  if (!mounted || isPortal) {
     return null;
   }
 
@@ -109,7 +122,29 @@ export const CookieBanner: React.FC = () => {
         </aside>
       )}
 
-      {/* 2. Granular Manage Preferences Modal */}
+      {/* 2. Floating Cookie Settings Icon (Bottom Left Corner) */}
+      {hasResponded && (
+        <button
+          type="button"
+          onClick={handleOpenManage}
+          aria-label="Manage cookie preferences"
+          title="Cookie preferences"
+          className="fixed bottom-20 lg:bottom-5 left-4 lg:left-5 z-40 w-11 h-11 rounded-full bg-navy-900 text-white shadow-lg border border-gold-500/40 hover:border-gold-500 hover:bg-navy-800 flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:ring-offset-2 focus:ring-offset-paper group cursor-pointer animate-fade-in"
+        >
+          <Icon
+            name="cookie"
+            size={22}
+            className="text-gold-300 group-hover:text-gold-500 transition-colors"
+          />
+          <span className="sr-only">Cookie preferences</span>
+          {/* Tooltip on hover */}
+          <span className="pointer-events-none absolute left-full ml-3 px-2.5 py-1.5 rounded-sm bg-navy-900 text-white text-xs font-semibold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity shadow-md border border-white/10 hidden sm:block">
+            Cookie preferences
+          </span>
+        </button>
+      )}
+
+      {/* 3. Granular Manage Preferences Modal */}
       {isManageOpen && (
         <div
           role="dialog"

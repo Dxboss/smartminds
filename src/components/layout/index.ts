@@ -3,3 +3,5 @@ export * from "./Header";
 export * from "./Footer";
 export * from "./MobileBottomBar";
 export * from "./StagingBanner";
+export * from "./ImpersonationBanner";
+export * from "./ImpersonationBannerSlot";

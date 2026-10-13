@@ -14,6 +14,8 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
+export const instant = false;
+
 export default async function StudentAssignmentDetailPage({ params }: PageProps) {
   const session = await getServerSession();
   if (!session) return null;

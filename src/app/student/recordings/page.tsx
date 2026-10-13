@@ -1,24 +1,45 @@
 import React from "react";
+import Link from "next/link";
 import { getServerSession } from "@/lib/session";
-import { getEnrolmentRepo } from "@/lib/repositories";
+import { getEnrolmentRepo, getLearnerRepo } from "@/lib/repositories";
 import { seedClasses, seedSessions } from "@/lib/repositories/seedData";
 import { StreamOnlyPlayer } from "@/components/student/StreamOnlyPlayer";
 import { Icon } from "@/components/ui/Icon";
+
+export const instant = false;
 
 export default async function StudentRecordingsPage() {
   const session = await getServerSession();
   if (!session) return null;
 
-  const learnerId = session.learnerId || "learner-001";
+  // Resolve learnerId strictly for current session - do NOT fall back to learner-001
+  let learnerId = session.learnerId;
+  if (!learnerId) {
+    const { seedLearners } = await import("@/lib/repositories/seedData");
+    const found = seedLearners.find(
+      (l) => l.email.toLowerCase() === session.email.toLowerCase()
+    );
+    learnerId = found?.id;
+  }
+
   const enrolmentRepo = getEnrolmentRepo();
-  const enrolments = await enrolmentRepo.listEnrolments(session, { learnerId });
+  const learnerRepo = getLearnerRepo();
+
+  const [enrolments, learner] = await Promise.all([
+    learnerId ? enrolmentRepo.listEnrolments(session, { learnerId }) : Promise.resolve([]),
+    learnerId ? learnerRepo.getLearnerById(session, learnerId) : Promise.resolve(null),
+  ]);
+
+  const isAccessPaused = learner?.accessStatus === "paused";
 
   // Gather class IDs for this learner
   const myClassIds = new Set(enrolments.map((e) => e.classId));
   const myClasses = seedClasses.filter((c) => myClassIds.has(c.id));
-  const availableRecordings = seedSessions.filter(
-    (s) => myClassIds.has(s.classId) && s.recordingUrl
-  );
+
+  // Show all recordings published for the learner's enrolled cohorts
+  const availableRecordings = seedSessions.filter((s) => {
+    return myClassIds.has(s.classId) && Boolean(s.recordingUrl);
+  });
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
@@ -38,14 +59,37 @@ export default async function StudentRecordingsPage() {
         </div>
       </div>
 
-      {availableRecordings.length === 0 ? (
+      {isAccessPaused ? (
+        <div className="bg-white rounded-md border border-amber-300 p-8 text-center space-y-4 shadow-sm bg-amber-50/40">
+          <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center mx-auto">
+            <Icon name="alert-circle" size={24} />
+          </div>
+          <div className="space-y-1">
+            <h2 className="font-heading text-2xl font-bold text-navy-900">
+              Classroom Archives Paused
+            </h2>
+            <p className="text-xs text-ink-soft max-w-md mx-auto">
+              Access to recorded seminar streams is temporarily suspended due to an overdue instalment. Please settle your outstanding tuition balance to restore immediate on-demand playback.
+            </p>
+          </div>
+          <div className="pt-2">
+            <Link
+              href="/student/payments"
+              className="px-5 py-2.5 rounded-sm bg-navy-900 text-white text-xs font-bold hover:bg-navy-700 transition-colors inline-flex items-center gap-1.5 shadow-sm min-h-[44px]"
+            >
+              <Icon name="credit-card" size={14} />
+              <span>Settle payment & unlock archives</span>
+            </Link>
+          </div>
+        </div>
+      ) : availableRecordings.length === 0 ? (
         <div className="bg-white rounded-md border border-line p-12 text-center space-y-3 shadow-sm">
           <Icon name="video" size={36} className="text-navy-900/40 mx-auto" />
           <h2 className="font-heading text-xl font-bold text-navy-900">
             No class recordings available yet
           </h2>
           <p className="text-xs text-ink-soft max-w-md mx-auto">
-            Recordings are uploaded after each live class session has concluded. Check back following your next scheduled class.
+            Welcome to Smartminds College! Live class recordings are automatically published here within 24 hours of each scheduled session. As a newly joined student, your upcoming live timetable is active on your portal dashboard.
           </p>
         </div>
       ) : (
@@ -79,6 +123,7 @@ export default async function StudentRecordingsPage() {
                   myClasses.find((c) => c.id === availableRecordings[0].classId)?.name ||
                   "Accredited Cohort"
                 }
+                videoUrl={availableRecordings[0].recordingUrl}
               />
             </div>
           )}

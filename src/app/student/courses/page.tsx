@@ -4,15 +4,27 @@ import { getServerSession } from "@/lib/session";
 import { getEnrolmentRepo, getCourseRepo } from "@/lib/repositories";
 import { Icon } from "@/components/ui/Icon";
 
+export const instant = false;
+
 export default async function StudentCoursesPage() {
   const session = await getServerSession();
   if (!session) return null;
 
-  const learnerId = session.learnerId || "learner-001";
+  let learnerId = session.learnerId;
+  if (!learnerId) {
+    const { seedLearners } = await import("@/lib/repositories/seedData");
+    const found = seedLearners.find(
+      (l) => l.email.toLowerCase() === session.email.toLowerCase()
+    );
+    learnerId = found?.id;
+  }
+
   const enrolmentRepo = getEnrolmentRepo();
   const courseRepo = getCourseRepo();
 
-  const enrolments = await enrolmentRepo.listEnrolments(session, { learnerId });
+  const enrolments = learnerId
+    ? await enrolmentRepo.listEnrolments(session, { learnerId })
+    : [];
   const allCourses = await courseRepo.listCourses();
 
   return (

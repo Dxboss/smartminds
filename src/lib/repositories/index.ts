@@ -42,17 +42,44 @@ export function getCourseRepo(): CourseRepo {
 }
 
 export function getLearnerRepo(): LearnerRepo {
-  if (!learnerRepo) learnerRepo = new MemoryLearnerRepo();
+  if (!learnerRepo) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { syncPersistedRecords } = require("@/lib/persistedData");
+      syncPersistedRecords();
+    } catch {
+      // Ignore if not in Node environment
+    }
+    learnerRepo = new MemoryLearnerRepo();
+  }
   return learnerRepo;
 }
 
 export function getEnrolmentRepo(): EnrolmentRepo {
-  if (!enrolmentRepo) enrolmentRepo = new MemoryEnrolmentRepo();
+  if (!enrolmentRepo) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { syncPersistedRecords } = require("@/lib/persistedData");
+      syncPersistedRecords();
+    } catch {
+      // Ignore if not in Node environment
+    }
+    enrolmentRepo = new MemoryEnrolmentRepo();
+  }
   return enrolmentRepo;
 }
 
 export function getPaymentRepo(): PaymentRepo {
-  if (!paymentRepo) paymentRepo = new MemoryPaymentRepo();
+  if (!paymentRepo) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { syncPersistedRecords } = require("@/lib/persistedData");
+      syncPersistedRecords();
+    } catch {
+      // Ignore if not in Node environment
+    }
+    paymentRepo = new MemoryPaymentRepo();
+  }
   return paymentRepo;
 }
 
@@ -62,7 +89,16 @@ export function getTaskRepo(): TaskRepo {
 }
 
 export function getBookingRepo(): BookingRepo {
-  if (!bookingRepo) bookingRepo = new MemoryBookingRepo();
+  if (!bookingRepo) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { syncPersistedRecords } = require("@/lib/persistedData");
+      syncPersistedRecords();
+    } catch {
+      // Ignore if not in Node environment
+    }
+    bookingRepo = new MemoryBookingRepo();
+  }
   return bookingRepo;
 }
 

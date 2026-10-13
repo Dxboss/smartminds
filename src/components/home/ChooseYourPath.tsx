@@ -80,44 +80,75 @@ const PATHWAYS: Pathway[] = [
   },
 ];
 
-export const ChooseYourPath: React.FC = () => {
+export interface ChooseYourPathProps {
+  headline?: string;
+  subheadline?: string;
+  bgColor?: "white" | "paper" | "navy" | "cream";
+  columns?: 2 | 3 | 4;
+}
+
+export const ChooseYourPath: React.FC<ChooseYourPathProps> = ({
+  headline = "Choose your path by outcome",
+  subheadline = "Whether you are entering healthcare, advancing to leadership, teaching adults, or seeking focused academic tutoring for your child, select your goal below.",
+  bgColor = "paper",
+  columns = 3,
+}) => {
+  const isDark = bgColor === "navy";
+
+  const colClass =
+    columns === 2
+      ? "grid-cols-1 md:grid-cols-2"
+      : columns === 4
+      ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
+      : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3";
+
   return (
-    <Section variant="paper">
+    <Section variant={bgColor}>
       <Container>
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
           <div>
-            <Eyebrow tone="navy" className="mb-2">
+            <Eyebrow tone={isDark ? "gold" : "navy"} className="mb-2">
               Career Pathways
             </Eyebrow>
-            <Heading level="h2" className="text-navy-900">
-              Choose your path by outcome
+            <Heading level="h2" className={isDark ? "text-white" : "text-navy-900"}>
+              {headline}
             </Heading>
-            <p className="text-ink-soft text-base sm:text-lg max-w-xl mt-2 leading-relaxed">
-              Whether you are entering healthcare, advancing to leadership,
-              teaching adults, or seeking focused academic tutoring for your
-              child, select your goal below.
+            <p className={`text-base sm:text-lg max-w-xl mt-2 leading-relaxed ${isDark ? "text-paper/85" : "text-ink-soft"}`}>
+              {subheadline}
             </p>
           </div>
 
           <Link
             href="/courses"
-            className="text-sm font-semibold text-navy-900 hover:text-navy-700 underline underline-offset-4 decoration-gold-500 hover:decoration-navy-700 whitespace-nowrap min-h-[44px] inline-flex items-center"
+            className={`text-sm font-semibold underline underline-offset-4 decoration-gold-500 whitespace-nowrap min-h-[44px] inline-flex items-center ${
+              isDark ? "text-gold-300 hover:text-white" : "text-navy-900 hover:text-navy-700"
+            }`}
           >
             Explore all qualifications &rarr;
           </Link>
         </div>
 
-        {/* Varied Grid: 2 columns on tablet, 3 on desktop */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Dynamic Grid by configured columns */}
+        <div className={`grid ${colClass} gap-6`}>
           {PATHWAYS.map((pathway) => (
             <Link
               key={pathway.title}
               href={pathway.href}
-              className="group bg-white rounded-lg border border-line p-6 shadow-subtle hover:border-navy-900/40 hover:-translate-y-0.5 transition-all flex flex-col justify-between"
+              className={`group rounded-lg border p-6 transition-all flex flex-col justify-between ${
+                isDark
+                  ? "bg-white/5 border-white/10 hover:border-gold-500/50 text-white"
+                  : "bg-white border-line shadow-subtle hover:border-navy-900/40 hover:-translate-y-0.5 text-ink"
+              }`}
             >
               <div>
                 <div className="flex items-center justify-between gap-3 mb-4">
-                  <div className="w-12 h-12 rounded-sm bg-navy-900/5 group-hover:bg-navy-900 group-hover:text-white text-navy-900 flex items-center justify-center transition-colors">
+                  <div
+                    className={`w-12 h-12 rounded-sm flex items-center justify-center transition-colors ${
+                      isDark
+                        ? "bg-gold-500/10 text-gold-300 group-hover:bg-gold-500 group-hover:text-navy-900"
+                        : "bg-navy-900/5 text-navy-900 group-hover:bg-navy-900 group-hover:text-white"
+                    }`}
+                  >
                     <Icon
                       name={pathway.icon}
                       size={24}
@@ -130,24 +161,44 @@ export const ChooseYourPath: React.FC = () => {
                         Funded
                       </Tag>
                     )}
-                    <Tag variant="default" className="text-xs">
+                    <Tag variant={isDark ? "gold" : "default"} className="text-xs">
                       {pathway.levelBadge}
                     </Tag>
                   </div>
                 </div>
 
-                <h3 className="font-heading text-xl font-bold text-navy-900 group-hover:text-navy-700 transition-colors mb-1">
+                <h3
+                  className={`font-heading text-xl font-bold mb-1 transition-colors ${
+                    isDark
+                      ? "text-white group-hover:text-gold-300"
+                      : "text-navy-900 group-hover:text-navy-700"
+                  }`}
+                >
                   {pathway.title}
                 </h3>
-                <span className="text-xs font-semibold text-gold-700 block mb-2.5">
+                <span
+                  className={`text-xs font-semibold block mb-2.5 ${
+                    isDark ? "text-gold-300" : "text-gold-700"
+                  }`}
+                >
                   {pathway.targetRole}
                 </span>
-                <p className="text-sm text-ink-soft leading-relaxed">
+                <p
+                  className={`text-sm leading-relaxed ${
+                    isDark ? "text-paper/80" : "text-ink-soft"
+                  }`}
+                >
                   {pathway.description}
                 </p>
               </div>
 
-              <div className="pt-6 mt-4 border-t border-line flex items-center justify-between text-xs font-bold text-navy-900 group-hover:text-navy-700">
+              <div
+                className={`pt-6 mt-4 border-t flex items-center justify-between text-xs font-bold ${
+                  isDark
+                    ? "border-white/10 text-gold-300 group-hover:text-white"
+                    : "border-line text-navy-900 group-hover:text-gold-700"
+                }`}
+              >
                 <span>View course details</span>
                 <Icon
                   name="arrow-right"

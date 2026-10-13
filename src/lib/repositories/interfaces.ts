@@ -4,6 +4,7 @@ import {
   Learner,
   Enrolment,
   PaymentRecord,
+  PaymentScheduleItem,
   LearnerPaymentPlanSummary,
   LedgerSummary,
   Task,
@@ -26,6 +27,7 @@ export interface CourseRepo {
   getCourseById(id: string): Promise<Course | null>;
   updateCourse(actor: SessionUser, course: Course): Promise<Course>;
   createCourse(actor: SessionUser, course: Course): Promise<Course>;
+  deleteCourse(actor: SessionUser, id: string): Promise<boolean>;
 }
 
 export interface LearnerRepo {
@@ -66,10 +68,17 @@ export interface PaymentRepo {
     filter?: { status?: string; learnerId?: string }
   ): Promise<PaymentRecord[]>;
   getLedgerSummary(actor: SessionUser): Promise<LedgerSummary>;
+  getPaymentSchedules(
+    actor: SessionUser,
+    filter?: { learnerId?: string; status?: string }
+  ): Promise<PaymentScheduleItem[]>;
   getMyPaymentPlan(
     actor: SessionUser,
     learnerId: string
   ): Promise<LearnerPaymentPlanSummary | null>;
+  getAllLearnerPaymentPlans(
+    actor: SessionUser
+  ): Promise<LearnerPaymentPlanSummary[]>;
   markBankTransferReceived(
     actor: SessionUser,
     data: {
@@ -90,6 +99,27 @@ export interface TaskRepo {
     task: Omit<Task, "id" | "createdAt" | "isOverdue">
   ): Promise<Task>;
   markTaskComplete(actor: SessionUser, taskId: string): Promise<Task>;
+  reviewTask(
+    actor: SessionUser,
+    taskId: string,
+    review: {
+      feedback: string;
+      satisfaction: "satisfied" | "needs_revision" | "unsatisfied";
+    }
+  ): Promise<Task>;
+  flagTaskRed(
+    actor: SessionUser,
+    taskId: string,
+    reason?: string
+  ): Promise<{ task: Task; totalStaffStrikes: number; penaltyTriggered: boolean }>;
+  applyStaffPenalty(
+    actor: SessionUser,
+    staffId: string,
+    penalty: {
+      bonusReductionAmount: number;
+      penaltyNote: string;
+    }
+  ): Promise<{ success: boolean; staffId: string; bonusReductionAmount: number }>;
 }
 
 export interface BookingRepo {
@@ -101,6 +131,18 @@ export interface BookingRepo {
     actor: SessionUser,
     id: string,
     newDate: string
+  ): Promise<Booking>;
+  assignBooking(
+    actor: SessionUser,
+    bookingId: string,
+    staffId: string,
+    staffName: string
+  ): Promise<Booking>;
+  updateBookingStatus(
+    actor: SessionUser,
+    bookingId: string,
+    status: Booking["status"],
+    notes?: string
   ): Promise<Booking>;
   getAvailabilityRules(): Promise<AvailabilityRule[]>;
   updateAvailabilityRules(
@@ -165,7 +207,15 @@ export interface UserRepo {
   listStaffAndTutors(actor: SessionUser): Promise<UserProfile[]>;
   inviteUser(
     actor: SessionUser,
-    data: { email: string; name: string; role: UserRole }
+    data: {
+      email: string;
+      name: string;
+      role: UserRole;
+      specialism?: string;
+      department?: string;
+    }
   ): Promise<UserProfile>;
   deactivateUser(actor: SessionUser, id: string): Promise<UserProfile>;
+  toggleUserStatus(actor: SessionUser, id: string): Promise<UserProfile>;
+  deleteUser(actor: SessionUser, id: string): Promise<boolean>;
 }

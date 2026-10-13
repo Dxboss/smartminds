@@ -8,7 +8,7 @@ import React, {
 } from "react";
 import { useRouter } from "next/navigation";
 
-export type UserRole = "student" | "staff" | "owner_admin";
+export type UserRole = "student" | "staff" | "owner_admin" | "super_admin";
 
 export interface AuthUser {
   id: string;
@@ -18,14 +18,19 @@ export interface AuthUser {
   avatarUrl?: string;
   enrolledCourse?: string;
   cohort?: string;
+  keepSignedIn?: boolean;
 }
 
 export interface AuthContextType {
   user: AuthUser | null;
   role: UserRole | null;
   isAuthenticated: boolean;
-  loginAs: (role: UserRole) => void;
-  loginWithCredentials: (email: string, role?: UserRole) => Promise<boolean>;
+  loginAs: (role: UserRole, keepSignedIn?: boolean) => void;
+  loginWithCredentials: (
+    email: string,
+    role?: UserRole,
+    keepSignedIn?: boolean
+  ) => Promise<boolean>;
   logout: () => void;
 }
 
@@ -53,6 +58,13 @@ const DEMO_USERS: Record<UserRole, AuthUser> = {
     role: "owner_admin",
     enrolledCourse: "Smartminds Empire Ltd",
     cohort: "Owner / Administrator",
+  },
+  super_admin: {
+    id: "usr_super_george",
+    name: "David George",
+    email: "thegeorgedigitals@gmail.com",
+    role: "super_admin",
+    cohort: "Master Governance",
   },
 };
 
@@ -103,8 +115,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [rawUserJson]);
 
-  const loginAs = (targetRole: UserRole) => {
-    const demoUser = DEMO_USERS[targetRole];
+  const loginAs = (targetRole: UserRole, keepSignedIn = false) => {
+    const demoUser = { ...DEMO_USERS[targetRole], keepSignedIn };
     try {
       localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(demoUser));
       window.dispatchEvent(new Event(AUTH_CHANGE_EVENT));
@@ -118,12 +130,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       router.push("/portal/tutor");
     } else if (targetRole === "owner_admin") {
       router.push("/portal/admin");
+    } else if (targetRole === "super_admin") {
+      router.push("/super");
     }
   };
 
   const loginWithCredentials = async (
     email: string,
-    targetRole: UserRole = "student"
+    targetRole: UserRole = "student",
+    keepSignedIn = false
   ): Promise<boolean> => {
     const profile: AuthUser = {
       id: `usr_${Date.now()}`,
@@ -133,6 +148,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         .replace(/\b\w/g, (c) => c.toUpperCase()),
       email,
       role: targetRole,
+      keepSignedIn,
       enrolledCourse:
         targetRole === "student"
           ? "Level 3 Diploma in Adult Care (RQF)"
@@ -153,6 +169,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       router.push("/portal/tutor");
     } else if (targetRole === "owner_admin") {
       router.push("/portal/admin");
+    } else if (targetRole === "super_admin") {
+      router.push("/super");
     }
 
     return true;

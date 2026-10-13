@@ -1,0 +1,5277 @@
+"use client";
+
+import React, { useState, useTransition, useEffect, useRef } from "react";
+import Link from "next/link";
+import { Icon, IconName } from "@/components/ui/Icon";
+import { SectionRenderer } from "@/components/cms/SectionRenderer";
+import { Header } from "@/components/layout/Header";
+import { Footer } from "@/components/layout/Footer";
+import { ResponsiveCanvasFrame } from "./ResponsiveCanvasFrame";
+import { ImageDropzone } from "@/components/ui/ImageDropzone";
+import {
+  BuilderSection,
+  BuilderSectionType,
+  BuilderSectionItem,
+  defaultPageBuilderSections,
+  seedCompositeTemplates,
+  CompositeWidget,
+  CompositeColumn,
+  CompositeWidgetType,
+  CollegeCmsContent,
+  HeaderNavConfig,
+  defaultHeaderNavConfig,
+  FooterConfig,
+  defaultFooterConfig,
+  collegePagesData,
+} from "@/lib/repositories/seedData";
+import {
+  saveVisualBuilderSectionsAction,
+  saveSiteCmsContentAction,
+  saveHeaderNavConfigAction,
+  saveFooterConfigAction,
+  createNewPageAction,
+  deletePageAction,
+} from "@/app/admin/actions";
+
+interface Props {
+  initialSections: BuilderSection[];
+  initialPagesData?: Record<string, BuilderSection[]>;
+  initialHeaderNav?: HeaderNavConfig;
+  initialFooterConfig?: FooterConfig;
+  initialContent: CollegeCmsContent;
+  userRole: string;
+}
+
+export interface PageItem {
+  id: string;
+  path: string;
+  name: string;
+  iconName: IconName;
+  isSystem?: boolean;
+}
+
+const DEFAULT_PAGES: PageItem[] = [
+  { id: "home", path: "/", name: "Homepage", iconName: "home", isSystem: true },
+  { id: "courses", path: "/courses", name: "Qualifications Catalogue", iconName: "graduation-cap", isSystem: true },
+  { id: "funding", path: "/funding", name: "0% Tuition & Payment Plans", iconName: "credit-card", isSystem: true },
+  { id: "about", path: "/about", name: "About Smartminds College", iconName: "building", isSystem: true },
+  { id: "contact", path: "/contact", name: "Contact & Consultation", iconName: "message-square", isSystem: true },
+  { id: "privacy", path: "/privacy", name: "Privacy Policy", iconName: "shield-check", isSystem: true },
+  { id: "terms", path: "/terms", name: "Terms & Conditions", iconName: "file-text", isSystem: true },
+  { id: "cookies", path: "/cookies", name: "Cookie Policy", iconName: "cookie", isSystem: true },
+  { id: "refunds", path: "/refunds", name: "Refund & Cancellation Policy", iconName: "credit-card", isSystem: true },
+  { id: "safeguarding", path: "/safeguarding-student-welfare", name: "Safeguarding & Student Welfare", iconName: "users", isSystem: true },
+];
+
+const AVAILABLE_IMAGES = [
+  {
+    path: "/images/adult-care-training.jpg",
+    label: "Adult Social Care Training Suite",
+  },
+  {
+    path: "/images/early-years-training.jpg",
+    label: "Early Years & Nursery Classroom",
+  },
+  {
+    path: "/images/teacher-training.jpg",
+    label: "Teacher Education Seminar Room",
+  },
+  {
+    path: "/images/tutor-teaching.jpg",
+    label: "1-to-1 Assessor Mentoring",
+  },
+  {
+    path: "/images/certificate-moment.jpg",
+    label: "Qualification Certification",
+  },
+  {
+    path: "/images/hero-learner.jpg",
+    label: "Independent Online Study",
+  },
+];
+
+const AVAILABLE_LOGO_PRESETS = [
+  {
+    path: "/images/logo-color.png",
+    label: "Official Full-Color Logo",
+  },
+  {
+    path: "/images/logo-white.png",
+    label: "Official White / Light Logo",
+  },
+];
+
+const AVAILABLE_ITEM_ICONS: { name: IconName; label: string }[] = [
+  { name: "check-circle", label: "Checkmark Circle" },
+  { name: "shield-check", label: "Verified Shield" },
+  { name: "graduation-cap", label: "Graduation Cap" },
+  { name: "book-open", label: "Curriculum Book" },
+  { name: "clock", label: "Clock / Duration" },
+  { name: "users", label: "Cohort / Students" },
+  { name: "star", label: "Star / Rating" },
+  { name: "sparkles", label: "Sparkles / Quality" },
+  { name: "calendar", label: "Calendar / Dates" },
+  { name: "phone", label: "Advisory Phone" },
+  { name: "mail", label: "Email / Prospectus" },
+  { name: "video", label: "Live Video Seminar" },
+  { name: "layers", label: "Course Modules" },
+  { name: "chevron-right", label: "Arrow Pathway" },
+];
+
+const WIDGET_DEFINITIONS: {
+  type: BuilderSectionType;
+  title: string;
+  category: string;
+  desc: string;
+  iconName: IconName;
+}[] = [
+  {
+    type: "hero",
+    title: "Hero Banner",
+    category: "Header & Lead",
+    desc: "High-impact opening with headline, CTA buttons, and college photography.",
+    iconName: "sparkles",
+  },
+  {
+    type: "trust_strip",
+    title: "Accreditation Strip",
+    category: "Trust & Badges",
+    desc: "Highlight NCFE, TQUK, Ofqual, and 100% coursework assessment standards.",
+    iconName: "shield-check",
+  },
+  {
+    type: "featured_courses",
+    title: "Qualifications Grid",
+    category: "Courses & Curricula",
+    desc: "Showcase accredited diplomas with level choices and tuition breakdown.",
+    iconName: "graduation-cap",
+  },
+  {
+    type: "why_smartminds",
+    title: "Why Smartminds Advantage",
+    category: "Features & Benefits",
+    desc: "4-column feature grid detailing tutor support, workplace evidence, and payment plans.",
+    iconName: "check-circle",
+  },
+  {
+    type: "stats_counter",
+    title: "College Key Figures",
+    category: "Social Proof",
+    desc: "Verified metrics: 98% pass rate, 0% interest, 48h turnaround, 500+ practitioners.",
+    iconName: "star",
+  },
+  {
+    type: "testimonials",
+    title: "Student Stories & Outcomes",
+    category: "Social Proof",
+    desc: "Verified practitioner quotes with star ratings and job titles.",
+    iconName: "message-square",
+  },
+  {
+    type: "cta_banner",
+    title: "Advisory Call to Action",
+    category: "Conversion",
+    desc: "Direct telephone and WhatsApp consultation booking prompt.",
+    iconName: "phone",
+  },
+  {
+    type: "contact_block",
+    title: "Fast Consultation Form",
+    category: "Conversion",
+    desc: "Inline lead capture for prospectus enquiries and phone callbacks.",
+    iconName: "mail",
+  },
+  {
+    type: "faq_accordion",
+    title: "Frequently Asked Questions",
+    category: "Information",
+    desc: "Interactive accordion addressing funding, exams, and class replays.",
+    iconName: "info",
+  },
+  {
+    type: "announcement",
+    title: "Regulatory / Intake Banner",
+    category: "Information",
+    desc: "High-visibility regulatory notice or upcoming intake deadline bar.",
+    iconName: "bell",
+  },
+  {
+    type: "video_spotlight",
+    title: "Video Spotlight Showcase",
+    category: "Social Proof",
+    desc: "Dedicated multimedia video player with interactive thumbnail, consent guard, and responsive column split.",
+    iconName: "video",
+  },
+  {
+    type: "composite_block",
+    title: "Custom Composite Block",
+    category: "Custom Builder",
+    desc: "Modular micro-widget block: combine icon boxes, images, text, CTA buttons, and forms in custom columns.",
+    iconName: "layers",
+  },
+];
+
+export const SiteCmsEditorView: React.FC<Props> = ({
+  initialSections,
+  initialPagesData = collegePagesData,
+  initialHeaderNav = defaultHeaderNavConfig,
+  initialFooterConfig = defaultFooterConfig,
+  initialContent,
+  userRole,
+}) => {
+  // Dynamic Page list (Core system pages + any custom CMS pages created)
+  const [pagesList, setPagesList] = useState<PageItem[]>(() => {
+    const list: PageItem[] = [...DEFAULT_PAGES];
+    if (initialPagesData) {
+      Object.keys(initialPagesData).forEach((path) => {
+        if (!list.some((p) => p.path === path)) {
+          const rawName = path
+            .replace(/^\//, "")
+            .split("-")
+            .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+            .join(" ");
+          list.push({
+            id: `page-${path.replace(/^\//, "")}`,
+            path,
+            name: rawName || "Custom Page",
+            iconName: "layers",
+            isSystem: false,
+          });
+        }
+      });
+    }
+    return list;
+  });
+
+  // Page selector state
+  const [activePagePath, setActivePagePath] = useState<string>("/");
+  const [showPageDropdown, setShowPageDropdown] = useState<boolean>(false);
+
+  // Create New Page Modal State
+  const [showCreatePageModal, setShowCreatePageModal] = useState<boolean>(false);
+  const [newPageName, setNewPageName] = useState<string>("");
+  const [newPageSlug, setNewPageSlug] = useState<string>("");
+  const [isSlugManuallyEdited, setIsSlugManuallyEdited] = useState<boolean>(false);
+  const [newPageBlueprint, setNewPageBlueprint] = useState<
+    "standard" | "campaign" | "blank" | "clone"
+  >("standard");
+  const [cloneSourcePath, setCloneSourcePath] = useState<string>("/");
+  const [newAddToMenu, setNewAddToMenu] = useState<boolean>(true);
+  const [slugError, setSlugError] = useState<string | null>(null);
+  const [isCreatingPage, setIsCreatingPage] = useState<boolean>(false);
+
+  // Multi-page sections store
+  const [pagesSections, setPagesSections] = useState<Record<string, BuilderSection[]>>(() => {
+    const rawHome =
+      initialSections && initialSections.length > 0
+        ? initialSections
+        : defaultPageBuilderSections;
+
+    // Ensure all sections have their default items if missing
+    const hydratedHome = rawHome.map((sec) => {
+      if (!sec.items || sec.items.length === 0) {
+        const def = defaultPageBuilderSections.find(
+          (d) => d.id === sec.id || d.type === sec.type
+        );
+        if (def?.items && def.items.length > 0) {
+          return { ...sec, items: def.items };
+        }
+      }
+      return sec;
+    });
+
+    return {
+      "/": hydratedHome,
+      ...(initialPagesData || {}),
+    };
+  });
+
+  // Undo & Redo History Management
+  const [historyPast, setHistoryPast] = useState<Record<string, BuilderSection[]>[]>([]);
+  const [historyFuture, setHistoryFuture] = useState<Record<string, BuilderSection[]>[]>([]);
+  const lastHistorySnapshotRef = useRef<number>(0);
+
+  const pushSnapshot = (snapshot: Record<string, BuilderSection[]>) => {
+    setHistoryPast((past) => [...past.slice(-25), snapshot]);
+    setHistoryFuture([]);
+  };
+
+  const handleUndo = () => {
+    if (historyPast.length === 0) return;
+    const previous = historyPast[historyPast.length - 1];
+    const newPast = historyPast.slice(0, -1);
+    setHistoryFuture((fut) => [pagesSections, ...fut.slice(0, 25)]);
+    setHistoryPast(newPast);
+    setPagesSections(previous);
+    setToastNotice("Undo applied");
+    setTimeout(() => setToastNotice(null), 2500);
+  };
+
+  const handleRedo = () => {
+    if (historyFuture.length === 0) return;
+    const next = historyFuture[0];
+    const newFuture = historyFuture.slice(1);
+    setHistoryPast((past) => [...past.slice(-25), pagesSections]);
+    setHistoryFuture(newFuture);
+    setPagesSections(next);
+    setToastNotice("Redo applied");
+    setTimeout(() => setToastNotice(null), 2500);
+  };
+
+  // Current active page sections
+  const activeSections = pagesSections[activePagePath] || defaultPageBuilderSections;
+
+  const setActiveSections = (
+    updater: BuilderSection[] | ((prev: BuilderSection[]) => BuilderSection[]),
+    recordHistory: boolean = true
+  ) => {
+    if (recordHistory) {
+      const now = Date.now();
+      if (now - lastHistorySnapshotRef.current > 400) {
+        pushSnapshot(pagesSections);
+        lastHistorySnapshotRef.current = now;
+      }
+    }
+    setPagesSections((prev) => {
+      const current = prev[activePagePath] || defaultPageBuilderSections;
+      const next = typeof updater === "function" ? updater(current) : updater;
+      return {
+        ...prev,
+        [activePagePath]: next,
+      };
+    });
+  };
+
+  const [selectedSectionId, setSelectedSectionId] = useState<string>(
+    activeSections[0]?.id || ""
+  );
+
+  // Collapsible Left Panel state (Elementor full-screen toggle)
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
+
+  // Keyboard shortcut Ctrl+P (panel) and Ctrl+Z / Ctrl+Y (Undo/Redo)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Toggle panel with Ctrl+P
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "p") {
+        e.preventDefault();
+        setIsSidebarOpen((prev) => !prev);
+      }
+      // Undo with Ctrl+Z (without shift)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !e.shiftKey) {
+        e.preventDefault();
+        handleUndo();
+      }
+      // Redo with Ctrl+Y or Ctrl+Shift+Z
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        ((e.key.toLowerCase() === "z" && e.shiftKey) || e.key.toLowerCase() === "y")
+      ) {
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [historyPast, historyFuture, pagesSections]);
+
+  // Sidebar Controls: Page Content (blocks, inspect, widgets) vs Site Branding (menu, footer, contact)
+  const [panelCategory, setPanelCategory] = useState<"page" | "site">("page");
+  const [sidebarTab, setSidebarTab] = useState<
+    "blocks" | "inspect" | "widgets" | "menu" | "footer" | "contact"
+  >("blocks");
+  const [inspectorSubTab, setInspectorSubTab] = useState<
+    "content" | "style" | "items"
+  >("content");
+
+  // Saved Custom Composite Templates (Super Admin Reusable Library)
+  const [savedTemplates, setSavedTemplates] = useState<BuilderSection[]>(seedCompositeTemplates);
+  const [activeCompositeColIdx, setActiveCompositeColIdx] = useState<number>(0);
+  const [activeWidgetEditId, setActiveWidgetEditId] = useState<string | null>(null);
+  const [showAddWidgetMenu, setShowAddWidgetMenu] = useState<number | null>(null);
+
+  // Viewport Switcher: Desktop | Tablet (768px) | Mobile (390px)
+  const [viewport, setViewport] = useState<"desktop" | "tablet" | "mobile">(
+    "desktop"
+  );
+  const [hoveredSectionId, setHoveredSectionId] = useState<string | null>(null);
+
+  // Direct Click-to-Edit Selection on the Live Canvas
+  const handleSelectElement = (
+    sectionId: string,
+    elementKey:
+      | "headline"
+      | "subheadline"
+      | "badge"
+      | "button"
+      | "secondaryButton"
+      | "image"
+      | "item"
+      | "bg"
+      | "video",
+    itemIndex?: number
+  ) => {
+    setSelectedSectionId(sectionId);
+    setIsSidebarOpen(true);
+    setPanelCategory("page");
+    setSidebarTab("inspect");
+
+    if (elementKey === "item" || elementKey === "image" || elementKey === "video") {
+      setInspectorSubTab("items");
+    } else if (elementKey === "bg") {
+      setInspectorSubTab("style");
+    } else {
+      setInspectorSubTab("content");
+    }
+
+    const targetSec = activeSections.find((s) => s.id === sectionId);
+    const label =
+      elementKey === "video"
+        ? "Video Spotlight Settings"
+        : elementKey === "headline"
+        ? "Headline"
+        : elementKey === "subheadline"
+        ? "Subheadline"
+        : elementKey === "badge"
+        ? targetSec?.type === "trust_strip"
+          ? "Google Reviews & Rating"
+          : "Badge / Eyebrow"
+        : elementKey === "button"
+        ? "Primary CTA"
+        : elementKey === "secondaryButton"
+        ? "Secondary Button"
+        : elementKey === "image"
+        ? "Photograph"
+        : elementKey === "item"
+        ? targetSec?.type === "faq_accordion"
+          ? `FAQ Question #${(itemIndex ?? 0) + 1}`
+          : targetSec?.type === "trust_strip"
+          ? `Accreditation Body #${(itemIndex ?? 0) + 1}`
+          : `Card #${(itemIndex ?? 0) + 1}`
+        : "Section Style";
+
+    setToastNotice(`Editing: ${label}`);
+    setTimeout(() => setToastNotice(null), 3500);
+  };
+
+  // Drag & Drop State
+  const [draggedSectionIndex, setDraggedSectionIndex] = useState<number | null>(
+    null
+  );
+  const [dragOverSectionIndex, setDragOverSectionIndex] = useState<
+    number | null
+  >(null);
+  const [canvasDropTargetIndex, setCanvasDropTargetIndex] = useState<
+    number | null
+  >(null);
+  const [draggedWidgetType, setDraggedWidgetType] =
+    useState<BuilderSectionType | null>(null);
+
+  // Navigation Menu & Header State
+  const [headerNav, setHeaderNav] = useState<HeaderNavConfig>(initialHeaderNav);
+
+  // Footer Configuration State
+  const [footerConfig, setFooterConfig] =
+    useState<FooterConfig>(initialFooterConfig);
+
+  // Global College Contact Data State
+  const [globalContent, setGlobalContent] =
+    useState<CollegeCmsContent>(initialContent);
+
+  // Feedback State
+  const [toastNotice, setToastNotice] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  const selectedSection = activeSections.find((s) => s.id === selectedSectionId);
+  const activePageObj =
+    pagesList.find((p) => p.path === activePagePath) ||
+    pagesList[0] ||
+    DEFAULT_PAGES[0];
+
+  // Helper to format/sanitize URL route slugs
+  const formatSlug = (val: string) => {
+    let clean = val.toLowerCase().trim();
+    if (!clean.startsWith("/")) {
+      clean = "/" + clean;
+    }
+    const pathPart = clean
+      .slice(1)
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+    return "/" + pathPart;
+  };
+
+  const RESERVED_SLUGS = [
+    "/admin",
+    "/api",
+    "/portal",
+    "/staff",
+    "/student",
+    "/super",
+    "/login",
+    "/robots.txt",
+    "/sitemap.xml",
+    "/favicon.ico",
+  ];
+
+  const validateSlug = (slug: string): boolean => {
+    const trimmed = slug.trim();
+    if (!trimmed || trimmed === "/") {
+      setSlugError("Please specify a valid page URL slug (e.g. /safeguarding-policy).");
+      return false;
+    }
+    if (RESERVED_SLUGS.includes(trimmed)) {
+      setSlugError(`"${trimmed}" is a reserved system route. Please choose another slug.`);
+      return false;
+    }
+    if (pagesList.some((p) => p.path === trimmed)) {
+      setSlugError(`A page with path "${trimmed}" already exists.`);
+      return false;
+    }
+    setSlugError(null);
+    return true;
+  };
+
+  const handlePageNameChange = (val: string) => {
+    setNewPageName(val);
+    if (!isSlugManuallyEdited) {
+      const generated = formatSlug(val);
+      setNewPageSlug(generated);
+      if (val.trim()) {
+        validateSlug(generated);
+      } else {
+        setSlugError(null);
+      }
+    }
+  };
+
+  const handlePageSlugChange = (val: string) => {
+    setIsSlugManuallyEdited(true);
+    let sanitized = val.toLowerCase().replace(/[^a-z0-9\/-]/g, "");
+    if (!sanitized.startsWith("/")) sanitized = "/" + sanitized;
+    setNewPageSlug(sanitized);
+    validateSlug(sanitized);
+  };
+
+  // Blueprint Starter Section Generator
+  const generateBlueprintSections = (
+    blueprint: "standard" | "campaign" | "blank" | "clone",
+    name: string,
+    clonePath: string
+  ): BuilderSection[] => {
+    const timestamp = Date.now();
+    if (blueprint === "clone") {
+      const source = pagesSections[clonePath] || defaultPageBuilderSections;
+      return source.map((sec, idx) => ({
+        ...sec,
+        id: `sec-${sec.type}-${timestamp}-${idx}`,
+      }));
+    }
+
+    if (blueprint === "blank") {
+      return [
+        {
+          id: `sec-hero-${timestamp}`,
+          type: "hero",
+          name: "Hero Banner",
+          enabled: true,
+          headline: name || "New Page",
+          subheadline:
+            "Start customising this page by adding sections from the left library panel.",
+          badgeText: "Smartminds Training College",
+          buttonText: "Explore Qualifications",
+          buttonLink: "/courses",
+          secondaryButtonText: "Get in Touch",
+          secondaryButtonLink: "/contact",
+          bgColor: "navy",
+          align: "left",
+          image: "/images/adult-care-training.jpg",
+        },
+      ];
+    }
+
+    if (blueprint === "campaign") {
+      return [
+        {
+          id: `sec-hero-${timestamp}`,
+          type: "hero",
+          name: "Campaign Hero Banner",
+          enabled: true,
+          headline: name || "Specialist Training Campaign",
+          subheadline:
+            "Gain accredited qualifications with live evening Zoom sessions and fast-track tutor feedback.",
+          badgeText: "2026/2027 Admissions",
+          buttonText: "Register Interest",
+          buttonLink: "/book",
+          secondaryButtonText: "View Prospectus",
+          secondaryButtonLink: "/courses",
+          bgColor: "navy",
+          align: "left",
+          image: "/images/early-years-training.jpg",
+        },
+        {
+          id: `sec-trust-${timestamp}`,
+          type: "trust_strip",
+          name: "Accreditation Strip",
+          enabled: true,
+          headline: "UK Regulated & Recognised",
+          subheadline:
+            "Awarding organisations inspected under strict Ofqual quality frameworks.",
+          badgeText: "4.9/5 Student Rating",
+          bgColor: "white",
+          align: "center",
+          items: [
+            {
+              title: "NCFE CACHE",
+              desc: "Approved Centre",
+              icon: "shield-check",
+              tag: "Awarding Body",
+              link: "https://www.ncfe.org.uk",
+            },
+            {
+              title: "TQUK",
+              desc: "Regulated Awarding Body",
+              icon: "shield-check",
+              tag: "Ofqual Regulated",
+              link: "https://www.tquk.org",
+            },
+            {
+              title: "Ofqual Regulated",
+              desc: "UK Qualifications Framework",
+              icon: "shield-check",
+              tag: "Government Standards",
+              link: "https://www.gov.uk/ofqual",
+            },
+            {
+              title: "100% Coursework",
+              desc: "No Exams Required",
+              icon: "check-circle",
+              tag: "Portfolio Based",
+              link: "#",
+            },
+          ],
+        },
+        {
+          id: `sec-stats-${timestamp}`,
+          type: "stats_counter",
+          name: "Key Figures & Outcomes",
+          enabled: true,
+          headline: "Proven Career Advancement",
+          subheadline:
+            "Key figures from our practicing healthcare and education cohorts.",
+          badgeText: "Track Record",
+          bgColor: "navy",
+          align: "center",
+          items: [
+            {
+              title: "98%",
+              desc: "Student Pass & Completion Rate",
+              tag: "Exam-Free",
+            },
+            {
+              title: "0%",
+              desc: "Interest Financing on Monthly Plans",
+              tag: "Affordable",
+            },
+            {
+              title: "48h",
+              desc: "Average Assignment Feedback Window",
+              tag: "Dedicated Tutors",
+            },
+            {
+              title: "500+",
+              desc: "Healthcare & Care Workers Qualified",
+              tag: "UK Registered",
+            },
+          ],
+        },
+        {
+          id: `sec-test-${timestamp}`,
+          type: "testimonials",
+          name: "Student Review",
+          enabled: true,
+          headline: "Real Practitioner Feedback",
+          subheadline: "What students say about our online study model.",
+          badgeText: "Verified Reviews",
+          bgColor: "paper",
+          align: "center",
+          items: [
+            {
+              title: "Amara Okonjo",
+              desc: "The flexible evening Zoom classes meant I could keep working full-time in my care home while finishing my Level 5 diploma. Assessor feedback was always prompt and supportive.",
+              tag: "Care Home Registered Manager",
+            },
+            {
+              title: "Marcus Davies",
+              desc: "Smartminds made the portfolio submission crystal clear. No exams, just authentic workplace evidence. Finished two months ahead of schedule.",
+              tag: "Senior Support Worker",
+            },
+          ],
+        },
+        {
+          id: `sec-cta-${timestamp}`,
+          type: "cta_banner",
+          name: "Enrolment Call to Action",
+          enabled: true,
+          headline: "Secure your place in the upcoming cohort",
+          subheadline:
+            "Book a complimentary 15-minute consultation with our admissions team.",
+          badgeText: "Limited Cohort Places",
+          buttonText: "Book Free Consultation",
+          buttonLink: "/book",
+          secondaryButtonText: "Enquire via WhatsApp",
+          secondaryButtonLink: "https://wa.me/447391512404",
+          bgColor: "navy",
+          align: "center",
+        },
+      ];
+    }
+
+    // Default: "standard" info / policy / partnership page
+    return [
+      {
+        id: `sec-hero-${timestamp}`,
+        type: "hero",
+        name: "Page Lead & Introduction",
+        enabled: true,
+        headline: name || "College Information & Guidelines",
+        subheadline:
+          "Official standards, student guidance, and academic governance at Smartminds Training College.",
+        badgeText: "Official College Information",
+        buttonText: "Speak with an Advisor",
+        buttonLink: "/contact",
+        secondaryButtonText: "Explore Courses",
+        secondaryButtonLink: "/courses",
+        bgColor: "navy",
+        align: "left",
+        image: "/images/teacher-training.jpg",
+      },
+      {
+        id: `sec-why-${timestamp}`,
+        type: "why_smartminds",
+        name: "Core Provisions & Standards",
+        enabled: true,
+        headline: "Our Governance & Standards",
+        subheadline:
+          "Transparent information explaining our teaching philosophy, governance, and student protection.",
+        badgeText: "Academic Excellence",
+        buttonText: "Enquire with Support",
+        buttonLink: "/contact",
+        bgColor: "paper",
+        align: "center",
+        items: [
+          {
+            title: "Ofqual Regulated Frameworks",
+            desc: "All diploma pathways align with national qualification credit frameworks (RQF) recognized throughout England.",
+            icon: "shield-check",
+            tag: "Accredited",
+          },
+          {
+            title: "One-to-One Tutor Mentorship",
+            desc: "Each registered learner is paired with an experienced assessor for tailored feedback and guidance.",
+            icon: "users",
+            tag: "Assessor Support",
+          },
+          {
+            title: "Equal Opportunity & Inclusion",
+            desc: "Dedicated reasonable adjustments and digital accessibility for working practitioners from diverse backgrounds.",
+            icon: "check-circle",
+            tag: "Inclusive",
+          },
+        ],
+      },
+      {
+        id: `sec-faq-${timestamp}`,
+        type: "faq_accordion",
+        name: "Frequently Asked Questions",
+        enabled: true,
+        headline: "Frequently Asked Questions",
+        subheadline: "Answers to common queries regarding our provisions and policies.",
+        badgeText: "Student Guidance",
+        buttonText: "Ask an Advisor",
+        buttonLink: "/contact",
+        bgColor: "white",
+        align: "center",
+        items: [
+          {
+            title: "Who does this information apply to?",
+            desc: "This guidance covers all enrolled candidates, prospective learners, and sponsoring care employers.",
+            tag: "Scope",
+          },
+          {
+            title: "How do I request formal documentation or evidence?",
+            desc: "Our college administration team can issue verified letters, syllabuses, and enrolment confirmation upon request.",
+            tag: "Documentation",
+          },
+          {
+            title: "Can my employer sponsor my tuition under this provision?",
+            desc: "Yes, we support direct corporate invoicing and flexible split-instalment agreements for employer-sponsored learners.",
+            tag: "Employer Sponsorship",
+          },
+        ],
+      },
+      {
+        id: `sec-cta-${timestamp}`,
+        type: "cta_banner",
+        name: "Advisory Call to Action",
+        enabled: true,
+        headline: "Have questions about this provision?",
+        subheadline:
+          "Our student advisory team is here to help you navigate your training journey.",
+        badgeText: "Advisors on Hand",
+        buttonText: "Schedule Free Advisory Call",
+        buttonLink: "/book",
+        secondaryButtonText: "Message on WhatsApp",
+        secondaryButtonLink: "https://wa.me/447391512404",
+        bgColor: "navy",
+        align: "center",
+      },
+    ];
+  };
+
+  const handleCreateNewPage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const finalSlug = formatSlug(newPageSlug || newPageName);
+    if (!validateSlug(finalSlug)) {
+      return;
+    }
+    if (!newPageName.trim()) {
+      setSlugError("Please enter a page title.");
+      return;
+    }
+
+    setIsCreatingPage(true);
+    try {
+      const generatedSections = generateBlueprintSections(
+        newPageBlueprint,
+        newPageName.trim(),
+        cloneSourcePath
+      );
+      const newPageObj: PageItem = {
+        id: `page-${finalSlug.replace(/^\//, "")}`,
+        path: finalSlug,
+        name: newPageName.trim(),
+        iconName:
+          newPageBlueprint === "campaign"
+            ? "sparkles"
+            : newPageBlueprint === "blank"
+            ? "file-text"
+            : "layers",
+        isSystem: false,
+      };
+
+      const result = await createNewPageAction(
+        newPageObj,
+        generatedSections,
+        newAddToMenu
+      );
+      if (result.success) {
+        setPagesList((prev) => [...prev, newPageObj]);
+        setPagesSections((prev) => ({
+          ...prev,
+          [finalSlug]: generatedSections,
+        }));
+
+        if (newAddToMenu) {
+          setHeaderNav((prev) => ({
+            ...prev,
+            navLinks: [
+              ...prev.navLinks,
+              {
+                id: `nav-${Date.now().toString().slice(-4)}`,
+                label: newPageName.trim(),
+                href: finalSlug,
+              },
+            ],
+          }));
+        }
+
+        // Switch to the newly created page
+        setActivePagePath(finalSlug);
+        setSelectedSectionId(generatedSections[0]?.id || "");
+        setShowCreatePageModal(false);
+        setNewPageName("");
+        setNewPageSlug("");
+        setIsSlugManuallyEdited(false);
+        setSlugError(null);
+        setToastNotice(
+          `Page "${newPageName.trim()}" created successfully! Now editing ${finalSlug}.`
+        );
+        setTimeout(() => setToastNotice(null), 5000);
+      }
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Failed to create page.");
+    } finally {
+      setIsCreatingPage(false);
+    }
+  };
+
+  const handleDeletePage = async (page: PageItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (page.isSystem || page.path === "/" || page.path === "/courses") {
+      alert("System core pages cannot be deleted.");
+      return;
+    }
+
+    if (
+      !confirm(
+        `Are you sure you want to delete "${page.name}" (${page.path})? This will permanently remove the page from the website and navigation.`
+      )
+    ) {
+      return;
+    }
+
+    startTransition(async () => {
+      try {
+        const res = await deletePageAction(page.path);
+        if (res.success) {
+          setPagesList((prev) => prev.filter((p) => p.path !== page.path));
+          setPagesSections((prev) => {
+            const copy = { ...prev };
+            delete copy[page.path];
+            return copy;
+          });
+          setHeaderNav((prev) => ({
+            ...prev,
+            navLinks: prev.navLinks.filter((l) => l.href !== page.path),
+          }));
+
+          if (activePagePath === page.path) {
+            setActivePagePath("/");
+            setSelectedSectionId(
+              (pagesSections["/"] || defaultPageBuilderSections)[0]?.id || ""
+            );
+          }
+
+          setToastNotice(`Page "${page.name}" deleted.`);
+          setTimeout(() => setToastNotice(null), 4000);
+        }
+      } catch (err: unknown) {
+        alert(err instanceof Error ? err.message : "Failed to delete page.");
+      }
+    });
+  };
+
+  // Reordering functions
+  const moveSection = (index: number, direction: "up" | "down") => {
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= activeSections.length) return;
+
+    const newSections = [...activeSections];
+    const [moved] = newSections.splice(index, 1);
+    newSections.splice(targetIndex, 0, moved);
+    setActiveSections(newSections);
+  };
+
+  const handleDragStartSection = (e: React.DragEvent, index: number) => {
+    e.dataTransfer.setData("text/plain", `section:${index}`);
+    setDraggedSectionIndex(index);
+  };
+
+  const handleDragOverSection = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (dragOverSectionIndex !== index) {
+      setDragOverSectionIndex(index);
+    }
+  };
+
+  const handleDropOnSection = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Check if dropping a dragged widget
+    const widgetType = e.dataTransfer.getData(
+      "application/widget-type"
+    ) as BuilderSectionType;
+    if (widgetType) {
+      insertWidgetAt(widgetType, targetIndex);
+      setDraggedWidgetType(null);
+      setDragOverSectionIndex(null);
+      return;
+    }
+
+    // Dropping a reordered section
+    if (draggedSectionIndex !== null && draggedSectionIndex !== targetIndex) {
+      const newSections = [...activeSections];
+      const [moved] = newSections.splice(draggedSectionIndex, 1);
+      newSections.splice(targetIndex, 0, moved);
+      setActiveSections(newSections);
+      setSelectedSectionId(moved.id);
+      setToastNotice(`Moved "${moved.name}" to position ${targetIndex + 1}.`);
+      setTimeout(() => setToastNotice(null), 3000);
+    }
+
+    setDraggedSectionIndex(null);
+    setDragOverSectionIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedSectionIndex(null);
+    setDragOverSectionIndex(null);
+    setCanvasDropTargetIndex(null);
+    setDraggedWidgetType(null);
+  };
+
+  const toggleSectionEnabled = (id: string) => {
+    setActiveSections((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, enabled: !s.enabled } : s))
+    );
+  };
+
+  const duplicateSection = (id: string) => {
+    const idx = activeSections.findIndex((s) => s.id === id);
+    if (idx === -1) return;
+    const original = activeSections[idx];
+    const clone: BuilderSection = {
+      ...original,
+      id: `sec-${original.type}-${Date.now().toString().slice(-4)}`,
+      name: `${original.name} (Copy)`,
+      items: original.items ? JSON.parse(JSON.stringify(original.items)) : undefined,
+    };
+    const newSections = [...activeSections];
+    newSections.splice(idx + 1, 0, clone);
+    setActiveSections(newSections);
+    setSelectedSectionId(clone.id);
+    setSidebarTab("inspect");
+    setToastNotice(`Duplicated "${original.name}".`);
+    setTimeout(() => setToastNotice(null), 3000);
+  };
+
+  const deleteSection = (id: string) => {
+    if (activeSections.length <= 1) {
+      alert("You must keep at least one section on this page.");
+      return;
+    }
+    const target = activeSections.find((s) => s.id === id);
+    const newSections = activeSections.filter((s) => s.id !== id);
+    setActiveSections(newSections);
+    if (selectedSectionId === id) {
+      setSelectedSectionId(newSections[0]?.id || "");
+    }
+    setToastNotice(`Removed "${target?.name || "Section"}".`);
+    setTimeout(() => setToastNotice(null), 3000);
+  };
+
+  const insertWidgetAt = (type: BuilderSectionType, insertIndex?: number) => {
+    const def = WIDGET_DEFINITIONS.find((w) => w.type === type);
+    const newSec: BuilderSection = {
+      id: `sec-${type}-${Date.now().toString().slice(-4)}`,
+      type,
+      name: def?.title || "New Section",
+      enabled: true,
+      headline:
+        type === "composite_block"
+          ? "Custom Modular Qualification Showcase"
+          : type === "stats_counter"
+          ? "British FE Excellence by the Numbers"
+          : type === "contact_block"
+          ? "Speak with an Experienced Course Advisor"
+          : type === "announcement"
+          ? "Autumn / Winter 2026 Admissions Open Across All Diplomas"
+          : type === "video_spotlight"
+          ? "Graduate Stories & Video Assessor Mentorship"
+          : `New ${def?.title || "Section"}`,
+      subheadline:
+        type === "composite_block"
+          ? "Combine atomic micro-widgets including icon boxes, imagery, action CTAs, and lead forms in custom responsive columns."
+          : type === "stats_counter"
+          ? "Regulated diplomas inspected under strict Ofqual quality frameworks."
+          : type === "contact_block"
+          ? "Get non-obligatory advice on funding, prior workplace evidence, and enrolment timelines."
+          : type === "announcement"
+          ? "Reserve your place today with 0% interest monthly instalment financing."
+          : type === "video_spotlight"
+          ? "Watch practicing healthcare and education graduates describe real assessor support and study balance."
+          : "Customise this section copy directly in the Elementor inspector.",
+      badgeText:
+        type === "composite_block"
+          ? "Modular Layout"
+          : type === "video_spotlight"
+          ? "Video Showcase"
+          : "Ofqual Regulated",
+      buttonText:
+        type === "contact_block"
+          ? "Request Call Back"
+          : type === "video_spotlight"
+          ? "Browse Qualifications"
+          : "Explore Syllabus",
+      buttonLink:
+        type === "contact_block"
+          ? "/book"
+          : type === "video_spotlight"
+          ? "/courses"
+          : "/courses",
+      secondaryButtonText: "Book Free Consultation",
+      secondaryButtonLink: "/book",
+      bgColor:
+        type === "composite_block"
+          ? "paper"
+          : type === "announcement"
+          ? "navy"
+          : type === "video_spotlight"
+          ? "paper"
+          : "white",
+      align: "left",
+      image: "/images/adult-care-training.jpg",
+      columns: type === "composite_block" ? 2 : 3,
+      columnRatio: "60-40",
+      videoTitle: "Practitioner Qualification Journey",
+      videoDesc:
+        "Watch how healthcare workers achieved their Level 3 and 5 diplomas with zero exams.",
+      videoThumbnail: "/images/certificate-moment.jpg",
+      videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+      items:
+        type === "stats_counter"
+          ? [
+              { title: "98%", desc: "Student Pass & Completion Rate", tag: "Exam-Free" },
+              { title: "0%", desc: "Interest Financing on Monthly Plans", tag: "Affordable" },
+              { title: "48h", desc: "Average Assignment Feedback Window", tag: "Dedicated Tutors" },
+              { title: "500+", desc: "Healthcare & Care Workers Qualified", tag: "UK Registered" },
+            ]
+          : [
+              {
+                title: "Vocational Unit Competency",
+                desc: "100% coursework and evidence portfolio assessed by practicing assessors.",
+                tag: "Accredited",
+              },
+              {
+                title: "Live Online Evening Seminars",
+                desc: "Interactive Zoom sessions with full video replays uploaded next day.",
+                tag: "Flexible",
+              },
+            ],
+      compositeColumns:
+        type === "composite_block"
+          ? [
+              {
+                id: "col-1",
+                widgets: [
+                  {
+                    id: `w-txt-${Date.now()}-1`,
+                    type: "text",
+                    eyebrow: "Dedicated Faculty",
+                    title: "Practicing Healthcare & Education Assessors",
+                    content:
+                      "Every learner is paired with an experienced UK tutor offering continuous coursework guidance without exam pressure.",
+                  },
+                  {
+                    id: `w-icon-${Date.now()}-2`,
+                    type: "icon_box",
+                    icon: "shield-check",
+                    title: "Ofqual Regulated Criteria",
+                    content:
+                      "Recognized national occupational standards across England and Wales.",
+                    badge: "Accredited",
+                  },
+                  {
+                    id: `w-btn-${Date.now()}-3`,
+                    type: "cta_button",
+                    buttonText: "Speak with an Advisor",
+                    buttonLink: "/book",
+                    secondaryButtonText: "Browse Syllabi",
+                    secondaryButtonLink: "/courses",
+                  },
+                ],
+              },
+              {
+                id: "col-2",
+                widgets: [
+                  {
+                    id: `w-img-${Date.now()}-4`,
+                    type: "image",
+                    imageUrl: "/images/adult-care-training.jpg",
+                    imageAlt: "Adult care vocational workshop",
+                    aspectRatio: "portrait",
+                    useArcMask: true,
+                  },
+                ],
+              },
+            ]
+          : undefined,
+    };
+
+    const newSections = [...activeSections];
+    if (insertIndex !== undefined && insertIndex >= 0 && insertIndex <= activeSections.length) {
+      newSections.splice(insertIndex, 0, newSec);
+    } else {
+      newSections.push(newSec);
+    }
+
+    setActiveSections(newSections);
+    setSelectedSectionId(newSec.id);
+    setSidebarTab("inspect");
+    setToastNotice(`Added "${newSec.name}" to the canvas.`);
+    setTimeout(() => setToastNotice(null), 3000);
+  };
+
+  const insertTemplateAt = (tmpl: BuilderSection, insertIndex?: number) => {
+    const newSec: BuilderSection = {
+      ...JSON.parse(JSON.stringify(tmpl)),
+      id: `sec-comp-${Date.now().toString().slice(-4)}`,
+    };
+    const newSections = [...activeSections];
+    if (insertIndex !== undefined && insertIndex >= 0 && insertIndex <= activeSections.length) {
+      newSections.splice(insertIndex, 0, newSec);
+    } else {
+      newSections.push(newSec);
+    }
+    setActiveSections(newSections);
+    setSelectedSectionId(newSec.id);
+    setSidebarTab("inspect");
+    setToastNotice(`Inserted template "${tmpl.name}" onto canvas.`);
+    setTimeout(() => setToastNotice(null), 3000);
+  };
+
+  const addMicroWidget = (colIdx: number, type: CompositeWidgetType) => {
+    if (!selectedSection || selectedSection.type !== "composite_block") return;
+    const currentCols = selectedSection.compositeColumns
+      ? [...selectedSection.compositeColumns]
+      : Array.from({ length: selectedSection.columns || 2 }).map((_, i) => ({
+          id: `col-${i + 1}`,
+          widgets: [],
+        }));
+
+    while (currentCols.length <= colIdx) {
+      currentCols.push({ id: `col-${currentCols.length + 1}`, widgets: [] });
+    }
+
+    const defaultWidget: CompositeWidget = {
+      id: `w-${type}-${Date.now().toString().slice(-4)}`,
+      type,
+      title:
+        type === "icon_box"
+          ? "New Feature Guarantee"
+          : type === "lead_form"
+          ? "Request Free Callback"
+          : "New Content Element",
+      eyebrow: type === "text" ? "Verified Quality" : undefined,
+      content:
+        type === "text"
+          ? "Describe your course benefits, tutor mentoring, or cohort timelines."
+          : type === "icon_box"
+          ? "Detailed explanation of this British training credential."
+          : undefined,
+      icon: "shield-check",
+      imageUrl: "/images/adult-care-training.jpg",
+      imageAlt: "College learner training",
+      aspectRatio: "video",
+      buttonText: "Book Free Consultation",
+      buttonLink: "/book",
+      secondaryButtonText: "View Diplomas",
+      secondaryButtonLink: "/courses",
+      videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+      badge: "Accredited",
+      formFields: {
+        showName: true,
+        showPhone: true,
+        showEmail: true,
+        showCourse: true,
+        buttonLabel: "Submit Consultation Request",
+      },
+    };
+
+    currentCols[colIdx] = {
+      ...currentCols[colIdx],
+      widgets: [...(currentCols[colIdx].widgets || []), defaultWidget],
+    };
+
+    updateSelectedField("compositeColumns", currentCols);
+    setActiveWidgetEditId(defaultWidget.id);
+    setShowAddWidgetMenu(null);
+    setToastNotice(`Added ${type.replace("_", " ")} to Column ${colIdx + 1}.`);
+    setTimeout(() => setToastNotice(null), 2500);
+  };
+
+  const updateMicroWidget = (
+    colIdx: number,
+    wIdx: number,
+    field: string,
+    value: any
+  ) => {
+    if (!selectedSection || selectedSection.type !== "composite_block") return;
+    const currentCols = [...(selectedSection.compositeColumns || [])];
+    if (!currentCols[colIdx] || !currentCols[colIdx].widgets[wIdx]) return;
+
+    const newWidgets = [...currentCols[colIdx].widgets];
+    newWidgets[wIdx] = {
+      ...newWidgets[wIdx],
+      [field]: value,
+    };
+    currentCols[colIdx] = {
+      ...currentCols[colIdx],
+      widgets: newWidgets,
+    };
+    updateSelectedField("compositeColumns", currentCols);
+  };
+
+  const removeMicroWidget = (colIdx: number, wIdx: number) => {
+    if (!selectedSection || selectedSection.type !== "composite_block") return;
+    const currentCols = [...(selectedSection.compositeColumns || [])];
+    if (!currentCols[colIdx]) return;
+
+    const newWidgets = currentCols[colIdx].widgets.filter((_, i) => i !== wIdx);
+    currentCols[colIdx] = {
+      ...currentCols[colIdx],
+      widgets: newWidgets,
+    };
+    updateSelectedField("compositeColumns", currentCols);
+  };
+
+  const moveMicroWidget = (
+    colIdx: number,
+    wIdx: number,
+    dir: "up" | "down"
+  ) => {
+    if (!selectedSection || selectedSection.type !== "composite_block") return;
+    const currentCols = [...(selectedSection.compositeColumns || [])];
+    if (!currentCols[colIdx]) return;
+
+    const widgets = [...currentCols[colIdx].widgets];
+    const targetIdx = dir === "up" ? wIdx - 1 : wIdx + 1;
+    if (targetIdx < 0 || targetIdx >= widgets.length) return;
+
+    const [moved] = widgets.splice(wIdx, 1);
+    widgets.splice(targetIdx, 0, moved);
+    currentCols[colIdx] = {
+      ...currentCols[colIdx],
+      widgets,
+    };
+    updateSelectedField("compositeColumns", currentCols);
+  };
+
+  const setCompositeColumnsCount = (count: 1 | 2 | 3 | 4) => {
+    if (!selectedSection || selectedSection.type !== "composite_block") return;
+    const currentCols = [...(selectedSection.compositeColumns || [])];
+    while (currentCols.length < count) {
+      currentCols.push({ id: `col-${currentCols.length + 1}`, widgets: [] });
+    }
+    updateSelectedField("columns", count);
+    updateSelectedField("compositeColumns", currentCols.slice(0, count));
+  };
+
+  const saveCurrentAsTemplate = () => {
+    if (!selectedSection) return;
+    const templateName = prompt(
+      "Enter a name for this reusable widget template:",
+      selectedSection.name || "Custom Composite Template"
+    );
+    if (!templateName || !templateName.trim()) return;
+
+    const newTmpl: BuilderSection = {
+      ...JSON.parse(JSON.stringify(selectedSection)),
+      id: `tmpl-user-${Date.now().toString().slice(-4)}`,
+      name: templateName.trim(),
+      templateCategory: "Super Admin Saved",
+      templateDesc: `Custom pre-assembled widget created by Super Admin with ${
+        selectedSection.columns || 2
+      } columns.`,
+    };
+
+    setSavedTemplates((prev) => [newTmpl, ...prev]);
+    setToastNotice(`Saved "${templateName.trim()}" to reusable template library!`);
+    setTimeout(() => setToastNotice(null), 4000);
+  };
+
+  const deleteSavedTemplate = (tmplId: string) => {
+    if (typeof window !== "undefined" && !window.confirm("Remove this reusable template from the library?")) {
+      return;
+    }
+    setSavedTemplates((prev) => prev.filter((t) => t.id !== tmplId));
+    setToastNotice("Template removed from library.");
+    setTimeout(() => setToastNotice(null), 3000);
+  };
+
+  const updateSelectedField = (field: keyof BuilderSection, value: any) => {
+    if (!selectedSectionId) return;
+    setActiveSections((prev) =>
+      prev.map((s) => (s.id === selectedSectionId ? { ...s, [field]: value } : s))
+    );
+  };
+
+  const updateItemField = (
+    index: number,
+    field: keyof BuilderSectionItem,
+    value: any
+  ) => {
+    if (!selectedSectionId || !selectedSection?.items) return;
+    const newItems = [...selectedSection.items];
+    newItems[index] = { ...newItems[index], [field]: value };
+    updateSelectedField("items", newItems);
+  };
+
+  const addItemToSelected = () => {
+    if (!selectedSectionId) return;
+    const currentItems = selectedSection?.items || [];
+
+    if (selectedSection?.type === "faq_accordion") {
+      const newItem: BuilderSectionItem = {
+        title: "New Frequently Asked Question",
+        desc: "Provide clear, authentic information explaining course entry criteria, lesson recordings, or accreditation.",
+        tag: "General",
+      };
+      updateSelectedField("items", [...currentItems, newItem]);
+      return;
+    }
+
+    if (selectedSection?.type === "trust_strip") {
+      const newItem: BuilderSectionItem = {
+        title: "New Awarding Body",
+        desc: "Approved Centre",
+        icon: "shield-check",
+        tag: "Accredited",
+        link: "https://www.gov.uk",
+      };
+      updateSelectedField("items", [...currentItems, newItem]);
+      return;
+    }
+
+    const newItem: BuilderSectionItem = {
+      title: "New Highlight / Feature Card",
+      desc: "Detailed description of the requirement, benefit, or answer.",
+      tag: "Feature",
+      icon: "check-circle",
+    };
+    updateSelectedField("items", [...currentItems, newItem]);
+  };
+
+  const removeItemFromSelected = (index: number) => {
+    if (!selectedSectionId || !selectedSection?.items) return;
+    const newItems = selectedSection.items.filter((_, i) => i !== index);
+    updateSelectedField("items", newItems);
+  };
+
+  const moveItemInSelected = (index: number, direction: "up" | "down") => {
+    if (!selectedSectionId || !selectedSection?.items) return;
+    const items = [...selectedSection.items];
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= items.length) return;
+    const [moved] = items.splice(index, 1);
+    items.splice(targetIndex, 0, moved);
+    updateSelectedField("items", items);
+  };
+
+  const handlePublishPage = () => {
+    startTransition(async () => {
+      try {
+        const result = await saveVisualBuilderSectionsAction(
+          activeSections,
+          activePagePath,
+          headerNav,
+          footerConfig
+        );
+        if (result.success) {
+          setToastNotice(`"${activePageObj.name}" and site navigation published live successfully!`);
+          setTimeout(() => setToastNotice(null), 5000);
+        }
+      } catch (err: unknown) {
+        alert(err instanceof Error ? err.message : "Failed to publish changes.");
+      }
+    });
+  };
+
+  const handleSaveHeaderNav = () => {
+    startTransition(async () => {
+      try {
+        const result = await saveHeaderNavConfigAction(headerNav);
+        if (result.success) {
+          setToastNotice("Navigation menu and header updated successfully!");
+          setTimeout(() => setToastNotice(null), 5000);
+        }
+      } catch (err: unknown) {
+        alert(err instanceof Error ? err.message : "Failed to save header nav.");
+      }
+    });
+  };
+
+  const handleSaveGlobalContent = () => {
+    startTransition(async () => {
+      try {
+        const result = await saveSiteCmsContentAction(globalContent);
+        if (result.success) {
+          setToastNotice("College contact details and announcements saved!");
+          setTimeout(() => setToastNotice(null), 5000);
+        }
+      } catch (err: unknown) {
+        alert(err instanceof Error ? err.message : "Failed to save global copy.");
+      }
+    });
+  };
+
+  const handleResetDefault = () => {
+    if (
+      confirm(
+        `Reset "${activePageObj.name}" layout to standard accredited college prospectus design?`
+      )
+    ) {
+      const resetSections = collegePagesData[activePagePath] || defaultPageBuilderSections;
+      setActiveSections([...resetSections]);
+      setSelectedSectionId(resetSections[0]?.id || "");
+      setToastNotice(`Reset "${activePageObj.name}" to default.`);
+      setTimeout(() => setToastNotice(null), 3000);
+    }
+  };
+
+  // Nav menu handlers
+  const moveNavLink = (index: number, direction: "up" | "down") => {
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= headerNav.navLinks.length) return;
+    const newLinks = [...headerNav.navLinks];
+    const [moved] = newLinks.splice(index, 1);
+    newLinks.splice(targetIndex, 0, moved);
+    setHeaderNav({ ...headerNav, navLinks: newLinks });
+  };
+
+  const updateNavLink = (index: number, field: "label" | "href", val: string) => {
+    const newLinks = [...headerNav.navLinks];
+    newLinks[index] = { ...newLinks[index], [field]: val };
+    setHeaderNav({ ...headerNav, navLinks: newLinks });
+  };
+
+  const addNavLink = () => {
+    const newLink = {
+      id: `nav-${Date.now().toString().slice(-4)}`,
+      label: "New Link",
+      href: "/courses",
+    };
+    setHeaderNav({ ...headerNav, navLinks: [...headerNav.navLinks, newLink] });
+  };
+
+  const removeNavLink = (index: number) => {
+    const newLinks = headerNav.navLinks.filter((_, i) => i !== index);
+    setHeaderNav({ ...headerNav, navLinks: newLinks });
+  };
+
+  const addNavChild = (parentIndex: number) => {
+    const newLinks = [...headerNav.navLinks];
+    const parent = newLinks[parentIndex];
+    const children = parent.children ? [...parent.children] : [];
+    children.push({
+      id: `sub-${Date.now().toString().slice(-4)}`,
+      label: "New Prospectus Course",
+      href: "/courses",
+      desc: "Accredited British qualification pathway.",
+      badge: "Level 3",
+    });
+    newLinks[parentIndex] = { ...parent, children };
+    setHeaderNav({ ...headerNav, navLinks: newLinks });
+    setToastNotice(`Added dropdown sub-menu item to "${parent.label}".`);
+    setTimeout(() => setToastNotice(null), 3000);
+  };
+
+  const updateNavChild = (
+    parentIndex: number,
+    childIndex: number,
+    field: "label" | "href" | "desc" | "badge",
+    val: string
+  ) => {
+    const newLinks = [...headerNav.navLinks];
+    const parent = newLinks[parentIndex];
+    if (!parent.children) return;
+    const children = [...parent.children];
+    children[childIndex] = { ...children[childIndex], [field]: val };
+    newLinks[parentIndex] = { ...parent, children };
+    setHeaderNav({ ...headerNav, navLinks: newLinks });
+  };
+
+  const removeNavChild = (parentIndex: number, childIndex: number) => {
+    const newLinks = [...headerNav.navLinks];
+    const parent = newLinks[parentIndex];
+    if (!parent.children) return;
+    const children = parent.children.filter((_, i) => i !== childIndex);
+    newLinks[parentIndex] = {
+      ...parent,
+      children: children.length > 0 ? children : undefined,
+    };
+    setHeaderNav({ ...headerNav, navLinks: newLinks });
+  };
+
+  const moveNavChild = (
+    parentIndex: number,
+    childIndex: number,
+    direction: "up" | "down"
+  ) => {
+    const newLinks = [...headerNav.navLinks];
+    const parent = newLinks[parentIndex];
+    if (!parent.children) return;
+    const targetIndex = direction === "up" ? childIndex - 1 : childIndex + 1;
+    if (targetIndex < 0 || targetIndex >= parent.children.length) return;
+    const children = [...parent.children];
+    const [moved] = children.splice(childIndex, 1);
+    children.splice(targetIndex, 0, moved);
+    newLinks[parentIndex] = { ...parent, children };
+    setHeaderNav({ ...headerNav, navLinks: newLinks });
+  };
+
+  // Footer handlers
+  const handleSaveFooter = () => {
+    startTransition(async () => {
+      try {
+        const result = await saveFooterConfigAction(footerConfig);
+        if (result.success) {
+          setToastNotice("Footer settings & links published successfully!");
+          setTimeout(() => setToastNotice(null), 5000);
+        }
+      } catch (err: unknown) {
+        alert(err instanceof Error ? err.message : "Failed to save footer.");
+      }
+    });
+  };
+
+  const updateFooterLink = (
+    type: "explore" | "college",
+    index: number,
+    field: "label" | "href",
+    val: string
+  ) => {
+    if (type === "explore") {
+      const newLinks = [...footerConfig.exploreLinks];
+      newLinks[index] = { ...newLinks[index], [field]: val };
+      setFooterConfig({ ...footerConfig, exploreLinks: newLinks });
+    } else {
+      const newLinks = [...footerConfig.collegeLinks];
+      newLinks[index] = { ...newLinks[index], [field]: val };
+      setFooterConfig({ ...footerConfig, collegeLinks: newLinks });
+    }
+  };
+
+  const addFooterLink = (type: "explore" | "college") => {
+    if (type === "explore") {
+      const newLink = {
+        id: `f-exp-${Date.now().toString().slice(-4)}`,
+        label: "New Qualification",
+        href: "/courses",
+      };
+      setFooterConfig({
+        ...footerConfig,
+        exploreLinks: [...footerConfig.exploreLinks, newLink],
+      });
+    } else {
+      const newLink = {
+        id: `f-col-${Date.now().toString().slice(-4)}`,
+        label: "New College Link",
+        href: "/about",
+      };
+      setFooterConfig({
+        ...footerConfig,
+        collegeLinks: [...footerConfig.collegeLinks, newLink],
+      });
+    }
+  };
+
+  const removeFooterLink = (type: "explore" | "college", index: number) => {
+    if (type === "explore") {
+      const newLinks = footerConfig.exploreLinks.filter((_, i) => i !== index);
+      setFooterConfig({ ...footerConfig, exploreLinks: newLinks });
+    } else {
+      const newLinks = footerConfig.collegeLinks.filter((_, i) => i !== index);
+      setFooterConfig({ ...footerConfig, collegeLinks: newLinks });
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-screen w-screen bg-slate-100 overflow-hidden fixed inset-0 z-50">
+      {/* 1. Elementor / Wix Top Control Bar */}
+      <header className="h-14 bg-navy-900 border-b border-navy-800 px-4 sm:px-6 flex items-center justify-between text-white flex-shrink-0 z-30">
+        <div className="flex items-center gap-3">
+          <Link
+            href="/admin"
+            className="px-3 py-1.5 rounded-sm bg-white/10 hover:bg-white/20 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors border border-white/10 shadow-xs"
+            title="Exit Editor and return to Admin Dashboard"
+          >
+            <Icon name="arrow-left" size={14} />
+            <span>Exit to Dashboard</span>
+          </Link>
+          <div className="h-6 w-px bg-white/20 mx-1 hidden sm:block" />
+
+          {/* Page Selector Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setShowPageDropdown(!showPageDropdown)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-sm bg-navy-950/80 hover:bg-navy-950 text-white text-xs font-semibold border border-white/20 transition-all shadow-inner"
+            >
+              <Icon name={activePageObj.iconName || "layers"} size={14} className="text-gold-300" />
+              <span className="font-heading font-bold tracking-wide">
+                Page: {activePageObj.name}
+              </span>
+              <span className="text-[10px] text-gold-300 font-mono">
+                ({activePageObj.path})
+              </span>
+              <Icon name="chevron-down" size={12} className="opacity-70 ml-1" />
+            </button>
+
+            {showPageDropdown && (
+              <div className="absolute top-full left-0 mt-1.5 w-80 bg-white rounded-sm shadow-2xl border border-line py-1.5 z-50 text-navy-900 animate-fade-in max-h-[80vh] flex flex-col">
+                <div className="px-3 py-1.5 text-[10px] font-mono text-ink-soft uppercase tracking-wider border-b border-line flex items-center justify-between">
+                  <span>Website Pages ({pagesList.length})</span>
+                  <span className="text-[9px] bg-paper px-1.5 py-0.5 rounded-sm border border-line text-ink-soft">
+                    Select to Edit
+                  </span>
+                </div>
+                <div className="overflow-y-auto max-h-64 py-1">
+                  {pagesList.map((p) => {
+                    const isCurrent = p.path === activePagePath;
+                    return (
+                      <div
+                        key={p.id}
+                        onClick={() => {
+                          setActivePagePath(p.path);
+                          setSelectedSectionId(
+                            (pagesSections[p.path] || defaultPageBuilderSections)[0]?.id || ""
+                          );
+                          setShowPageDropdown(false);
+                          setToastNotice(`Switched editor to "${p.name}".`);
+                          setTimeout(() => setToastNotice(null), 2500);
+                        }}
+                        className={`w-full px-3 py-2 text-left text-xs flex items-center justify-between transition-colors group cursor-pointer ${
+                          isCurrent
+                            ? "bg-navy-50 font-bold text-navy-900 border-l-4 border-navy-900"
+                            : "text-ink hover:bg-paper"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                          <span
+                            className={`p-1.5 rounded-sm shrink-0 ${
+                              isCurrent ? "bg-navy-900 text-gold-300" : "bg-navy-100 text-navy-900"
+                            }`}
+                          >
+                            <Icon name={p.iconName || "layers"} size={13} />
+                          </span>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <strong className="block leading-tight truncate">{p.name}</strong>
+                              {p.isSystem ? (
+                                <span className="text-[9px] font-mono px-1 py-0.2 rounded-xs bg-slate-100 text-ink-soft border border-line shrink-0">
+                                  Core
+                                </span>
+                              ) : (
+                                <span className="text-[9px] font-mono px-1 py-0.2 rounded-xs bg-gold-100 text-gold-800 border border-gold-300 shrink-0">
+                                  Custom
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[10px] text-ink-soft font-mono block truncate">
+                              {p.path}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {isCurrent && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-sm bg-navy-900 text-gold-300 font-bold">
+                              Active
+                            </span>
+                          )}
+                          {!p.isSystem && (
+                            <button
+                              type="button"
+                              onClick={(e) => handleDeletePage(p, e)}
+                              title={`Delete page "${p.name}"`}
+                              className="p-1 rounded-sm text-ink-soft hover:text-red-700 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <Icon name="trash" size={13} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="p-2 border-t border-line bg-paper/50">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowPageDropdown(false);
+                      setShowCreatePageModal(true);
+                    }}
+                    className="w-full py-2 px-3 bg-navy-900 hover:bg-navy-800 text-white rounded-sm text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-2 group"
+                  >
+                    <Icon
+                      name="plus"
+                      size={13}
+                      className="text-gold-300 group-hover:rotate-90 transition-transform"
+                    />
+                    <span>+ Create New Page</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Quick Create Page Button */}
+          <button
+            type="button"
+            onClick={() => setShowCreatePageModal(true)}
+            className="px-2.5 py-1.5 rounded-sm bg-gold-500/20 hover:bg-gold-500/30 text-gold-300 hover:text-gold-200 text-xs font-semibold flex items-center gap-1.5 border border-gold-500/30 transition-all shadow-xs"
+            title="Create a new web page or campaign route"
+          >
+            <Icon name="plus" size={13} />
+            <span className="hidden md:inline">New Page</span>
+          </button>
+        </div>
+
+        {/* Viewport Switcher (Desktop, Tablet, Mobile) */}
+        <div className="flex items-center bg-navy-950/80 rounded-sm p-1 border border-white/10 shadow-inner">
+          <button
+            onClick={() => setViewport("desktop")}
+            title="Desktop View (Full Screen)"
+            className={`px-3 py-1 rounded-sm text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+              viewport === "desktop"
+                ? "bg-navy-700 text-white shadow-xs"
+                : "text-white/60 hover:text-white"
+            }`}
+          >
+            <Icon name="monitor" size={13} />
+            <span>Desktop</span>
+          </button>
+          <button
+            onClick={() => setViewport("tablet")}
+            title="Tablet View (768px iPad)"
+            className={`px-3 py-1 rounded-sm text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+              viewport === "tablet"
+                ? "bg-navy-700 text-white shadow-xs"
+                : "text-white/60 hover:text-white"
+            }`}
+          >
+            <Icon name="tablet" size={13} />
+            <span>Tablet (768px)</span>
+          </button>
+          <button
+            onClick={() => setViewport("mobile")}
+            title="Mobile View (390px iPhone)"
+            className={`px-3 py-1 rounded-sm text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+              viewport === "mobile"
+                ? "bg-navy-700 text-white shadow-xs"
+                : "text-white/60 hover:text-white"
+            }`}
+          >
+            <Icon name="smartphone" size={13} />
+            <span>Mobile (390px)</span>
+          </button>
+        </div>
+
+        {/* Undo & Redo Controls */}
+        <div className="flex items-center bg-navy-950/80 rounded-sm p-1 border border-white/10 shadow-inner gap-0.5">
+          <button
+            type="button"
+            onClick={handleUndo}
+            disabled={historyPast.length === 0}
+            title="Undo last change (Ctrl+Z)"
+            className="px-2.5 py-1 rounded-sm text-xs font-semibold flex items-center gap-1.5 transition-colors text-white/70 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
+          >
+            <Icon name="undo" size={13} />
+            <span className="hidden xl:inline text-[11px]">Undo</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleRedo}
+            disabled={historyFuture.length === 0}
+            title="Redo change (Ctrl+Y or Ctrl+Shift+Z)"
+            className="px-2.5 py-1 rounded-sm text-xs font-semibold flex items-center gap-1.5 transition-colors text-white/70 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
+          >
+            <Icon name="redo" size={13} />
+            <span className="hidden xl:inline text-[11px]">Redo</span>
+          </button>
+        </div>
+
+        {/* Action Controls */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleResetDefault}
+            className="px-3 py-1.5 rounded-sm text-xs text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+          >
+            Reset Page
+          </button>
+          <Link
+            href={activePagePath}
+            target="_blank"
+            className="px-3 py-1.5 rounded-sm border border-white/20 text-xs font-semibold hover:bg-white/10 transition-colors text-white inline-flex items-center gap-1"
+          >
+            <Icon name="external-link" size={13} />
+            <span>View Live Page</span>
+          </Link>
+          <button
+            onClick={handlePublishPage}
+            disabled={isPending}
+            className="px-4 py-1.5 rounded-sm bg-gold-500 hover:bg-gold-300 text-navy-900 text-xs font-bold transition-all shadow-sm disabled:opacity-50 flex items-center gap-1.5"
+          >
+            <Icon name="check" size={14} />
+            <span>{isPending ? "Publishing..." : "Publish Page"}</span>
+          </button>
+        </div>
+      </header>
+
+      {/* Toast Feedback */}
+      {toastNotice && (
+        <div className="absolute top-16 right-6 z-50 p-3 bg-emerald-900 text-white border border-emerald-500/50 rounded-sm text-xs flex items-center gap-2 shadow-xl animate-fade-in">
+          <Icon name="check-circle" size={16} className="text-emerald-300" />
+          <span>{toastNotice}</span>
+        </div>
+      )}
+
+      {/* Create New Page Modal Dialog */}
+      {showCreatePageModal && (
+        <div
+          className="fixed inset-0 z-50 bg-navy-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-fade-in"
+          onClick={() => setShowCreatePageModal(false)}
+        >
+          <div
+            className="bg-white rounded-md max-w-xl w-full border border-line shadow-2xl overflow-hidden flex flex-col my-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="bg-navy-900 px-6 py-4 border-b border-navy-800 flex items-center justify-between text-white">
+              <div className="flex items-center gap-2.5">
+                <span className="p-1.5 rounded-sm bg-navy-800 text-gold-300 border border-navy-700">
+                  <Icon name="plus" size={16} />
+                </span>
+                <div>
+                  <h2 className="text-base font-bold font-heading tracking-wide text-white">
+                    Create New Page
+                  </h2>
+                  <p className="text-[11px] text-white/70">
+                    Configure route URL slug, select a starter blueprint, and publish instantly.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCreatePageModal(false)}
+                className="p-1.5 text-white/60 hover:text-white rounded-sm hover:bg-white/10 transition-colors"
+                title="Close dialog"
+              >
+                <Icon name="close" size={16} />
+              </button>
+            </div>
+
+            {/* Modal Form */}
+            <form onSubmit={handleCreateNewPage} className="flex flex-col">
+              <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto">
+                {/* 1. Page Name */}
+                <div>
+                  <label className="block text-xs font-bold text-navy-900 uppercase font-mono tracking-wider mb-1.5">
+                    Page Title / Purpose <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={newPageName}
+                    onChange={(e) => handlePageNameChange(e.target.value)}
+                    placeholder="e.g. Safeguarding & Welfare Policy, or Employer Partnerships"
+                    required
+                    className="w-full px-3 py-2 text-xs border border-line rounded-sm focus:outline-none focus:ring-2 focus:ring-navy-900 text-ink bg-white font-medium"
+                  />
+                  <span className="text-[10px] text-ink-soft mt-1 block">
+                    The public title displayed in the browser tab and page header.
+                  </span>
+                </div>
+
+                {/* 2. Page URL Route Slug */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-bold text-navy-900 uppercase font-mono tracking-wider">
+                      Page URL Route (Slug) <span className="text-red-500">*</span>
+                    </label>
+                    {isSlugManuallyEdited && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsSlugManuallyEdited(false);
+                          const generated = formatSlug(newPageName);
+                          setNewPageSlug(generated);
+                          validateSlug(generated);
+                        }}
+                        className="text-[10px] text-navy-900 hover:text-gold-700 underline font-semibold cursor-pointer"
+                      >
+                        Reset to auto-slug
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center rounded-sm border border-line focus-within:ring-2 focus-within:ring-navy-900 focus-within:border-navy-900 overflow-hidden bg-white text-xs">
+                    <span className="bg-paper px-3 py-2 text-ink-soft border-r border-line font-mono text-[11px] select-none shrink-0">
+                      smartminds.co.uk
+                    </span>
+                    <input
+                      type="text"
+                      value={newPageSlug}
+                      onChange={(e) => handlePageSlugChange(e.target.value)}
+                      placeholder="/safeguarding-policy"
+                      required
+                      className="w-full px-3 py-2 text-xs focus:outline-none text-ink font-mono"
+                    />
+                  </div>
+                  {slugError ? (
+                    <div className="flex items-center gap-1.5 mt-1.5 text-red-600 text-[11px] font-medium">
+                      <Icon name="alert-circle" size={12} />
+                      <span>{slugError}</span>
+                    </div>
+                  ) : (
+                    <span className="text-[10px] text-ink-soft mt-1 block">
+                      Accessible directly at <code className="text-navy-900 font-mono">{newPageSlug || "/your-slug"}</code> once published.
+                    </span>
+                  )}
+                </div>
+
+                {/* 3. Starter Blueprint / Template Selection */}
+                <div>
+                  <label className="block text-xs font-bold text-navy-900 uppercase font-mono tracking-wider mb-2">
+                    Choose Starter Layout Blueprint
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {/* Option A: Standard Information */}
+                    <div
+                      onClick={() => setNewPageBlueprint("standard")}
+                      className={`p-3 rounded-sm border text-left cursor-pointer transition-all ${
+                        newPageBlueprint === "standard"
+                          ? "border-navy-900 bg-navy-50/70 ring-1 ring-navy-900 shadow-xs"
+                          : "border-line bg-white hover:border-navy-900/40 hover:bg-paper"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <Icon name="file-text" size={14} className="text-navy-900 shrink-0" />
+                        <span className="text-xs font-bold text-navy-900">Standard Information</span>
+                      </div>
+                      <p className="text-[10px] text-ink-soft leading-relaxed">
+                        Lead Hero, 3 Pillars of Excellence, FAQ Accordion, and Advisory CTA.
+                      </p>
+                      <span className="inline-block mt-2 text-[9px] font-mono bg-navy-100 text-navy-900 px-1.5 py-0.5 rounded-xs">
+                        Policies & Guides
+                      </span>
+                    </div>
+
+                    {/* Option B: Campaign / Intake */}
+                    <div
+                      onClick={() => setNewPageBlueprint("campaign")}
+                      className={`p-3 rounded-sm border text-left cursor-pointer transition-all ${
+                        newPageBlueprint === "campaign"
+                          ? "border-navy-900 bg-navy-50/70 ring-1 ring-navy-900 shadow-xs"
+                          : "border-line bg-white hover:border-navy-900/40 hover:bg-paper"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <Icon name="sparkles" size={14} className="text-gold-600 shrink-0" />
+                        <span className="text-xs font-bold text-navy-900">Campaign / Lead Capture</span>
+                      </div>
+                      <p className="text-[10px] text-ink-soft leading-relaxed">
+                        Urgent Lead Hero, Accreditation Trust Strip, Key Metrics, Reviews, and Callback Form.
+                      </p>
+                      <span className="inline-block mt-2 text-[9px] font-mono bg-gold-100 text-gold-800 px-1.5 py-0.5 rounded-xs">
+                        Marketing & Intake
+                      </span>
+                    </div>
+
+                    {/* Option C: Blank Canvas */}
+                    <div
+                      onClick={() => setNewPageBlueprint("blank")}
+                      className={`p-3 rounded-sm border text-left cursor-pointer transition-all ${
+                        newPageBlueprint === "blank"
+                          ? "border-navy-900 bg-navy-50/70 ring-1 ring-navy-900 shadow-xs"
+                          : "border-line bg-white hover:border-navy-900/40 hover:bg-paper"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <Icon name="layers" size={14} className="text-navy-900 shrink-0" />
+                        <span className="text-xs font-bold text-navy-900">Blank Canvas</span>
+                      </div>
+                      <p className="text-[10px] text-ink-soft leading-relaxed">
+                        Clean starter header. Build section-by-section using the Elementor widget palette.
+                      </p>
+                      <span className="inline-block mt-2 text-[9px] font-mono bg-slate-100 text-ink-soft px-1.5 py-0.5 rounded-xs">
+                        Custom Build
+                      </span>
+                    </div>
+
+                    {/* Option D: Clone Existing */}
+                    <div
+                      onClick={() => setNewPageBlueprint("clone")}
+                      className={`p-3 rounded-sm border text-left cursor-pointer transition-all ${
+                        newPageBlueprint === "clone"
+                          ? "border-navy-900 bg-navy-50/70 ring-1 ring-navy-900 shadow-xs"
+                          : "border-line bg-white hover:border-navy-900/40 hover:bg-paper"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <Icon name="copy" size={14} className="text-navy-900 shrink-0" />
+                        <span className="text-xs font-bold text-navy-900">Clone Existing Page</span>
+                      </div>
+                      <p className="text-[10px] text-ink-soft leading-relaxed">
+                        Duplicate all layout blocks and content from an existing published page.
+                      </p>
+                      <span className="inline-block mt-2 text-[9px] font-mono bg-navy-100 text-navy-900 px-1.5 py-0.5 rounded-xs">
+                        Exact Duplicate
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Source page selector if clone is selected */}
+                  {newPageBlueprint === "clone" && (
+                    <div className="mt-3 p-3 bg-paper rounded-sm border border-line">
+                      <label className="block text-[11px] font-bold text-navy-900 mb-1">
+                        Select Page to Clone:
+                      </label>
+                      <select
+                        value={cloneSourcePath}
+                        onChange={(e) => setCloneSourcePath(e.target.value)}
+                        className="w-full px-2.5 py-1.5 text-xs border border-line rounded-sm bg-white text-navy-900 font-medium"
+                      >
+                        {pagesList.map((p) => (
+                          <option key={p.id} value={p.path}>
+                            {p.name} ({p.path})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                {/* 4. Navigation Menu Toggle */}
+                <div className="pt-2 border-t border-line">
+                  <label className="flex items-start gap-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newAddToMenu}
+                      onChange={(e) => setNewAddToMenu(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 rounded-xs border-line text-navy-900 focus:ring-navy-900"
+                    />
+                    <div>
+                      <span className="text-xs font-bold text-navy-900 block leading-tight">
+                        Add to College Header Navigation Menu
+                      </span>
+                      <span className="text-[10px] text-ink-soft block leading-normal mt-0.5">
+                        Automatically adds a top navigation link so students and visitors can access the page immediately.
+                      </span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="px-6 py-3.5 bg-paper border-t border-line flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => setShowCreatePageModal(false)}
+                  className="px-4 py-2 text-xs font-semibold text-ink-soft hover:text-navy-900 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCreatingPage || !!slugError}
+                  className="px-5 py-2 text-xs font-bold bg-navy-900 hover:bg-navy-800 text-white rounded-sm transition-all shadow-sm flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+                >
+                  <Icon name="check" size={14} className="text-gold-300" />
+                  <span>{isCreatingPage ? "Creating Page..." : "Create & Open Page"}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 2. Builder Workspace: Left Elementor Sidebar + Center Live Canvas */}
+      {/* Notice: min-h-0 and min-w-0 ensure flexbox activates scrolling! */}
+      <div className="flex flex-1 min-h-0 min-w-0 overflow-hidden relative">
+        {/* Floating Open Panel Tab when sidebar is collapsed */}
+        {!isSidebarOpen && (
+          <button
+            type="button"
+            onClick={() => setIsSidebarOpen(true)}
+            title="Expand Editor Controls Panel (Ctrl+P)"
+            className="fixed top-16 left-3 z-40 px-3 py-2 bg-navy-900 hover:bg-navy-800 text-white rounded-sm shadow-xl flex items-center gap-1.5 text-xs font-bold border border-gold-500/40 hover:scale-105 transition-all"
+          >
+            <Icon name="chevron-right" size={14} className="text-gold-500" />
+            <span>Editor Panel</span>
+          </button>
+        )}
+
+        {/* Left Elementor Dock Panel */}
+        <aside
+          className={`transition-all duration-300 ease-in-out bg-white border-r border-line flex flex-col flex-shrink-0 min-h-0 overflow-hidden z-20 shadow-md ${
+            isSidebarOpen ? "w-80 sm:w-96" : "w-0 border-r-0 opacity-0 pointer-events-none"
+          }`}
+        >
+          {/* Panel Top Header with Close Tab */}
+          <div className="flex items-center justify-between p-2.5 bg-paper border-b border-line flex-shrink-0">
+            <div className="flex items-center gap-1.5">
+              <Icon name="layers" size={13} className="text-navy-900" />
+              <span className="text-[11px] font-bold text-navy-900 uppercase font-mono tracking-wider">
+                Editor Controls
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsSidebarOpen(false)}
+              title="Collapse Panel (Shift Canvas to Full Width)"
+              className="p-1 hover:bg-slate-200/80 rounded-sm text-ink-soft hover:text-navy-900 transition-colors"
+            >
+              <Icon name="chevron-left" size={14} />
+            </button>
+          </div>
+          {/* Panel Mode Switcher: Page Builder vs Global Branding */}
+          <div className="p-2 bg-paper/80 border-b border-line flex-shrink-0">
+            <div className="grid grid-cols-2 p-1 bg-slate-200/80 rounded-sm text-[11px] font-bold">
+              <button
+                type="button"
+                onClick={() => {
+                  setPanelCategory("page");
+                  if (sidebarTab === "menu" || sidebarTab === "footer" || sidebarTab === "contact") {
+                    setSidebarTab("blocks");
+                  }
+                }}
+                className={`py-1.5 px-2 rounded-xs transition-all flex items-center justify-center gap-1.5 ${
+                  panelCategory === "page"
+                    ? "bg-navy-900 text-white shadow-xs"
+                    : "text-ink-soft hover:text-navy-900"
+                }`}
+              >
+                <Icon name="layers" size={13} />
+                <span>Page Layout</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPanelCategory("site");
+                  if (sidebarTab === "blocks" || sidebarTab === "inspect" || sidebarTab === "widgets") {
+                    setSidebarTab("menu");
+                  }
+                }}
+                className={`py-1.5 px-2 rounded-xs transition-all flex items-center justify-center gap-1.5 ${
+                  panelCategory === "site"
+                    ? "bg-navy-900 text-white shadow-xs"
+                    : "text-ink-soft hover:text-navy-900"
+                }`}
+              >
+                <Icon name="sparkles" size={13} />
+                <span>Site Branding</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Decluttered Sub-Tab Bar with Ample Space */}
+          <div className="flex border-b border-line bg-paper text-[11px] font-semibold flex-shrink-0">
+            {panelCategory === "page" ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setSidebarTab("blocks")}
+                  className={`flex-1 py-2.5 text-center transition-colors border-b-2 flex items-center justify-center gap-1.5 ${
+                    sidebarTab === "blocks"
+                      ? "border-navy-900 text-navy-900 bg-white font-bold"
+                      : "border-transparent text-ink-soft hover:text-navy-900"
+                  }`}
+                >
+                  <Icon name="menu" size={13} />
+                  <span>Sections ({activeSections.length})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSidebarTab("inspect")}
+                  className={`flex-1 py-2.5 text-center transition-colors border-b-2 flex items-center justify-center gap-1.5 ${
+                    sidebarTab === "inspect"
+                      ? "border-navy-900 text-navy-900 bg-white font-bold"
+                      : "border-transparent text-ink-soft hover:text-navy-900"
+                  }`}
+                >
+                  <Icon name="sparkles" size={13} />
+                  <span>Inspector</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSidebarTab("widgets")}
+                  className={`flex-1 py-2.5 text-center transition-colors border-b-2 flex items-center justify-center gap-1.5 ${
+                    sidebarTab === "widgets"
+                      ? "border-navy-900 text-navy-900 bg-white font-bold"
+                      : "border-transparent text-ink-soft hover:text-navy-900"
+                  }`}
+                >
+                  <Icon name="plus" size={13} />
+                  <span>+ Add Block</span>
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setSidebarTab("menu")}
+                  className={`flex-1 py-2.5 text-center transition-colors border-b-2 flex items-center justify-center gap-1.5 ${
+                    sidebarTab === "menu"
+                      ? "border-navy-900 text-navy-900 bg-white font-bold"
+                      : "border-transparent text-ink-soft hover:text-navy-900"
+                  }`}
+                >
+                  <Icon name="sparkles" size={13} />
+                  <span>Header & Logo</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSidebarTab("footer")}
+                  className={`flex-1 py-2.5 text-center transition-colors border-b-2 flex items-center justify-center gap-1.5 ${
+                    sidebarTab === "footer"
+                      ? "border-navy-900 text-navy-900 bg-white font-bold"
+                      : "border-transparent text-ink-soft hover:text-navy-900"
+                  }`}
+                >
+                  <Icon name="file-text" size={13} />
+                  <span>Footer Links</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSidebarTab("contact")}
+                  className={`flex-1 py-2.5 text-center transition-colors border-b-2 flex items-center justify-center gap-1.5 ${
+                    sidebarTab === "contact"
+                      ? "border-navy-900 text-navy-900 bg-white font-bold"
+                      : "border-transparent text-ink-soft hover:text-navy-900"
+                  }`}
+                >
+                  <Icon name="phone" size={13} />
+                  <span>College Info</span>
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* TAB 1: Sections Navigator (Drag & Drop Hierarchy) */}
+          {sidebarTab === "blocks" && (
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-2">
+              <div className="flex items-center justify-between mb-2">
+                <div className="min-w-0 pr-2">
+                  <span className="text-[11px] font-mono text-ink-soft uppercase tracking-wider block truncate">
+                    {activePageObj.name} Structure
+                  </span>
+                  <span className="text-[10px] text-ink-soft">
+                    {activeSections.length} blocks • <code className="text-navy-900 font-mono">{activePageObj.path}</code>
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCreatePageModal(true)}
+                  className="px-2 py-1 bg-paper hover:bg-gold-50 border border-line hover:border-gold-500/60 text-navy-900 text-[10px] font-bold rounded-xs flex items-center gap-1 transition-all shadow-2xs shrink-0"
+                  title="Create another new page"
+                >
+                  <Icon name="plus" size={11} className="text-gold-600" />
+                  <span>+ New Page</span>
+                </button>
+              </div>
+
+              {activeSections.map((sec, idx) => {
+                const isSelected = sec.id === selectedSectionId;
+                const isDragging = draggedSectionIndex === idx;
+                const isDragOver = dragOverSectionIndex === idx;
+
+                return (
+                  <div
+                    key={sec.id}
+                    draggable
+                    onDragStart={(e) => handleDragStartSection(e, idx)}
+                    onDragOver={(e) => handleDragOverSection(e, idx)}
+                    onDrop={(e) => handleDropOnSection(e, idx)}
+                    onDragEnd={handleDragEnd}
+                    onClick={() => {
+                      setSelectedSectionId(sec.id);
+                      setSidebarTab("inspect");
+                    }}
+                    onMouseEnter={() => setHoveredSectionId(sec.id)}
+                    onMouseLeave={() => setHoveredSectionId(null)}
+                    className={`p-2.5 rounded-sm border transition-all cursor-grab active:cursor-grabbing flex items-center justify-between gap-2 ${
+                      isDragging
+                        ? "opacity-40 border-dashed border-navy-900 bg-navy-50"
+                        : isDragOver
+                        ? "border-t-4 border-t-gold-500 bg-gold-50/50"
+                        : isSelected
+                        ? "border-navy-900 bg-navy-50/50 shadow-xs"
+                        : "border-line bg-white hover:border-navy-900/40"
+                    } ${!sec.enabled ? "opacity-50" : ""}`}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Icon
+                        name="grip-vertical"
+                        size={13}
+                        className="text-ink-soft/40 hover:text-navy-900 flex-shrink-0"
+                      />
+                      <span className="font-mono text-xs text-ink-soft/70">
+                        {idx + 1}.
+                      </span>
+                      <div className="min-w-0">
+                        <strong className="text-xs font-bold text-navy-900 block truncate">
+                          {sec.name}
+                        </strong>
+                        <span className="text-[10px] text-ink-soft uppercase font-mono">
+                          {sec.type}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div
+                      className="flex items-center gap-1 flex-shrink-0"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        title="Move Up"
+                        disabled={idx === 0}
+                        onClick={() => moveSection(idx, "up")}
+                        className="p-1 hover:bg-paper rounded-sm text-ink-soft disabled:opacity-20 text-xs"
+                      >
+                        <Icon name="chevron-up" size={12} />
+                      </button>
+                      <button
+                        title="Move Down"
+                        disabled={idx === activeSections.length - 1}
+                        onClick={() => moveSection(idx, "down")}
+                        className="p-1 hover:bg-paper rounded-sm text-ink-soft disabled:opacity-20 text-xs"
+                      >
+                        <Icon name="chevron-down" size={12} />
+                      </button>
+                      <button
+                        title={sec.enabled ? "Hide Section" : "Show Section"}
+                        onClick={() => toggleSectionEnabled(sec.id)}
+                        className={`p-1 hover:bg-paper rounded-sm text-xs ${
+                          sec.enabled ? "text-navy-900" : "text-ink-soft"
+                        }`}
+                      >
+                        <Icon name={sec.enabled ? "eye" : "eye-off"} size={13} />
+                      </button>
+                      <button
+                        title="Delete Section"
+                        onClick={() => deleteSection(sec.id)}
+                        className="p-1 hover:bg-rose-50 text-rose-700 rounded-sm text-xs"
+                      >
+                        <Icon name="trash" size={12} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+
+              <button
+                onClick={() => setSidebarTab("widgets")}
+                className="w-full py-2.5 mt-4 border-2 border-dashed border-line hover:border-navy-900 text-xs font-bold text-navy-900 rounded-sm flex items-center justify-center gap-1.5 bg-paper hover:bg-white transition-all shadow-xs"
+              >
+                <Icon name="plus" size={14} />
+                <span>Add New Block from Palette</span>
+              </button>
+            </div>
+          )}
+
+          {/* TAB 2: Section Inspector (Elementor Properties Panel) */}
+          {sidebarTab === "inspect" && selectedSection && (
+            <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
+              <div className="p-4 border-b border-line bg-paper flex items-center justify-between flex-shrink-0">
+                <div>
+                  <span className="text-[10px] font-mono text-ink-soft uppercase tracking-wider block">
+                    Inspector • {selectedSection.type}
+                  </span>
+                  <strong className="text-sm font-bold text-navy-900">
+                    {selectedSection.name}
+                  </strong>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => duplicateSection(selectedSection.id)}
+                    title="Duplicate section"
+                    className="px-2 py-1 text-xs border border-line rounded-sm hover:bg-white font-semibold flex items-center gap-1"
+                  >
+                    <Icon name="copy" size={11} />
+                    <span>Copy</span>
+                  </button>
+                  <button
+                    onClick={() => toggleSectionEnabled(selectedSection.id)}
+                    className="px-2 py-1 text-xs border border-line rounded-sm hover:bg-white font-semibold flex items-center gap-1"
+                  >
+                    <Icon name={selectedSection.enabled ? "eye-off" : "eye"} size={11} />
+                    <span>{selectedSection.enabled ? "Disable" : "Enable"}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Inspector Sub-Tabs */}
+              <div className="flex border-b border-line bg-white text-[11px] font-semibold flex-shrink-0">
+                <button
+                  onClick={() => setInspectorSubTab("content")}
+                  className={`flex-1 py-2 text-center border-b-2 transition-colors flex items-center justify-center gap-1.5 ${
+                    inspectorSubTab === "content"
+                      ? "border-navy-900 text-navy-900"
+                      : "border-transparent text-ink-soft hover:text-navy-900"
+                  }`}
+                >
+                  <Icon name="file-text" size={12} />
+                  <span>Content</span>
+                </button>
+                <button
+                  onClick={() => setInspectorSubTab("style")}
+                  className={`flex-1 py-2 text-center border-b-2 transition-colors flex items-center justify-center gap-1.5 ${
+                    inspectorSubTab === "style"
+                      ? "border-navy-900 text-navy-900"
+                      : "border-transparent text-ink-soft hover:text-navy-900"
+                  }`}
+                >
+                  <Icon name="sparkles" size={12} />
+                  <span>Style & Theme</span>
+                </button>
+                <button
+                  onClick={() => setInspectorSubTab("items")}
+                  className={`flex-1 py-2 text-center border-b-2 transition-colors flex items-center justify-center gap-1.5 ${
+                    inspectorSubTab === "items"
+                      ? "border-navy-900 text-navy-900"
+                      : "border-transparent text-ink-soft hover:text-navy-900"
+                  }`}
+                >
+                  <Icon name="layers" size={12} />
+                  <span>Media & Items</span>
+                </button>
+              </div>
+
+              {/* Sub-tab 1: Content Fields */}
+              {inspectorSubTab === "content" && (
+                <div className="p-4 space-y-4">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                      Block Display Label
+                    </label>
+                    <input
+                      type="text"
+                      value={selectedSection.name}
+                      onChange={(e) => updateSelectedField("name", e.target.value)}
+                      className="w-full px-3 py-1.5 border border-line rounded-sm text-xs focus:outline-none focus:border-navy-900"
+                    />
+                  </div>
+
+                  {/* SPECIALIZED UI FOR COMPOSITE BLOCKS */}
+                  {selectedSection.type === "composite_block" ? (
+                    <div className="space-y-4 pt-1">
+                      {/* Super Admin Save As Template Bar */}
+                      <div className="p-3 bg-gold-50/80 border border-gold-300 rounded-sm flex items-center justify-between gap-2 shadow-2xs">
+                        <div className="min-w-0">
+                          <strong className="text-xs font-bold text-navy-900 flex items-center gap-1.5 leading-tight">
+                            <Icon name="sparkles" size={13} className="text-gold-600 shrink-0" />
+                            <span>Save as Reusable Widget</span>
+                          </strong>
+                          <p className="text-[10px] text-ink-soft leading-tight mt-0.5 truncate">
+                            Make this modular block available for all admins.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={saveCurrentAsTemplate}
+                          className="px-2.5 py-1.5 bg-navy-900 hover:bg-navy-800 text-gold-300 font-bold text-xs rounded-xs shrink-0 flex items-center gap-1 shadow-xs cursor-pointer transition-colors"
+                        >
+                          <Icon name="star" size={11} />
+                          <span>Save Template</span>
+                        </button>
+                      </div>
+
+                      {/* Optional Section Header */}
+                      <div className="p-3 bg-paper rounded-sm border border-line space-y-2.5">
+                        <strong className="text-xs font-bold text-navy-900 block">
+                          Section Lead Copy (Optional)
+                        </strong>
+                        <div>
+                          <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                            Eyebrow / Category Badge
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Dedicated Faculty"
+                            value={selectedSection.badgeText || ""}
+                            onChange={(e) => updateSelectedField("badgeText", e.target.value)}
+                            className="w-full px-2 py-1 text-xs border border-line rounded-sm bg-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                            Section Headline
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Learn directly from practicing assessors"
+                            value={selectedSection.headline || ""}
+                            onChange={(e) => updateSelectedField("headline", e.target.value)}
+                            className="w-full px-2 py-1 text-xs font-bold border border-line rounded-sm bg-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                            Section Subtitle
+                          </label>
+                          <textarea
+                            rows={2}
+                            placeholder="Explanatory paragraph..."
+                            value={selectedSection.subheadline || ""}
+                            onChange={(e) => updateSelectedField("subheadline", e.target.value)}
+                            className="w-full px-2 py-1 text-xs border border-line rounded-sm bg-white leading-normal"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Column Count Selector */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider">
+                            Column Architecture
+                          </label>
+                          <span className="text-[10px] font-mono text-ink-soft">
+                            {selectedSection.columns || 2} Columns
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-4 gap-1.5">
+                          {[1, 2, 3, 4].map((c) => (
+                            <button
+                              key={c}
+                              type="button"
+                              onClick={() => setCompositeColumnsCount(c as any)}
+                              className={`py-1.5 rounded-sm border text-xs font-bold transition-all cursor-pointer ${
+                                (selectedSection.columns || 2) === c
+                                  ? "bg-navy-900 text-white border-navy-900 shadow-xs"
+                                  : "bg-white border-line text-ink hover:border-navy-900/40"
+                              }`}
+                            >
+                              {c} {c === 1 ? "Col" : "Cols"}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Column Selector Tabs */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider">
+                            Select Column to Edit
+                          </label>
+                          <span className="text-[10px] text-ink-soft">
+                            Active: Column {activeCompositeColIdx + 1}
+                          </span>
+                        </div>
+                        <div className="flex border border-line rounded-sm bg-paper p-0.5 gap-1">
+                          {Array.from({ length: selectedSection.columns || 2 }).map((_, cIdx) => (
+                            <button
+                              key={cIdx}
+                              type="button"
+                              onClick={() => setActiveCompositeColIdx(cIdx)}
+                              className={`flex-1 py-1.5 text-xs font-semibold rounded-xs transition-all cursor-pointer ${
+                                activeCompositeColIdx === cIdx
+                                  ? "bg-navy-900 text-white shadow-xs font-bold"
+                                  : "text-ink hover:bg-white"
+                              }`}
+                            >
+                              Column {cIdx + 1}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Active Column Micro-Widgets List & Builder */}
+                      {(() => {
+                        const cols = selectedSection.compositeColumns || [];
+                        const col = cols[activeCompositeColIdx] || { id: `col-${activeCompositeColIdx + 1}`, widgets: [] };
+                        const widgets = col.widgets || [];
+
+                        return (
+                          <div className="p-3 bg-paper rounded-sm border border-line space-y-3">
+                            <div className="flex items-center justify-between border-b border-line pb-2">
+                              <div>
+                                <strong className="text-xs font-bold text-navy-900 block">
+                                  Column {activeCompositeColIdx + 1} Widgets ({widgets.length})
+                                </strong>
+                                <span className="text-[10px] text-ink-soft">
+                                  Stack micro-widgets in this column
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setShowAddWidgetMenu(
+                                    showAddWidgetMenu === activeCompositeColIdx
+                                      ? null
+                                      : activeCompositeColIdx
+                                  )
+                                }
+                                className="px-2 py-1 bg-navy-900 hover:bg-navy-800 text-white rounded-xs text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                              >
+                                <Icon name="plus" size={11} />
+                                <span>+ Add Widget</span>
+                              </button>
+                            </div>
+
+                            {/* Dropdown Menu for Adding Micro-Widgets */}
+                            {showAddWidgetMenu === activeCompositeColIdx && (
+                              <div className="p-2.5 bg-white rounded-sm border border-navy-900 shadow-md space-y-2">
+                                <span className="text-[10px] font-mono font-bold text-navy-900 uppercase tracking-wider block">
+                                  Choose Micro-Widget Type:
+                                </span>
+                                <div className="grid grid-cols-2 gap-1.5 text-xs">
+                                  {[
+                                    { type: "text", label: "Text Block", icon: "file-text" },
+                                    { type: "icon_box", label: "Icon Box", icon: "shield-check" },
+                                    { type: "image", label: "Image Box", icon: "layers" },
+                                    { type: "cta_button", label: "Action Buttons", icon: "arrow-right" },
+                                    { type: "lead_form", label: "Lead Form Box", icon: "mail" },
+                                    { type: "video_player", label: "Video Player", icon: "video" },
+                                    { type: "divider", label: "Divider Line", icon: "minus" },
+                                  ].map((mw) => (
+                                    <button
+                                      key={mw.type}
+                                      type="button"
+                                      onClick={() =>
+                                        addMicroWidget(activeCompositeColIdx, mw.type as any)
+                                      }
+                                      className="p-1.5 bg-paper hover:bg-gold-50 border border-line hover:border-gold-500 rounded-xs flex items-center gap-1.5 text-left font-semibold text-navy-900 cursor-pointer transition-all"
+                                    >
+                                      <Icon name={mw.icon as IconName} size={13} className="text-gold-600 shrink-0" />
+                                      <span className="truncate">{mw.label}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Micro-Widgets List */}
+                            {widgets.length > 0 ? (
+                              <div className="space-y-2">
+                                {widgets.map((widget, wIdx) => {
+                                  const isEditing = activeWidgetEditId === widget.id;
+
+                                  return (
+                                    <div
+                                      key={widget.id || wIdx}
+                                      className="rounded-sm border border-line bg-white shadow-2xs overflow-hidden"
+                                    >
+                                      {/* Widget Header Strip */}
+                                      <div
+                                        onClick={() =>
+                                          setActiveWidgetEditId(isEditing ? null : widget.id)
+                                        }
+                                        className="p-2.5 flex items-center justify-between gap-2 cursor-pointer hover:bg-paper/60 transition-colors select-none"
+                                      >
+                                        <div className="flex items-center gap-2 min-w-0">
+                                          <span className="text-[10px] font-mono font-bold px-1 py-0.5 rounded-xs bg-navy-100 text-navy-900 uppercase">
+                                            {widget.type.replace("_", " ")}
+                                          </span>
+                                          <strong className="text-xs font-semibold text-navy-900 truncate">
+                                            {widget.title || widget.eyebrow || widget.buttonText || widget.type}
+                                          </strong>
+                                        </div>
+                                        <div
+                                          className="flex items-center gap-1 shrink-0"
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          <button
+                                            type="button"
+                                            disabled={wIdx === 0}
+                                            onClick={() =>
+                                              moveMicroWidget(activeCompositeColIdx, wIdx, "up")
+                                            }
+                                            className="p-1 hover:bg-paper rounded-xs text-ink-soft disabled:opacity-20 text-xs"
+                                            title="Move Up"
+                                          >
+                                            <Icon name="chevron-up" size={12} />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            disabled={wIdx === widgets.length - 1}
+                                            onClick={() =>
+                                              moveMicroWidget(activeCompositeColIdx, wIdx, "down")
+                                            }
+                                            className="p-1 hover:bg-paper rounded-xs text-ink-soft disabled:opacity-20 text-xs"
+                                            title="Move Down"
+                                          >
+                                            <Icon name="chevron-down" size={12} />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              removeMicroWidget(activeCompositeColIdx, wIdx)
+                                            }
+                                            className="p-1 hover:bg-rose-50 text-rose-700 rounded-xs text-xs"
+                                            title="Delete Widget"
+                                          >
+                                            <Icon name="trash" size={12} />
+                                          </button>
+                                          <span className="text-[10px] text-ink-soft ml-1">
+                                            {isEditing ? "▲" : "▼"}
+                                          </span>
+                                        </div>
+                                      </div>
+
+                                      {/* Widget Editor Fields (Expanded) */}
+                                      {isEditing && (
+                                        <div className="p-3 border-t border-line/60 bg-paper/40 space-y-2.5 text-xs">
+                                          {/* Fields for TEXT */}
+                                          {widget.type === "text" && (
+                                            <>
+                                              <div>
+                                                <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                                                  Eyebrow Text
+                                                </label>
+                                                <input
+                                                  type="text"
+                                                  value={widget.eyebrow || ""}
+                                                  onChange={(e) =>
+                                                    updateMicroWidget(activeCompositeColIdx, wIdx, "eyebrow", e.target.value)
+                                                  }
+                                                  className="w-full px-2 py-1 border border-line rounded-sm bg-white"
+                                                />
+                                              </div>
+                                              <div>
+                                                <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                                                  Title / Heading
+                                                </label>
+                                                <input
+                                                  type="text"
+                                                  value={widget.title || ""}
+                                                  onChange={(e) =>
+                                                    updateMicroWidget(activeCompositeColIdx, wIdx, "title", e.target.value)
+                                                  }
+                                                  className="w-full px-2 py-1 font-bold border border-line rounded-sm bg-white"
+                                                />
+                                              </div>
+                                              <div>
+                                                <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                                                  Paragraph Content
+                                                </label>
+                                                <textarea
+                                                  rows={3}
+                                                  value={widget.content || ""}
+                                                  onChange={(e) =>
+                                                    updateMicroWidget(activeCompositeColIdx, wIdx, "content", e.target.value)
+                                                  }
+                                                  className="w-full px-2 py-1 border border-line rounded-sm bg-white leading-normal"
+                                                />
+                                              </div>
+                                            </>
+                                          )}
+
+                                          {/* Fields for ICON BOX */}
+                                          {widget.type === "icon_box" && (
+                                            <>
+                                              <div className="grid grid-cols-2 gap-2">
+                                                <div>
+                                                  <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                                                    Icon Name
+                                                  </label>
+                                                  <input
+                                                    type="text"
+                                                    value={widget.icon || "shield-check"}
+                                                    onChange={(e) =>
+                                                      updateMicroWidget(activeCompositeColIdx, wIdx, "icon", e.target.value)
+                                                    }
+                                                    placeholder="shield-check, star, sparkles"
+                                                    className="w-full px-2 py-1 font-mono text-[11px] border border-line rounded-sm bg-white"
+                                                  />
+                                                </div>
+                                                <div>
+                                                  <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                                                    Tag Badge
+                                                  </label>
+                                                  <input
+                                                    type="text"
+                                                    value={widget.badge || ""}
+                                                    onChange={(e) =>
+                                                      updateMicroWidget(activeCompositeColIdx, wIdx, "badge", e.target.value)
+                                                    }
+                                                    placeholder="e.g. Accredited"
+                                                    className="w-full px-2 py-1 text-[11px] border border-line rounded-sm bg-white"
+                                                  />
+                                                </div>
+                                              </div>
+                                              <div>
+                                                <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                                                  Feature Title
+                                                </label>
+                                                <input
+                                                  type="text"
+                                                  value={widget.title || ""}
+                                                  onChange={(e) =>
+                                                    updateMicroWidget(activeCompositeColIdx, wIdx, "title", e.target.value)
+                                                  }
+                                                  className="w-full px-2 py-1 font-bold border border-line rounded-sm bg-white"
+                                                />
+                                              </div>
+                                              <div>
+                                                <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                                                  Feature Description
+                                                </label>
+                                                <textarea
+                                                  rows={2}
+                                                  value={widget.content || ""}
+                                                  onChange={(e) =>
+                                                    updateMicroWidget(activeCompositeColIdx, wIdx, "content", e.target.value)
+                                                  }
+                                                  className="w-full px-2 py-1 border border-line rounded-sm bg-white leading-normal"
+                                                />
+                                              </div>
+                                            </>
+                                          )}
+
+                                          {/* Fields for IMAGE */}
+                                          {widget.type === "image" && (
+                                            <>
+                                              <ImageDropzone
+                                                value={widget.imageUrl || "/images/adult-care-training.jpg"}
+                                                onChange={(url) =>
+                                                  updateMicroWidget(activeCompositeColIdx, wIdx, "imageUrl", url)
+                                                }
+                                                label="Upload Image"
+                                                helperText="High-resolution photograph"
+                                                previewHeight={120}
+                                              />
+                                              <div className="grid grid-cols-2 gap-2 pt-1">
+                                                <div>
+                                                  <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                                                    Aspect Ratio
+                                                  </label>
+                                                  <select
+                                                    value={widget.aspectRatio || "portrait"}
+                                                    onChange={(e) =>
+                                                      updateMicroWidget(activeCompositeColIdx, wIdx, "aspectRatio", e.target.value)
+                                                    }
+                                                    className="w-full px-2 py-1 border border-line rounded-sm bg-white"
+                                                  >
+                                                    <option value="portrait">Portrait (3:4)</option>
+                                                    <option value="square">Square (1:1)</option>
+                                                    <option value="video">Widescreen (16:9)</option>
+                                                    <option value="wide">Banner (21:9)</option>
+                                                  </select>
+                                                </div>
+                                                <div className="flex items-center gap-2 pt-4">
+                                                  <input
+                                                    type="checkbox"
+                                                    id={`mask-${widget.id}`}
+                                                    checked={widget.useArcMask || false}
+                                                    onChange={(e) =>
+                                                      updateMicroWidget(activeCompositeColIdx, wIdx, "useArcMask", e.target.checked)
+                                                    }
+                                                    className="rounded-xs accent-navy-900"
+                                                  />
+                                                  <label
+                                                    htmlFor={`mask-${widget.id}`}
+                                                    className="text-[11px] font-semibold text-navy-900 cursor-pointer"
+                                                  >
+                                                    Use Signature ArcMask
+                                                  </label>
+                                                </div>
+                                              </div>
+                                            </>
+                                          )}
+
+                                          {/* Fields for CTA BUTTON */}
+                                          {widget.type === "cta_button" && (
+                                            <>
+                                              <div className="grid grid-cols-2 gap-2">
+                                                <div>
+                                                  <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                                                    Primary Button Text
+                                                  </label>
+                                                  <input
+                                                    type="text"
+                                                    value={widget.buttonText || ""}
+                                                    onChange={(e) =>
+                                                      updateMicroWidget(activeCompositeColIdx, wIdx, "buttonText", e.target.value)
+                                                    }
+                                                    className="w-full px-2 py-1 border border-line rounded-sm bg-white font-bold"
+                                                  />
+                                                </div>
+                                                <div>
+                                                  <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                                                    Link Destination
+                                                  </label>
+                                                  <input
+                                                    type="text"
+                                                    value={widget.buttonLink || ""}
+                                                    onChange={(e) =>
+                                                      updateMicroWidget(activeCompositeColIdx, wIdx, "buttonLink", e.target.value)
+                                                    }
+                                                    className="w-full px-2 py-1 font-mono text-[11px] border border-line rounded-sm bg-white"
+                                                  />
+                                                </div>
+                                              </div>
+                                              <div className="grid grid-cols-2 gap-2">
+                                                <div>
+                                                  <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                                                    Secondary Button (optional)
+                                                  </label>
+                                                  <input
+                                                    type="text"
+                                                    value={widget.secondaryButtonText || ""}
+                                                    onChange={(e) =>
+                                                      updateMicroWidget(activeCompositeColIdx, wIdx, "secondaryButtonText", e.target.value)
+                                                    }
+                                                    className="w-full px-2 py-1 border border-line rounded-sm bg-white"
+                                                  />
+                                                </div>
+                                                <div>
+                                                  <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                                                    Secondary Link
+                                                  </label>
+                                                  <input
+                                                    type="text"
+                                                    value={widget.secondaryButtonLink || ""}
+                                                    onChange={(e) =>
+                                                      updateMicroWidget(activeCompositeColIdx, wIdx, "secondaryButtonLink", e.target.value)
+                                                    }
+                                                    className="w-full px-2 py-1 font-mono text-[11px] border border-line rounded-sm bg-white"
+                                                  />
+                                                </div>
+                                              </div>
+                                            </>
+                                          )}
+
+                                          {/* Fields for LEAD FORM */}
+                                          {widget.type === "lead_form" && (
+                                            <>
+                                              <div>
+                                                <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                                                  Form Box Title
+                                                </label>
+                                                <input
+                                                  type="text"
+                                                  value={widget.title || ""}
+                                                  onChange={(e) =>
+                                                    updateMicroWidget(activeCompositeColIdx, wIdx, "title", e.target.value)
+                                                  }
+                                                  className="w-full px-2 py-1 font-bold border border-line rounded-sm bg-white"
+                                                />
+                                              </div>
+                                              <div>
+                                                <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                                                  Subtitle / Advice Guarantee
+                                                </label>
+                                                <input
+                                                  type="text"
+                                                  value={widget.subtitle || ""}
+                                                  onChange={(e) =>
+                                                    updateMicroWidget(activeCompositeColIdx, wIdx, "subtitle", e.target.value)
+                                                  }
+                                                  className="w-full px-2 py-1 border border-line rounded-sm bg-white"
+                                                />
+                                              </div>
+                                              <div>
+                                                <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                                                  Submit Button Label
+                                                </label>
+                                                <input
+                                                  type="text"
+                                                  value={widget.buttonText || "Request Advice Call"}
+                                                  onChange={(e) =>
+                                                    updateMicroWidget(activeCompositeColIdx, wIdx, "buttonText", e.target.value)
+                                                  }
+                                                  className="w-full px-2 py-1 border border-line rounded-sm bg-white font-bold"
+                                                />
+                                              </div>
+                                            </>
+                                          )}
+
+                                          {/* Fields for VIDEO PLAYER */}
+                                          {widget.type === "video_player" && (
+                                            <div>
+                                              <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                                                YouTube / Vimeo Embed URL
+                                              </label>
+                                              <input
+                                                type="text"
+                                                value={widget.videoUrl || ""}
+                                                onChange={(e) =>
+                                                  updateMicroWidget(activeCompositeColIdx, wIdx, "videoUrl", e.target.value)
+                                                }
+                                                placeholder="https://www.youtube.com/embed/..."
+                                                className="w-full px-2 py-1 font-mono text-[11px] border border-line rounded-sm bg-white"
+                                              />
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <p className="text-xs text-ink-soft italic text-center py-2">
+                                No micro-widgets in Column {activeCompositeColIdx + 1} yet. Click &quot;+ Add Widget&quot; above to add one.
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  ) : (
+                    /* STANDARD SECTION CONTENT FIELDS (Hero, Trust, Pricing, etc.) */
+                    <>
+                      {selectedSection.badgeText !== undefined && (
+                        <div>
+                          <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                            Eyebrow / Badge Text
+                          </label>
+                          <input
+                            type="text"
+                            value={selectedSection.badgeText || ""}
+                            onChange={(e) => updateSelectedField("badgeText", e.target.value)}
+                            className="w-full px-3 py-1.5 border border-line rounded-sm text-xs focus:outline-none focus:border-navy-900"
+                          />
+                        </div>
+                      )}
+
+                      <div>
+                        <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                          Main Headline
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={selectedSection.headline}
+                          onChange={(e) => updateSelectedField("headline", e.target.value)}
+                          className="w-full px-3 py-1.5 border border-line rounded-sm text-xs font-semibold focus:outline-none focus:border-navy-900"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                          Subheadline / Explanatory Copy
+                        </label>
+                        <textarea
+                          rows={3}
+                          value={selectedSection.subheadline}
+                          onChange={(e) => updateSelectedField("subheadline", e.target.value)}
+                          className="w-full px-3 py-1.5 border border-line rounded-sm text-xs focus:outline-none focus:border-navy-900 leading-relaxed"
+                        />
+                      </div>
+
+                      {selectedSection.buttonText !== undefined && (
+                        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-line">
+                          <div>
+                            <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                              Primary Button Text
+                            </label>
+                            <input
+                              type="text"
+                              value={selectedSection.buttonText || ""}
+                              onChange={(e) => updateSelectedField("buttonText", e.target.value)}
+                              className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs focus:outline-none focus:border-navy-900"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                              Button Destination Link
+                            </label>
+                            <input
+                              type="text"
+                              value={selectedSection.buttonLink || ""}
+                              onChange={(e) => updateSelectedField("buttonLink", e.target.value)}
+                              className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs font-mono focus:outline-none focus:border-navy-900"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedSection.secondaryButtonText !== undefined && (
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                              Secondary Button Text
+                            </label>
+                            <input
+                              type="text"
+                              value={selectedSection.secondaryButtonText || ""}
+                              onChange={(e) =>
+                                updateSelectedField("secondaryButtonText", e.target.value)
+                              }
+                              className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs focus:outline-none focus:border-navy-900"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                              Secondary Destination Link
+                            </label>
+                            <input
+                              type="text"
+                              value={selectedSection.secondaryButtonLink || ""}
+                              onChange={(e) =>
+                                updateSelectedField("secondaryButtonLink", e.target.value)
+                              }
+                              className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs font-mono focus:outline-none focus:border-navy-900"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Sub-tab 2: Style & Layout Options (Elementor Flex & Spacing) */}
+              {inspectorSubTab === "style" && (() => {
+                const defaultBg =
+                  selectedSection.type === "hero" ||
+                  selectedSection.type === "pricing" ||
+                  selectedSection.type === "featured_courses" ||
+                  selectedSection.type === "testimonials" ||
+                  selectedSection.type === "video_spotlight" ||
+                  selectedSection.type === "contact_block" ||
+                  selectedSection.type === "composite_block"
+                    ? "paper"
+                    : selectedSection.type === "cta_banner"
+                    ? "navy"
+                    : "white";
+                const activeBg = selectedSection.bgColor || defaultBg;
+
+                const isSplitLayout =
+                  ["hero", "trust_strip", "video_spotlight", "testimonials"].includes(
+                    selectedSection.type
+                  ) ||
+                  (selectedSection.type === "composite_block" &&
+                    (selectedSection.columns || 2) === 2);
+
+                const isGridLayout =
+                  [
+                    "choose_path",
+                    "why_smartminds",
+                    "how_it_works",
+                    "pricing",
+                    "featured_courses",
+                    "faq_accordion",
+                    "stats_counter",
+                  ].includes(selectedSection.type) ||
+                  (selectedSection.type === "composite_block" &&
+                    (selectedSection.columns || 2) > 2);
+
+                return (
+                  <div className="p-4 space-y-5">
+                    {/* Background Palette */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider">
+                          Background Palette
+                        </label>
+                        <span className="text-[10px] text-ink-soft font-mono uppercase">
+                          Active: {activeBg}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          { key: "white", label: "Crisp White", bgClass: "bg-white border-line text-ink" },
+                          { key: "paper", label: "Parchment Paper", bgClass: "bg-paper border-line text-ink" },
+                          { key: "navy", label: "Deep Royal Navy", bgClass: "bg-navy-900 text-white border-navy-800" },
+                          { key: "cream", label: "Gold / Cream Tint", bgClass: "bg-gold-50/70 border-gold-200 text-ink" },
+                        ].map((bg) => {
+                          const isSelected = activeBg === bg.key;
+                          return (
+                            <button
+                              key={bg.key}
+                              type="button"
+                              onClick={() => updateSelectedField("bgColor", bg.key)}
+                              className={`p-2.5 rounded-sm border text-xs font-semibold flex items-center justify-between transition-all cursor-pointer ${
+                                bg.bgClass
+                              } ${
+                                isSelected
+                                  ? "ring-2 ring-gold-500 shadow-sm"
+                                  : "opacity-80 hover:opacity-100"
+                              }`}
+                            >
+                              <span>{bg.label}</span>
+                              {isSelected && (
+                                <Icon name="check" size={13} className="text-gold-500" />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Split Layout Section Options */}
+                    {isSplitLayout && (
+                      <>
+                        {/* Layout Orientation (Media Position) */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider">
+                              Column Orientation
+                            </label>
+                            <span className="text-[10px] text-navy-900 font-bold bg-gold-100 px-1.5 py-0.5 rounded-xs">
+                              2-Column Split
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => updateSelectedField("mediaPosition", "right")}
+                              className={`py-2 px-3 rounded-sm border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                                (selectedSection.mediaPosition || "right") === "right"
+                                  ? "bg-navy-900 text-white border-navy-900 shadow-xs"
+                                  : "bg-white border-line text-ink hover:border-navy-900/40"
+                              }`}
+                            >
+                              <Icon name="layers" size={13} />
+                              <span>Media Right</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => updateSelectedField("mediaPosition", "left")}
+                              className={`py-2 px-3 rounded-sm border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                                selectedSection.mediaPosition === "left"
+                                  ? "bg-navy-900 text-white border-navy-900 shadow-xs"
+                                  : "bg-white border-line text-ink hover:border-navy-900/40"
+                              }`}
+                            >
+                              <Icon name="layers" size={13} />
+                              <span>Media Left (Flipped)</span>
+                            </button>
+                          </div>
+                          <span className="text-[10px] text-ink-soft block mt-1 leading-tight">
+                            Reorders photograph or video column before or after the text copy.
+                          </span>
+                        </div>
+
+                        {/* Column Width Division Ratio */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider">
+                              Column Division & Width
+                            </label>
+                            <span className="text-[10px] text-ink-soft">Desktop Grid Ratio</span>
+                          </div>
+                          <div className="grid grid-cols-5 gap-1.5">
+                            {[
+                              { key: "50-50", label: "50:50", desc: "Equal Half Columns (6 / 6)" },
+                              { key: "60-40", label: "60:40", desc: "Default Primary / Side (7 / 5)" },
+                              { key: "70-30", label: "70:30", desc: "Wide Primary Column (8 / 4)" },
+                              { key: "40-60", label: "40:60", desc: "Wide Media / Video Column (5 / 7)" },
+                              { key: "33-67", label: "33:67", desc: "Compact Text / Broad Media (4 / 8)" },
+                            ].map((r) => {
+                              const isSelected =
+                                (selectedSection.columnRatio || "60-40") === r.key;
+                              return (
+                                <button
+                                  key={r.key}
+                                  type="button"
+                                  onClick={() => updateSelectedField("columnRatio", r.key)}
+                                  title={r.desc}
+                                  className={`py-1.5 px-1 rounded-sm border text-xs font-semibold text-center transition-all cursor-pointer ${
+                                    isSelected
+                                      ? "bg-navy-900 text-white border-navy-900 shadow-xs font-bold"
+                                      : "bg-white border-line text-ink hover:border-navy-900/40"
+                                  }`}
+                                >
+                                  {r.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <span className="text-[10px] text-ink-soft block mt-1 leading-tight">
+                            Dynamically adjusts the desktop width proportion between text and media columns.
+                          </span>
+                        </div>
+                      </>
+                    )}
+
+                    {/* Grid Layout Section Options */}
+                    {isGridLayout && (
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider">
+                            Grid Columns
+                          </label>
+                          <span className="text-[10px] text-navy-900 font-bold bg-gold-100 px-1.5 py-0.5 rounded-xs">
+                            Card Grid
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          {[2, 3, 4].map((col) => {
+                            const current =
+                              selectedSection.columns ||
+                              (selectedSection.type === "stats_counter" ||
+                              selectedSection.type === "why_smartminds"
+                                ? 4
+                                : 3);
+                            const isSelected = current === col;
+                            return (
+                              <button
+                                key={col}
+                                type="button"
+                                onClick={() => updateSelectedField("columns", col)}
+                                className={`py-1.5 rounded-sm border text-xs font-semibold text-center transition-all cursor-pointer ${
+                                  isSelected
+                                    ? "bg-navy-900 text-white border-navy-900 shadow-xs"
+                                    : "bg-white border-line text-ink hover:border-navy-900/40"
+                                }`}
+                              >
+                                {col} Columns
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <span className="text-[10px] text-ink-soft block mt-1 leading-tight">
+                          Select 2, 3, or 4 columns across desktop screens.
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Section Padding Density */}
+                    <div>
+                      <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1.5">
+                        Vertical Spacing (Padding)
+                      </label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { key: "compact", label: "Compact" },
+                          { key: "normal", label: "Standard" },
+                          { key: "spacious", label: "Spacious" },
+                        ].map((dens) => {
+                          const isSelected =
+                            (selectedSection.paddingDensity || "normal") === dens.key;
+                          return (
+                            <button
+                              key={dens.key}
+                              type="button"
+                              onClick={() => updateSelectedField("paddingDensity", dens.key)}
+                              className={`py-1.5 rounded-sm border text-xs font-semibold text-center transition-all cursor-pointer ${
+                                isSelected
+                                  ? "bg-navy-900 text-white border-navy-900"
+                                  : "bg-white border-line text-ink hover:border-navy-900/40"
+                              }`}
+                            >
+                              {dens.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Text Alignment */}
+                    <div>
+                      <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1.5">
+                        Text Alignment
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => updateSelectedField("align", "left")}
+                          className={`py-2 rounded-sm border text-xs font-semibold cursor-pointer ${
+                            (selectedSection.align || "left") === "left"
+                              ? "bg-navy-900 text-white border-navy-900"
+                              : "bg-white border-line text-ink"
+                          }`}
+                        >
+                          Left Aligned
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => updateSelectedField("align", "center")}
+                          className={`py-2 rounded-sm border text-xs font-semibold cursor-pointer ${
+                            selectedSection.align === "center"
+                              ? "bg-navy-900 text-white border-navy-900"
+                              : "bg-white border-line text-ink"
+                          }`}
+                        >
+                          Center Aligned
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Sub-tab 3: Media & Items Repeater */}
+              {inspectorSubTab === "items" && (
+                <div className="p-4 space-y-5">
+                  {/* Video Spotlight Settings Card */}
+                  {(selectedSection.type === "testimonials" ||
+                    selectedSection.type === "video_spotlight" ||
+                    selectedSection.videoTitle !== undefined) && (
+                    <div className="p-3.5 bg-paper rounded-sm border border-line space-y-3 shadow-2xs">
+                      <div className="flex items-center justify-between border-b border-line pb-2">
+                        <strong className="text-xs font-bold text-navy-900 flex items-center gap-1.5">
+                          <Icon name="video" size={14} className="text-navy-900" />
+                          <span>Video Spotlight Settings</span>
+                        </strong>
+                        <span className="text-[10px] font-mono text-ink-soft uppercase bg-white px-1.5 py-0.5 rounded border border-line">
+                          {selectedSection.type === "testimonials"
+                            ? "Testimonial Player"
+                            : "HD Video"}
+                        </span>
+                      </div>
+
+                      {/* Video Title */}
+                      <div>
+                        <label className="block text-[11px] font-semibold text-navy-900 mb-1">
+                          Video Headline / Title
+                        </label>
+                        <input
+                          type="text"
+                          value={selectedSection.videoTitle || ""}
+                          onChange={(e) =>
+                            updateSelectedField("videoTitle", e.target.value)
+                          }
+                          placeholder="e.g. Watch learners share their qualification journey"
+                          className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white font-medium focus:outline-none focus:border-navy-900"
+                        />
+                      </div>
+
+                      {/* Video Description */}
+                      <div>
+                        <label className="block text-[11px] font-semibold text-navy-900 mb-1">
+                          Video Description / Caption
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={selectedSection.videoDesc || ""}
+                          onChange={(e) =>
+                            updateSelectedField("videoDesc", e.target.value)
+                          }
+                          placeholder="Real student feedback recorded on placement..."
+                          className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white leading-relaxed focus:outline-none focus:border-navy-900"
+                        />
+                      </div>
+
+                      {/* Video URL (Embed or Stream) */}
+                      <div>
+                        <label className="block text-[11px] font-semibold text-navy-900 mb-1">
+                          Video Embed URL (YouTube / TikTok / Vimeo / MP4)
+                        </label>
+                        <input
+                          type="text"
+                          value={selectedSection.videoUrl || ""}
+                          onChange={(e) =>
+                            updateSelectedField("videoUrl", e.target.value)
+                          }
+                          placeholder="https://www.youtube.com/embed/..."
+                          className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white font-mono text-ink-soft focus:outline-none focus:border-navy-900"
+                        />
+                        <span className="text-[10px] text-ink-soft block mt-0.5">
+                          Privacy Guard: Third-party video scripts only load after user cookie consent.
+                        </span>
+                      </div>
+
+                      {/* Video Poster Thumbnail Picker */}
+                      <div className="space-y-1.5 pt-1 border-t border-line">
+                        <label className="block text-[11px] font-semibold text-navy-900">
+                          Video Thumbnail Poster Image
+                        </label>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {AVAILABLE_IMAGES.map((img) => (
+                            <button
+                              key={img.path}
+                              type="button"
+                              onClick={() =>
+                                updateSelectedField("videoThumbnail", img.path)
+                              }
+                              className={`relative aspect-[16/9] rounded-sm overflow-hidden border-2 transition-all cursor-pointer ${
+                                (selectedSection.videoThumbnail ||
+                                  "/images/certificate-moment.jpg") === img.path
+                                  ? "border-gold-500 shadow-md ring-2 ring-gold-500/20"
+                                  : "border-line opacity-70 hover:opacity-100"
+                              }`}
+                            >
+                              <img
+                                src={img.path}
+                                alt={img.label}
+                                className="w-full h-full object-cover"
+                              />
+                            </button>
+                          ))}
+                        </div>
+                        <input
+                          type="text"
+                          value={selectedSection.videoThumbnail || ""}
+                          onChange={(e) =>
+                            updateSelectedField("videoThumbnail", e.target.value)
+                          }
+                          placeholder="/images/custom-thumbnail.jpg"
+                          className="w-full px-2.5 py-1 border border-line rounded-sm text-[11px] bg-white font-mono text-ink-soft mt-1"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedSection.image !== undefined && (
+                    <div className="space-y-2">
+                      <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider">
+                        Educational Photograph
+                      </label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {AVAILABLE_IMAGES.map((img) => (
+                          <button
+                            key={img.path}
+                            type="button"
+                            onClick={() => updateSelectedField("image", img.path)}
+                            className={`relative aspect-[16/9] rounded-sm overflow-hidden border-2 transition-all ${
+                              selectedSection.image === img.path
+                                ? "border-gold-500 shadow-md ring-2 ring-gold-500/20"
+                                : "border-line opacity-70 hover:opacity-100"
+                            }`}
+                          >
+                            <img
+                              src={img.path}
+                              alt={img.label}
+                              className="w-full h-full object-cover"
+                            />
+                          </button>
+                        ))}
+                      </div>
+                      <span className="text-[10px] text-ink-soft block font-mono">
+                        Active: {selectedSection.image}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="space-y-3 pt-3 border-t border-line">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider">
+                        {selectedSection.type === "faq_accordion"
+                          ? `Questions & Answers (${selectedSection.items?.length || 0})`
+                          : selectedSection.type === "trust_strip"
+                          ? `Accreditation Bodies (${selectedSection.items?.length || 0})`
+                          : `Modular Cards (${selectedSection.items?.length || 0})`}
+                      </label>
+                      <button
+                        type="button"
+                        onClick={addItemToSelected}
+                        className="text-xs font-bold text-navy-900 hover:text-gold-700 underline"
+                      >
+                        {selectedSection.type === "faq_accordion"
+                          ? "+ Add FAQ Question"
+                          : selectedSection.type === "trust_strip"
+                          ? "+ Add Awarding Body"
+                          : "+ Add Card / Item"}
+                      </button>
+                    </div>
+
+                    {selectedSection.items && selectedSection.items.length > 0 ? (
+                      <div className="space-y-3">
+                        {selectedSection.items.map((item, i) => (
+                          <div
+                            key={i}
+                            className="p-3 bg-paper rounded-sm border border-line space-y-2.5 relative group shadow-2xs"
+                          >
+                            {/* Card Item Header with Reordering and Delete */}
+                            <div className="flex items-center justify-between gap-1 pb-1.5 border-b border-line/60">
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-mono text-[10px] text-ink-soft uppercase font-bold">
+                                  #{i + 1}
+                                </span>
+                                {item.tag && (
+                                  <span className="px-1.5 py-0.5 rounded-xs bg-navy-900/10 text-navy-900 text-[9px] font-bold">
+                                    {item.tag}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  disabled={i === 0}
+                                  onClick={() => moveItemInSelected(i, "up")}
+                                  className="p-1 hover:bg-white rounded-sm text-ink-soft disabled:opacity-20 transition-colors"
+                                  title="Move Up"
+                                >
+                                  <Icon name="chevron-up" size={11} />
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={i === (selectedSection.items?.length || 0) - 1}
+                                  onClick={() => moveItemInSelected(i, "down")}
+                                  className="p-1 hover:bg-white rounded-sm text-ink-soft disabled:opacity-20 transition-colors"
+                                  title="Move Down"
+                                >
+                                  <Icon name="chevron-down" size={11} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => removeItemFromSelected(i)}
+                                  className="p-1 text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded-sm ml-1 transition-colors"
+                                  title="Delete Item"
+                                >
+                                  <Icon name="trash" size={11} />
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* SPECIALIZED UI: FAQ Accordion Item */}
+                            {selectedSection.type === "faq_accordion" ? (
+                              <div className="space-y-2">
+                                <div>
+                                  <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                                    Question / Accordion Heading
+                                  </label>
+                                  <input
+                                    type="text"
+                                    placeholder="e.g. Are your qualifications recognized by employers?"
+                                    value={item.title}
+                                    onChange={(e) =>
+                                      updateItemField(i, "title", e.target.value)
+                                    }
+                                    className="w-full px-2.5 py-1 text-xs font-bold border border-line rounded-sm bg-white"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                                    Answer Content
+                                  </label>
+                                  <textarea
+                                    rows={3}
+                                    placeholder="Clear, authentic answer for learners..."
+                                    value={item.desc || ""}
+                                    onChange={(e) =>
+                                      updateItemField(i, "desc", e.target.value)
+                                    }
+                                    className="w-full px-2.5 py-1 text-xs border border-line rounded-sm bg-white leading-relaxed"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                                    Category Tag
+                                  </label>
+                                  <input
+                                    type="text"
+                                    placeholder="e.g. Accreditation, Teaching, Payments, Funding"
+                                    value={item.tag || ""}
+                                    onChange={(e) =>
+                                      updateItemField(i, "tag", e.target.value)
+                                    }
+                                    className="w-full px-2 py-1 text-[11px] border border-line rounded-sm bg-white"
+                                  />
+                                </div>
+                              </div>
+                            ) : selectedSection.type === "trust_strip" ? (
+                              /* SPECIALIZED UI: Accreditation Body */
+                              <div className="space-y-2.5">
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                                      Organisation Name
+                                    </label>
+                                    <input
+                                      type="text"
+                                      placeholder="e.g. Ofqual, TQUK"
+                                      value={item.title}
+                                      onChange={(e) =>
+                                        updateItemField(i, "title", e.target.value)
+                                      }
+                                      className="w-full px-2 py-1 text-xs font-bold border border-line rounded-sm bg-white"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                                      Subtitle / Status
+                                    </label>
+                                    <input
+                                      type="text"
+                                      placeholder="e.g. Regulated, Approved Centre"
+                                      value={item.desc || ""}
+                                      onChange={(e) =>
+                                        updateItemField(i, "desc", e.target.value)
+                                      }
+                                      className="w-full px-2 py-1 text-xs border border-line rounded-sm bg-white"
+                                    />
+                                  </div>
+                                </div>
+
+                                <ImageDropzone
+                                  value={item.image}
+                                  onChange={(url) => updateItemField(i, "image", url)}
+                                  label="Upload Body Logo (Equal Height)"
+                                  helperText="SVG or PNG with transparent background"
+                                  previewHeight={32}
+                                />
+
+                                <div>
+                                  <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                                    Official Register Link (optional)
+                                  </label>
+                                  <input
+                                    type="text"
+                                    placeholder="https://..."
+                                    value={item.link || ""}
+                                    onChange={(e) =>
+                                      updateItemField(i, "link", e.target.value)
+                                    }
+                                    className="w-full px-2 py-1 text-[11px] font-mono border border-line rounded-sm bg-white"
+                                  />
+                                </div>
+                              </div>
+                            ) : (
+                              /* GENERAL REPEATER CARDS (why_smartminds, stats_counter, etc.) */
+                              <div className="space-y-2">
+                                {/* SVG Line Icon Selector */}
+                                <div>
+                                  <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                                    SVG Line Icon
+                                  </label>
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-7 h-7 rounded-sm bg-navy-900 text-white flex items-center justify-center flex-shrink-0">
+                                      <Icon
+                                        name={(item.icon as IconName) || "check-circle"}
+                                        size={13}
+                                        className="text-gold-500"
+                                      />
+                                    </div>
+                                    <select
+                                      value={item.icon || "check-circle"}
+                                      onChange={(e) =>
+                                        updateItemField(i, "icon", e.target.value)
+                                      }
+                                      className="flex-1 px-2 py-1 text-xs border border-line rounded-sm bg-white font-medium"
+                                    >
+                                      {AVAILABLE_ITEM_ICONS.map((ic) => (
+                                        <option key={ic.name} value={ic.name}>
+                                          {ic.label} ({ic.name})
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                </div>
+
+                                {/* Title */}
+                                <div>
+                                  <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                                    Card Title / Metric Headline
+                                  </label>
+                                  <input
+                                    type="text"
+                                    placeholder="Title / Metric"
+                                    value={item.title}
+                                    onChange={(e) =>
+                                      updateItemField(i, "title", e.target.value)
+                                    }
+                                    className="w-full px-2 py-1 text-xs font-bold border border-line rounded-sm bg-white"
+                                  />
+                                </div>
+
+                                {/* Description */}
+                                <div>
+                                  <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                                    Explanatory Copy / Details
+                                  </label>
+                                  <textarea
+                                    rows={2}
+                                    placeholder="Detailed description..."
+                                    value={item.desc || ""}
+                                    onChange={(e) =>
+                                      updateItemField(i, "desc", e.target.value)
+                                    }
+                                    className="w-full px-2 py-1 text-xs border border-line rounded-sm bg-white leading-normal"
+                                  />
+                                </div>
+
+                                {/* Tag & Link URL */}
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                                      Pill Tag / Badge
+                                    </label>
+                                    <input
+                                      type="text"
+                                      placeholder="e.g. Ofqual, 0% APR"
+                                      value={item.tag || ""}
+                                      onChange={(e) =>
+                                        updateItemField(i, "tag", e.target.value)
+                                      }
+                                      className="w-full px-2 py-1 text-[11px] border border-line rounded-sm bg-white"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                                      Link Destination (URL)
+                                    </label>
+                                    <input
+                                      type="text"
+                                      placeholder="e.g. /courses or #apply"
+                                      value={item.link || ""}
+                                      onChange={(e) =>
+                                        updateItemField(i, "link", e.target.value)
+                                      }
+                                      className="w-full px-2 py-1 text-[11px] font-mono border border-line rounded-sm bg-white"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-ink-soft italic">
+                        {selectedSection.type === "faq_accordion"
+                          ? 'No FAQ questions configured yet. Click "+ Add FAQ Question" above to add one.'
+                          : selectedSection.type === "trust_strip"
+                          ? 'No accreditation bodies configured yet. Click "+ Add Awarding Body" above to add one.'
+                          : 'This section has no child items. Click "+ Add Card / Item" above to add modular cards.'}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 3: Widget Palette & Reusable Templates (Wix & Elementor Drag Elements) */}
+          {sidebarTab === "widgets" && (
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-5">
+              {/* SECTION A: Super Admin Reusable Templates */}
+              <div className="space-y-3">
+                <div className="p-3 bg-gradient-to-r from-navy-900 to-navy-800 text-white rounded-sm shadow-subtle space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-gold-300 flex items-center gap-1.5">
+                      <Icon name="sparkles" size={12} className="text-gold-400" />
+                      <span>Reusable Templates</span>
+                    </span>
+                    <span className="text-[9px] px-1.5 py-0.5 rounded-xs bg-white/10 text-paper font-semibold">
+                      Super Admin
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-paper/80 leading-snug">
+                    Pre-assembled composite blocks. Insert any ready-made layout with 1 click — no manual column setup or coding required.
+                  </p>
+                  <div className="pt-1 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => insertWidgetAt("composite_block")}
+                      className="px-2.5 py-1 bg-gold-500 hover:bg-gold-400 text-navy-900 rounded-xs text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                    >
+                      <Icon name="plus" size={11} />
+                      <span>+ Blank Modular Block</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Templates List */}
+                {savedTemplates && savedTemplates.length > 0 ? (
+                  <div className="space-y-2.5">
+                    {savedTemplates.map((tmpl) => {
+                      const totalWidgets =
+                        tmpl.compositeColumns?.reduce(
+                          (acc, col) => acc + (col.widgets?.length || 0),
+                          0
+                        ) || 0;
+                      const isUserCreated = tmpl.id.startsWith("tmpl-user-");
+
+                      return (
+                        <div
+                          key={tmpl.id}
+                          className="p-3 rounded-sm border border-gold-300/80 bg-gold-50/40 hover:bg-white hover:border-navy-900 transition-all space-y-2 shadow-2xs group"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <strong className="text-xs font-bold text-navy-900 group-hover:text-navy-700">
+                                  {tmpl.name}
+                                </strong>
+                                {tmpl.templateCategory && (
+                                  <span className="text-[9px] px-1.5 py-0.2 rounded-xs bg-gold-200/80 text-navy-900 font-mono font-semibold">
+                                    {tmpl.templateCategory}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 mt-0.5 text-[10px] text-ink-soft">
+                                <span>{tmpl.columns || 2} Columns ({tmpl.columnRatio || "Split"})</span>
+                                <span>•</span>
+                                <span>{totalWidgets} Micro-Widgets</span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1 shrink-0">
+                              {isUserCreated && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    deleteSavedTemplate(tmpl.id);
+                                  }}
+                                  className="p-1 hover:bg-rose-100 text-rose-700 rounded-xs text-xs"
+                                  title="Delete custom template"
+                                >
+                                  <Icon name="trash" size={12} />
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => insertTemplateAt(tmpl)}
+                                className="px-2 py-1 bg-navy-900 hover:bg-navy-800 text-gold-300 group-hover:bg-navy-950 rounded-xs text-[11px] font-bold flex items-center gap-1 shadow-2xs cursor-pointer transition-colors"
+                              >
+                                <Icon name="plus" size={11} />
+                                <span>Insert</span>
+                              </button>
+                            </div>
+                          </div>
+
+                          {tmpl.templateDesc && (
+                            <p className="text-[11px] text-ink-soft leading-normal">
+                              {tmpl.templateDesc}
+                            </p>
+                          )}
+
+                          {/* Preview chips of micro-widgets included */}
+                          {tmpl.compositeColumns && tmpl.compositeColumns.length > 0 && (
+                            <div className="pt-1 flex flex-wrap gap-1">
+                              {tmpl.compositeColumns.flatMap((col, cIdx) =>
+                                (col.widgets || []).map((w, wIdx) => (
+                                  <span
+                                    key={`${cIdx}-${wIdx}`}
+                                    className="text-[9px] px-1.5 py-0.5 rounded-xs bg-white border border-line text-ink-soft font-mono"
+                                  >
+                                    Col {cIdx + 1}: {w.type.replace("_", " ")}
+                                  </span>
+                                ))
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-xs text-ink-soft italic p-2 border border-dashed rounded-sm text-center">
+                    No saved templates yet. Click &quot;Save as Reusable Widget&quot; in any composite block to add one here.
+                  </p>
+                )}
+              </div>
+
+              {/* SECTION B: Standard Page Sections & Widgets */}
+              <div className="space-y-3 pt-2 border-t border-line">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-mono text-ink-soft uppercase tracking-wider">
+                    Standard Page Sections
+                  </span>
+                  <span className="text-[10px] text-ink-soft">
+                    Drag or click to insert
+                  </span>
+                </div>
+
+                <div className="space-y-2">
+                  {WIDGET_DEFINITIONS.map((w) => (
+                    <div
+                      key={w.type}
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData("application/widget-type", w.type);
+                        setDraggedWidgetType(w.type);
+                      }}
+                      onDragEnd={handleDragEnd}
+                      onClick={() => insertWidgetAt(w.type)}
+                      className="p-3 rounded-sm border border-line bg-paper hover:bg-white hover:border-navy-900 transition-all cursor-grab active:cursor-grabbing space-y-1 shadow-xs group"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Icon name={w.iconName} size={15} className="text-navy-900" />
+                          <strong className="text-xs font-bold text-navy-900 group-hover:text-navy-700">
+                            {w.title}
+                          </strong>
+                        </div>
+                        <span className="text-xs font-bold text-navy-900 group-hover:underline flex items-center gap-0.5">
+                          <Icon name="plus" size={11} />
+                          <span>Insert</span>
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-ink-soft leading-normal pl-4">
+                        {w.desc}
+                      </p>
+                      <div className="pl-4 pt-1">
+                        <span className="inline-block text-[9px] px-1.5 py-0.2 rounded-sm bg-line/60 font-mono text-ink-soft uppercase">
+                          {w.category}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 4: Navigation Menu, Header & Logo Editor */}
+          {sidebarTab === "menu" && (
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-5">
+              <div className="border-b border-line pb-2 flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-mono text-ink-soft uppercase tracking-wider block">
+                    Branding & Navigation
+                  </span>
+                  <strong className="text-sm font-bold text-navy-900">
+                    Header & Logo Customisation
+                  </strong>
+                </div>
+                <button
+                  onClick={handleSaveHeaderNav}
+                  disabled={isPending}
+                  className="px-2.5 py-1 bg-navy-900 hover:bg-navy-800 text-white rounded-sm text-xs font-bold transition-all shadow-xs"
+                >
+                  {isPending ? "Saving..." : "Publish Header"}
+                </button>
+              </div>
+
+              {/* 1. Logo Style & Brand Identity */}
+              <div className="p-3.5 bg-paper rounded-sm border border-line space-y-3">
+                <div className="flex items-center justify-between">
+                  <strong className="text-xs font-bold text-navy-900 flex items-center gap-1.5">
+                    <Icon name="sparkles" size={14} className="text-gold-500" />
+                    <span>Logo & Brand Identity</span>
+                  </strong>
+                  <span className="text-[10px] font-mono text-ink-soft uppercase">
+                    Mode: {headerNav.logoType || "vector"}
+                  </span>
+                </div>
+
+                {/* Logo Style Toggle */}
+                <div className="grid grid-cols-2 gap-1.5 p-1 bg-white rounded-sm border border-line">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setHeaderNav({ ...headerNav, logoType: "vector" })
+                    }
+                    className={`py-1.5 px-2 text-xs font-semibold rounded-xs transition-colors flex items-center justify-center gap-1.5 ${
+                      (headerNav.logoType || "vector") === "vector"
+                        ? "bg-navy-900 text-white shadow-xs font-bold"
+                        : "text-ink-soft hover:text-navy-900 hover:bg-paper"
+                    }`}
+                  >
+                    <Icon name="shield-check" size={13} />
+                    <span>Vector Crest</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setHeaderNav({ ...headerNav, logoType: "image" })
+                    }
+                    className={`py-1.5 px-2 text-xs font-semibold rounded-xs transition-colors flex items-center justify-center gap-1.5 ${
+                      headerNav.logoType === "image"
+                        ? "bg-navy-900 text-white shadow-xs font-bold"
+                        : "text-ink-soft hover:text-navy-900 hover:bg-paper"
+                    }`}
+                  >
+                    <Icon name="layers" size={13} />
+                    <span>Custom Image</span>
+                  </button>
+                </div>
+
+                {/* If Custom Image Logo selected */}
+                {headerNav.logoType === "image" && (
+                  <div className="space-y-3 pt-1 border-t border-line">
+                    <ImageDropzone
+                      value={headerNav.logoImageUrl}
+                      onChange={(url) =>
+                        setHeaderNav({
+                          ...headerNav,
+                          logoImageUrl: url,
+                        })
+                      }
+                      label="Upload College Logo"
+                      helperText="PNG, SVG, or WebP with transparent background (equal optical height)"
+                      previewHeight={headerNav.logoHeight || 44}
+                    />
+
+                    {/* Quick Logo Asset Presets */}
+                    <div>
+                      <label className="block text-[10px] text-ink-soft mb-1">
+                        Select official college logo asset:
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {AVAILABLE_LOGO_PRESETS.map((img, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() =>
+                              setHeaderNav({
+                                ...headerNav,
+                                logoImageUrl: img.path,
+                              })
+                            }
+                            className={`p-1.5 rounded-sm border text-[11px] truncate text-left transition-all cursor-pointer ${
+                              headerNav.logoImageUrl === img.path
+                                ? "border-navy-900 bg-navy-50 font-bold text-navy-900"
+                                : "border-line bg-white hover:bg-paper text-ink"
+                            }`}
+                          >
+                            <span className="block truncate">{img.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Logo Height Control */}
+                    <div className="flex items-center justify-between gap-3 pt-1 border-t border-line">
+                      <label className="text-[11px] text-navy-900 font-semibold">
+                        Logo Height: {headerNav.logoHeight || 44}px
+                      </label>
+                      <input
+                        type="range"
+                        min="24"
+                        max="80"
+                        value={headerNav.logoHeight || 44}
+                        onChange={(e) =>
+                          setHeaderNav({
+                            ...headerNav,
+                            logoHeight: Number(e.target.value),
+                          })
+                        }
+                        className="w-32 accent-navy-900"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Wordmark Name & Tagline */}
+                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-line">
+                  <div>
+                    <label className="block text-[10px] font-bold text-navy-900 mb-0.5">
+                      College Name
+                    </label>
+                    <input
+                      type="text"
+                      value={headerNav.siteName || "Smartminds"}
+                      onChange={(e) =>
+                        setHeaderNav({
+                          ...headerNav,
+                          siteName: e.target.value,
+                        })
+                      }
+                      className="w-full px-2 py-1 text-xs border border-line rounded-sm bg-white font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-navy-900 mb-0.5">
+                      Tagline / Subtitle
+                    </label>
+                    <input
+                      type="text"
+                      value={headerNav.tagline !== undefined ? headerNav.tagline : "Training College"}
+                      onChange={(e) =>
+                        setHeaderNav({
+                          ...headerNav,
+                          tagline: e.target.value,
+                        })
+                      }
+                      className="w-full px-2 py-1 text-xs border border-line rounded-sm bg-white"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. Top Announcement Bar Settings */}
+              <div className="p-3 bg-paper rounded-sm border border-line space-y-2">
+                <div className="flex items-center justify-between">
+                  <strong className="text-xs font-bold text-navy-900 flex items-center gap-1.5">
+                    <Icon name="bell" size={13} className="text-gold-700" />
+                    <span>Top Announcement Bar</span>
+                  </strong>
+                  <label className="flex items-center gap-1 text-[11px] font-semibold text-ink-soft cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={headerNav.announcementActive}
+                      onChange={(e) =>
+                        setHeaderNav({
+                          ...headerNav,
+                          announcementActive: e.target.checked,
+                        })
+                      }
+                      className="rounded-sm text-navy-900"
+                    />
+                    <span>Active</span>
+                  </label>
+                </div>
+                <textarea
+                  rows={2}
+                  value={headerNav.announcementText}
+                  onChange={(e) =>
+                    setHeaderNav({
+                      ...headerNav,
+                      announcementText: e.target.value,
+                    })
+                  }
+                  className="w-full px-2 py-1 text-xs border border-line rounded-sm bg-white leading-normal"
+                />
+                <div>
+                  <label className="block text-[10px] text-ink-soft mb-0.5">
+                    Link URL (optional):
+                  </label>
+                  <input
+                    type="text"
+                    value={headerNav.announcementLink || ""}
+                    onChange={(e) =>
+                      setHeaderNav({
+                        ...headerNav,
+                        announcementLink: e.target.value,
+                      })
+                    }
+                    placeholder="/funding"
+                    className="w-full px-2 py-1 text-xs border border-line rounded-sm bg-white font-mono"
+                  />
+                </div>
+              </div>
+
+              {/* 3. Navigation Links Reorderable List */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider">
+                    Header Menu Items ({headerNav.navLinks.length})
+                  </label>
+                  <button
+                    onClick={addNavLink}
+                    className="text-xs font-bold text-navy-900 hover:text-gold-700 underline flex items-center gap-1"
+                  >
+                    <Icon name="plus" size={12} />
+                    <span>Add Link</span>
+                  </button>
+                </div>
+
+                {headerNav.navLinks.map((link, i) => (
+                  <div
+                    key={link.id}
+                    className="p-2.5 bg-white rounded-sm border border-line shadow-xs space-y-1.5"
+                  >
+                    <div className="flex items-center justify-between gap-1">
+                      <div className="flex items-center gap-1 flex-1">
+                        <span className="text-[10px] font-mono text-ink-soft/70">
+                          {i + 1}.
+                        </span>
+                        <input
+                          type="text"
+                          value={link.label}
+                          onChange={(e) => updateNavLink(i, "label", e.target.value)}
+                          className="px-2 py-0.5 text-xs font-bold border border-line rounded-sm flex-1"
+                        />
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          disabled={i === 0}
+                          onClick={() => moveNavLink(i, "up")}
+                          className="p-1 text-xs hover:bg-paper rounded-sm disabled:opacity-20"
+                          title="Move Up"
+                        >
+                          <Icon name="chevron-up" size={12} />
+                        </button>
+                        <button
+                          disabled={i === headerNav.navLinks.length - 1}
+                          onClick={() => moveNavLink(i, "down")}
+                          className="p-1 text-xs hover:bg-paper rounded-sm disabled:opacity-20"
+                          title="Move Down"
+                        >
+                          <Icon name="chevron-down" size={12} />
+                        </button>
+                        <button
+                          onClick={() => removeNavLink(i)}
+                          className="p-1 text-xs hover:bg-rose-50 text-rose-700 rounded-sm"
+                          title="Remove Link"
+                        >
+                          <Icon name="close" size={12} />
+                        </button>
+                      </div>
+                    </div>
+                    <div>
+                      <input
+                        type="text"
+                        value={link.href}
+                        onChange={(e) => updateNavLink(i, "href", e.target.value)}
+                        placeholder="/destination"
+                        className="w-full px-2 py-0.5 text-[11px] font-mono border border-line rounded-sm text-ink-soft"
+                      />
+                    </div>
+
+                    {/* Multi-Level Dropdown Sub-menu Management */}
+                    <div className="pt-2 border-t border-line/60">
+                      {link.children && link.children.length > 0 ? (
+                        <div className="bg-paper p-2.5 rounded-sm border border-line space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-navy-900 uppercase font-mono tracking-wider flex items-center gap-1">
+                              <Icon name="layers" size={11} className="text-gold-700" />
+                              <span>Dropdown Menu ({link.children.length})</span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => addNavChild(i)}
+                              className="text-[11px] font-bold text-navy-900 hover:text-gold-700 underline flex items-center gap-0.5 cursor-pointer"
+                            >
+                              <Icon name="plus" size={10} />
+                              <span>Add Sub-Item</span>
+                            </button>
+                          </div>
+
+                          <div className="space-y-2">
+                            {link.children.map((child, ci) => (
+                              <div
+                                key={child.id || ci}
+                                className="bg-white p-2 rounded-xs border border-line space-y-1.5 shadow-2xs"
+                              >
+                                <div className="flex items-center justify-between gap-1">
+                                  <div className="flex items-center gap-1 flex-1">
+                                    <span className="text-[9px] font-mono text-ink-soft">
+                                      {i + 1}.{ci + 1}
+                                    </span>
+                                    <input
+                                      type="text"
+                                      value={child.label}
+                                      onChange={(e) =>
+                                        updateNavChild(i, ci, "label", e.target.value)
+                                      }
+                                      placeholder="Sub-menu Title"
+                                      className="px-1.5 py-0.5 text-xs font-semibold border border-line rounded-xs flex-1"
+                                    />
+                                    <input
+                                      type="text"
+                                      value={child.badge || ""}
+                                      onChange={(e) =>
+                                        updateNavChild(i, ci, "badge", e.target.value)
+                                      }
+                                      placeholder="Badge"
+                                      className="w-16 px-1.5 py-0.5 text-[10px] uppercase font-mono border border-line rounded-xs text-navy-900"
+                                      title="Optional badge tag (e.g. Level 3, New)"
+                                    />
+                                  </div>
+                                  <div className="flex items-center gap-0.5">
+                                    <button
+                                      type="button"
+                                      disabled={ci === 0}
+                                      onClick={() => moveNavChild(i, ci, "up")}
+                                      className="p-1 hover:bg-paper rounded-xs text-ink-soft disabled:opacity-20 cursor-pointer"
+                                      title="Move Sub-Item Up"
+                                    >
+                                      <Icon name="chevron-up" size={11} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={ci === (link.children?.length || 0) - 1}
+                                      onClick={() => moveNavChild(i, ci, "down")}
+                                      className="p-1 hover:bg-paper rounded-xs text-ink-soft disabled:opacity-20 cursor-pointer"
+                                      title="Move Sub-Item Down"
+                                    >
+                                      <Icon name="chevron-down" size={11} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => removeNavChild(i, ci)}
+                                      className="p-1 hover:bg-rose-50 text-rose-700 rounded-xs cursor-pointer"
+                                      title="Remove Sub-Item"
+                                    >
+                                      <Icon name="close" size={11} />
+                                    </button>
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                                  <input
+                                    type="text"
+                                    value={child.href}
+                                    onChange={(e) =>
+                                      updateNavChild(i, ci, "href", e.target.value)
+                                    }
+                                    placeholder="/courses/..."
+                                    className="px-1.5 py-0.5 text-[10px] font-mono border border-line rounded-xs text-ink-soft"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={child.desc || ""}
+                                    onChange={(e) =>
+                                      updateNavChild(i, ci, "desc", e.target.value)
+                                    }
+                                    placeholder="Brief course description..."
+                                    className="px-1.5 py-0.5 text-[10px] border border-line rounded-xs text-ink-soft"
+                                  />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => addNavChild(i)}
+                          className="w-full py-1 px-2 border border-dashed border-line hover:border-navy-900 rounded-xs text-[10px] font-semibold text-ink-soft hover:text-navy-900 flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                        >
+                          <Icon name="plus" size={11} />
+                          <span>+ Create Dropdown Sub-menu on &quot;{link.label}&quot;</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* 4. Header Action Button & Contacts */}
+              <div className="p-3 bg-paper rounded-sm border border-line space-y-2.5">
+                <strong className="text-xs font-bold text-navy-900 block">
+                  Header CTA Button & Fast Phone Call
+                </strong>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <label className="block text-[10px] text-ink-soft mb-0.5">Button Label</label>
+                    <input
+                      type="text"
+                      value={headerNav.ctaButtonText}
+                      onChange={(e) =>
+                        setHeaderNav({ ...headerNav, ctaButtonText: e.target.value })
+                      }
+                      className="w-full px-2 py-1 border border-line rounded-sm bg-white font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-ink-soft mb-0.5">Button Target URL</label>
+                    <input
+                      type="text"
+                      value={headerNav.ctaButtonLink}
+                      onChange={(e) =>
+                        setHeaderNav({ ...headerNav, ctaButtonLink: e.target.value })
+                      }
+                      className="w-full px-2 py-1 border border-line rounded-sm bg-white font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-line">
+                  <div>
+                    <label className="block text-[10px] text-ink-soft mb-0.5">Telephone</label>
+                    <input
+                      type="text"
+                      value={headerNav.supportPhone}
+                      onChange={(e) =>
+                        setHeaderNav({ ...headerNav, supportPhone: e.target.value })
+                      }
+                      className="w-full px-2 py-1 border border-line rounded-sm bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-ink-soft mb-0.5">WhatsApp</label>
+                    <input
+                      type="text"
+                      value={headerNav.whatsappNumber}
+                      onChange={(e) =>
+                        setHeaderNav({ ...headerNav, whatsappNumber: e.target.value })
+                      }
+                      className="w-full px-2 py-1 border border-line rounded-sm bg-white"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={handleSaveHeaderNav}
+                disabled={isPending}
+                className="w-full py-2.5 bg-navy-900 hover:bg-navy-800 text-white rounded-sm text-xs font-bold transition-all shadow-md flex items-center justify-center gap-1.5"
+              >
+                <Icon name="check" size={14} />
+                <span>Save Navigation Menu & Header</span>
+              </button>
+            </div>
+          )}
+
+          {/* TAB 5: Footer Customiser */}
+          {sidebarTab === "footer" && (
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-5">
+              <div className="border-b border-line pb-2 flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-mono text-ink-soft uppercase tracking-wider block">
+                    Global Footer
+                  </span>
+                  <strong className="text-sm font-bold text-navy-900">
+                    Footer Content & Links
+                  </strong>
+                </div>
+                <button
+                  onClick={handleSaveFooter}
+                  disabled={isPending}
+                  className="px-2.5 py-1 bg-navy-900 hover:bg-navy-800 text-white rounded-sm text-xs font-bold transition-all shadow-xs"
+                >
+                  {isPending ? "Saving..." : "Publish Footer"}
+                </button>
+              </div>
+
+              {/* Footer Logo & Brand Identity */}
+              <div className="p-3.5 bg-paper rounded-sm border border-line space-y-3">
+                <div className="flex items-center justify-between">
+                  <strong className="text-xs font-bold text-navy-900 flex items-center gap-1.5">
+                    <Icon name="sparkles" size={14} className="text-gold-500" />
+                    <span>Footer Logo & Brand</span>
+                  </strong>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFooterConfig({
+                        ...footerConfig,
+                        logoType: headerNav.logoType || "vector",
+                        logoImageUrl: headerNav.logoImageUrl || "",
+                        logoHeight: headerNav.logoHeight || 44,
+                        siteName: headerNav.siteName || "Smartminds",
+                        tagline: headerNav.tagline || "Training College",
+                      });
+                      setToastNotice("Synced footer logo with header");
+                      setTimeout(() => setToastNotice(null), 2500);
+                    }}
+                    className="text-[10px] text-navy-900 hover:text-navy-700 underline flex items-center gap-1 font-medium"
+                    title="Copy logo settings from site header"
+                  >
+                    <Icon name="copy" size={11} />
+                    <span>Sync from Header</span>
+                  </button>
+                </div>
+
+                {/* Logo Style Toggle */}
+                <div className="grid grid-cols-2 gap-1.5 p-1 bg-white rounded-sm border border-line">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFooterConfig({ ...footerConfig, logoType: "vector" })
+                    }
+                    className={`py-1.5 px-2 text-xs font-semibold rounded-xs transition-colors flex items-center justify-center gap-1.5 ${
+                      (footerConfig.logoType || "vector") === "vector"
+                        ? "bg-navy-900 text-white shadow-xs font-bold"
+                        : "text-ink-soft hover:text-navy-900 hover:bg-paper"
+                    }`}
+                  >
+                    <Icon name="shield-check" size={13} />
+                    <span>Vector Crest</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFooterConfig({ ...footerConfig, logoType: "image" })
+                    }
+                    className={`py-1.5 px-2 text-xs font-semibold rounded-xs transition-colors flex items-center justify-center gap-1.5 ${
+                      footerConfig.logoType === "image"
+                        ? "bg-navy-900 text-white shadow-xs font-bold"
+                        : "text-ink-soft hover:text-navy-900 hover:bg-paper"
+                    }`}
+                  >
+                    <Icon name="layers" size={13} />
+                    <span>Custom Image</span>
+                  </button>
+                </div>
+
+                {/* If Custom Image Logo selected */}
+                {footerConfig.logoType === "image" && (
+                  <div className="space-y-3 pt-1 border-t border-line">
+                    <ImageDropzone
+                      value={footerConfig.logoImageUrl}
+                      onChange={(url) =>
+                        setFooterConfig({
+                          ...footerConfig,
+                          logoImageUrl: url,
+                        })
+                      }
+                      label="Upload Footer Logo"
+                      helperText="PNG, SVG, or WebP (works best on dark navy background)"
+                      previewHeight={footerConfig.logoHeight || 44}
+                    />
+
+                    {/* Quick Logo Asset Presets */}
+                    <div>
+                      <label className="block text-[10px] text-ink-soft mb-1">
+                        Select official college logo asset:
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {AVAILABLE_LOGO_PRESETS.map((img, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() =>
+                              setFooterConfig({
+                                ...footerConfig,
+                                logoImageUrl: img.path,
+                              })
+                            }
+                            className={`p-1.5 rounded-sm border text-[11px] truncate text-left transition-all cursor-pointer ${
+                              footerConfig.logoImageUrl === img.path
+                                ? "border-navy-900 bg-navy-50 font-bold text-navy-900"
+                                : "border-line bg-white hover:bg-paper text-ink"
+                            }`}
+                          >
+                            <span className="block truncate">{img.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Logo Height Control */}
+                    <div className="flex items-center justify-between gap-3 pt-1 border-t border-line">
+                      <label className="text-[11px] text-navy-900 font-semibold">
+                        Logo Height: {footerConfig.logoHeight || 44}px
+                      </label>
+                      <input
+                        type="range"
+                        min="24"
+                        max="80"
+                        value={footerConfig.logoHeight || 44}
+                        onChange={(e) =>
+                          setFooterConfig({
+                            ...footerConfig,
+                            logoHeight: Number(e.target.value),
+                          })
+                        }
+                        className="w-32 accent-navy-900"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Wordmark Name & Tagline */}
+                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-line">
+                  <div>
+                    <label className="block text-[10px] font-bold text-navy-900 mb-0.5">
+                      Footer Brand Name
+                    </label>
+                    <input
+                      type="text"
+                      value={footerConfig.siteName || "Smartminds"}
+                      onChange={(e) =>
+                        setFooterConfig({
+                          ...footerConfig,
+                          siteName: e.target.value,
+                        })
+                      }
+                      className="w-full px-2 py-1 text-xs border border-line rounded-sm bg-white font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-navy-900 mb-0.5">
+                      Tagline / Subtitle
+                    </label>
+                    <input
+                      type="text"
+                      value={footerConfig.tagline || "Training College"}
+                      onChange={(e) =>
+                        setFooterConfig({
+                          ...footerConfig,
+                          tagline: e.target.value,
+                        })
+                      }
+                      className="w-full px-2 py-1 text-xs border border-line rounded-sm bg-white"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer Bio */}
+              <div className="p-3 bg-paper rounded-sm border border-line space-y-2">
+                <strong className="text-xs font-bold text-navy-900 block">
+                  Brand Description & Badges
+                </strong>
+                <div>
+                  <label className="block text-[10px] text-ink-soft mb-0.5">
+                    College Bio Paragraph:
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={footerConfig.bioText}
+                    onChange={(e) =>
+                      setFooterConfig({ ...footerConfig, bioText: e.target.value })
+                    }
+                    className="w-full px-2 py-1 text-xs border border-line rounded-sm bg-white leading-normal"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <label className="block text-[10px] text-ink-soft mb-0.5">Badge 1</label>
+                    <input
+                      type="text"
+                      value={footerConfig.badge1}
+                      onChange={(e) =>
+                        setFooterConfig({ ...footerConfig, badge1: e.target.value })
+                      }
+                      className="w-full px-2 py-1 border border-line rounded-sm bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-ink-soft mb-0.5">Badge 2</label>
+                    <input
+                      type="text"
+                      value={footerConfig.badge2}
+                      onChange={(e) =>
+                        setFooterConfig({ ...footerConfig, badge2: e.target.value })
+                      }
+                      className="w-full px-2 py-1 border border-line rounded-sm bg-white"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Explore Links List */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider">
+                    Explore Column Links ({footerConfig.exploreLinks.length})
+                  </label>
+                  <button
+                    onClick={() => addFooterLink("explore")}
+                    className="text-xs font-bold text-navy-900 hover:text-gold-700 underline flex items-center gap-1"
+                  >
+                    <Icon name="plus" size={12} />
+                    <span>Add Link</span>
+                  </button>
+                </div>
+                {footerConfig.exploreLinks.map((item, i) => (
+                  <div
+                    key={item.id}
+                    className="p-2 bg-white rounded-sm border border-line shadow-xs space-y-1"
+                  >
+                    <div className="flex items-center justify-between gap-1">
+                      <input
+                        type="text"
+                        value={item.label}
+                        onChange={(e) =>
+                          updateFooterLink("explore", i, "label", e.target.value)
+                        }
+                        className="px-2 py-0.5 text-xs font-bold border border-line rounded-sm flex-1"
+                      />
+                      <button
+                        onClick={() => removeFooterLink("explore", i)}
+                        className="p-1 text-xs hover:bg-rose-50 text-rose-700 rounded-sm"
+                        title="Delete"
+                      >
+                        <Icon name="close" size={12} />
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      value={item.href}
+                      onChange={(e) =>
+                        updateFooterLink("explore", i, "href", e.target.value)
+                      }
+                      className="w-full px-2 py-0.5 text-[11px] font-mono border border-line rounded-sm text-ink-soft"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              {/* College Links List */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider">
+                    College & Legal Links ({footerConfig.collegeLinks.length})
+                  </label>
+                  <button
+                    onClick={() => addFooterLink("college")}
+                    className="text-xs font-bold text-navy-900 hover:text-gold-700 underline flex items-center gap-1"
+                  >
+                    <Icon name="plus" size={12} />
+                    <span>Add Link</span>
+                  </button>
+                </div>
+                {footerConfig.collegeLinks.map((item, i) => (
+                  <div
+                    key={item.id}
+                    className="p-2 bg-white rounded-sm border border-line shadow-xs space-y-1"
+                  >
+                    <div className="flex items-center justify-between gap-1">
+                      <input
+                        type="text"
+                        value={item.label}
+                        onChange={(e) =>
+                          updateFooterLink("college", i, "label", e.target.value)
+                        }
+                        className="px-2 py-0.5 text-xs font-bold border border-line rounded-sm flex-1"
+                      />
+                      <button
+                        onClick={() => removeFooterLink("college", i)}
+                        className="p-1 text-xs hover:bg-rose-50 text-rose-700 rounded-sm"
+                        title="Delete"
+                      >
+                        <Icon name="close" size={12} />
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      value={item.href}
+                      onChange={(e) =>
+                        updateFooterLink("college", i, "href", e.target.value)
+                      }
+                      className="w-full px-2 py-0.5 text-[11px] font-mono border border-line rounded-sm text-ink-soft"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              {/* Contact Details */}
+              <div className="p-3 bg-paper rounded-sm border border-line space-y-2">
+                <strong className="text-xs font-bold text-navy-900 block">
+                  Footer Contact Column
+                </strong>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <label className="block text-[10px] text-ink-soft mb-0.5">Telephone</label>
+                    <input
+                      type="text"
+                      value={footerConfig.phone}
+                      onChange={(e) =>
+                        setFooterConfig({ ...footerConfig, phone: e.target.value })
+                      }
+                      className="w-full px-2 py-1 border border-line rounded-sm bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-ink-soft mb-0.5">Email</label>
+                    <input
+                      type="text"
+                      value={footerConfig.email}
+                      onChange={(e) =>
+                        setFooterConfig({ ...footerConfig, email: e.target.value })
+                      }
+                      className="w-full px-2 py-1 border border-line rounded-sm bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-ink-soft mb-0.5">WhatsApp</label>
+                    <input
+                      type="text"
+                      value={footerConfig.whatsappNumber}
+                      onChange={(e) =>
+                        setFooterConfig({ ...footerConfig, whatsappNumber: e.target.value })
+                      }
+                      className="w-full px-2 py-1 border border-line rounded-sm bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-ink-soft mb-0.5">Opening Hours</label>
+                    <input
+                      type="text"
+                      value={footerConfig.openingHours}
+                      onChange={(e) =>
+                        setFooterConfig({ ...footerConfig, openingHours: e.target.value })
+                      }
+                      className="w-full px-2 py-1 border border-line rounded-sm bg-white"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Legal Line & Copyright */}
+              <div className="p-3 bg-paper rounded-sm border border-line space-y-2">
+                <strong className="text-xs font-bold text-navy-900 block">
+                  Legal & Accreditation Row
+                </strong>
+                <div>
+                  <label className="block text-[10px] text-ink-soft mb-0.5">
+                    Accreditation Headline:
+                  </label>
+                  <input
+                    type="text"
+                    value={footerConfig.accreditationHeadline}
+                    onChange={(e) =>
+                      setFooterConfig({ ...footerConfig, accreditationHeadline: e.target.value })
+                    }
+                    className="w-full px-2 py-1 text-xs border border-line rounded-sm bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-ink-soft mb-0.5">
+                    Company Registered Legal Line:
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={footerConfig.legalLine}
+                    onChange={(e) =>
+                      setFooterConfig({ ...footerConfig, legalLine: e.target.value })
+                    }
+                    className="w-full px-2 py-1 text-xs border border-line rounded-sm bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-ink-soft mb-0.5">
+                    Copyright Notice:
+                  </label>
+                  <input
+                    type="text"
+                    value={footerConfig.copyrightText}
+                    onChange={(e) =>
+                      setFooterConfig({ ...footerConfig, copyrightText: e.target.value })
+                    }
+                    className="w-full px-2 py-1 text-xs border border-line rounded-sm bg-white"
+                  />
+                </div>
+              </div>
+
+              <button
+                onClick={handleSaveFooter}
+                disabled={isPending}
+                className="w-full py-2.5 bg-navy-900 hover:bg-navy-800 text-white rounded-sm text-xs font-bold transition-all shadow-md flex items-center justify-center gap-1.5"
+              >
+                <Icon name="check" size={14} />
+                <span>Save & Publish Footer</span>
+              </button>
+            </div>
+          )}
+
+          {/* TAB 5: Global College Contact Data */}
+          {sidebarTab === "contact" && (
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
+              <div className="border-b border-line pb-2">
+                <span className="text-[10px] font-mono text-ink-soft uppercase tracking-wider block">
+                  College Contact & Regulations
+                </span>
+                <strong className="text-sm font-bold text-navy-900">
+                  Global Public Details
+                </strong>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                  Enquiry Telephone
+                </label>
+                <input
+                  type="text"
+                  value={globalContent.supportPhone}
+                  onChange={(e) =>
+                    setGlobalContent({ ...globalContent, supportPhone: e.target.value })
+                  }
+                  className="w-full px-3 py-1.5 border border-line rounded-sm text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                  Admissions WhatsApp
+                </label>
+                <input
+                  type="text"
+                  value={globalContent.whatsappNumber}
+                  onChange={(e) =>
+                    setGlobalContent({ ...globalContent, whatsappNumber: e.target.value })
+                  }
+                  className="w-full px-3 py-1.5 border border-line rounded-sm text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                  UKPRN Learning Provider Ref
+                </label>
+                <input
+                  type="text"
+                  value={globalContent.ukprn}
+                  onChange={(e) =>
+                    setGlobalContent({ ...globalContent, ukprn: e.target.value })
+                  }
+                  className="w-full px-3 py-1.5 border border-line rounded-sm text-xs font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                  Centre Reference Number
+                </label>
+                <input
+                  type="text"
+                  value={globalContent.centreNumber}
+                  onChange={(e) =>
+                    setGlobalContent({ ...globalContent, centreNumber: e.target.value })
+                  }
+                  className="w-full px-3 py-1.5 border border-line rounded-sm text-xs font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                  Head Office Address
+                </label>
+                <input
+                  type="text"
+                  value={globalContent.headOfficeAddress}
+                  onChange={(e) =>
+                    setGlobalContent({ ...globalContent, headOfficeAddress: e.target.value })
+                  }
+                  className="w-full px-3 py-1.5 border border-line rounded-sm text-xs"
+                />
+              </div>
+
+              <button
+                onClick={handleSaveGlobalContent}
+                disabled={isPending}
+                className="w-full py-2 bg-navy-900 hover:bg-navy-800 text-white rounded-sm text-xs font-bold transition-all shadow-sm"
+              >
+                Save College Global Information
+              </button>
+            </div>
+          )}
+        </aside>
+
+        {/* 3. Live WYSIWYG Canvas with Isolated Responsive Sandbox & Direct Click-to-Edit */}
+        <ResponsiveCanvasFrame
+          viewport={viewport}
+          onViewportChange={setViewport}
+        >
+          <div className="bg-white min-h-screen flex flex-col relative pb-32">
+            {/* 1:1 Live WYSIWYG Header Mirror (Clickable & Editable) */}
+            <div
+              onClick={() => {
+                setSidebarTab("menu");
+                setIsSidebarOpen(true);
+                setToastNotice("Editing: Header Navigation & Logo");
+                setTimeout(() => setToastNotice(null), 3000);
+              }}
+              className="relative group cursor-pointer flex-shrink-0"
+              title="Click to edit site header and logo"
+            >
+              <div className="absolute top-2 right-4 z-30 opacity-0 group-hover:opacity-100 transition-opacity bg-navy-900 text-gold-300 text-[10px] font-bold px-2 py-0.5 rounded-sm shadow-md border border-gold-500/40 pointer-events-none flex items-center gap-1">
+                <Icon name="edit" size={10} />
+                <span>Header & Logo ✎</span>
+              </div>
+              <div className="group-hover:ring-2 group-hover:ring-dashed group-hover:ring-gold-500/80 transition-all">
+                <Header config={headerNav} isEditor={true} />
+              </div>
+            </div>
+
+            {/* Render Canvas Sections for Selected Page */}
+            <div className="divide-y divide-line/40 flex-1">
+              {activeSections.map((sec, idx) => {
+                if (!sec.enabled) return null;
+                const isSelected = sec.id === selectedSectionId;
+                const isHovered = sec.id === hoveredSectionId;
+
+                return (
+                  <React.Fragment key={sec.id}>
+                    {/* Elementor Inter-Section Drop Zone & Insert Divider */}
+                    <div
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setCanvasDropTargetIndex(idx);
+                      }}
+                      onDragLeave={() => setCanvasDropTargetIndex(null)}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const wType = e.dataTransfer.getData(
+                          "application/widget-type"
+                        ) as BuilderSectionType;
+                        if (wType) {
+                          insertWidgetAt(wType, idx);
+                        } else if (draggedSectionIndex !== null) {
+                          handleDropOnSection(e, idx);
+                        }
+                        setCanvasDropTargetIndex(null);
+                      }}
+                      className={`h-4 hover:h-9 relative transition-all group/divider flex items-center justify-center ${
+                        canvasDropTargetIndex === idx
+                          ? "h-10 bg-gold-100 border-2 border-dashed border-gold-500"
+                          : ""
+                      }`}
+                    >
+                      <div className="absolute inset-x-0 h-0.5 bg-transparent group-hover/divider:bg-gold-500/50 transition-colors" />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSidebarTab("widgets");
+                          setIsSidebarOpen(true);
+                          setToastNotice("Pick a widget from the palette to insert above this block.");
+                        }}
+                        className="opacity-0 group-hover/divider:opacity-100 px-3 py-1 bg-navy-900 text-white text-[10px] font-bold rounded-full shadow-md flex items-center gap-1 z-20 hover:scale-105 transition-all"
+                      >
+                        <span>+ Add Section Here</span>
+                      </button>
+                    </div>
+
+                    {/* Section Box */}
+                    <div
+                      onClick={() => {
+                        setSelectedSectionId(sec.id);
+                        setSidebarTab("inspect");
+                      }}
+                      onMouseEnter={() => setHoveredSectionId(sec.id)}
+                      onMouseLeave={() => setHoveredSectionId(null)}
+                      className={`relative transition-all group ${
+                        isSelected
+                          ? "ring-2 ring-navy-900 z-10"
+                          : isHovered
+                          ? "ring-1 ring-navy-700/50"
+                          : ""
+                      }`}
+                    >
+                      {/* Floating Elementor Canvas Action Bar on Hover/Select */}
+                      {(isSelected || isHovered) && (
+                        <div className="absolute top-2 left-4 z-20 flex items-center gap-1.5 bg-navy-900 text-white px-2.5 py-1 rounded-sm text-[10px] font-bold shadow-lg">
+                          <Icon name="grip-vertical" size={12} className="text-gold-300" />
+                          <span className="ml-1 uppercase tracking-wider">{sec.name}</span>
+                          <div className="flex items-center gap-1 ml-2 pl-2 border-l border-white/20">
+                            <button
+                              type="button"
+                              title="Move Up"
+                              disabled={idx === 0}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                moveSection(idx, "up");
+                              }}
+                              className="hover:text-gold-300 disabled:opacity-20 px-1"
+                            >
+                              <Icon name="chevron-up" size={11} />
+                            </button>
+                            <button
+                              type="button"
+                              title="Move Down"
+                              disabled={idx === activeSections.length - 1}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                moveSection(idx, "down");
+                              }}
+                              className="hover:text-gold-300 disabled:opacity-20 px-1"
+                            >
+                              <Icon name="chevron-down" size={11} />
+                            </button>
+                            <button
+                              type="button"
+                              title="Duplicate Block"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                duplicateSection(sec.id);
+                              }}
+                              className="hover:text-gold-300 px-1"
+                            >
+                              <Icon name="copy" size={11} />
+                            </button>
+                            <button
+                              type="button"
+                              title="Delete Block"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteSection(sec.id);
+                              }}
+                              className="hover:text-rose-400 px-1"
+                            >
+                              <Icon name="trash" size={11} />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Live Authentic High-Fidelity Section with Direct Click-to-Edit */}
+                      <SectionRenderer
+                        section={sec}
+                        isEditor={true}
+                        onSelectElement={(elementKey, itemIndex) =>
+                          handleSelectElement(sec.id, elementKey, itemIndex)
+                        }
+                      />
+                    </div>
+                  </React.Fragment>
+                );
+              })}
+
+              {/* End of Page Elementor-Style Quick Insert Bar */}
+              <div className="p-8 text-center bg-paper/60 border-2 border-dashed border-line/80 m-4 rounded-sm hover:border-gold-500/80 transition-all">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSidebarTab("widgets");
+                    setIsSidebarOpen(true);
+                    setToastNotice(`Choose a widget from the palette to add to ${activePageObj.name}.`);
+                  }}
+                  className="px-4 py-2 bg-navy-900 hover:bg-navy-800 text-white rounded-sm text-xs font-bold transition-all shadow-sm inline-flex items-center gap-2"
+                >
+                  <Icon name="plus" size={14} className="text-gold-300" />
+                  <span>Add Section to {activePageObj.name}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* 1:1 Live WYSIWYG Footer Mirror (Clickable & Editable) */}
+            <div
+              onClick={() => {
+                setSidebarTab("footer");
+                setIsSidebarOpen(true);
+                setToastNotice("Editing: Footer & Quick Links");
+                setTimeout(() => setToastNotice(null), 3000);
+              }}
+              className="relative group cursor-pointer flex-shrink-0 border-t border-navy-800/40"
+              title="Click to edit site footer and links"
+            >
+              <div className="absolute top-2 right-4 z-30 opacity-0 group-hover:opacity-100 transition-opacity bg-navy-900 text-gold-300 text-[10px] font-bold px-2 py-0.5 rounded-sm shadow-md border border-gold-500/40 pointer-events-none flex items-center gap-1">
+                <Icon name="edit" size={10} />
+                <span>Footer & Links ✎</span>
+              </div>
+              <div className="group-hover:ring-2 group-hover:ring-dashed group-hover:ring-gold-500/80 transition-all">
+                <Footer
+                  config={footerConfig}
+                  headerConfig={headerNav}
+                  isEditor={true}
+                />
+              </div>
+            </div>
+          </div>
+        </ResponsiveCanvasFrame>
+      </div>
+    </div>
+  );
+};

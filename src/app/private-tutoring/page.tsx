@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import Link from "next/link";
 import { Container } from "@/components/ui/Container";
 import { Heading } from "@/components/ui/Heading";
 import { Eyebrow } from "@/components/ui/Eyebrow";
@@ -157,9 +158,15 @@ export default function PrivateTutoringPage() {
                 safeguarding training.
               </p>
 
-              <div className="pt-2 border-t border-white/20 text-[11px] text-paper/70 font-mono">
-                PLACEHOLDER: Official College Safeguarding & Child Protection
-                Policy document to be supplied by the owner before launch.
+              <div className="pt-2 border-t border-white/20 text-xs text-white/80">
+                All tutoring sessions adhere strictly to our{" "}
+                <Link
+                  href="/safeguarding-student-welfare"
+                  className="text-gold-300 underline hover:text-white"
+                >
+                  Safeguarding & Student Welfare Policy
+                </Link>
+                .
               </div>
             </section>
           </div>

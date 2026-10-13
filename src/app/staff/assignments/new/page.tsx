@@ -5,6 +5,8 @@ import { seedClasses } from "@/lib/repositories/seedData";
 import { CreateAssignmentForm } from "@/components/staff/CreateAssignmentForm";
 import { Icon } from "@/components/ui/Icon";
 
+export const instant = false;
+
 export default async function NewAssignmentPage() {
   const session = await getServerSession();
   if (!session) return null;

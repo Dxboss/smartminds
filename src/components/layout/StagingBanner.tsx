@@ -13,7 +13,15 @@ export const StagingBanner: React.FC = () => {
   const [dismissed, setDismissed] = useState(false);
   const pathname = usePathname();
 
-  if (pathname.startsWith("/portal") || !globalSettings.is_staging || dismissed) {
+  if (
+    pathname.startsWith("/portal") ||
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/staff") ||
+    pathname.startsWith("/student") ||
+    pathname.startsWith("/super") ||
+    !globalSettings.is_staging ||
+    dismissed
+  ) {
     return null;
   }
 

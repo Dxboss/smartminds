@@ -4,6 +4,8 @@ import { getServerSession } from "@/lib/session";
 import { getTaskRepo } from "@/lib/repositories";
 import { TutorTasksList } from "@/components/staff/TutorTasksList";
 
+export const instant = false;
+
 export default async function TutorTasksPage() {
   const session = await getServerSession();
 

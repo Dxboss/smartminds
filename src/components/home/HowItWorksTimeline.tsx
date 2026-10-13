@@ -49,60 +49,83 @@ const STEPS: Step[] = [
   },
 ];
 
-export const HowItWorksTimeline: React.FC = () => {
+export interface HowItWorksTimelineProps {
+  headline?: string;
+  subheadline?: string;
+  bgColor?: "white" | "paper" | "navy" | "cream";
+  columns?: 2 | 3 | 4;
+}
+
+export const HowItWorksTimeline: React.FC<HowItWorksTimelineProps> = ({
+  headline = "How it works: from consultation to qualification",
+  subheadline = "Our structured route gives you personal tutor support from day one, fitting around your working week with both live classes and 24/7 access to recordings.",
+  bgColor = "white",
+  columns = 4,
+}) => {
+  const isDark = bgColor === "navy";
+
+  const colClass =
+    columns === 2
+      ? "grid-cols-1 md:grid-cols-2"
+      : columns === 3
+      ? "grid-cols-1 md:grid-cols-3"
+      : "grid-cols-1 md:grid-cols-2 lg:grid-cols-4";
+
   return (
-    <Section variant="white" className="border-b border-line">
+    <Section variant={bgColor} className="border-b border-line">
       <Container>
         <div className="text-center max-w-2xl mx-auto mb-14">
-          <Eyebrow tone="navy" className="mb-2">
+          <Eyebrow tone={isDark ? "gold" : "navy"} className="mb-2">
             The Learning Journey
           </Eyebrow>
-          <Heading level="h2" className="text-navy-900 mb-3">
-            How it works: from consultation to qualification
+          <Heading level="h2" className={`mb-3 ${isDark ? "text-white" : "text-navy-900"}`}>
+            {headline}
           </Heading>
-          <p className="text-ink-soft text-base sm:text-lg leading-relaxed">
-            Our structured route gives you personal tutor support from day one,
-            fitting around your working week with both live classes and 24/7
-            access to recordings.
+          <p className={`text-base sm:text-lg leading-relaxed ${isDark ? "text-paper/85" : "text-ink-soft"}`}>
+            {subheadline}
           </p>
         </div>
 
-        {/* 4-Step Timeline Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 relative">
+        {/* Dynamic Timeline Grid */}
+        <div className={`grid ${colClass} gap-6 relative`}>
           {STEPS.map((step, index) => (
             <div
               key={step.number}
-              className="relative bg-paper rounded-lg border border-line p-6 flex flex-col justify-between shadow-subtle group hover:border-navy-900/30 transition-colors"
+              className={`relative rounded-lg border p-6 flex flex-col justify-between transition-colors ${
+                isDark
+                  ? "bg-white/5 border-white/10 hover:border-gold-500/50 text-white"
+                  : "bg-paper border-line shadow-subtle hover:border-navy-900/30 text-ink"
+              }`}
             >
               <div>
                 {/* Step header */}
                 <div className="flex items-center justify-between gap-2 mb-4">
-                  <span className="font-heading font-bold text-3xl text-navy-900 tracking-tight">
+                  <span className={`font-heading font-bold text-3xl tracking-tight ${isDark ? "text-gold-300" : "text-navy-900"}`}>
                     {step.number}
                   </span>
                   {step.badge && (
-                    <Tag variant="default" className="text-xs">
+                    <Tag variant={isDark ? "gold" : "default"} className="text-xs">
                       {step.badge}
                     </Tag>
                   )}
                 </div>
 
-                <h3 className="font-heading text-xl font-bold text-navy-900 mb-1">
+                <h3 className={`font-heading text-xl font-bold mb-1 ${isDark ? "text-white" : "text-navy-900"}`}>
                   {step.title}
                 </h3>
-                <span className="text-xs font-semibold text-gold-700 block mb-3">
+                <span className={`text-xs font-semibold block mb-3 ${isDark ? "text-gold-300" : "text-gold-700"}`}>
                   {step.subtitle}
                 </span>
 
-                <p className="text-sm text-ink-soft leading-relaxed">
+                <p className={`text-sm leading-relaxed ${isDark ? "text-paper/80" : "text-ink-soft"}`}>
                   {step.description}
                 </p>
               </div>
 
               {/* Progress connector indicator */}
-              <div className="mt-6 pt-4 border-t border-line flex items-center justify-between text-xs text-ink-soft">
+              <div className={`mt-6 pt-4 border-t flex items-center justify-between text-xs ${isDark ? "border-white/10 text-paper/60" : "border-line text-ink-soft"}`}>
                 <span className="font-mono">Step {index + 1} of 4</span>
-                <span className="text-navy-900 font-bold">
+                <span className={`font-bold ${isDark ? "text-gold-300" : "text-navy-900"}`}>
                   {index < 3 ? "\u2192" : "\u2713"}
                 </span>
               </div>

@@ -1,9 +1,9 @@
-export { HeroSection } from "./HeroSection";
-export { TrustStrip } from "./TrustStrip";
+export { HeroSection, type HeroSectionProps } from "./HeroSection";
+export { TrustStrip, type TrustStripProps } from "./TrustStrip";
 export { ChooseYourPath } from "./ChooseYourPath";
-export { HowItWorksTimeline } from "./HowItWorksTimeline";
-export { PricingFlexibility } from "./PricingFlexibility";
-export { FeaturedCourses } from "./FeaturedCourses";
-export { ReviewsAndTestimonials } from "./ReviewsAndTestimonials";
-export { HomeFAQ } from "./HomeFAQ";
-export { FinalCTABand } from "./FinalCTABand";
+export { HowItWorksTimeline, type HowItWorksTimelineProps } from "./HowItWorksTimeline";
+export { PricingFlexibility, type PricingFlexibilityProps } from "./PricingFlexibility";
+export { FeaturedCourses, type FeaturedCoursesProps } from "./FeaturedCourses";
+export { ReviewsAndTestimonials, type ReviewsAndTestimonialsProps } from "./ReviewsAndTestimonials";
+export { HomeFAQ, type HomeFAQProps } from "./HomeFAQ";
+export { FinalCTABand, type FinalCTABandProps } from "./FinalCTABand";

@@ -10,6 +10,8 @@ export const metadata: Metadata = {
   description: "Developer engineering tools, feature entitlements, audit logs, and demo controls.",
 };
 
+export const instant = false;
+
 export default async function SuperLayout({
   children,
 }: {
@@ -21,7 +23,7 @@ export default async function SuperLayout({
     redirect("/login?from=/super");
   }
 
-  if (session.role !== "super_admin") {
+  if (session.role !== "super_admin" && session.originalRole !== "super_admin") {
     redirect("/admin");
   }
 
@@ -47,24 +49,34 @@ export default async function SuperLayout({
                   href="/super"
                   className="px-3 py-1.5 rounded-sm text-white bg-white/10 font-bold"
                 >
-                  Feature Entitlements
+                  Platform Governance
                 </Link>
                 <Link
                   href="/admin"
                   className="px-3 py-1.5 rounded-sm hover:text-white hover:bg-white/5 transition-colors"
                 >
-                  View College Admin
+                  College Admin
+                </Link>
+                <Link
+                  href="/admin/cms"
+                  className="px-3 py-1.5 rounded-sm hover:text-white hover:bg-white/5 transition-colors"
+                >
+                  Site CMS Editor
                 </Link>
               </nav>
             </div>
 
             <div className="flex items-center gap-3">
               <div className="text-right hidden sm:block">
-                <p className="text-xs font-bold text-white">{session.name}</p>
-                <p className="text-[11px] text-white/60">Agency Engineer</p>
+                <p className="text-xs font-bold text-white">
+                  {session.originalRole === "super_admin" ? "David George (Impersonating)" : (session.name || "David George")}
+                </p>
+                <p className="text-[11px] text-white/60">
+                  {session.email || "thegeorgedigitals@gmail.com"}
+                </p>
               </div>
               <div className="w-8 h-8 rounded-full bg-gold-500 text-navy-900 flex items-center justify-center font-bold text-xs">
-                S
+                DG
               </div>
             </div>
           </div>

@@ -8,15 +8,51 @@ import { Icon } from "@/components/ui/Icon";
 import { BookingCTAButton } from "@/components/booking/BookingCTAButton";
 import { siteConfig } from "@/content/siteConfig";
 
-export const FinalCTABand: React.FC = () => {
+export interface FinalCTABandProps {
+  headline?: string;
+  subheadline?: string;
+  badgeText?: string;
+  buttonText?: string;
+  buttonLink?: string;
+  secondaryButtonText?: string;
+  secondaryButtonLink?: string;
+  bgColor?: "white" | "paper" | "navy" | "cream";
+  align?: "left" | "center";
+}
+
+export const FinalCTABand: React.FC<FinalCTABandProps> = ({
+  headline = "Not sure which course? Book a free call.",
+  subheadline = "Speak directly with an academic adviser. We will assess your background, confirm entry requirements, check government funding eligibility, and help you select the right payment plan.",
+  badgeText = "Personalised Guidance",
+  buttonText = "Book a free call",
+  buttonLink,
+  secondaryButtonText = "Prefer WhatsApp? Message us",
+  secondaryButtonLink,
+  bgColor = "navy",
+  align = "center",
+}) => {
+  const isDark = bgColor === "navy";
+  const isCenter = align !== "left";
+
+  const bgClass =
+    bgColor === "paper"
+      ? "bg-paper text-ink border-t border-line"
+      : bgColor === "white"
+      ? "bg-white text-ink border-t border-line"
+      : bgColor === "cream"
+      ? "bg-gold-50/70 text-ink border-t border-gold-200"
+      : "bg-navy-900 text-white";
+
   return (
     <section
       aria-label="Book a free consultation"
-      className="bg-navy-900 text-white py-16 md:py-20 relative overflow-hidden"
+      className={`${bgClass} py-16 md:py-20 relative overflow-hidden`}
     >
       {/* Decorative crescent arc in background */}
       <div
-        className="absolute -top-32 -right-32 w-96 h-96 pointer-events-none opacity-[0.06] text-white select-none"
+        className={`absolute -top-32 -right-32 w-96 h-96 pointer-events-none select-none ${
+          isDark ? "opacity-[0.06] text-white" : "opacity-[0.04] text-navy-900"
+        }`}
         aria-hidden="true"
       >
         <svg
@@ -36,58 +72,62 @@ export const FinalCTABand: React.FC = () => {
       </div>
 
       <Container>
-        <div className="max-w-3xl mx-auto text-center space-y-6">
-          <Eyebrow tone="gold" className="tracking-widest">
-            Personalised Guidance
+        <div className={`max-w-3xl ${isCenter ? "mx-auto text-center" : "text-left"} space-y-6`}>
+          <Eyebrow tone={isDark ? "gold" : "navy"} className="tracking-widest">
+            {badgeText}
           </Eyebrow>
 
           {/* Heading verbatim from PRD 10.1 */}
           <Heading
             level="h2"
-            className="text-white text-3xl sm:text-4xl md:text-5xl"
+            className={`${isDark ? "text-white" : "text-navy-900"} text-3xl sm:text-4xl md:text-5xl`}
           >
-            Not sure which course? Book a free call.
+            {headline}
           </Heading>
 
-          <p className="text-paper/85 text-base sm:text-lg max-w-xl mx-auto leading-relaxed">
-            Speak directly with an academic adviser. We will assess your
-            background, confirm entry requirements, check government funding
-            eligibility, and help you select the right payment plan.
+          <p className={`${isDark ? "text-paper/85" : "text-ink-soft"} text-base sm:text-lg leading-relaxed ${isCenter ? "max-w-xl mx-auto" : "max-w-xl"}`}>
+            {subheadline}
           </p>
 
           {/* Action CTAs */}
-          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-4">
+          <div className={`pt-2 flex flex-col sm:flex-row items-center gap-4 ${isCenter ? "justify-center" : "justify-start"}`}>
             <BookingCTAButton
-              variant="on-navy-gold"
+              variant={isDark ? "on-navy-gold" : "primary"}
               size="lg"
               className="w-full sm:w-auto shadow-md"
             >
-              Book a free call
+              {buttonText}
             </BookingCTAButton>
 
             <a
-              href={siteConfig.contact.whatsappUrl}
+              href={secondaryButtonLink || siteConfig.contact.whatsappUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-full sm:w-auto min-h-[44px] px-6 py-2.5 rounded-sm border border-white/30 text-white hover:bg-white/10 font-heading font-bold text-base transition-colors flex items-center justify-center gap-2"
+              className={`w-full sm:w-auto min-h-[44px] px-6 py-2.5 rounded-sm border font-heading font-bold text-base transition-colors flex items-center justify-center gap-2 ${
+                isDark
+                  ? "border-white/30 text-white hover:bg-white/10"
+                  : "border-navy-900 text-navy-900 hover:bg-navy-900 hover:text-white"
+              }`}
             >
-              <Icon name="whatsapp" size={18} className="text-emerald-400" />
-              <span>Prefer WhatsApp? Message us</span>
+              <Icon name="whatsapp" size={18} className="text-emerald-500" />
+              <span>{secondaryButtonText}</span>
             </a>
           </div>
 
           {/* Reassurance items */}
-          <div className="pt-6 border-t border-white/15 flex flex-wrap items-center justify-center gap-6 text-xs text-paper/70">
+          <div className={`pt-6 border-t flex flex-wrap items-center gap-6 text-xs ${
+            isDark ? "border-white/15 text-paper/70" : "border-line text-ink-soft"
+          } ${isCenter ? "justify-center" : "justify-start"}`}>
             <div className="flex items-center gap-1.5">
-              <Icon name="check" size={14} className="text-gold-500" />
+              <Icon name="check" size={14} className={isDark ? "text-gold-500" : "text-navy-900"} />
               <span>15-minute friendly consultation</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <Icon name="check" size={14} className="text-gold-500" />
+              <Icon name="check" size={14} className={isDark ? "text-gold-500" : "text-navy-900"} />
               <span>Zero sales pressure</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <Icon name="check" size={14} className="text-gold-500" />
+              <Icon name="check" size={14} className={isDark ? "text-gold-500" : "text-navy-900"} />
               <span>Funding & instalment advice included</span>
             </div>
           </div>

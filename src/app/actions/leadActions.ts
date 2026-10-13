@@ -4,6 +4,9 @@ import fs from "fs";
 import path from "path";
 import { siteConfig } from "@/content/siteConfig";
 import { checkRateLimit } from "@/lib/rateLimit";
+import { sendEmail } from "@/lib/email";
+import { wrapBrandedEmailHtml } from "@/lib/emailTemplates";
+import { getEmailSettings } from "@/lib/emailSettings";
 import {
   freeAdviceSchema,
   fundedEligibilitySchema,
@@ -83,10 +86,7 @@ async function sendEmails(lead: {
   extra_data?: Record<string, unknown>;
   utm_source?: string;
 }) {
-  const resendApiKey = process.env.RESEND_API_KEY;
-  const fromEmail =
-    process.env.RESEND_FROM_EMAIL || "admissions@smartmindstraining.co.uk";
-  const ownerEmail = process.env.OWNER_EMAIL || siteConfig.contact.email;
+  const ownerEmail = process.env.OWNER_EMAIL?.trim() || siteConfig.contact.email;
 
   // 1. Email to College Owner
   const ownerSubject = `[New Lead: ${lead.type}] ${lead.name} - ${lead.course_interest || "General Enquiry"}`;
@@ -125,55 +125,49 @@ Smartminds Training College
 ${siteConfig.legalLine}
 `;
 
-  if (resendApiKey) {
-    try {
-      // Send owner notification
-      await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${resendApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          from: fromEmail,
-          to: ownerEmail,
-          subject: ownerSubject,
-          text: ownerBodyText,
-        }),
-      });
+  const settings = getEmailSettings();
+  const effectiveOwnerEmail = settings.adminNotificationEmail || ownerEmail;
 
-      // Send visitor auto-reply
-      await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${resendApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          from: fromEmail,
-          to: lead.email,
-          subject: visitorSubject,
-          text: visitorBodyText,
-        }),
-      });
-    } catch (error) {
-      console.error("[Resend] Error calling Resend API:", error);
-    }
-  }
-
-  // Always record in local dev outbox for verification and test suites
-  recordDevEmail({
-    to: ownerEmail,
+  // Dispatch owner alert via central dispatcher
+  await sendEmail({
+    to: effectiveOwnerEmail,
+    recipientName: "Admissions Team",
+    department: "admissions",
     subject: ownerSubject,
-    body: ownerBodyText,
-    sentAt: new Date().toISOString(),
+    text: ownerBodyText,
+    templateKey: `lead_${lead.type}`,
+    triggerEvent: `Lead Submission (${lead.type})`,
   });
-  recordDevEmail({
-    to: lead.email,
-    subject: visitorSubject,
-    body: visitorBodyText,
-    sentAt: new Date().toISOString(),
-  });
+
+  // Dispatch visitor auto-reply if enabled in settings
+  if (settings.automations.leadAutoReplyEnabled) {
+    const visitorHtml = wrapBrandedEmailHtml({
+      preheader: `Thank you ${lead.name}, your course enquiry has been received.`,
+      heading: "We Have Received Your Enquiry",
+      badgeText: "Admissions Team",
+      bodyHtml: `
+        <p>Dear <strong>${lead.name}</strong>,</p>
+        <p>Thank you for contacting Smartminds Training College. We have received your enquiry regarding <strong>${lead.course_interest || "our accredited courses"}</strong>.</p>
+        <p>One of our academic advisers will review your details and contact you within one working day to answer your questions and guide you through entry requirements and flexible instalment options.</p>
+        <div style="background-color: #FAF8F3; border: 1px solid #E6E1D5; padding: 14px; border-radius: 4px; margin: 20px 0; font-size: 13px;">
+          <strong>Direct WhatsApp Support:</strong> If you have an urgent question, you can chat directly with an adviser now on <a href="${siteConfig.contact.whatsappUrl}" style="color: #23216B; font-weight: bold;">${siteConfig.contact.whatsappDisplay}</a>.
+        </div>
+      `,
+      ctaText: "Browse All Accredited Qualifications",
+      ctaUrl: "https://smartmindstraining.co.uk/courses",
+    });
+
+    await sendEmail({
+      to: lead.email,
+      recipientName: lead.name,
+      department: "admissions",
+      subject: visitorSubject,
+      text: visitorBodyText,
+      html: visitorHtml,
+      templateKey: "lead_auto_reply",
+      triggerEvent: "Visitor Auto-Reply",
+    });
+  }
 }
 
 /**

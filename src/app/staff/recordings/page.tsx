@@ -4,6 +4,8 @@ import { getServerSession } from "@/lib/session";
 import { seedClasses, seedSessions } from "@/lib/repositories/seedData";
 import { RecordingsManager, RecordingSessionItem } from "@/components/staff/RecordingsManager";
 
+export const instant = false;
+
 export default async function TutorRecordingsPage() {
   const session = await getServerSession();
 
