@@ -360,6 +360,101 @@ export async function restoreLearnerAction(learnerId: string) {
   return { success: true, learner: updated };
 }
 
+export async function deleteLearnerPermanentlyAction(learnerId: string) {
+  const session = await getServerSession();
+  if (
+    !session ||
+    (session.role !== "owner_admin" && session.role !== "super_admin")
+  ) {
+    throw new Error(
+      "Unauthorized: Only Super Admin or College Director can permanently delete learners."
+    );
+  }
+
+  try {
+    const { loadPersistedRecords } = await import("@/lib/persistedData");
+    const store = loadPersistedRecords();
+    if (store.learners) {
+      store.learners = store.learners.filter((l) => l.id !== learnerId);
+    }
+    if (store.enrolments) {
+      store.enrolments = store.enrolments.filter((e) => e.learnerId !== learnerId);
+    }
+    if (store.paymentRecords) {
+      store.paymentRecords = store.paymentRecords.filter((p) => p.learnerId !== learnerId);
+    }
+    if (store.paymentSchedules) {
+      store.paymentSchedules = store.paymentSchedules.filter((p) => p.learnerId !== learnerId);
+    }
+    const fs = await import("fs");
+    const path = await import("path");
+    const filePath = path.join(process.cwd(), "data", "persisted_records.json");
+    fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+
+    const seedData = await import("@/lib/repositories/seedData");
+    if (Array.isArray(seedData.seedLearners)) {
+      const idx = seedData.seedLearners.findIndex((l) => l.id === learnerId);
+      if (idx >= 0) seedData.seedLearners.splice(idx, 1);
+    }
+    if (Array.isArray(seedData.seedUsers)) {
+      const idx = seedData.seedUsers.findIndex((u) => u.learnerId === learnerId);
+      if (idx >= 0) seedData.seedUsers.splice(idx, 1);
+    }
+  } catch (err) {
+    console.error("[deleteLearnerPermanentlyAction] Error:", err);
+  }
+
+  revalidatePath("/admin/learners");
+  revalidatePath("/staff");
+  return { success: true };
+}
+
+export async function deleteEnquiryPermanentlyAction(enquiryId: string) {
+  const session = await getServerSession();
+  if (
+    !session ||
+    (session.role !== "owner_admin" && session.role !== "super_admin")
+  ) {
+    throw new Error(
+      "Unauthorized: Only Super Admin or College Director can permanently delete enquiries."
+    );
+  }
+
+  try {
+    const { loadPersistedRecords } = await import("@/lib/persistedData");
+    const store = loadPersistedRecords();
+    if (store.enquiries) {
+      store.enquiries = store.enquiries.filter((e) => e.id !== enquiryId);
+    }
+    const fs = await import("fs");
+    const path = await import("path");
+    const filePath = path.join(process.cwd(), "data", "persisted_records.json");
+    fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+
+    const devLeadsPath = path.join(process.cwd(), "data", "dev_leads.json");
+    if (fs.existsSync(devLeadsPath)) {
+      const raw = fs.readFileSync(devLeadsPath, "utf-8");
+      const leads = JSON.parse(raw);
+      const filtered = leads.filter((l: any) => l.id !== enquiryId && l._id !== enquiryId);
+      fs.writeFileSync(devLeadsPath, JSON.stringify(filtered, null, 2));
+    }
+
+    const seedData = await import("@/lib/repositories/seedData");
+    if (Array.isArray(seedData.seedEnquiries)) {
+      const idx = seedData.seedEnquiries.findIndex((e) => e.id === enquiryId);
+      if (idx >= 0) seedData.seedEnquiries.splice(idx, 1);
+    }
+  } catch (err) {
+    console.error("[deleteEnquiryPermanentlyAction] Error:", err);
+  }
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/pipeline");
+  revalidatePath("/portal/admin");
+  return { success: true };
+}
+
+
 
 export async function approveFundedEnrolmentAction(
   enquiryId: string,

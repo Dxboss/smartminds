@@ -243,6 +243,28 @@ export default function AdminPortalPage() {
                   <Icon name="download" size={13} />
                   <span>Export JSON</span>
                 </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    if (!confirm("Are you sure you want to permanently delete all inquiries? This action cannot be undone.")) return;
+                    try {
+                      const res = await fetch("/api/leads?all=true", { method: "DELETE" });
+                      if (res.ok) {
+                        setLeads([]);
+                      } else {
+                        alert("Failed to clear inquiries.");
+                      }
+                    } catch (e) {
+                      alert("Network error clearing inquiries.");
+                    }
+                  }}
+                  className="text-xs flex items-center gap-1.5 whitespace-nowrap text-rose-600 hover:bg-rose-50 hover:text-rose-700 border-rose-200"
+                >
+                  <Icon name="trash" size={13} />
+                  <span>Clear All</span>
+                </Button>
               </div>
             </div>
 
@@ -329,13 +351,35 @@ export default function AdminPortalPage() {
                             </select>
                           </td>
                           <td className="py-3.5 px-4 text-right">
-                            <button
-                              type="button"
-                              onClick={() => setSelectedLead(lead)}
-                              className="text-xs font-bold text-navy-900 hover:text-gold-700 underline"
-                            >
-                              View Details
-                            </button>
+                            <div className="flex items-center justify-end gap-2.5">
+                              <button
+                                type="button"
+                                onClick={() => setSelectedLead(lead)}
+                                className="text-xs font-bold text-navy-900 hover:text-gold-700 underline"
+                              >
+                                View Details
+                              </button>
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  if (!confirm(`Are you sure you want to permanently delete inquiry from ${lead.name || lead.email}?`)) return;
+                                  try {
+                                    const res = await fetch(`/api/leads?id=${encodeURIComponent(lead.id)}`, { method: "DELETE" });
+                                    if (res.ok) {
+                                      setLeads((prev) => prev.filter((l) => l.id !== lead.id));
+                                    } else {
+                                      alert("Failed to delete inquiry.");
+                                    }
+                                  } catch (e) {
+                                    alert("Network error deleting inquiry.");
+                                  }
+                                }}
+                                className="text-ink-soft hover:text-rose-600 p-1 hover:bg-rose-50 rounded transition-colors"
+                                title="Permanently Delete Inquiry"
+                              >
+                                <Icon name="trash" size={13} />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}

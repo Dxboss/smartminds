@@ -67,93 +67,6 @@ export const seedUsers: UserProfile[] = [
     active: true,
     createdAt: "2026-09-01T08:30:00Z",
   },
-  // Administrative Staff (Office Team - No Financial Access)
-  {
-    id: "user-admin-01",
-    email: "sarah.jenkins@smartmindstraining.co.uk",
-    name: "Sarah Jenkins",
-    role: "admin_staff",
-    department: "Admissions & Learner Services",
-    specialism: "Senior Admissions Officer & Bookings Lead",
-    active: true,
-    createdAt: "2026-09-05T09:00:00Z",
-  },
-  {
-    id: "user-admin-02",
-    email: "brian.miller@smartmindstraining.co.uk",
-    name: "Brian Miller",
-    role: "admin_staff",
-    department: "Admissions & Learner Services",
-    specialism: "Learner Onboarding & Compliance Coordinator",
-    active: true,
-    createdAt: "2026-09-05T09:15:00Z",
-  },
-  {
-    id: "user-admin-03",
-    email: "fatima.almansoor@smartmindstraining.co.uk",
-    name: "Fatima Al-Mansoor",
-    role: "admin_staff",
-    department: "Admissions & Learner Services",
-    specialism: "Applicant Support Specialist",
-    active: true,
-    createdAt: "2026-09-05T09:30:00Z",
-  },
-  // 5 Tutors (Teaching Staff)
-  {
-    id: "user-tutor-01",
-    email: "eleanor.vance@smartmindstraining.co.uk",
-    name: "Dr. Eleanor Vance",
-    role: "tutor",
-    tutorId: "tutor-001",
-    department: "Health & Social Care Faculty",
-    specialism: "Lead Assessor — Adult Care Diplomas (Levels 3 & 4)",
-    active: true,
-    createdAt: "2026-09-08T10:00:00Z",
-  },
-  {
-    id: "user-tutor-02",
-    email: "marcus.sterling@smartmindstraining.co.uk",
-    name: "Marcus Sterling",
-    role: "tutor",
-    tutorId: "tutor-002",
-    department: "Leadership & Management Faculty",
-    specialism: "Senior Tutor — Level 5 Leadership in Adult Care",
-    active: true,
-    createdAt: "2026-09-08T10:30:00Z",
-  },
-  {
-    id: "user-tutor-03",
-    email: "amara.patel@smartmindstraining.co.uk",
-    name: "Amara Patel",
-    role: "tutor",
-    tutorId: "tutor-003",
-    department: "Education & Training Faculty",
-    specialism: "Curriculum Lead — Level 3 Award in Education & Training (AET)",
-    active: true,
-    createdAt: "2026-09-08T11:00:00Z",
-  },
-  {
-    id: "user-tutor-04",
-    email: "david.kalu@smartmindstraining.co.uk",
-    name: "David Kalu",
-    role: "tutor",
-    tutorId: "tutor-004",
-    department: "Health & Social Care Faculty",
-    specialism: "Assessor — Dementia & Clinical Skills Modules",
-    active: true,
-    createdAt: "2026-09-08T11:30:00Z",
-  },
-  {
-    id: "user-tutor-05",
-    email: "chloe.davies@smartmindstraining.co.uk",
-    name: "Chloe Davies",
-    role: "tutor",
-    tutorId: "tutor-005",
-    department: "Professional Practice Faculty",
-    specialism: "Assessor — Medication Administration & Safeguarding CPD",
-    active: true,
-    createdAt: "2026-09-08T12:00:00Z",
-  },
 ];
 
 // ============================================================================
@@ -187,41 +100,9 @@ const learnerNames = [
   { first: "Tariq", last: "Al-Sayed", status: "active" as const },
 ];
 
-export const seedLearners: Learner[] = isDemoModeActive
-  ? learnerNames.map((person, index) => {
-      const num = (index + 1).toString().padStart(3, "0");
-      const emailName = `${person.first.toLowerCase()}.${person.last.toLowerCase().replace(/['\s]/g, "")}`;
-      const courseIds = ["course-adult-care", "course-childcare-ey", "course-education-training", "course-phlebotomy"];
-      const courseTitles = ["Diploma in Adult Care", "Early Years Educator", "Education & Training", "Phlebotomy Training"];
-      const courseIdx = Math.floor(index / 6) % courseIds.length;
-      return {
-        id: `learner-${num}`,
-        userId: `user-learner-${num}`,
-        firstName: person.first,
-        lastName: person.last,
-        email: `${emailName}@example.com`,
-        phone: `+44 7700 900${num}`,
-        enrolmentDate: "2026-09-15T09:00:00Z",
-        accessStatus: person.status === "paused" ? "paused" : "active",
-        notes: person.status === "paused" ? "Access paused: payment review pending." : "Good academic engagement.",
-        courseId: courseIds[courseIdx],
-        courseTitle: courseTitles[courseIdx],
-      };
-    })
-  : [];
+export const seedLearners: Learner[] = [];
 
-// Also append student user profiles for all 24 learners
-seedLearners.forEach((l) => {
-  seedUsers.push({
-    id: l.userId,
-    email: l.email,
-    name: `${l.firstName} ${l.lastName}`,
-    role: "student",
-    learnerId: l.id,
-    active: l.accessStatus === "active",
-    createdAt: l.enrolmentDate,
-  });
-});
+// Student profiles will be added dynamically when real learners enrol.
 
 // ============================================================================
 // 3. 4 Classes Across Courses
@@ -899,104 +780,7 @@ export const demoOutbox: OutboxMessage[] = isDemoModeActive
 ]
   : [];
 
-export const seedEnquiries: EnquiryLead[] = isDemoModeActive
-  ? [
-  {
-    id: "enq-001",
-    fullName: "Eleanor Wright",
-    email: "eleanor.w@example.com",
-    phone: "+44 7700 900111",
-    courseInterest: "Diploma in Adult Care (Level 3)",
-    formType: "funding_check",
-    stage: "new",
-    notes: "Applied via workplace funding eligibility form. Employed as senior care assistant.",
-    employmentStatus: "Employed 30+ hrs/wk",
-    workplaceLocation: "Birmingham",
-    submittedAt: "2026-10-06T11:20:00Z",
-  },
-  {
-    id: "enq-002",
-    fullName: "Kofi Mensah",
-    email: "kofi.mensah@example.com",
-    phone: "+44 7700 900222",
-    courseInterest: "Leadership in Adult Care (Level 5)",
-    formType: "free_advice",
-    stage: "contacted",
-    notes: "Called 07 Oct. Looking for CQC registered manager progression. Follow-up booked for next Tuesday.",
-    employmentStatus: "Deputy Manager",
-    workplaceLocation: "London",
-    submittedAt: "2026-10-05T09:15:00Z",
-  },
-  {
-    id: "enq-003",
-    fullName: "Sophie Green",
-    email: "sophie.green@example.com",
-    phone: "+44 7700 900333",
-    courseInterest: "Early Years Educator (Level 3)",
-    formType: "funding_check",
-    stage: "new",
-    notes: "Nursery assistant checking apprenticeship / funded placement eligibility.",
-    employmentStatus: "Early Years Assistant",
-    workplaceLocation: "Manchester",
-    submittedAt: "2026-10-07T14:40:00Z",
-  },
-  {
-    id: "enq-004",
-    fullName: "Tariq Al-Mansoor",
-    email: "tariq.m@example.com",
-    phone: "+44 7700 900444",
-    courseInterest: "Mental Health Awareness (CPD)",
-    formType: "contact",
-    stage: "contacted",
-    notes: "Enquired about team group rates for 12 care home staff members.",
-    submittedAt: "2026-10-04T16:00:00Z",
-  },
-  {
-    id: "enq-005",
-    fullName: "Rachel Davies",
-    email: "rachel.d@example.com",
-    phone: "+44 7700 900555",
-    courseInterest: "Diploma in Adult Care (Level 3)",
-    formType: "free_advice",
-    stage: "enrolled",
-    notes: "Completed onboarding call, accepted place on Autumn 2026 Cohort.",
-    submittedAt: "2026-09-28T10:00:00Z",
-  },
-  {
-    id: "enq-006",
-    fullName: "Liam Thornton",
-    email: "liam.t@example.com",
-    phone: "+44 7700 900666",
-    courseInterest: "Leadership in Adult Care (Level 5)",
-    formType: "contact",
-    stage: "lost",
-    notes: "Decided to postpone study until Spring 2027 due to workplace shift changes.",
-    submittedAt: "2026-09-20T12:00:00Z",
-  },
-  {
-    id: "enq-007",
-    fullName: "Fatima Nour",
-    email: "fatima.nour@example.com",
-    phone: "+44 7700 900777",
-    courseInterest: "Early Years Educator (Level 3)",
-    formType: "funding_check",
-    stage: "new",
-    notes: "Pre-school practitioner looking for funded evening classes.",
-    submittedAt: "2026-10-08T03:10:00Z",
-  },
-  {
-    id: "enq-008",
-    fullName: "James Wilson",
-    email: "james.w@example.com",
-    phone: "+44 7700 900888",
-    courseInterest: "Safeguarding in Care (CPD)",
-    formType: "private_tutoring",
-    stage: "contacted",
-    notes: "Requested 1-on-1 tutoring sessions on statutory safeguarding case law.",
-    submittedAt: "2026-10-06T15:30:00Z",
-  },
-]
-  : [];
+export const seedEnquiries: EnquiryLead[] = [];
 
 export const seedMessageLogs: MessageLogEntry[] = isDemoModeActive
   ? [

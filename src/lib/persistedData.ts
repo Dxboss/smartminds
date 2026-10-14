@@ -847,12 +847,20 @@ export function wipeAllDemoData(): { success: boolean; message: string } {
     store.paymentRecords = [];
     store.paymentSchedules = [];
     store.bookings = [];
+    store.enquiries = [];
     if (store.userCredentials) {
-      store.userCredentials = store.userCredentials.filter((u) => u.role !== "student");
+      store.userCredentials = store.userCredentials.filter(
+        (u) => u.role === "super_admin" || u.role === "owner_admin"
+      );
     }
 
     const filePath = getStoreFilePath();
     fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+
+    try {
+      const devLeadsPath = path.join(process.cwd(), "data", "dev_leads.json");
+      fs.writeFileSync(devLeadsPath, JSON.stringify([], null, 2));
+    } catch {}
 
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -862,11 +870,14 @@ export function wipeAllDemoData(): { success: boolean; message: string } {
       if (Array.isArray(seedData.seedPaymentRecords)) seedData.seedPaymentRecords.length = 0;
       if (Array.isArray(seedData.seedPaymentSchedules)) seedData.seedPaymentSchedules.length = 0;
       if (Array.isArray(seedData.seedBookings)) seedData.seedBookings.length = 0;
+      if (Array.isArray(seedData.seedEnquiries)) seedData.seedEnquiries.length = 0;
       if (Array.isArray(seedData.demoOutbox)) seedData.demoOutbox.length = 0;
       if (Array.isArray(seedData.seedUsers)) {
-        const staffOnly = seedData.seedUsers.filter((u: any) => u.role !== "student");
+        const allowed = seedData.seedUsers.filter(
+          (u: any) => u.role === "super_admin" || u.role === "owner_admin"
+        );
         seedData.seedUsers.length = 0;
-        seedData.seedUsers.push(...staffOnly);
+        seedData.seedUsers.push(...allowed);
       }
     } catch {}
 

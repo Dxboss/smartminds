@@ -56,3 +56,51 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { getServerSession } = await import("@/lib/session");
+    const session = await getServerSession();
+    if (
+      !session ||
+      (session.role !== "owner_admin" && session.role !== "super_admin")
+    ) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized: Super Admin or Owner privileges required." },
+        { status: 403 }
+      );
+    }
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+    const clearAll = searchParams.get("all") === "true";
+
+    const dataDir = path.join(process.cwd(), "data");
+    const filePath = path.join(dataDir, "dev_leads.json");
+
+    if (clearAll) {
+      fs.writeFileSync(filePath, JSON.stringify([], null, 2));
+      return NextResponse.json({ success: true, message: "All leads permanently deleted." });
+    }
+
+    if (!id) {
+      return NextResponse.json({ success: false, message: "Lead ID is required" }, { status: 400 });
+    }
+
+    if (fs.existsSync(filePath)) {
+      const raw = fs.readFileSync(filePath, "utf-8");
+      const leads = JSON.parse(raw);
+      const filtered = leads.filter((l: any) => l.id !== id && l._id !== id);
+      fs.writeFileSync(filePath, JSON.stringify(filtered, null, 2));
+    }
+
+    return NextResponse.json({ success: true, message: "Lead permanently deleted." });
+  } catch (error) {
+    console.error("[API /api/leads DELETE] Error:", error);
+    return NextResponse.json(
+      { success: false, message: "Failed to delete lead" },
+      { status: 500 }
+    );
+  }
+}
+

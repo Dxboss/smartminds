@@ -8,6 +8,7 @@ import {
   assignLearnerTutorAndSessionAction,
   archiveLearnerAction,
   restoreLearnerAction,
+  deleteLearnerPermanentlyAction,
 } from "@/app/admin/actions";
 
 interface Props {
@@ -365,7 +366,28 @@ export const LearnersDirectory: React.FC<Props> = ({
                                 className="px-2.5 py-1 rounded-sm border border-line text-ink-soft hover:text-red-700 hover:border-red-300 hover:bg-red-50 text-xs font-medium transition-colors cursor-pointer"
                                 title="Safely remove or archive learner while preserving records"
                               >
-                                Archive / Remove
+                                Archive
+                              </button>
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  if (!confirm(`Are you sure you want to permanently delete learner ${learner.firstName} ${learner.lastName}? This will permanently remove all associated enrolment and payment records.`)) return;
+                                  try {
+                                    const res = await deleteLearnerPermanentlyAction(learner.id);
+                                    if (res.success) {
+                                      setLearners((prev) => prev.filter((l) => l.id !== learner.id));
+                                      setEnrolments((prev) => prev.filter((e) => e.learnerId !== learner.id));
+                                    } else {
+                                      alert("Failed to delete learner.");
+                                    }
+                                  } catch (e) {
+                                    alert("Error deleting learner.");
+                                  }
+                                }}
+                                className="p-1 rounded text-ink-soft hover:text-red-600 hover:bg-red-50 transition-colors"
+                                title="Permanently Delete Learner Record"
+                              >
+                                <Icon name="trash" size={13} />
                               </button>
                             </>
                           )}

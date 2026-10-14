@@ -41,6 +41,7 @@ export function CoursesManagerView({
   const [editAwardingBody, setEditAwardingBody] = useState("");
   const [editAwardingRef, setEditAwardingRef] = useState("");
   const [editDelivery, setEditDelivery] = useState<DeliveryMode>("live_online");
+  const [editImage, setEditImage] = useState("/images/adult-care-training.jpg");
 
   // Active Level fields
   const [editPrice, setEditPrice] = useState("");
@@ -65,6 +66,7 @@ export function CoursesManagerView({
   const [newDuration, setNewDuration] = useState("4 – 6 months");
   const [newGlh, setNewGlh] = useState("320");
   const [newSummary, setNewSummary] = useState("");
+  const [newImage, setNewImage] = useState("/images/adult-care-training.jpg");
 
   // Delete State
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -102,6 +104,7 @@ export function CoursesManagerView({
     setEditAwardingBody(course.awarding_body || "");
     setEditAwardingRef(course.awarding_reference || "");
     setEditDelivery(course.delivery || "live_online");
+    setEditImage(course.image || "/images/adult-care-training.jpg");
     setEditFaqs(course.faqs ? course.faqs.map((f) => ({ ...f })) : []);
 
     const loadedLevels: CourseLevel[] =
@@ -346,6 +349,7 @@ export function CoursesManagerView({
           awarding_body: editAwardingBody.trim() || null,
           awarding_reference: editAwardingRef.trim() || null,
           delivery: editDelivery,
+          image: editImage.trim() || "/images/adult-care-training.jpg",
           levels: finalLevels,
           faqs: editFaqs,
         });
@@ -415,7 +419,7 @@ export function CoursesManagerView({
       faqs: [],
       job_prospects: ["Practitioner", "Senior Carer", "Team Leader"],
       progression: ["Higher National Diploma", "University Degree"],
-      image: "/images/adult-care-training.jpg",
+      image: newImage.trim() || "/images/adult-care-training.jpg",
       imageAlt: `${newTitle} training at Smartminds College`,
       seo_title: `${newTitle} | Smartminds Training College`,
       seo_description: newSummary.trim(),
@@ -913,6 +917,45 @@ export function CoursesManagerView({
                         placeholder="e.g. 603/0382/3"
                         className="w-full px-3 py-2 border border-line rounded-sm text-xs focus:outline-none focus:border-navy-900 bg-paper focus:bg-white font-mono"
                       />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                      Featured Course Cover Photo
+                    </label>
+                    <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+                      <div className="relative w-24 h-16 rounded overflow-hidden border border-line bg-gray-100 flex-shrink-0 shadow-sm">
+                        <img
+                          src={editImage || "/images/adult-care-training.jpg"}
+                          alt="Course Cover Preview"
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = "/images/adult-care-training.jpg";
+                          }}
+                        />
+                      </div>
+                      <div className="flex-1 w-full space-y-1.5">
+                        <select
+                          value={editImage}
+                          onChange={(e) => setEditImage(e.target.value)}
+                          className="w-full px-3 py-1.5 border border-line rounded-sm text-xs bg-paper focus:bg-white focus:outline-none focus:border-navy-900"
+                        >
+                          <option value="/images/adult-care-training.jpg">Healthcare & Adult Care (Default)</option>
+                          <option value="/images/early-years-training.jpg">Childcare & Early Years</option>
+                          <option value="/images/teacher-training.jpg">Teacher Training & Education</option>
+                          <option value="/images/tutor-teaching.jpg">Vocational Assessor & Tutoring</option>
+                          <option value="/images/certificate-moment.jpg">Accredited Certificate / Graduation</option>
+                          <option value="/images/hero-learner.jpg">Online Distance Learner</option>
+                        </select>
+                        <input
+                          type="text"
+                          placeholder="Or enter custom image URL / path (e.g. /images/...)"
+                          value={editImage}
+                          onChange={(e) => setEditImage(e.target.value)}
+                          className="w-full px-3 py-1.5 border border-line rounded-sm text-xs focus:outline-none focus:border-navy-900 font-mono"
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -1520,6 +1563,45 @@ export function CoursesManagerView({
                     onChange={(e) => setNewAwardingBody(e.target.value)}
                     className="w-full px-3 py-2 border border-line rounded-sm text-sm focus:outline-none focus:border-navy-900"
                   />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                  Featured Course Cover Photo
+                </label>
+                <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+                  <div className="relative w-24 h-16 rounded overflow-hidden border border-line bg-gray-100 flex-shrink-0 shadow-sm">
+                    <img
+                      src={newImage || "/images/adult-care-training.jpg"}
+                      alt="Cover Preview"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = "/images/adult-care-training.jpg";
+                      }}
+                    />
+                  </div>
+                  <div className="flex-1 w-full space-y-1.5">
+                    <select
+                      value={newImage}
+                      onChange={(e) => setNewImage(e.target.value)}
+                      className="w-full px-3 py-1.5 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900"
+                    >
+                      <option value="/images/adult-care-training.jpg">Healthcare & Adult Care (Default)</option>
+                      <option value="/images/early-years-training.jpg">Childcare & Early Years</option>
+                      <option value="/images/teacher-training.jpg">Teacher Training & Education</option>
+                      <option value="/images/tutor-teaching.jpg">Vocational Assessor & Tutoring</option>
+                      <option value="/images/certificate-moment.jpg">Accredited Certificate / Graduation</option>
+                      <option value="/images/hero-learner.jpg">Online Distance Learner</option>
+                    </select>
+                    <input
+                      type="text"
+                      placeholder="Or enter custom image URL / path (e.g. /images/...)"
+                      value={newImage}
+                      onChange={(e) => setNewImage(e.target.value)}
+                      className="w-full px-3 py-1.5 border border-line rounded-sm text-xs focus:outline-none focus:border-navy-900 font-mono"
+                    />
+                  </div>
                 </div>
               </div>
 
