@@ -1252,7 +1252,13 @@ export async function savePaymentGatewaySettingsAction(settings: {
   );
   Object.assign(collegePaymentGatewaySettings, settings);
 
+  const { savePersistedPaymentGatewaySettings } = await import(
+    "@/lib/persistedData"
+  );
+  savePersistedPaymentGatewaySettings(collegePaymentGatewaySettings);
+
   revalidatePath("/admin/payments");
+  revalidatePath("/student/payments");
   return { success: true, settings: collegePaymentGatewaySettings };
 }
 
@@ -1918,4 +1924,46 @@ export async function updateCohortScheduleAdminAction(schedule: CohortScheduleCo
     revalidatePath("/student");
   } catch {}
   return { success: true, schedule };
+}
+
+export async function confirmScheduleBankTransferAction(data: {
+  scheduleItemId: string;
+  notes?: string;
+}) {
+  const session = await getServerSession();
+  if (!session) throw new Error("Unauthorized");
+  assertOwnerAuthorized(session);
+
+  const { getPaymentRepo } = await import("@/lib/repositories");
+  const paymentRepo = getPaymentRepo();
+  const record = await paymentRepo.confirmScheduleBankTransfer(session, data);
+
+  try {
+    revalidatePath("/admin/payments");
+    revalidatePath("/student/payments");
+    revalidatePath("/admin");
+  } catch {}
+
+  return { success: true, record };
+}
+
+export async function queryBankTransferAction(data: {
+  scheduleItemId: string;
+  reason: string;
+}) {
+  const session = await getServerSession();
+  if (!session) throw new Error("Unauthorized");
+  assertOwnerAuthorized(session);
+
+  const { getPaymentRepo } = await import("@/lib/repositories");
+  const paymentRepo = getPaymentRepo();
+  const updatedItem = await paymentRepo.queryBankTransfer(session, data);
+
+  try {
+    revalidatePath("/admin/payments");
+    revalidatePath("/student/payments");
+    revalidatePath("/admin");
+  } catch {}
+
+  return { success: true, item: updatedItem };
 }

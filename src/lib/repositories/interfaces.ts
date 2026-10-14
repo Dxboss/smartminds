@@ -7,6 +7,7 @@ import {
   PaymentScheduleItem,
   LearnerPaymentPlanSummary,
   LedgerSummary,
+  PaymentGatewaySettings,
   Task,
   Booking,
   AvailabilityRule,
@@ -90,6 +91,21 @@ export interface PaymentRepo {
       notes?: string;
     }
   ): Promise<PaymentRecord>;
+  confirmScheduleBankTransfer(
+    actor: SessionUser,
+    data: {
+      scheduleItemId: string;
+      notes?: string;
+    }
+  ): Promise<PaymentRecord>;
+  queryBankTransfer(
+    actor: SessionUser,
+    data: {
+      scheduleItemId: string;
+      reason: string;
+    }
+  ): Promise<PaymentScheduleItem>;
+  getCollegeBankSettings(actor: SessionUser): Promise<PaymentGatewaySettings>;
   exportLedgerCsv(actor: SessionUser): Promise<string>;
 }
 

@@ -973,7 +973,7 @@ export const EnrolmentClient: React.FC<Props> = ({
 
                 <div className="p-3 rounded-xs bg-navy-50/60 border border-navy-900/10 text-xs text-navy-900 space-y-1">
                   <p className="font-bold flex items-center gap-1.5 text-navy-900">
-                    <Icon name="lock" size={13} className="text-navy-900 shrink-0" />
+                    <Icon name="shield-check" size={13} className="text-navy-900 shrink-0" />
                     <span>How your payment is completed:</span>
                   </p>
                   <p className="text-[11px] text-ink-soft leading-relaxed pl-5">
@@ -1012,12 +1012,12 @@ export const EnrolmentClient: React.FC<Props> = ({
               >
                 {isPending ? (
                   <span className="flex items-center justify-center gap-2">
-                    <Icon name="refresh" size={16} className="animate-spin" />
+                    <Icon name="clock" size={16} className="animate-spin" />
                     <span>Connecting to Secure Checkout...</span>
                   </span>
                 ) : (
                   <span className="flex items-center justify-center gap-2">
-                    <Icon name="lock" size={16} />
+                    <Icon name="shield-check" size={16} />
                     <span>
                       Pay {formatCurrency(amountToChargeNow)} Securely via Stripe &rarr;
                     </span>

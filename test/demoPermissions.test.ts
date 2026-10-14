@@ -209,6 +209,47 @@ describe("Prompt D1: Demo Permissions & Data Layer Security Suite", () => {
         }
       );
     });
+
+    test("administrative staff calling confirmScheduleBankTransfer gets PermissionDeniedError", async () => {
+      await assert.rejects(
+        async () => {
+          await paymentRepo.confirmScheduleBankTransfer(adminStaffSarah, {
+            scheduleItemId: "sched-001",
+          });
+        },
+        (err: Error) => {
+          assert.ok(err instanceof PermissionDeniedError);
+          return true;
+        }
+      );
+    });
+
+    test("administrative staff calling queryBankTransfer gets PermissionDeniedError", async () => {
+      await assert.rejects(
+        async () => {
+          await paymentRepo.queryBankTransfer(adminStaffSarah, {
+            scheduleItemId: "sched-001",
+            reason: "Payment missing on statement",
+          });
+        },
+        (err: Error) => {
+          assert.ok(err instanceof PermissionDeniedError);
+          return true;
+        }
+      );
+    });
+
+    test("administrative staff calling getCollegeBankSettings gets PermissionDeniedError", async () => {
+      await assert.rejects(
+        async () => {
+          await paymentRepo.getCollegeBankSettings(adminStaffSarah);
+        },
+        (err: Error) => {
+          assert.ok(err instanceof PermissionDeniedError);
+          return true;
+        }
+      );
+    });
   });
 
   // --------------------------------------------------------------------------
@@ -247,6 +288,35 @@ describe("Prompt D1: Demo Permissions & Data Layer Security Suite", () => {
       const learnerRepo = getLearnerRepo();
       const aisha = await learnerRepo.getLearnerById(ownerKemi, "learner-005");
       assert.equal(aisha?.accessStatus, "active");
+    });
+
+    test("owner admin can query an instalment transfer, alert learner, and confirm receipt", async () => {
+      const schedules = await paymentRepo.getPaymentSchedules(ownerKemi);
+      const target = schedules.find((s) => s.status !== "paid");
+      assert.ok(target, "Should have an unpaid schedule item");
+
+      // 1. Query the transfer
+      const queried = await paymentRepo.queryBankTransfer(ownerKemi, {
+        scheduleItemId: target.id,
+        reason: "Reference missing on statement",
+      });
+      assert.equal(queried.status, "action_required");
+      assert.ok(queried.adminQuery);
+      assert.equal(queried.adminQuery?.note, "Reference missing on statement");
+
+      // 2. Confirm the transfer
+      const confirmed = await paymentRepo.confirmScheduleBankTransfer(ownerKemi, {
+        scheduleItemId: target.id,
+      });
+      assert.equal(confirmed.status, "paid");
+    });
+
+    test("owner admin can read full college payment gateway and bank settings", async () => {
+      const settings = await paymentRepo.getCollegeBankSettings(ownerKemi);
+      assert.ok(settings.bankName);
+      assert.ok(settings.sortCode);
+      assert.ok(settings.accountNumber);
+      assert.ok(settings.accountName);
     });
   });
 

@@ -19,6 +19,8 @@ import {
   enrolAndProcessPaymentAction,
   updateCollegeGraceDaysAction,
   resetLearnerGracePeriodAction,
+  confirmScheduleBankTransferAction,
+  queryBankTransferAction,
 } from "@/app/admin/actions";
 
 interface PaymentsLedgerViewProps {
@@ -63,6 +65,17 @@ export function PaymentsLedgerView({
   const [amountGbp, setAmountGbp] = useState("150.00");
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
+
+  // Transfer Proof & Query Modal States
+  const [receiptPreviewModal, setReceiptPreviewModal] = useState<{
+    schedule: PaymentScheduleItem;
+    learnerName: string;
+  } | null>(null);
+  const [queryModalSchedule, setQueryModalSchedule] =
+    useState<PaymentScheduleItem | null>(null);
+  const [queryReasonInput, setQueryReasonInput] = useState(
+    "Funds have not appeared on the college bank statement yet"
+  );
 
   // Automated Enrolment & Payment Modal State
   const [isEnrolModalOpen, setIsEnrolModalOpen] = useState(false);
@@ -518,6 +531,56 @@ export function PaymentsLedgerView({
         alert(
           err instanceof Error ? err.message : "Failed to update gateway."
         );
+      }
+    });
+  };
+
+  const handleConfirmScheduleTransfer = (scheduleId: string) => {
+    startTransition(async () => {
+      try {
+        const res = await confirmScheduleBankTransferAction({ scheduleItemId: scheduleId });
+        if (res.success) {
+          setSchedules((prev) =>
+            prev.map((s) =>
+              s.id === scheduleId
+                ? { ...s, status: "paid", paidAt: res.record.paidAt, adminQuery: undefined }
+                : s
+            )
+          );
+          setRecords((prev) => [res.record, ...prev]);
+          setReceiptPreviewModal(null);
+          setFeedbackNotice("Payment confirmed and official receipt dispatched.");
+          setTimeout(() => setFeedbackNotice(null), 5000);
+        }
+      } catch (err: unknown) {
+        alert(err instanceof Error ? err.message : "Failed to confirm payment.");
+      }
+    });
+  };
+
+  const handleQueryTransfer = (scheduleId: string) => {
+    if (!queryReasonInput.trim()) return;
+    startTransition(async () => {
+      try {
+        const res = await queryBankTransferAction({
+          scheduleItemId: scheduleId,
+          reason: queryReasonInput.trim(),
+        });
+        if (res.success) {
+          setSchedules((prev) =>
+            prev.map((s) =>
+              s.id === scheduleId
+                ? { ...s, status: "action_required", adminQuery: res.item.adminQuery }
+                : s
+            )
+          );
+          setQueryModalSchedule(null);
+          setReceiptPreviewModal(null);
+          setFeedbackNotice("Query sent to learner and notification emailed.");
+          setTimeout(() => setFeedbackNotice(null), 5000);
+        }
+      } catch (err: unknown) {
+        alert(err instanceof Error ? err.message : "Failed to send query.");
       }
     });
   };
@@ -1010,12 +1073,22 @@ export function PaymentsLedgerView({
                                                 className={`px-2 py-0.5 rounded-xs text-[10px] font-bold uppercase tracking-wider ${
                                                   s.status === "paid"
                                                     ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                                    : s.status === "action_required" || s.adminQuery
+                                                    ? "bg-rose-50 text-rose-800 border border-rose-200"
+                                                    : s.status === "awaiting_confirmation" || s.reportedTransfer
+                                                    ? "bg-amber-50 text-amber-900 border border-amber-300 font-bold"
                                                     : s.status === "overdue"
                                                     ? "bg-rose-100 text-rose-800 border border-rose-200"
-                                                    : "bg-amber-50 text-amber-800 border border-amber-200"
+                                                    : "bg-paper text-ink-soft border border-line"
                                                 }`}
                                               >
-                                                {s.status}
+                                                {s.status === "paid"
+                                                  ? "PAID"
+                                                  : s.status === "action_required" || s.adminQuery
+                                                  ? "QUERY SENT"
+                                                  : s.status === "awaiting_confirmation" || s.reportedTransfer
+                                                  ? "REPORTED"
+                                                  : s.status}
                                               </span>
                                             </td>
                                             <td className="py-2.5 px-3 text-ink-soft">
@@ -1030,27 +1103,66 @@ export function PaymentsLedgerView({
                                             </td>
                                             <td className="py-2.5 px-3 text-right">
                                               {s.status !== "paid" && (
-                                                <button
-                                                  onClick={() => {
-                                                    setSelectedLearnerId(
-                                                      p.learnerId || ""
-                                                    );
-                                                    setAmountGbp(
-                                                      s.amountGbp.toString()
-                                                    );
-                                                    setReference(
-                                                      `BACS-INST-${
-                                                        s.instalmentNumber
-                                                      }-${Date.now()
-                                                        .toString()
-                                                        .slice(-4)}`
-                                                    );
-                                                    setIsModalOpen(true);
-                                                  }}
-                                                  className="px-2 py-0.5 text-[11px] font-bold text-navy-900 bg-paper hover:bg-gold-300 rounded-xs border border-line transition-colors"
-                                                >
-                                                  Record Payment
-                                                </button>
+                                                <div className="flex items-center justify-end gap-1 flex-wrap">
+                                                  {(s.status === "awaiting_confirmation" || s.reportedTransfer) && (
+                                                    <>
+                                                      {s.reportedTransfer?.receiptUrl && (
+                                                        <button
+                                                          type="button"
+                                                          onClick={() =>
+                                                            setReceiptPreviewModal({
+                                                              schedule: s,
+                                                              learnerName: p.learnerName || s.learnerId,
+                                                            })
+                                                          }
+                                                          className="px-2 py-0.5 text-[10px] font-bold text-navy-900 bg-amber-100 hover:bg-amber-200 rounded-xs border border-amber-300"
+                                                        >
+                                                          Receipt
+                                                        </button>
+                                                      )}
+                                                      <button
+                                                        type="button"
+                                                        onClick={() => handleConfirmScheduleTransfer(s.id)}
+                                                        className="px-2 py-0.5 text-[10px] font-bold text-white bg-emerald-700 hover:bg-emerald-800 rounded-xs"
+                                                      >
+                                                        Confirm
+                                                      </button>
+                                                      <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                          setQueryModalSchedule(s);
+                                                          setQueryReasonInput("Funds have not appeared on the college bank statement yet");
+                                                        }}
+                                                        className="px-2 py-0.5 text-[10px] font-bold text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-xs"
+                                                      >
+                                                        Query
+                                                      </button>
+                                                    </>
+                                                  )}
+                                                  {!s.reportedTransfer && s.status !== "awaiting_confirmation" && (
+                                                    <button
+                                                      onClick={() => {
+                                                        setSelectedLearnerId(
+                                                          p.learnerId || ""
+                                                        );
+                                                        setAmountGbp(
+                                                          s.amountGbp.toString()
+                                                        );
+                                                        setReference(
+                                                          `BACS-INST-${
+                                                            s.instalmentNumber
+                                                          }-${Date.now()
+                                                            .toString()
+                                                            .slice(-4)}`
+                                                        );
+                                                        setIsModalOpen(true);
+                                                      }}
+                                                      className="px-2 py-0.5 text-[11px] font-bold text-navy-900 bg-paper hover:bg-gold-300 rounded-xs border border-line transition-colors"
+                                                    >
+                                                      Record Payment
+                                                    </button>
+                                                  )}
+                                                </div>
                                               )}
                                             </td>
                                           </tr>
@@ -1350,20 +1462,73 @@ export function PaymentsLedgerView({
                           </td>
                           <td className="py-3 px-4 text-center">
                             <span
-                              className={`px-2.5 py-0.5 rounded-sm text-xs font-semibold ${
+                              className={`px-2.5 py-0.5 rounded-sm text-xs font-semibold inline-flex items-center gap-1 ${
                                 s.status === "paid"
                                   ? "bg-emerald-50 text-emerald-700"
+                                  : s.status === "action_required" || s.adminQuery
+                                  ? "bg-rose-50 text-rose-800 border border-rose-200"
+                                  : s.status === "awaiting_confirmation" || s.reportedTransfer
+                                  ? "bg-amber-50 text-amber-900 border border-amber-300 font-bold"
                                   : s.status === "overdue"
                                   ? "bg-rose-100 text-rose-800"
-                                  : "bg-amber-50 text-amber-800"
+                                  : "bg-paper text-ink-soft border border-line"
                               }`}
                             >
-                              {s.status.toUpperCase()}
+                              {s.status === "paid"
+                                ? "PAID"
+                                : s.status === "action_required" || s.adminQuery
+                                ? "QUERY SENT"
+                                : s.status === "awaiting_confirmation" || s.reportedTransfer
+                                ? "TRANSFER REPORTED"
+                                : s.status.toUpperCase()}
                             </span>
+                            {s.reportedTransfer && (
+                              <div className="text-[10px] text-ink-soft mt-0.5 font-mono">
+                                Ref: {s.reportedTransfer.reference}
+                              </div>
+                            )}
                           </td>
                           <td className="py-3 px-4 text-right">
                             {s.status !== "paid" && (
-                              <div className="flex items-center justify-end gap-2">
+                              <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                                {(s.status === "awaiting_confirmation" || s.reportedTransfer) && (
+                                  <>
+                                    {s.reportedTransfer?.receiptUrl && (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setReceiptPreviewModal({
+                                            schedule: s,
+                                            learnerName: learner ? `${learner.firstName} ${learner.lastName}` : s.learnerId,
+                                          })
+                                        }
+                                        className="px-2 py-1 text-xs font-bold text-navy-900 bg-amber-100 hover:bg-amber-200 rounded-sm border border-amber-300 transition-colors"
+                                      >
+                                        View Receipt
+                                      </button>
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleConfirmScheduleTransfer(s.id)}
+                                      disabled={isPending}
+                                      className="px-2.5 py-1 text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 rounded-sm transition-colors shadow-xs"
+                                    >
+                                      Confirm Receipt
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setQueryModalSchedule(s);
+                                        setQueryReasonInput("Funds have not appeared on the college bank statement yet");
+                                      }}
+                                      disabled={isPending}
+                                      className="px-2 py-1 text-xs font-bold text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-sm transition-colors"
+                                    >
+                                      Can't Find / Query
+                                    </button>
+                                  </>
+                                )}
+
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -1371,24 +1536,26 @@ export function PaymentsLedgerView({
                                     setCustomGraceDaysInput(5);
                                   }}
                                   title="Extend or reset grace period for this student"
-                                  className="px-2.5 py-1 text-xs font-semibold text-ink-soft bg-paper hover:text-navy-900 hover:bg-line rounded-sm border border-line transition-colors"
+                                  className="px-2 py-1 text-xs font-semibold text-ink-soft bg-paper hover:text-navy-900 hover:bg-line rounded-sm border border-line transition-colors"
                                 >
-                                  Adjust Grace
+                                  Grace
                                 </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setSelectedLearnerId(s.learnerId);
-                                    setAmountGbp(s.amountGbp.toString());
-                                    setReference(
-                                      `BACS-INST-${s.instalmentNumber}-${Date.now().toString().slice(-4)}`
-                                    );
-                                    setIsModalOpen(true);
-                                  }}
-                                  className="px-2.5 py-1 text-xs font-semibold text-navy-900 bg-paper hover:bg-gold-300 rounded-sm border border-line transition-colors"
-                                >
-                                  Record Payment
-                                </button>
+                                {!s.reportedTransfer && s.status !== "awaiting_confirmation" && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedLearnerId(s.learnerId);
+                                      setAmountGbp(s.amountGbp.toString());
+                                      setReference(
+                                        `BACS-INST-${s.instalmentNumber}-${Date.now().toString().slice(-4)}`
+                                      );
+                                      setIsModalOpen(true);
+                                    }}
+                                    className="px-2.5 py-1 text-xs font-semibold text-navy-900 bg-paper hover:bg-gold-300 rounded-sm border border-line transition-colors"
+                                  >
+                                    Record Payment
+                                  </button>
+                                )}
                               </div>
                             )}
                           </td>
@@ -1979,6 +2146,177 @@ export function PaymentsLedgerView({
                 className="px-4 py-2 bg-navy-900 text-white rounded-sm text-xs font-semibold hover:bg-navy-700 transition-colors shadow-sm disabled:opacity-50"
               >
                 {isPending ? "Updating..." : "Save New Grace Period"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Receipt Proof Preview Modal */}
+      {receiptPreviewModal && (
+        <div className="fixed inset-0 z-50 bg-navy-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-md border border-line shadow-2xl max-w-lg w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-start justify-between border-b border-line pb-3">
+              <div>
+                <h3 className="font-heading text-lg font-bold text-navy-900">
+                  Uploaded Payment Proof
+                </h3>
+                <p className="text-xs text-ink-soft">
+                  {receiptPreviewModal.learnerName} · Instalment {receiptPreviewModal.schedule.instalmentNumber} of {receiptPreviewModal.schedule.totalInstalments} ({formatCurrency(receiptPreviewModal.schedule.amountGbp)})
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReceiptPreviewModal(null)}
+                className="text-ink-soft hover:text-navy-900 p-1"
+              >
+                <Icon name="close" size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div className="p-3 bg-paper rounded-sm border border-line text-xs space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-ink-soft">Reported Reference:</span>
+                  <span className="font-mono font-bold text-navy-900">{receiptPreviewModal.schedule.reportedTransfer?.reference}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-ink-soft">Reported Date:</span>
+                  <span>{receiptPreviewModal.schedule.reportedTransfer?.reportedAt ? new Date(receiptPreviewModal.schedule.reportedTransfer.reportedAt).toLocaleString("en-GB") : "—"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-ink-soft">Document Name:</span>
+                  <span className="font-semibold">{receiptPreviewModal.schedule.reportedTransfer?.receiptFileName || "payment-proof.png"}</span>
+                </div>
+              </div>
+
+              {receiptPreviewModal.schedule.reportedTransfer?.receiptUrl && (
+                <div className="border border-line rounded-sm p-2 bg-paper/50 text-center">
+                  {receiptPreviewModal.schedule.reportedTransfer.receiptUrl.startsWith("data:image") ? (
+                    <img
+                      src={receiptPreviewModal.schedule.reportedTransfer.receiptUrl}
+                      alt="Uploaded receipt proof"
+                      className="max-h-72 w-auto mx-auto rounded-sm border border-line object-contain"
+                    />
+                  ) : (
+                    <div className="p-8 text-center space-y-2">
+                      <Icon name="download" size={32} className="mx-auto text-navy-900" />
+                      <p className="text-xs font-semibold text-navy-900">Document Proof Attached</p>
+                      <a
+                        href={receiptPreviewModal.schedule.reportedTransfer.receiptUrl}
+                        download={receiptPreviewModal.schedule.reportedTransfer.receiptFileName || "payment-receipt.pdf"}
+                        className="inline-block px-3 py-1 bg-navy-900 text-white rounded-sm text-xs font-bold"
+                      >
+                        Download / View Document
+                      </a>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-line">
+              <button
+                type="button"
+                onClick={() => {
+                  const s = receiptPreviewModal.schedule;
+                  setReceiptPreviewModal(null);
+                  setQueryModalSchedule(s);
+                  setQueryReasonInput("Funds have not appeared on the college bank statement yet");
+                }}
+                className="px-3 py-2 text-xs font-bold text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-sm"
+              >
+                Can't Find / Query
+              </button>
+              <button
+                type="button"
+                onClick={() => handleConfirmScheduleTransfer(receiptPreviewModal.schedule.id)}
+                className="px-4 py-2 bg-emerald-700 text-white rounded-sm text-xs font-bold hover:bg-emerald-800 transition-colors shadow-sm"
+              >
+                Confirm Receipt & Settle
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Query Payment Modal */}
+      {queryModalSchedule && (
+        <div className="fixed inset-0 z-50 bg-navy-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-md border border-line shadow-2xl max-w-md w-full p-6 space-y-4">
+            <div className="flex items-start justify-between border-b border-line pb-3">
+              <div>
+                <h3 className="font-heading text-lg font-bold text-navy-900">
+                  Query Bank Transfer Notice
+                </h3>
+                <p className="text-xs text-ink-soft">
+                  Instalment {queryModalSchedule.instalmentNumber} of {queryModalSchedule.totalInstalments} ({formatCurrency(queryModalSchedule.amountGbp)})
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setQueryModalSchedule(null)}
+                className="text-ink-soft hover:text-navy-900 p-1"
+              >
+                <Icon name="close" size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <p className="text-ink-soft leading-relaxed">
+                If you have checked the bank statement and cannot verify the funds, tell the learner why. An email notification and portal alert will be sent immediately so they can update their reference or pay via card.
+              </p>
+
+              <div>
+                <label className="block text-[11px] font-bold text-navy-900 uppercase tracking-wider mb-1">
+                  Quick reasons:
+                </label>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {[
+                    "Funds have not appeared on statement yet",
+                    "Payer name/reference does not match our records",
+                    "Transferred amount does not match instalment fee",
+                    "Uploaded receipt proof was blurry or incomplete",
+                  ].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setQueryReasonInput(preset)}
+                      className="px-2 py-1 text-[11px] rounded-sm bg-paper border border-line hover:bg-line text-navy-900 text-left transition-colors"
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-navy-900 uppercase tracking-wider mb-1">
+                  Reason sent to student:
+                </label>
+                <textarea
+                  rows={3}
+                  value={queryReasonInput}
+                  onChange={(e) => setQueryReasonInput(e.target.value)}
+                  className="w-full px-3 py-2 border border-line rounded-sm text-xs focus:outline-none focus:border-navy-900 font-sans"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-line">
+              <button
+                type="button"
+                onClick={() => setQueryModalSchedule(null)}
+                className="px-3 py-1.5 border border-line rounded-sm text-xs font-semibold text-ink-soft hover:bg-paper"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isPending || !queryReasonInput.trim()}
+                onClick={() => handleQueryTransfer(queryModalSchedule.id)}
+                className="px-4 py-2 bg-navy-900 text-white rounded-sm text-xs font-bold hover:bg-navy-700 transition-colors shadow-sm disabled:opacity-50"
+              >
+                {isPending ? "Sending Query..." : "Send Query & Alert Student"}
               </button>
             </div>
           </div>

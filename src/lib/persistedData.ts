@@ -10,6 +10,7 @@ import {
   Booking,
   CohortScheduleConfig,
   EnquiryLead,
+  PaymentGatewaySettings,
 } from "@/lib/repositories/types";
 
 export interface PersistedUserRecord {
@@ -40,6 +41,7 @@ export interface PersistedRecordsStore {
   enquiries?: EnquiryLead[];
   globalGraceDays?: number;
   cohortSchedule?: CohortScheduleConfig;
+  paymentGatewaySettings?: PaymentGatewaySettings;
 }
 
 function getStoreFilePath(): string {
@@ -100,6 +102,10 @@ export function loadPersistedRecords(): PersistedRecordsStore {
       cohortSchedule:
         parsed.cohortSchedule && typeof parsed.cohortSchedule === "object"
           ? parsed.cohortSchedule
+          : undefined,
+      paymentGatewaySettings:
+        parsed.paymentGatewaySettings && typeof parsed.paymentGatewaySettings === "object"
+          ? parsed.paymentGatewaySettings
           : undefined,
     };
   } catch (err) {
@@ -397,6 +403,20 @@ export function saveGlobalGraceDays(graceDays: number): void {
   }
 }
 
+export function savePersistedPaymentGatewaySettings(
+  settings: PaymentGatewaySettings
+): void {
+  try {
+    const store = loadPersistedRecords();
+    store.paymentGatewaySettings = { ...settings };
+    const filePath = getStoreFilePath();
+    fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+    syncPersistedRecords(true);
+  } catch (err) {
+    console.error("[persistedData] Failed to save payment gateway settings:", err);
+  }
+}
+
 export function syncPersistedRecords(force: boolean = false): void {
   if (typeof window !== "undefined") return;
 
@@ -415,6 +435,7 @@ export function syncPersistedRecords(force: boolean = false): void {
       seedBookings,
       collegePagesData,
       collegePageBuilderSections,
+      collegePaymentGatewaySettings,
     } = require("@/lib/repositories/seedData");
 
     const store = loadPersistedRecords();
@@ -529,6 +550,11 @@ export function syncPersistedRecords(force: boolean = false): void {
           seedSessions.push(ps);
         }
       }
+    }
+
+    // Sync Payment Gateway & Bank Settings
+    if (store.paymentGatewaySettings && collegePaymentGatewaySettings) {
+      Object.assign(collegePaymentGatewaySettings, store.paymentGatewaySettings);
     }
   } catch (err) {
     console.error("[persistedData] Failed to sync records into memory:", err);

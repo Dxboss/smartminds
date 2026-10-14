@@ -4,6 +4,7 @@ import {
   LearnerPaymentPlanSummary,
   PaymentRecord,
   PaymentScheduleItem,
+  PaymentGatewaySettings,
   PermissionDeniedError,
   SessionUser,
 } from "../types";
@@ -12,6 +13,7 @@ import {
   seedPaymentSchedules,
   seedEnrolments,
   seedLearners,
+  demoOutbox,
 } from "../seedData";
 import {
   syncPersistedRecords,
@@ -318,6 +320,150 @@ export class MemoryPaymentRepo implements PaymentRepo {
     }
 
     return { ...newRecord };
+  }
+
+  async confirmScheduleBankTransfer(
+    actor: SessionUser,
+    data: {
+      scheduleItemId: string;
+      notes?: string;
+    }
+  ): Promise<PaymentRecord> {
+    this.assertNoAdminOrTutorAccess(actor);
+
+    if (actor.role !== "owner_admin" && actor.role !== "super_admin") {
+      throw new PermissionDeniedError(
+        "Only the owner admin or super admin can confirm schedule bank transfers."
+      );
+    }
+
+    const item = seedPaymentSchedules.find((s) => s.id === data.scheduleItemId);
+    if (!item) {
+      throw new Error(`Schedule item ${data.scheduleItemId} not found.`);
+    }
+
+    const learner = seedLearners.find((l) => l.id === item.learnerId);
+    const enrolment = seedEnrolments.find((e) => e.id === item.enrolmentId);
+
+    const now = new Date().toISOString();
+    item.status = "paid";
+    item.paidAt = now;
+    delete item.adminQuery;
+
+    updatePaymentScheduleStatusInStore(item.id, {
+      status: "paid",
+      paidAt: now,
+      adminQuery: undefined,
+    });
+
+    const newRecord: PaymentRecord = {
+      id: `pay-rec-${(this.records.length + 1).toString().padStart(3, "0")}`,
+      enrolmentId: item.enrolmentId,
+      learnerId: item.learnerId,
+      learnerName: learner ? `${learner.firstName} ${learner.lastName}` : "Learner",
+      courseTitle: enrolment ? enrolment.courseTitle : "Course",
+      amountGbp: item.amountGbp,
+      method: "bank_transfer",
+      reference: item.reportedTransfer?.reference || `TRF-CONF-${Date.now().toString().slice(-6)}`,
+      status: "paid",
+      paidAt: now,
+      notes: data.notes || `Instalment ${item.instalmentNumber} of ${item.totalInstalments} confirmed by owner`,
+    };
+
+    seedPaymentRecords.unshift(newRecord);
+    savePersistedRecord({ paymentRecord: newRecord });
+
+    // Restore learner access if paused
+    if (learner && learner.accessStatus === "paused") {
+      learner.accessStatus = "active";
+    }
+    if (enrolment && enrolment.status === "paused") {
+      enrolment.status = "active";
+    }
+
+    // Send receipt email to student
+    if (learner) {
+      demoOutbox.unshift({
+        id: `outbox-trf-approved-${Date.now()}`,
+        recipientEmail: learner.email,
+        recipientName: `${learner.firstName} ${learner.lastName}`,
+        subject: `Payment Confirmed: Instalment ${item.instalmentNumber} of ${item.totalInstalments}`,
+        renderedBody: `Dear ${learner.firstName},\n\nWe have verified your bank transfer of £${item.amountGbp.toFixed(2)} for Instalment ${item.instalmentNumber} of ${item.totalInstalments}.\n\nReceipt Reference: ${newRecord.reference}\nStatus: Paid\nDate Confirmed: ${new Date().toLocaleDateString("en-GB")}\n\nYour instalment schedule has been updated in your Student Portal.\n\nStudent Accounts\nSmartminds Training College`,
+        templateKey: "transfer_confirmed_student",
+        sentAt: now,
+        triggerEvent: "Admin Confirmed Bank Transfer",
+      });
+    }
+
+    return { ...newRecord };
+  }
+
+  async queryBankTransfer(
+    actor: SessionUser,
+    data: {
+      scheduleItemId: string;
+      reason: string;
+    }
+  ): Promise<PaymentScheduleItem> {
+    this.assertNoAdminOrTutorAccess(actor);
+
+    if (actor.role !== "owner_admin" && actor.role !== "super_admin") {
+      throw new PermissionDeniedError(
+        "Only the owner admin or super admin can query reported payments."
+      );
+    }
+
+    const item = seedPaymentSchedules.find((s) => s.id === data.scheduleItemId);
+    if (!item) {
+      throw new Error(`Schedule item ${data.scheduleItemId} not found.`);
+    }
+
+    const learner = seedLearners.find((l) => l.id === item.learnerId);
+    const now = new Date().toISOString();
+
+    item.status = "action_required";
+    item.adminQuery = {
+      note: data.reason,
+      queriedAt: now,
+      queriedBy: actor.name || "Student Accounts",
+    };
+
+    updatePaymentScheduleStatusInStore(item.id, {
+      status: "action_required",
+      adminQuery: item.adminQuery,
+    });
+
+    // Alert learner via email
+    if (learner) {
+      demoOutbox.unshift({
+        id: `outbox-query-${Date.now()}`,
+        recipientEmail: learner.email,
+        recipientName: `${learner.firstName} ${learner.lastName}`,
+        subject: `Action Required: Payment query on Instalment ${item.instalmentNumber} of ${item.totalInstalments}`,
+        renderedBody: `Dear ${learner.firstName},\n\nOur Student Accounts team checked the college bank account for your reported transfer of £${item.amountGbp.toFixed(2)}, but could not locate the funds on our statement.\n\nReason: ${data.reason}\n\nWhat to do next:\n1. Log into your Student Portal (/student/payments).\n2. Review your transfer details and update your reference or re-upload your bank receipt.\n3. Or pay directly via card/Apple Pay to clear your balance instantly.\n\nYour grace period remains active while we resolve this with you.\n\nStudent Accounts\nSmartminds Training College`,
+        templateKey: "payment_query_student",
+        sentAt: now,
+        triggerEvent: "Admin Queried Payment Notice",
+      });
+    }
+
+    return { ...item };
+  }
+
+  async getCollegeBankSettings(actor: SessionUser): Promise<PaymentGatewaySettings> {
+    syncPersistedRecords();
+    const { collegePaymentGatewaySettings } = await import("../seedData");
+
+    if (actor.role === "student") {
+      return {
+        ...collegePaymentGatewaySettings,
+        stripeSecretKey: "",
+        stripeWebhookSecret: "",
+      };
+    }
+
+    this.assertNoAdminOrTutorAccess(actor);
+    return { ...collegePaymentGatewaySettings };
   }
 
   async exportLedgerCsv(actor: SessionUser): Promise<string> {

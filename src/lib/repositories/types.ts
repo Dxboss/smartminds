@@ -90,7 +90,13 @@ export interface Enrolment {
 }
 
 export type PaymentMethod = "stripe" | "bank_transfer" | "manual";
-export type PaymentStatus = "paid" | "due" | "overdue" | "cancelled";
+export type PaymentStatus =
+  | "paid"
+  | "due"
+  | "overdue"
+  | "cancelled"
+  | "awaiting_confirmation"
+  | "action_required";
 
 export interface PaymentRecord {
   id: string;
@@ -117,6 +123,17 @@ export interface PaymentScheduleItem {
   status: PaymentStatus;
   paidAt?: string;
   graceExpiryDate: string;
+  reportedTransfer?: {
+    reference: string;
+    receiptUrl?: string;
+    receiptFileName?: string;
+    reportedAt: string;
+  };
+  adminQuery?: {
+    note: string;
+    queriedAt: string;
+    queriedBy: string;
+  };
 }
 
 export interface LearnerPaymentPlanSummary {
@@ -343,6 +360,18 @@ export interface UserProfile {
   learnerId?: string;
   specialism?: string;
   department?: string;
+}
+
+export interface PaymentGatewaySettings {
+  stripePublishableKey: string;
+  stripeSecretKey: string;
+  stripeWebhookSecret: string;
+  isLiveMode: boolean;
+  bankName: string;
+  accountName: string;
+  sortCode: string;
+  accountNumber: string;
+  bacsReferencePrefix: string;
 }
 
 export type { Course, CourseLevel, PaymentPlanTemplate };

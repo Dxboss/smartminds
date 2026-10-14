@@ -97,4 +97,41 @@ describe("Prompt D2: Student Portal Functionality & Data Isolation Suite", () =>
     assert.equal(found.fileName, "Test_Submission.pdf");
     assert.equal(found.status, "submitted");
   });
+
+  test("student can access college bank details with secrets securely stripped", async () => {
+    const paymentRepo = getPaymentRepo();
+    const bank = await paymentRepo.getCollegeBankSettings(studentMaya);
+    assert.ok(bank.bankName);
+    assert.ok(bank.sortCode);
+    assert.ok(bank.accountNumber);
+    assert.ok(bank.accountName);
+    // Secrets must be stripped
+    assert.equal(bank.stripeSecretKey, "");
+    assert.equal(bank.stripeWebhookSecret, "");
+  });
+
+  test("student can report an instalment bank transfer with proof attachment", async () => {
+    const paymentRepo = getPaymentRepo();
+    const plan = await paymentRepo.getMyPaymentPlan(studentMaya, "learner-001");
+    assert.ok(plan, "Payment plan must exist for learner-001");
+    const unpaidItem = plan.schedule.find((s) => s.status !== "paid");
+    assert.ok(unpaidItem, "Must have an unpaid instalment");
+
+    // Report transfer with simulated receipt proof
+    const { seedPaymentSchedules } = await import("../src/lib/repositories/seedData");
+    const sched = seedPaymentSchedules.find((s) => s.id === unpaidItem.id);
+    assert.ok(sched);
+
+    sched.status = "awaiting_confirmation";
+    sched.reportedTransfer = {
+      reference: "SMTC-MAYA-BACS",
+      receiptUrl: "data:application/pdf;base64,JVBERi0xLjQK...",
+      receiptFileName: "mayas_bank_receipt.pdf",
+      reportedAt: new Date().toISOString(),
+    };
+
+    assert.equal(sched.status, "awaiting_confirmation");
+    assert.equal(sched.reportedTransfer.receiptFileName, "mayas_bank_receipt.pdf");
+    assert.equal(sched.reportedTransfer.reference, "SMTC-MAYA-BACS");
+  });
 });

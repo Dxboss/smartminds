@@ -11,7 +11,10 @@ export default async function StudentPaymentsPage() {
 
   const learnerId = session.learnerId || "learner-001";
   const paymentRepo = getPaymentRepo();
-  const planSummary = await paymentRepo.getMyPaymentPlan(session, learnerId);
+  const [planSummary, bankSettings] = await Promise.all([
+    paymentRepo.getMyPaymentPlan(session, learnerId),
+    paymentRepo.getCollegeBankSettings(session),
+  ]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
@@ -20,7 +23,16 @@ export default async function StudentPaymentsPage() {
           No payment plan records found for this learner account.
         </div>
       ) : (
-        <StudentPaymentsClient planSummary={planSummary} />
+        <StudentPaymentsClient
+          planSummary={planSummary}
+          collegeBankSettings={{
+            bankName: bankSettings.bankName,
+            accountName: bankSettings.accountName,
+            sortCode: bankSettings.sortCode,
+            accountNumber: bankSettings.accountNumber,
+            bacsReferencePrefix: bankSettings.bacsReferencePrefix,
+          }}
+        />
       )}
     </div>
   );
