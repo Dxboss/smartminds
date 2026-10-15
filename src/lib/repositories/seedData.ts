@@ -966,7 +966,7 @@ export const defaultPageBuilderSections: BuilderSection[] = [
     badgeText: "British Accredited Training",
     headline: "Live classes with real tutors. Qualifications that move your career forward.",
     subheadline:
-      "Study recognized UK diplomas in health, social care, education, and business through interactive live evening classes with dedicated tutor mentoring.",
+      "Study recognised UK diplomas in health, social care, education, and business through interactive live evening classes with dedicated tutor mentoring.",
     buttonText: "Get free advice",
     buttonLink: "/book",
     secondaryButtonText: "View all courses",

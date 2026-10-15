@@ -18,7 +18,7 @@ export const Eyebrow: React.FC<EyebrowProps> = ({
 }) => {
   const toneClasses = {
     navy: "text-navy-700",
-    gold: "text-gold-700", // Darker gold for WCAG contrast on light background
+    gold: "text-navy-900 border-l-2 border-gold-500 pl-2",
     "on-navy-gold": "text-gold-300", // Light gold on navy background
     muted: "text-ink-soft",
   }[tone];

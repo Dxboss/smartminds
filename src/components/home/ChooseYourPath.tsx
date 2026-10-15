@@ -178,7 +178,7 @@ export const ChooseYourPath: React.FC<ChooseYourPathProps> = ({
                 </h3>
                 <span
                   className={`text-xs font-semibold block mb-2.5 ${
-                    isDark ? "text-gold-300" : "text-gold-700"
+                    isDark ? "text-gold-300" : "text-navy-700"
                   }`}
                 >
                   {pathway.targetRole}
@@ -196,7 +196,7 @@ export const ChooseYourPath: React.FC<ChooseYourPathProps> = ({
                 className={`pt-6 mt-4 border-t flex items-center justify-between text-xs font-bold ${
                   isDark
                     ? "border-white/10 text-gold-300 group-hover:text-white"
-                    : "border-line text-navy-900 group-hover:text-gold-700"
+                    : "border-line text-navy-900 group-hover:text-navy-700"
                 }`}
               >
                 <span>View course details</span>

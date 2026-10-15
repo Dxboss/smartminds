@@ -124,7 +124,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
       <div className="p-6 sm:p-7 flex flex-col flex-1 justify-between space-y-6">
         <div className="space-y-3">
           {/* Eyebrow: Category & Faculty */}
-          <div className="flex items-center justify-between gap-2 text-xs font-semibold tracking-wider uppercase text-gold-700">
+          <div className="flex items-center justify-between gap-2 text-xs font-bold tracking-wider uppercase text-navy-900">
             <span>{course.category}</span>
             {course.awarding_body && (
               <span className="text-ink-soft/70 font-mono text-[11px] lowercase tracking-normal">
@@ -174,7 +174,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
             )}
 
             {(course.funding === "funded" || course.funding === "both") && (
-              <span className="inline-flex items-center gap-1 text-xs text-gold-700 font-semibold bg-gold-300/20 px-2.5 py-1 rounded-sm border border-gold-500/30">
+              <span className="inline-flex items-center gap-1 text-xs text-navy-900 font-semibold bg-gold-500/15 px-2.5 py-1 rounded-sm border border-gold-500/40">
                 Funded Route Available
               </span>
             )}
@@ -192,7 +192,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
               <strong className="font-heading font-bold text-xl text-navy-900 block leading-tight">
                 100% Subsidised
               </strong>
-              <span className="text-xs text-gold-700 font-semibold block mt-0.5">
+              <span className="text-xs text-navy-900 font-semibold block mt-0.5">
                 Funding eligibility applies
               </span>
             </div>

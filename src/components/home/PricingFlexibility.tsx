@@ -64,7 +64,7 @@ export const PricingFlexibility: React.FC<PricingFlexibilityProps> = ({
               <h3 className={`font-heading text-2xl font-bold mb-1 ${isDark ? "text-white" : "text-navy-900"}`}>
                 Pay in full
               </h3>
-              <p className="text-sm font-semibold text-gold-700 mb-4">
+              <p className="text-sm font-bold text-navy-900 mb-4">
                 Save 10% on your total course fee
               </p>
 

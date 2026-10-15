@@ -323,7 +323,7 @@ export async function authenticateUser(formData: {
 
   return {
     success: false,
-    error: "Account not recognized or password incorrect. Please verify your credentials.",
+    error: "Account not recognised or password incorrect. Please verify your credentials.",
   };
 }
 

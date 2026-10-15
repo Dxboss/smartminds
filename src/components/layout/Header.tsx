@@ -263,7 +263,7 @@ export const Header: React.FC<HeaderProps> = ({
                           <Link
                             href={item.href}
                             onClick={() => setActiveDropdownId(null)}
-                            className="flex items-center justify-between px-2.5 py-1.5 text-xs font-bold text-navy-900 hover:text-gold-700 transition-colors"
+                            className="flex items-center justify-between px-2.5 py-1.5 text-xs font-bold text-navy-900 hover:text-navy-700 hover:underline decoration-gold-500 transition-colors"
                           >
                             <span>Explore all {item.label}</span>
                             <Icon name="arrow-right" size={12} />
@@ -453,7 +453,7 @@ export const Header: React.FC<HeaderProps> = ({
             ) : (
               <Link
                 href="/login"
-                className="flex items-center gap-1.5 text-sm font-semibold text-navy-900 hover:text-gold-700 px-3 py-2 rounded-sm transition-colors"
+                className="flex items-center gap-1.5 text-sm font-semibold text-navy-900 hover:text-navy-700 px-3 py-2 rounded-sm transition-colors"
               >
                 <Icon name="user" size={16} />
                 <span>Log in</span>
@@ -638,7 +638,7 @@ export const Header: React.FC<HeaderProps> = ({
                           <Link
                             href={item.href}
                             onClick={() => setMobileMenuOpen(false)}
-                            className="flex items-center justify-between px-2.5 py-1.5 text-xs font-bold text-navy-900 hover:text-gold-700"
+                            className="flex items-center justify-between px-2.5 py-1.5 text-xs font-bold text-navy-900 hover:text-navy-700"
                           >
                             <span>View all {item.label}</span>
                             <Icon name="arrow-right" size={12} />
@@ -780,7 +780,7 @@ export const Header: React.FC<HeaderProps> = ({
           </p>
           <p>Head Office: 62 High Street, Aveley, RM15 4BX</p>
           <p>
-            <a href={`tel:${effectiveConfig.supportPhone.replace(/\s+/g, "")}`} className="font-medium text-navy-900 underline hover:text-gold-700">
+            <a href={`tel:${effectiveConfig.supportPhone.replace(/\s+/g, "")}`} className="font-medium text-navy-900 underline hover:text-navy-700">
               {effectiveConfig.supportPhone}
             </a>
           </p>

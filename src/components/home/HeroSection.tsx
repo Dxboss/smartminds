@@ -32,7 +32,7 @@ export interface HeroSectionProps {
 
 export const HeroSection: React.FC<HeroSectionProps> = ({
   headline = "Live classes with real tutors. Qualifications that move your career forward.",
-  subheadline = "Study recognized UK diplomas in health, social care, education, and business through interactive live evening classes with dedicated tutor mentoring.",
+  subheadline = "Study recognised UK diplomas in health, social care, education, and business through interactive live evening classes with dedicated tutor mentoring.",
   badgeText = "British Accredited Training",
   buttonText = "Get free advice",
   buttonLink,

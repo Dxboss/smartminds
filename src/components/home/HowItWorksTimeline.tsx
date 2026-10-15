@@ -113,7 +113,7 @@ export const HowItWorksTimeline: React.FC<HowItWorksTimelineProps> = ({
                 <h3 className={`font-heading text-xl font-bold mb-1 ${isDark ? "text-white" : "text-navy-900"}`}>
                   {step.title}
                 </h3>
-                <span className={`text-xs font-semibold block mb-3 ${isDark ? "text-gold-300" : "text-gold-700"}`}>
+                <span className={`text-xs font-semibold block mb-3 ${isDark ? "text-gold-300" : "text-navy-700"}`}>
                   {step.subtitle}
                 </span>
 

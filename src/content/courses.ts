@@ -998,7 +998,7 @@ export const courses: Course[] = [
       {
         question: "Is this accepted by universities instead of GCSEs?",
         answer:
-          "Yes, Level 2 Functional Skills English and Maths are recognized as equivalent to GCSE Grade C/4 across UK universities and employers.",
+          "Yes, Level 2 Functional Skills English and Maths are recognised as equivalent to GCSE Grade C/4 across UK universities and employers.",
       },
       {
         question: "Are classes live?",

@@ -123,7 +123,7 @@ export const siteConfig: SiteConfig = {
       name: "NCFE",
       acronym: "NCFE",
       description:
-        "Ofqual-regulated national awarding organisation recognized across UK further education and vocational sectors.",
+        "Ofqual-regulated national awarding organisation recognised across UK further education and vocational sectors.",
       confirmed: true,
     },
     {

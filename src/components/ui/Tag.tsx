@@ -19,7 +19,7 @@ export const Tag: React.FC<TagProps> = ({
   const variantClasses = {
     default: "bg-paper text-ink-soft border border-line",
     navy: "bg-navy-900/10 text-navy-900 border border-navy-900/20 font-medium",
-    gold: "bg-gold-500/15 text-gold-700 border border-gold-500/40 font-semibold",
+    gold: "bg-gold-500/15 text-navy-900 border border-gold-500/50 font-semibold",
     live: "bg-navy-900 text-white font-medium",
     "on-navy": "bg-white/10 text-white border border-white/20 font-medium",
   }[variant];

@@ -68,7 +68,7 @@ export const TqukLogo: React.FC<{ variant?: "light" | "dark" | "compact" }> = ({
       <svg
         viewBox="0 0 24 24"
         fill="currentColor"
-        className={`w-5 h-5 flex-shrink-0 ${isDark ? "text-gold-300" : "text-gold-700"}`}
+        className={`w-5 h-5 flex-shrink-0 ${isDark ? "text-gold-300" : "text-navy-900"}`}
         aria-hidden="true"
       >
         <path d="M12 2L6 8l6 6 6-6-6-6zM6 10l-4 4 4 4 4-4-4-4zm12 0l-4 4 4 4 4-4-4-4zm-6 6l-4 4 4 4 4-4-4-4z" />
@@ -131,7 +131,7 @@ export const CpdGroupLogo: React.FC<{ variant?: "light" | "dark" | "compact" }> 
         </span>
         <span
           className={`font-mono text-[9px] font-bold uppercase tracking-wider block mt-0.5 ${
-            isDark ? "text-gold-300" : "text-gold-700"
+            isDark ? "text-gold-300" : "text-navy-800"
           }`}
         >
           Accredited Provider
