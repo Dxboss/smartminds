@@ -73,6 +73,20 @@ function recordDevEmail(emailData: Record<string, unknown>) {
   }
 }
 
+function escapeHtml(str: string): string {
+  if (!str) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function sanitizeHeader(str: string): string {
+  return (str || "").replace(/[\r\n]+/g, " ").trim();
+}
+
 /**
  * Sends notification and auto-reply emails via Resend or test outbox.
  */
@@ -88,9 +102,14 @@ async function sendEmails(lead: {
   utm_source?: string;
 }) {
   const ownerEmail = process.env.OWNER_EMAIL?.trim() || siteConfig.contact.email;
+  const safeName = escapeHtml(lead.name);
+  const safeCourse = escapeHtml(lead.course_interest || "our accredited courses");
+  const headerName = sanitizeHeader(lead.name);
+  const headerCourse = sanitizeHeader(lead.course_interest || "General Enquiry");
+  const headerType = sanitizeHeader(lead.type);
 
   // 1. Email to College Owner
-  const ownerSubject = `[New Lead: ${lead.type}] ${lead.name} - ${lead.course_interest || "General Enquiry"}`;
+  const ownerSubject = `[New Lead: ${headerType}] ${headerName} - ${headerCourse}`;
   const ownerBodyText = `New enquiry received on Smartminds website:
 Type: ${lead.type}
 Name: ${lead.name}
@@ -143,12 +162,12 @@ ${siteConfig.legalLine}
   // Dispatch visitor auto-reply if enabled in settings
   if (settings.automations.leadAutoReplyEnabled) {
     const visitorHtml = wrapBrandedEmailHtml({
-      preheader: `Thank you ${lead.name}, your course enquiry has been received.`,
+      preheader: `Thank you ${safeName}, your course enquiry has been received.`,
       heading: "We Have Received Your Enquiry",
       badgeText: "Admissions Team",
       bodyHtml: `
-        <p>Dear <strong>${lead.name}</strong>,</p>
-        <p>Thank you for contacting Smartminds Training College. We have received your enquiry regarding <strong>${lead.course_interest || "our accredited courses"}</strong>.</p>
+        <p>Dear <strong>${safeName}</strong>,</p>
+        <p>Thank you for contacting Smartminds Training College. We have received your enquiry regarding <strong>${safeCourse}</strong>.</p>
         <p>One of our academic advisers will review your details and contact you within one working day to answer your questions and guide you through entry requirements and flexible instalment options.</p>
         <div style="background-color: #FAF8F3; border: 1px solid #E6E1D5; padding: 14px; border-radius: 4px; margin: 20px 0; font-size: 13px;">
           <strong>Direct WhatsApp Support:</strong> If you have an urgent question, you can chat directly with an adviser now on <a href="${siteConfig.contact.whatsappUrl}" style="color: #23216B; font-weight: bold;">${siteConfig.contact.whatsappDisplay}</a>.

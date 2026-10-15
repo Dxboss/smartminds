@@ -2,9 +2,33 @@ import { cookies } from "next/headers";
 import { SessionUser, UserRole } from "./repositories/types";
 
 export const DEMO_COOKIE_NAME = "smartminds_demo_session";
-const DEMO_SECRET =
-  process.env.DEMO_SESSION_SECRET ||
-  "smartminds-demo-secret-key-2026-for-client-review-only";
+
+const DEFAULT_FALLBACK_SECRET = "smartminds-demo-secret-key-2026-for-client-review-only";
+let _runtimeEphemeralSecret: string | null = null;
+
+export function getSessionSecret(): string {
+  const envSecret = process.env.SESSION_SECRET || process.env.DEMO_SESSION_SECRET;
+  if (envSecret && envSecret.trim().length > 16 && envSecret !== DEFAULT_FALLBACK_SECRET) {
+    return envSecret.trim();
+  }
+
+  // In production, NEVER trust or sign with the public GitHub fallback string!
+  if (process.env.NODE_ENV === "production") {
+    if (!_runtimeEphemeralSecret) {
+      if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+        _runtimeEphemeralSecret = crypto.randomUUID() + "-" + Date.now();
+      } else {
+        _runtimeEphemeralSecret = Math.random().toString(36).substring(2) + "-" + Date.now();
+      }
+      console.warn(
+        "[SECURITY] Notice: SESSION_SECRET is not configured or using public default in production. Generated dynamic runtime secret to prevent token forgery."
+      );
+    }
+    return _runtimeEphemeralSecret;
+  }
+
+  return DEFAULT_FALLBACK_SECRET;
+}
 
 export const DEMO_USERS: Record<UserRole, SessionUser> = {
   student: {
@@ -87,12 +111,27 @@ function base64UrlToUint8Array(base64url: string): Uint8Array {
   return bytes;
 }
 
-export async function signSession(payload: SessionUser): Promise<string> {
-  const data = JSON.stringify(payload);
+interface SessionPayload {
+  user: SessionUser;
+  iat: number;
+  exp: number; // Unix timestamp ms
+}
+
+export async function signSession(
+  payload: SessionUser,
+  maxAgeSeconds: number = 60 * 60 * 24
+): Promise<string> {
+  const sessionPayload: SessionPayload = {
+    user: payload,
+    iat: Date.now(),
+    exp: Date.now() + maxAgeSeconds * 1000,
+  };
+  const data = JSON.stringify(sessionPayload);
   const encoder = new TextEncoder();
+  const secret = getSessionSecret();
   const key = await crypto.subtle.importKey(
     "raw",
-    encoder.encode(DEMO_SECRET),
+    encoder.encode(secret),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"]
@@ -111,9 +150,10 @@ export async function verifySession(token: string): Promise<SessionUser | null> 
     const [b64Data, b64Sig] = parts;
     const data = fromBase64Url(b64Data);
     const encoder = new TextEncoder();
+    const secret = getSessionSecret();
     const key = await crypto.subtle.importKey(
       "raw",
-      encoder.encode(DEMO_SECRET),
+      encoder.encode(secret),
       { name: "HMAC", hash: "SHA-256" },
       false,
       ["verify"]
@@ -126,7 +166,25 @@ export async function verifySession(token: string): Promise<SessionUser | null> 
       encoder.encode(data)
     );
     if (!isValid) return null;
-    return JSON.parse(data) as SessionUser;
+
+    const parsed = JSON.parse(data);
+    if (!parsed || typeof parsed !== "object") return null;
+
+    // Check if new SessionPayload format with exp
+    if ("user" in parsed && "exp" in parsed) {
+      if (typeof parsed.exp === "number" && Date.now() > parsed.exp) {
+        // Session expired
+        return null;
+      }
+      return parsed.user as SessionUser;
+    }
+
+    // Support legacy SessionUser format without exp (e.g. during rollout)
+    if ("role" in parsed && "id" in parsed) {
+      return parsed as SessionUser;
+    }
+
+    return null;
   } catch {
     return null;
   }

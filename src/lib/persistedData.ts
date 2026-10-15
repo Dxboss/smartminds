@@ -25,12 +25,19 @@ export interface PersistedUserRecord {
   createdAt: string;
 }
 
+export interface PasswordResetTokenRecord {
+  token: string;
+  email: string;
+  expiresAt: number;
+}
+
 export interface PersistedRecordsStore {
   learners: Learner[];
   enrolments: Enrolment[];
   paymentRecords: PaymentRecord[];
   paymentSchedules?: PaymentScheduleItem[];
   userCredentials?: PersistedUserRecord[];
+  passwordResetTokens?: PasswordResetTokenRecord[];
   cmsPagesData?: Record<string, any>;
   courseOverrides?: Record<string, any>;
   cohorts?: any[];
@@ -81,6 +88,9 @@ export function loadPersistedRecords(): PersistedRecordsStore {
         : [],
       userCredentials: Array.isArray(parsed.userCredentials)
         ? parsed.userCredentials
+        : [],
+      passwordResetTokens: Array.isArray(parsed.passwordResetTokens)
+        ? parsed.passwordResetTokens
         : [],
       cmsPagesData:
         parsed.cmsPagesData && typeof parsed.cmsPagesData === "object"
@@ -967,5 +977,65 @@ export function listAllEnquiries(): EnquiryLead[] {
     (a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
   );
 }
+
+
+export function savePasswordResetToken(
+  token: string,
+  email: string,
+  expiresMinutes: number = 60
+): void {
+  try {
+    const store = loadPersistedRecords();
+    if (!store.passwordResetTokens) store.passwordResetTokens = [];
+    
+    const now = Date.now();
+    // Purge expired tokens
+    store.passwordResetTokens = store.passwordResetTokens.filter((t) => t.expiresAt > now);
+
+    // Save active token
+    store.passwordResetTokens.push({
+      token,
+      email: email.trim().toLowerCase(),
+      expiresAt: now + expiresMinutes * 60 * 1000,
+    });
+
+    const filePath = getStoreFilePath();
+    fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+  } catch (err) {
+    console.error("[persistedData] Failed to save reset token:", err);
+  }
+}
+
+export function verifyAndConsumePasswordResetToken(
+  token: string,
+  email: string
+): boolean {
+  try {
+    if (!token || !email) return false;
+    const store = loadPersistedRecords();
+    if (!store.passwordResetTokens || store.passwordResetTokens.length === 0) return false;
+
+    const cleanEmail = email.trim().toLowerCase();
+    const now = Date.now();
+
+    const tokenIdx = store.passwordResetTokens.findIndex(
+      (t) => t.token === token && t.email.toLowerCase() === cleanEmail && t.expiresAt > now
+    );
+
+    if (tokenIdx === -1) {
+      return false;
+    }
+
+    // Single-use token: remove upon verification
+    store.passwordResetTokens.splice(tokenIdx, 1);
+    const filePath = getStoreFilePath();
+    fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+    return true;
+  } catch (err) {
+    console.error("[persistedData] Failed to verify and consume reset token:", err);
+    return false;
+  }
+}
+
 
 

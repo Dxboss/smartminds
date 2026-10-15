@@ -21,15 +21,10 @@ import {
 } from "./types";
 
 export const isDemoModeActive =
-  process.env.DEMO_MODE === "true" ||
-  process.env.NEXT_PUBLIC_DEMO_MODE === "true" ||
-  process.env.NODE_ENV === "test" ||
-  (typeof process !== "undefined" &&
-    (process.env.npm_lifecycle_event === "test" ||
-      (Array.isArray(process.argv) &&
-        process.argv.some(
-          (arg) => typeof arg === "string" && arg.includes("test")
-        ))));
+  process.env.NODE_ENV !== "production" &&
+  (process.env.DEMO_MODE === "true" ||
+    process.env.NEXT_PUBLIC_DEMO_MODE === "true" ||
+    process.env.NODE_ENV === "test");
 
 // ============================================================================
 // 1. Staff, Tutors & Administrative Profiles

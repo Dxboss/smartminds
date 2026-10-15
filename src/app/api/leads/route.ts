@@ -6,6 +6,18 @@ import { checkRateLimit } from "@/lib/rateLimit";
 
 export async function GET() {
   try {
+    const { getServerSession } = await import("@/lib/session");
+    const session = await getServerSession();
+    if (
+      !session ||
+      (session.role !== "owner_admin" && session.role !== "super_admin")
+    ) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized: Super Admin or Owner privileges required." },
+        { status: 401 }
+      );
+    }
+
     const dataDir = path.join(process.cwd(), "data");
     const filePath = path.join(dataDir, "dev_leads.json");
     if (!fs.existsSync(filePath)) {

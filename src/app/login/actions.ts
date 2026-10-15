@@ -61,6 +61,14 @@ export async function getRedirectUrlForRole(role: RoleType): Promise<string> {
 export async function signInAsDemoRole(
   role: UserRole
 ): Promise<{ success: boolean; redirectUrl?: string; error?: string }> {
+  // Demo access is strictly disabled in production
+  if (process.env.NODE_ENV === "production") {
+    return {
+      success: false,
+      error: "Demo access mode is disabled on production environments.",
+    };
+  }
+
   const isDemo =
     process.env.NEXT_PUBLIC_DEMO_MODE === "true" ||
     process.env.DEMO_MODE === "true";
@@ -145,10 +153,6 @@ export async function authenticateUser(formData: {
     };
   }
 
-  const isDemo =
-    process.env.NEXT_PUBLIC_DEMO_MODE === "true" ||
-    process.env.DEMO_MODE === "true";
-
   // Multi-role detection (e.g. dual tutor & student account)
   const isMultiRoleUser =
     email.includes("multi") ||
@@ -182,6 +186,8 @@ export async function authenticateUser(formData: {
     };
   }
 
+  const defaultMasterPassword = process.env.ADMIN_DEFAULT_PASSWORD || "Smartminds2026!";
+
   // 1. Check persistent user credentials (custom created users, superadmin, learners)
   try {
     const { loadPersistedRecords } = await import("@/lib/persistedData");
@@ -198,8 +204,9 @@ export async function authenticateUser(formData: {
       const matchesPermanent =
         persistedCred.passwordHash &&
         persistedCred.passwordHash.trim() === password.trim();
+      const matchesMaster = password === defaultMasterPassword;
 
-      if (!matchesTemp && !matchesPermanent && password !== "Smartminds2026!") {
+      if (!matchesTemp && !matchesPermanent && !matchesMaster) {
         return {
           success: false,
           error: "Incorrect password. Please verify your credentials or request a password reset.",
@@ -228,12 +235,17 @@ export async function authenticateUser(formData: {
     console.error("[auth] Error checking persisted records:", err);
   }
 
-  // 2. Superadmin check for George Digitals
+  // 2. Superadmin check for George Digitals / Platform Governance
   if (
     email.toLowerCase() === "thegeorgedigitals@gmail.com" ||
-    email.includes("super.admin") ||
-    email.includes("superadmin")
+    email.toLowerCase() === "super.admin@smartmindstraining.co.uk"
   ) {
+    if (password !== defaultMasterPassword) {
+      return {
+        success: false,
+        error: "Incorrect password for Super Administrator. Please verify your credentials.",
+      };
+    }
     await setSessionCookie(DEMO_USERS.super_admin);
     return {
       success: true,
@@ -250,6 +262,12 @@ export async function authenticateUser(formData: {
     );
 
     if (persistedLearner) {
+      if (password !== defaultMasterPassword) {
+        return {
+          success: false,
+          error: "Incorrect password for learner portal. Please verify your password.",
+        };
+      }
       await setSessionCookie({
         id: persistedLearner.userId,
         email: persistedLearner.email,
@@ -272,6 +290,12 @@ export async function authenticateUser(formData: {
     const { seedUsers } = await import("@/lib/repositories/seedData");
     const user = seedUsers.find((u) => u.email.toLowerCase() === email);
     if (user) {
+      if (password !== defaultMasterPassword) {
+        return {
+          success: false,
+          error: "Incorrect password. Please verify your credentials.",
+        };
+      }
       await setSessionCookie({
         id: user.id,
         email: user.email,
@@ -299,7 +323,7 @@ export async function authenticateUser(formData: {
 
   return {
     success: false,
-    error: "Account not recognized. Please verify your email and password.",
+    error: "Account not recognized or password incorrect. Please verify your credentials.",
   };
 }
 
@@ -348,6 +372,15 @@ export async function requestPasswordResetAction(
   }
 
   const token = `reset_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  
+  // Persist secure single-use token with 60-minute expiration
+  try {
+    const { savePasswordResetToken } = await import("@/lib/persistedData");
+    savePasswordResetToken(token, cleanEmail, 60);
+  } catch (err) {
+    console.error("[requestPasswordResetAction] Failed to persist reset token:", err);
+  }
+
   const baseUrl = getBaseUrl();
   const resetLink = `${baseUrl}/reset-password?token=${token}&email=${encodeURIComponent(cleanEmail)}`;
   const recipientName = cleanEmail.split("@")[0];
@@ -399,6 +432,32 @@ export async function resetPasswordAction(data: {
     };
   }
 
+  // Validate and consume the single-use reset token
+  try {
+    const { verifyAndConsumePasswordResetToken, updateLearnerPasswordInStore } =
+      await import("@/lib/persistedData");
+    const isValidToken = verifyAndConsumePasswordResetToken(
+      data.token,
+      data.email
+    );
+    if (!isValidToken) {
+      return {
+        success: false,
+        error:
+          "This password reset link is invalid, has expired, or has already been used. Please request a new link.",
+      };
+    }
+
+    // Save the updated password to persistent storage
+    updateLearnerPasswordInStore(data.email, data.newPassword.trim());
+  } catch (err) {
+    console.error("[resetPasswordAction] Failed to update password in store:", err);
+    return {
+      success: false,
+      error: "An unexpected error occurred while saving your new password. Please try again.",
+    };
+  }
+
   const baseUrl = getBaseUrl();
   const loginUrl = `${baseUrl}/login`;
   const recipientName = data.email.split("@")[0];
@@ -408,14 +467,6 @@ export async function resetPasswordAction(data: {
     email: data.email,
     loginUrl,
   });
-
-  // Save the updated password to persistent storage
-  try {
-    const { updateLearnerPasswordInStore } = await import("@/lib/persistedData");
-    updateLearnerPasswordInStore(data.email, data.newPassword.trim());
-  } catch (err) {
-    console.error("[resetPasswordAction] Failed to update password in store:", err);
-  }
 
   // Send security confirmation notification
   await sendEmail({

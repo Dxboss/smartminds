@@ -20,12 +20,7 @@ import { revalidatePath } from "next/cache";
 import { sendEmail } from "@/lib/email";
 import { buildBookingReminderEmail } from "@/lib/emailTemplates";
 
-const isTestEnv =
-  process.env.NODE_ENV === "test" ||
-  process.env.npm_lifecycle_event === "test" ||
-  (typeof process !== "undefined" &&
-    Array.isArray(process.argv) &&
-    process.argv.some((arg) => typeof arg === "string" && arg.includes("test")));
+const isTestEnv = process.env.NODE_ENV === "test";
 
 function assertAdminAuthorized(session: { role: string } | null) {
   if (isTestEnv) return;
@@ -2002,6 +1997,8 @@ export async function resetLearnerGracePeriodAction(
 }
 
 export async function getCohortScheduleAdminAction(): Promise<CohortScheduleConfig> {
+  const session = await getServerSession();
+  assertAdminAuthorized(session);
   const { getCohortSchedule } = await import("@/lib/persistedData");
   return getCohortSchedule();
 }
