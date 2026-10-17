@@ -80,11 +80,31 @@ const PATHWAYS: Pathway[] = [
   },
 ];
 
+import { BuilderSectionItem } from "@/lib/repositories/seedData";
+import { EditableElementWrapper } from "@/components/admin/EditableElementWrapper";
+
 export interface ChooseYourPathProps {
   headline?: string;
   subheadline?: string;
   bgColor?: "white" | "paper" | "navy" | "cream";
   columns?: 2 | 3 | 4;
+  items?: BuilderSectionItem[];
+  isEditor?: boolean;
+  selectedElementKey?: string | null;
+  selectedElementItemIndex?: number | null;
+  onSelectElement?: (
+    elementKey:
+      | "headline"
+      | "subheadline"
+      | "badge"
+      | "button"
+      | "secondaryButton"
+      | "image"
+      | "item"
+      | "bg"
+      | "video",
+    itemIndex?: number
+  ) => void;
 }
 
 export const ChooseYourPath: React.FC<ChooseYourPathProps> = ({
@@ -92,6 +112,11 @@ export const ChooseYourPath: React.FC<ChooseYourPathProps> = ({
   subheadline = "Whether you are entering healthcare, advancing to leadership, teaching adults, or seeking focused academic tutoring for your child, select your goal below.",
   bgColor = "paper",
   columns = 3,
+  items,
+  isEditor = false,
+  selectedElementKey,
+  selectedElementItemIndex,
+  onSelectElement,
 }) => {
   const isDark = bgColor === "navy";
 
@@ -101,6 +126,20 @@ export const ChooseYourPath: React.FC<ChooseYourPathProps> = ({
       : columns === 4
       ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
       : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3";
+
+  // Use dynamic editable items if configured; fallback to default pathways
+  const renderedCards =
+    items && items.length > 0
+      ? items.map((it) => ({
+          title: it.title,
+          targetRole: it.subtitle || it.tag || "",
+          description: it.desc || "",
+          icon: (it.icon as IconName) || "shield-check",
+          levelBadge: it.badge || it.tag || "Regulated",
+          href: it.link || "/courses",
+          fundingEligible: Boolean(it.tag?.toLowerCase().includes("fund") || it.badge?.toLowerCase().includes("fund")),
+        }))
+      : PATHWAYS;
 
   return (
     <Section variant={bgColor}>
@@ -130,83 +169,100 @@ export const ChooseYourPath: React.FC<ChooseYourPathProps> = ({
 
         {/* Dynamic Grid by configured columns */}
         <div className={`grid ${colClass} gap-6`}>
-          {PATHWAYS.map((pathway) => (
-            <Link
-              key={pathway.title}
-              href={pathway.href}
-              className={`group rounded-lg border p-6 transition-all flex flex-col justify-between ${
-                isDark
-                  ? "bg-white/5 border-white/10 hover:border-gold-500/50 text-white"
-                  : "bg-white border-line shadow-subtle hover:border-navy-900/40 hover:-translate-y-0.5 text-ink"
-              }`}
+          {renderedCards.map((pathway, idx) => (
+            <EditableElementWrapper
+              key={pathway.title + idx}
+              isEditor={isEditor}
+              isSelected={isEditor && selectedElementKey === "item" && selectedElementItemIndex === idx}
+              label={`Pathway #${idx + 1}`}
+              onClick={() => onSelectElement?.("item", idx)}
+              className="h-full rounded-lg"
             >
-              <div>
-                <div className="flex items-center justify-between gap-3 mb-4">
-                  <div
-                    className={`w-12 h-12 rounded-sm flex items-center justify-center transition-colors ${
-                      isDark
-                        ? "bg-gold-500/10 text-gold-300 group-hover:bg-gold-500 group-hover:text-navy-900"
-                        : "bg-navy-900/5 text-navy-900 group-hover:bg-navy-900 group-hover:text-white"
-                    }`}
-                  >
-                    <Icon
-                      name={pathway.icon}
-                      size={24}
-                      className={pathway.icon === "star" ? "text-gold-500" : ""}
-                    />
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    {pathway.fundingEligible && (
-                      <Tag variant="gold" className="text-xs">
-                        Funded
-                      </Tag>
-                    )}
-                    <Tag variant={isDark ? "gold" : "default"} className="text-xs">
-                      {pathway.levelBadge}
-                    </Tag>
-                  </div>
-                </div>
-
-                <h3
-                  className={`font-heading text-xl font-bold mb-1 transition-colors ${
-                    isDark
-                      ? "text-white group-hover:text-gold-300"
-                      : "text-navy-900 group-hover:text-navy-700"
-                  }`}
-                >
-                  {pathway.title}
-                </h3>
-                <span
-                  className={`text-xs font-semibold block mb-2.5 ${
-                    isDark ? "text-gold-300" : "text-navy-700"
-                  }`}
-                >
-                  {pathway.targetRole}
-                </span>
-                <p
-                  className={`text-sm leading-relaxed ${
-                    isDark ? "text-paper/80" : "text-ink-soft"
-                  }`}
-                >
-                  {pathway.description}
-                </p>
-              </div>
-
-              <div
-                className={`pt-6 mt-4 border-t flex items-center justify-between text-xs font-bold ${
+              <Link
+                href={pathway.href}
+                onClick={(e) => {
+                  if (isEditor) {
+                    e.preventDefault();
+                  }
+                }}
+                className={`group rounded-lg border p-6 transition-all flex flex-col justify-between h-full ${
                   isDark
-                    ? "border-white/10 text-gold-300 group-hover:text-white"
-                    : "border-line text-navy-900 group-hover:text-navy-700"
+                    ? "bg-white/5 border-white/10 hover:border-gold-500/50 text-white"
+                    : "bg-white border-line shadow-subtle hover:border-navy-900/40 hover:-translate-y-0.5 text-ink"
                 }`}
               >
-                <span>View course details</span>
-                <Icon
-                  name="arrow-right"
-                  size={16}
-                  className="transform group-hover:translate-x-1 transition-transform"
-                />
-              </div>
-            </Link>
+                <div>
+                  <div className="flex items-center justify-between gap-3 mb-4">
+                    <div
+                      className={`w-12 h-12 rounded-sm flex items-center justify-center transition-colors ${
+                        isDark
+                          ? "bg-gold-500/10 text-gold-300 group-hover:bg-gold-500 group-hover:text-navy-900"
+                          : "bg-navy-900/5 text-navy-900 group-hover:bg-navy-900 group-hover:text-white"
+                      }`}
+                    >
+                      <Icon
+                        name={pathway.icon}
+                        size={24}
+                        className={pathway.icon === "star" ? "text-gold-500" : ""}
+                      />
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {pathway.fundingEligible && (
+                        <Tag variant="gold" className="text-xs">
+                          Funded
+                        </Tag>
+                      )}
+                      {pathway.levelBadge && (
+                        <Tag variant={isDark ? "gold" : "default"} className="text-xs">
+                          {pathway.levelBadge}
+                        </Tag>
+                      )}
+                    </div>
+                  </div>
+
+                  <h3
+                    className={`font-heading text-xl font-bold mb-1 transition-colors ${
+                      isDark
+                        ? "text-white group-hover:text-gold-300"
+                        : "text-navy-900 group-hover:text-navy-700"
+                    }`}
+                  >
+                    {pathway.title}
+                  </h3>
+                  {pathway.targetRole && (
+                    <span
+                      className={`text-xs font-semibold block mb-2.5 ${
+                        isDark ? "text-gold-300" : "text-navy-700"
+                      }`}
+                    >
+                      {pathway.targetRole}
+                    </span>
+                  )}
+                  <p
+                    className={`text-sm leading-relaxed ${
+                      isDark ? "text-paper/80" : "text-ink-soft"
+                    }`}
+                  >
+                    {pathway.description}
+                  </p>
+                </div>
+
+                <div
+                  className={`pt-6 mt-4 border-t flex items-center justify-between text-xs font-bold ${
+                    isDark
+                      ? "border-white/10 text-gold-300 group-hover:text-white"
+                      : "border-line text-navy-900 group-hover:text-navy-700"
+                  }`}
+                >
+                  <span>View course details</span>
+                  <Icon
+                    name="arrow-right"
+                    size={16}
+                    className="transform group-hover:translate-x-1 transition-transform"
+                  />
+                </div>
+              </Link>
+            </EditableElementWrapper>
           ))}
         </div>
       </Container>

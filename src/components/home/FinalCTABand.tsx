@@ -7,6 +7,28 @@ import { Eyebrow } from "@/components/ui/Eyebrow";
 import { Icon } from "@/components/ui/Icon";
 import { BookingCTAButton } from "@/components/booking/BookingCTAButton";
 import { siteConfig } from "@/content/siteConfig";
+import { resolveSectionBg, SectionBgColor } from "@/components/ui/sectionBg";
+import {
+  resolveTypography,
+  resolveSubheadlineTypography,
+  FontFamilyChoice,
+  FontSizeChoice,
+  FontWeightChoice,
+  FontStyleChoice,
+  FontColorChoice,
+} from "@/components/ui/typographyUtils";
+
+import {
+  resolveCustomButtonClasses,
+  ButtonFontFamily,
+  ButtonFontWeight,
+  ButtonTextTransform,
+  ButtonIconPosition,
+  ButtonRadius,
+  ButtonSizePreset,
+} from "@/components/ui/buttonCustomizer";
+import { Button } from "@/components/ui/Button";
+import { EditableElementWrapper } from "@/components/admin/EditableElementWrapper";
 
 export interface FinalCTABandProps {
   headline?: string;
@@ -14,10 +36,49 @@ export interface FinalCTABandProps {
   badgeText?: string;
   buttonText?: string;
   buttonLink?: string;
+  buttonBgColor?: string;
+  buttonTextColor?: string;
+  buttonFontFamily?: ButtonFontFamily;
+  buttonFontWeight?: ButtonFontWeight;
+  buttonTextTransform?: ButtonTextTransform;
+  buttonIcon?: string;
+  buttonIconPosition?: ButtonIconPosition;
+  buttonRadius?: ButtonRadius;
+  buttonSize?: ButtonSizePreset;
   secondaryButtonText?: string;
   secondaryButtonLink?: string;
-  bgColor?: "white" | "paper" | "navy" | "cream";
+  secondaryButtonBgColor?: string;
+  secondaryButtonTextColor?: string;
+  secondaryButtonFontFamily?: ButtonFontFamily;
+  secondaryButtonFontWeight?: ButtonFontWeight;
+  secondaryButtonTextTransform?: ButtonTextTransform;
+  secondaryButtonIcon?: string;
+  secondaryButtonIconPosition?: ButtonIconPosition;
+  secondaryButtonRadius?: ButtonRadius;
+  secondaryButtonSize?: ButtonSizePreset;
+  bgColor?: SectionBgColor;
   align?: "left" | "center";
+  headlineFontFamily?: FontFamilyChoice;
+  headlineFontSize?: FontSizeChoice;
+  headlineFontWeight?: FontWeightChoice;
+  headlineFontStyle?: FontStyleChoice;
+  headlineColor?: FontColorChoice;
+  subheadlineFontFamily?: FontFamilyChoice;
+  subheadlineFontSize?: FontSizeChoice;
+  subheadlineFontWeight?: FontWeightChoice;
+  subheadlineFontStyle?: FontStyleChoice;
+  subheadlineColor?: FontColorChoice;
+  isEditor?: boolean;
+  selectedElementKey?: string | null;
+  selectedElementItemIndex?: number | null;
+  onSelectElement?: (
+    element:
+      | "badge"
+      | "headline"
+      | "subheadline"
+      | "button"
+      | "secondaryButton"
+  ) => void;
 }
 
 export const FinalCTABand: React.FC<FinalCTABandProps> = ({
@@ -26,26 +87,109 @@ export const FinalCTABand: React.FC<FinalCTABandProps> = ({
   badgeText = "Personalised Guidance",
   buttonText = "Book a free call",
   buttonLink,
+  buttonBgColor,
+  buttonTextColor,
+  buttonFontFamily,
+  buttonFontWeight,
+  buttonTextTransform,
+  buttonIcon,
+  buttonIconPosition,
+  buttonRadius,
+  buttonSize,
   secondaryButtonText = "Prefer WhatsApp? Message us",
   secondaryButtonLink,
+  secondaryButtonBgColor,
+  secondaryButtonTextColor,
+  secondaryButtonFontFamily,
+  secondaryButtonFontWeight,
+  secondaryButtonTextTransform,
+  secondaryButtonIcon,
+  secondaryButtonIconPosition,
+  secondaryButtonRadius,
+  secondaryButtonSize,
   bgColor = "navy",
   align = "center",
+  headlineFontFamily,
+  headlineFontSize,
+  headlineFontWeight,
+  headlineFontStyle,
+  headlineColor,
+  subheadlineFontFamily,
+  subheadlineFontSize,
+  subheadlineFontWeight,
+  subheadlineFontStyle,
+  subheadlineColor,
+  isEditor = false,
+  selectedElementKey,
+  selectedElementItemIndex,
+  onSelectElement,
 }) => {
-  const isDark = bgColor === "navy";
+  const { bgClass, isDark, style: bgStyle } = resolveSectionBg(bgColor, "navy");
   const isCenter = align !== "left";
 
-  const bgClass =
-    bgColor === "paper"
-      ? "bg-paper text-ink border-t border-line"
-      : bgColor === "white"
-      ? "bg-white text-ink border-t border-line"
-      : bgColor === "cream"
-      ? "bg-gold-50/70 text-ink border-t border-gold-200"
-      : "bg-navy-900 text-white";
+  const primaryBtn = resolveCustomButtonClasses(
+    {
+      bgColor: buttonBgColor,
+      textColor: buttonTextColor,
+      fontFamily: buttonFontFamily,
+      fontWeight: buttonFontWeight,
+      textTransform: buttonTextTransform,
+      icon: buttonIcon,
+      iconPosition: buttonIconPosition,
+      radius: buttonRadius,
+      size: buttonSize,
+    },
+    isDark ? "on-navy-gold" : "primary",
+    "lg",
+    isDark
+  );
+
+  const secondaryBtn = resolveCustomButtonClasses(
+    {
+      bgColor: secondaryButtonBgColor,
+      textColor: secondaryButtonTextColor,
+      fontFamily: secondaryButtonFontFamily,
+      fontWeight: secondaryButtonFontWeight,
+      textTransform: secondaryButtonTextTransform,
+      icon: secondaryButtonIcon || (!secondaryButtonBgColor ? "whatsapp" : undefined),
+      iconPosition: secondaryButtonIconPosition || "left",
+      radius: secondaryButtonRadius,
+      size: secondaryButtonSize,
+    },
+    "outline",
+    "lg",
+    isDark
+  );
+
+  const { className: hlClass, style: hlStyle } = resolveTypography({
+    fontFamily: headlineFontFamily,
+    fontSize: headlineFontSize,
+    fontWeight: headlineFontWeight,
+    fontStyle: headlineFontStyle,
+    color: headlineColor,
+    isDark,
+    defaultFamily: "heading",
+    defaultSize: "xl",
+    defaultWeight: "bold",
+    defaultColor: isDark ? "white" : "navy",
+  });
+
+  const { className: subClass, style: subStyle } = resolveSubheadlineTypography({
+    fontFamily: subheadlineFontFamily,
+    fontSize: subheadlineFontSize,
+    fontWeight: subheadlineFontWeight,
+    fontStyle: subheadlineFontStyle,
+    color: subheadlineColor,
+    isDark,
+    defaultFamily: "body",
+    defaultSize: "md",
+    defaultWeight: "normal",
+  });
 
   return (
     <section
       aria-label="Book a free consultation"
+      style={bgStyle}
       className={`${bgClass} py-16 md:py-20 relative overflow-hidden`}
     >
       {/* Decorative crescent arc in background */}
@@ -73,45 +217,124 @@ export const FinalCTABand: React.FC<FinalCTABandProps> = ({
 
       <Container>
         <div className={`max-w-3xl ${isCenter ? "mx-auto text-center" : "text-left"} space-y-6`}>
-          <Eyebrow tone={isDark ? "gold" : "navy"} className="tracking-widest">
-            {badgeText}
-          </Eyebrow>
+          <EditableElementWrapper
+            isEditor={isEditor}
+            isSelected={isEditor && selectedElementKey === "badge"}
+            label="Badge"
+            onClick={() => onSelectElement?.("badge")}
+            inline
+          >
+            <Eyebrow tone={isDark ? "gold" : "navy"} className="tracking-widest">
+              {badgeText}
+            </Eyebrow>
+          </EditableElementWrapper>
 
           {/* Heading verbatim from PRD 10.1 */}
-          <Heading
-            level="h2"
-            className={`${isDark ? "text-white" : "text-navy-900"} text-3xl sm:text-4xl md:text-5xl`}
+          <EditableElementWrapper
+            isEditor={isEditor}
+            isSelected={isEditor && selectedElementKey === "headline"}
+            label="Headline"
+            onClick={() => onSelectElement?.("headline")}
+            className="p-0.5 -m-0.5"
           >
-            {headline}
-          </Heading>
+            <Heading
+              level="h2"
+              style={hlStyle}
+              className={hlClass}
+            >
+              {headline}
+            </Heading>
+          </EditableElementWrapper>
 
-          <p className={`${isDark ? "text-paper/85" : "text-ink-soft"} text-base sm:text-lg leading-relaxed ${isCenter ? "max-w-xl mx-auto" : "max-w-xl"}`}>
-            {subheadline}
-          </p>
+          <EditableElementWrapper
+            isEditor={isEditor}
+            isSelected={isEditor && selectedElementKey === "subheadline"}
+            label="Subheadline"
+            onClick={() => onSelectElement?.("subheadline")}
+            className="p-0.5 -m-0.5"
+          >
+            <p
+              style={subStyle}
+              className={`leading-relaxed ${isCenter ? "max-w-xl mx-auto" : "max-w-xl"} ${subClass}`}
+            >
+              {subheadline}
+            </p>
+          </EditableElementWrapper>
 
           {/* Action CTAs */}
           <div className={`pt-2 flex flex-col sm:flex-row items-center gap-4 ${isCenter ? "justify-center" : "justify-start"}`}>
-            <BookingCTAButton
-              variant={isDark ? "on-navy-gold" : "primary"}
-              size="lg"
-              className="w-full sm:w-auto shadow-md"
+            <EditableElementWrapper
+              isEditor={isEditor}
+              isSelected={isEditor && selectedElementKey === "button"}
+              label="Primary CTA"
+              onClick={() => onSelectElement?.("button")}
+              inline
             >
-              {buttonText}
-            </BookingCTAButton>
+              <div className={isEditor ? "pointer-events-none" : ""}>
+                {buttonLink && buttonLink !== "/book" ? (
+                  <Button
+                    href={buttonLink}
+                    className={`w-full sm:w-auto shadow-md ${primaryBtn.className}`}
+                    style={primaryBtn.style}
+                  >
+                    {primaryBtn.icon && primaryBtn.iconPosition === "left" && (
+                      <Icon name={primaryBtn.icon} size={18} />
+                    )}
+                    <span>{buttonText}</span>
+                    {primaryBtn.icon && primaryBtn.iconPosition === "right" && (
+                      <Icon name={primaryBtn.icon} size={18} />
+                    )}
+                  </Button>
+                ) : (
+                  <BookingCTAButton
+                    className={`w-full sm:w-auto shadow-md ${primaryBtn.className}`}
+                    style={primaryBtn.style}
+                  >
+                    {primaryBtn.icon && primaryBtn.iconPosition === "left" && (
+                      <Icon name={primaryBtn.icon} size={18} />
+                    )}
+                    <span>{buttonText}</span>
+                    {primaryBtn.icon && primaryBtn.iconPosition === "right" && (
+                      <Icon name={primaryBtn.icon} size={18} />
+                    )}
+                  </BookingCTAButton>
+                )}
+              </div>
+            </EditableElementWrapper>
 
-            <a
-              href={secondaryButtonLink || siteConfig.contact.whatsappUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`w-full sm:w-auto min-h-[44px] px-6 py-2.5 rounded-sm border font-heading font-bold text-base transition-colors flex items-center justify-center gap-2 ${
-                isDark
-                  ? "border-white/30 text-white hover:bg-white/10"
-                  : "border-navy-900 text-navy-900 hover:bg-navy-900 hover:text-white"
-              }`}
+            <EditableElementWrapper
+              isEditor={isEditor}
+              isSelected={isEditor && selectedElementKey === "secondaryButton"}
+              label="Secondary CTA"
+              onClick={() => onSelectElement?.("secondaryButton")}
+              inline
             >
-              <Icon name="whatsapp" size={18} className="text-emerald-500" />
-              <span>{secondaryButtonText}</span>
-            </a>
+              <div className={isEditor ? "pointer-events-none" : ""}>
+                <a
+                  href={secondaryButtonLink || siteConfig.contact.whatsappUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`w-full sm:w-auto ${secondaryBtn.className}`}
+                  style={secondaryBtn.style}
+                >
+                  {secondaryBtn.icon && secondaryBtn.iconPosition === "left" && (
+                    <Icon
+                      name={secondaryBtn.icon}
+                      size={18}
+                      className={secondaryBtn.icon === "whatsapp" ? "text-emerald-500" : ""}
+                    />
+                  )}
+                  <span>{secondaryButtonText}</span>
+                  {secondaryBtn.icon && secondaryBtn.iconPosition === "right" && (
+                    <Icon
+                      name={secondaryBtn.icon}
+                      size={18}
+                      className={secondaryBtn.icon === "whatsapp" ? "text-emerald-500" : ""}
+                    />
+                  )}
+                </a>
+              </div>
+            </EditableElementWrapper>
           </div>
 
           {/* Reassurance items */}

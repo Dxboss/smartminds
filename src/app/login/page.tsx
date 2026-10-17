@@ -10,6 +10,11 @@ export const metadata: Metadata = {
   title: "Sign in | Smartminds Training College",
   description:
     "Sign in to your Smartminds Training College portal. Students, tutors and staff sign in here.",
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+  },
 };
 
 export default function LoginPage() {

@@ -1,0 +1,434 @@
+"use client";
+
+import React, { useState } from "react";
+import { Icon, IconName } from "@/components/ui/Icon";
+import {
+  ButtonCustomConfig,
+  ButtonBgPreset,
+  ButtonTextColorPreset,
+  ButtonFontFamily,
+  ButtonFontWeight,
+  ButtonTextTransform,
+  ButtonIconPosition,
+  ButtonRadius,
+  ButtonSizePreset,
+  BUTTON_COLOR_PRESETS,
+  AVAILABLE_BUTTON_ICONS,
+  resolveCustomButtonClasses,
+} from "@/components/ui/buttonCustomizer";
+
+export interface ButtonCustomizerFieldsProps {
+  label: string;
+  buttonText: string;
+  onButtonTextChange: (val: string) => void;
+  buttonLink?: string;
+  onButtonLinkChange?: (val: string) => void;
+  linkPlaceholder?: string;
+  config: ButtonCustomConfig;
+  onChange: (key: keyof ButtonCustomConfig, value: any) => void;
+  defaultVariant?: "primary" | "on-navy-gold" | "outline";
+  defaultSize?: "sm" | "md" | "lg";
+  isDarkContainer?: boolean;
+}
+
+export const ButtonCustomizerFields: React.FC<ButtonCustomizerFieldsProps> = ({
+  label,
+  buttonText,
+  onButtonTextChange,
+  buttonLink,
+  onButtonLinkChange,
+  linkPlaceholder = "/courses or /book",
+  config,
+  onChange,
+  defaultVariant = "primary",
+  defaultSize = "md",
+  isDarkContainer = false,
+}) => {
+  const [showStylePanel, setShowStylePanel] = useState(false);
+  const [showCustomHex, setShowCustomHex] = useState(
+    Boolean(config.bgColor && config.bgColor.startsWith("#"))
+  );
+
+  const preview = resolveCustomButtonClasses(
+    config,
+    defaultVariant,
+    config.size || defaultSize,
+    isDarkContainer
+  );
+
+  return (
+    <div className="p-3 bg-paper rounded-sm border border-line space-y-3">
+      {/* Header with expand toggle */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-gold-500" />
+          <strong className="text-xs font-bold text-navy-900">{label}</strong>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowStylePanel(!showStylePanel)}
+          className="text-[11px] font-bold text-navy-900 hover:text-gold-700 flex items-center gap-1 cursor-pointer"
+        >
+          <span>{showStylePanel ? "Hide Styling ▴" : "Customize Style & Icon ▾"}</span>
+        </button>
+      </div>
+
+      {/* Live Preview Widget */}
+      <div className="p-3 rounded-sm bg-white border border-line/80 flex flex-col items-center justify-center gap-1.5 text-center shadow-xs">
+        <span className="text-[10px] font-mono uppercase tracking-wider text-ink-soft">
+          Live Button Preview
+        </span>
+        <div className="pt-1">
+          <div className={preview.className} style={preview.style}>
+            {preview.icon && preview.iconPosition === "left" && (
+              <Icon name={preview.icon} size={15} />
+            )}
+            <span>{buttonText || "Button Label"}</span>
+            {preview.icon && preview.iconPosition === "right" && (
+              <Icon name={preview.icon} size={15} />
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Button Text & Destination Link */}
+      <div className="space-y-2">
+        <div>
+          <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+            Button Label / Writeup
+          </label>
+          <input
+            type="text"
+            value={buttonText || ""}
+            onChange={(e) => onButtonTextChange(e.target.value)}
+            placeholder="e.g. Book a free consultation"
+            className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900 font-bold"
+          />
+        </div>
+
+        {onButtonLinkChange && (
+          <div>
+            <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+              Destination URL (placed after writeup)
+            </label>
+            <input
+              type="text"
+              value={buttonLink || ""}
+              onChange={(e) => onButtonLinkChange(e.target.value)}
+              placeholder={linkPlaceholder}
+              className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs font-mono bg-white focus:outline-none focus:border-navy-900"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Collapsible Styling Panel */}
+      {showStylePanel && (
+        <div className="pt-3 border-t border-line space-y-3.5 animate-in fade-in-50 duration-150">
+          {/* 1. Button Colors */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-[11px] font-bold text-navy-900 uppercase tracking-wider">
+                Background &amp; Theme Color
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowCustomHex(!showCustomHex)}
+                className="text-[10px] text-ink-soft hover:text-navy-900 underline"
+              >
+                {showCustomHex ? "Use Presets" : "Custom Hex Code"}
+              </button>
+            </div>
+
+            {showCustomHex ? (
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={config.bgColor?.startsWith("#") ? config.bgColor : "#23216B"}
+                  onChange={(e) => onChange("bgColor", e.target.value)}
+                  className="w-8 h-8 rounded-sm border border-line cursor-pointer p-0.5"
+                />
+                <input
+                  type="text"
+                  value={config.bgColor || ""}
+                  onChange={(e) => onChange("bgColor", e.target.value)}
+                  placeholder="#23216B or rgba(...)"
+                  className="flex-1 px-2 py-1 text-xs font-mono border border-line rounded-sm bg-white"
+                />
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                {BUTTON_COLOR_PRESETS.map((preset) => {
+                  const isSelected =
+                    config.bgColor === preset.key ||
+                    (!config.bgColor && preset.key === (defaultVariant === "outline" ? "outline-navy" : "navy"));
+
+                  return (
+                    <button
+                      key={preset.key}
+                      type="button"
+                      onClick={() => onChange("bgColor", preset.key)}
+                      className={`p-1.5 rounded-sm border text-left flex items-center gap-1.5 transition-all cursor-pointer ${
+                        isSelected
+                          ? "ring-2 ring-gold-500 border-navy-900 font-bold bg-white"
+                          : "border-line bg-white hover:border-navy-900/40 text-ink-soft"
+                      }`}
+                    >
+                      <span
+                        className={`w-3.5 h-3.5 rounded-xs flex-shrink-0 ${preset.swatchClass}`}
+                      />
+                      <span className="text-[10px] truncate">{preset.label.split(" ")[0]}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* 2. Text Color Override */}
+          <div>
+            <label className="block text-[11px] font-bold text-navy-900 uppercase tracking-wider mb-1.5">
+              Text Color
+            </label>
+            <div className="grid grid-cols-5 gap-1 text-[10px] font-semibold">
+              {[
+                { key: "auto", label: "Auto" },
+                { key: "white", label: "White" },
+                { key: "navy", label: "Navy" },
+                { key: "gold", label: "Gold" },
+                { key: "ink", label: "Dark Ink" },
+              ].map((opt) => (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => onChange("textColor", opt.key === "auto" ? undefined : opt.key)}
+                  className={`py-1 rounded-sm border text-center transition-all cursor-pointer ${
+                    (config.textColor === opt.key || (!config.textColor && opt.key === "auto"))
+                      ? "bg-navy-900 text-white font-bold border-navy-900 shadow-xs"
+                      : "bg-white text-ink border-line hover:border-navy-900/30"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 3. Typography: Font Family & Text Transform */}
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-[11px] font-bold text-navy-900 uppercase tracking-wider mb-1">
+                Font Family
+              </label>
+              <div className="grid grid-cols-2 gap-1 text-[10px]">
+                <button
+                  type="button"
+                  onClick={() => onChange("fontFamily", "heading")}
+                  className={`py-1 px-1.5 rounded-sm border text-center transition-all cursor-pointer ${
+                    config.fontFamily !== "body"
+                      ? "bg-navy-900 text-white font-heading font-bold tracking-wider"
+                      : "bg-white text-ink border-line hover:border-navy-900/30"
+                  }`}
+                >
+                  Saira (Heading)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onChange("fontFamily", "body")}
+                  className={`py-1 px-1.5 rounded-sm border text-center transition-all cursor-pointer ${
+                    config.fontFamily === "body"
+                      ? "bg-navy-900 text-white font-sans font-bold"
+                      : "bg-white text-ink border-line hover:border-navy-900/30"
+                  }`}
+                >
+                  Source Sans
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-bold text-navy-900 uppercase tracking-wider mb-1">
+                Letter Case
+              </label>
+              <div className="grid grid-cols-2 gap-1 text-[10px]">
+                <button
+                  type="button"
+                  onClick={() => onChange("textTransform", "normal")}
+                  className={`py-1 px-1.5 rounded-sm border text-center transition-all cursor-pointer ${
+                    config.textTransform !== "uppercase"
+                      ? "bg-navy-900 text-white font-bold"
+                      : "bg-white text-ink border-line hover:border-navy-900/30"
+                  }`}
+                >
+                  Sentence (Aa)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onChange("textTransform", "uppercase")}
+                  className={`py-1 px-1.5 rounded-sm border text-center transition-all cursor-pointer ${
+                    config.textTransform === "uppercase"
+                      ? "bg-navy-900 text-white font-bold uppercase tracking-wider"
+                      : "bg-white text-ink border-line hover:border-navy-900/30"
+                  }`}
+                >
+                  UPPER (AA)
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* 4. Font Weight */}
+          <div>
+            <label className="block text-[11px] font-bold text-navy-900 uppercase tracking-wider mb-1">
+              Font Weight
+            </label>
+            <div className="grid grid-cols-5 gap-1 text-[10px]">
+              {[
+                { key: "normal", label: "Normal" },
+                { key: "medium", label: "Medium" },
+                { key: "semibold", label: "Semibold" },
+                { key: "bold", label: "Bold" },
+                { key: "extrabold", label: "Heavy" },
+              ].map((wt) => (
+                <button
+                  key={wt.key}
+                  type="button"
+                  onClick={() => onChange("fontWeight", wt.key as ButtonFontWeight)}
+                  className={`py-1 rounded-sm border text-center transition-all cursor-pointer ${
+                    (config.fontWeight === wt.key || (!config.fontWeight && wt.key === "bold"))
+                      ? "bg-navy-900 text-white font-bold border-navy-900 shadow-xs"
+                      : "bg-white text-ink border-line hover:border-navy-900/30"
+                  }`}
+                >
+                  {wt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 5. Icon Selection & Placement */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-[11px] font-bold text-navy-900 uppercase tracking-wider">
+                Button Icon
+              </label>
+              {config.icon && config.icon !== "none" && (
+                <div className="flex items-center gap-1 text-[10px]">
+                  <span className="text-ink-soft">Position:</span>
+                  <button
+                    type="button"
+                    onClick={() => onChange("iconPosition", "left")}
+                    className={`px-1.5 py-0.5 rounded-xs border cursor-pointer ${
+                      config.iconPosition === "left"
+                        ? "bg-navy-900 text-white font-bold"
+                        : "bg-white text-ink border-line"
+                    }`}
+                  >
+                    Left ⇥
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onChange("iconPosition", "right")}
+                    className={`px-1.5 py-0.5 rounded-xs border cursor-pointer ${
+                      config.iconPosition !== "left"
+                        ? "bg-navy-900 text-white font-bold"
+                        : "bg-white text-ink border-line"
+                    }`}
+                  >
+                    ⇤ Right
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-4 sm:grid-cols-8 gap-1">
+              {AVAILABLE_BUTTON_ICONS.map((ico) => {
+                const isSelected =
+                  (!config.icon && ico.name === "none") ||
+                  config.icon === ico.name;
+
+                return (
+                  <button
+                    key={ico.name}
+                    type="button"
+                    title={ico.label}
+                    onClick={() =>
+                      onChange("icon", ico.name === "none" ? undefined : ico.name)
+                    }
+                    className={`h-9 rounded-sm border flex flex-col items-center justify-center transition-all cursor-pointer ${
+                      isSelected
+                        ? "bg-navy-900 text-gold-300 border-navy-900 shadow-xs ring-1 ring-gold-500"
+                        : "bg-white text-ink border-line hover:border-navy-900/30 hover:bg-paper"
+                    }`}
+                  >
+                    {ico.name === "none" ? (
+                      <span className="text-[10px] font-bold">∅ None</span>
+                    ) : (
+                      <Icon name={ico.name as IconName} size={15} />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 6. Corner Radius & Button Size */}
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-[11px] font-bold text-navy-900 uppercase tracking-wider mb-1">
+                Corner Radius
+              </label>
+              <div className="grid grid-cols-4 gap-1 text-[10px]">
+                {[
+                  { key: "none", label: "Sharp" },
+                  { key: "sm", label: "6px" },
+                  { key: "md", label: "12px" },
+                  { key: "full", label: "Pill" },
+                ].map((rad) => (
+                  <button
+                    key={rad.key}
+                    type="button"
+                    onClick={() => onChange("radius", rad.key as ButtonRadius)}
+                    className={`py-1 rounded-sm border text-center transition-all cursor-pointer ${
+                      (config.radius === rad.key || (!config.radius && rad.key === "sm"))
+                        ? "bg-navy-900 text-white font-bold border-navy-900 shadow-xs"
+                        : "bg-white text-ink border-line hover:border-navy-900/30"
+                    }`}
+                  >
+                    {rad.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-bold text-navy-900 uppercase tracking-wider mb-1">
+                Button Scale / Size
+              </label>
+              <div className="grid grid-cols-3 gap-1 text-[10px]">
+                {[
+                  { key: "sm", label: "Small" },
+                  { key: "md", label: "Standard" },
+                  { key: "lg", label: "Large" },
+                ].map((sz) => (
+                  <button
+                    key={sz.key}
+                    type="button"
+                    onClick={() => onChange("size", sz.key as ButtonSizePreset)}
+                    className={`py-1 rounded-sm border text-center transition-all cursor-pointer ${
+                      (config.size === sz.key || (!config.size && sz.key === defaultSize))
+                        ? "bg-navy-900 text-white font-bold border-navy-900 shadow-xs"
+                        : "bg-white text-ink border-line hover:border-navy-900/30"
+                    }`}
+                  >
+                    {sz.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

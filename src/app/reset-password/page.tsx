@@ -10,6 +10,11 @@ export const instant = false;
 export const metadata: Metadata = {
   title: "Reset Password | Smartminds Training College",
   description: "Self-service password reset for Smartminds Training College learners, tutors and administrators.",
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+  },
 };
 
 export default function ResetPasswordPage() {

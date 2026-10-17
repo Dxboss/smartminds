@@ -12,6 +12,7 @@ import {
   BuilderSection,
   BuilderSectionType,
   BuilderSectionItem,
+  BuilderTagItem,
   defaultPageBuilderSections,
   seedCompositeTemplates,
   CompositeWidget,
@@ -20,18 +21,25 @@ import {
   CollegeCmsContent,
   HeaderNavConfig,
   defaultHeaderNavConfig,
+  AnnouncementItem,
+  defaultAnnouncements,
   FooterConfig,
   defaultFooterConfig,
   collegePagesData,
 } from "@/lib/repositories/seedData";
 import {
   saveVisualBuilderSectionsAction,
+  saveVisualBuilderDraftAction,
+  discardVisualBuilderDraftAction,
   saveSiteCmsContentAction,
   saveHeaderNavConfigAction,
   saveFooterConfigAction,
   createNewPageAction,
   deletePageAction,
 } from "@/app/admin/actions";
+import type { Course } from "@/content/types";
+import { ButtonCustomizerFields } from "./ButtonCustomizerFields";
+import { FocusedElementInspector } from "./FocusedElementInspector";
 
 interface Props {
   initialSections: BuilderSection[];
@@ -39,6 +47,8 @@ interface Props {
   initialHeaderNav?: HeaderNavConfig;
   initialFooterConfig?: FooterConfig;
   initialContent: CollegeCmsContent;
+  initialDrafts?: Record<string, { sections: BuilderSection[]; updatedAt: string }>;
+  liveCourses?: Course[];
   userRole: string;
 }
 
@@ -61,6 +71,9 @@ const DEFAULT_PAGES: PageItem[] = [
   { id: "cookies", path: "/cookies", name: "Cookie Policy", iconName: "cookie", isSystem: true },
   { id: "refunds", path: "/refunds", name: "Refund & Cancellation Policy", iconName: "credit-card", isSystem: true },
   { id: "safeguarding", path: "/safeguarding-student-welfare", name: "Safeguarding & Student Welfare", iconName: "users", isSystem: true },
+  { id: "cpd", path: "/cpd", name: "CPD Courses & Certificates", iconName: "shield-check", isSystem: true },
+  { id: "book", path: "/book", name: "Book Free Consultation", iconName: "calendar", isSystem: true },
+  { id: "private-tutoring", path: "/private-tutoring", name: "1-on-1 Academic Tutoring", iconName: "book-open", isSystem: true },
 ];
 
 const AVAILABLE_IMAGES = [
@@ -217,6 +230,8 @@ export const SiteCmsEditorView: React.FC<Props> = ({
   initialHeaderNav = defaultHeaderNavConfig,
   initialFooterConfig = defaultFooterConfig,
   initialContent,
+  initialDrafts = {},
+  liveCourses,
   userRole,
 }) => {
   // Dynamic Page list (Core system pages + any custom CMS pages created)
@@ -260,7 +275,7 @@ export const SiteCmsEditorView: React.FC<Props> = ({
   const [slugError, setSlugError] = useState<string | null>(null);
   const [isCreatingPage, setIsCreatingPage] = useState<boolean>(false);
 
-  // Multi-page sections store
+  // Multi-page sections store (hydrated with server drafts if available)
   const [pagesSections, setPagesSections] = useState<Record<string, BuilderSection[]>>(() => {
     const rawHome =
       initialSections && initialSections.length > 0
@@ -280,10 +295,59 @@ export const SiteCmsEditorView: React.FC<Props> = ({
       return sec;
     });
 
-    return {
-      "/": hydratedHome,
+    const base: Record<string, BuilderSection[]> = {
       ...(initialPagesData || {}),
+      "/": hydratedHome,
     };
+
+    // Hydrate with any active server drafts across devices!
+    if (initialDrafts) {
+      Object.entries(initialDrafts).forEach(([p, draft]) => {
+        if (draft.sections && Array.isArray(draft.sections) && draft.sections.length > 0) {
+          base[p] = draft.sections;
+        }
+      });
+    }
+
+    return base;
+  });
+
+  // Track published baseline per page to ensure auto-save only triggers on genuine uncommitted changes
+  const publishedSnapshotsRef = useRef<Record<string, string>>({});
+  const hasInitPublishedSnapshotsRef = useRef<boolean>(false);
+  if (!hasInitPublishedSnapshotsRef.current) {
+    hasInitPublishedSnapshotsRef.current = true;
+    Object.entries(initialPagesData || {}).forEach(([p, secs]) => {
+      if (Array.isArray(secs) && secs.length > 0) {
+        publishedSnapshotsRef.current[p] = JSON.stringify(secs);
+      }
+    });
+    if (initialSections && initialSections.length > 0) {
+      publishedSnapshotsRef.current["/"] = JSON.stringify(initialSections);
+    }
+  }
+
+  // Ref to track last saved draft payload per page to prevent duplicate saves
+  const lastSavedDraftSnapshotRef = useRef<Record<string, string>>({});
+
+  // Server-Side Cross-Device Draft System
+  const [serverDrafts, setServerDrafts] = useState<
+    Record<string, { sections: BuilderSection[]; updatedAt: string }>
+  >(initialDrafts || {});
+
+  const [draftStatus, setDraftStatus] = useState<{
+    text: string;
+    isSaving: boolean;
+  }>(() => {
+    const activeDraft = initialDrafts?.[activePagePath];
+    if (activeDraft?.updatedAt) {
+      const timeStr = new Date(activeDraft.updatedAt).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      return { text: `Draft saved to server (${timeStr})`, isSaving: false };
+    }
+    return { text: "Published to Live", isSaving: false };
   });
 
   // Undo & Redo History Management
@@ -342,6 +406,113 @@ export const SiteCmsEditorView: React.FC<Props> = ({
     });
   };
 
+  // Keep draftStatus text in sync when switching pages
+  useEffect(() => {
+    const activeDraft = serverDrafts[activePagePath];
+    if (activeDraft?.updatedAt) {
+      const timeStr = new Date(activeDraft.updatedAt).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      setDraftStatus({ text: `Draft saved to server (${timeStr})`, isSaving: false });
+    } else {
+      setDraftStatus({ text: "Published to Live", isSaving: false });
+    }
+  }, [activePagePath, serverDrafts]);
+
+  // Debounced Auto-Save Draft to Server (2.5s debounce)
+  // ONLY runs when activeSections actually differs from the published version
+  const isInitialDraftMount = useRef(true);
+  useEffect(() => {
+    if (isInitialDraftMount.current) {
+      isInitialDraftMount.current = false;
+      return;
+    }
+
+    const currentSnapshot = JSON.stringify(activeSections);
+    const publishedSnapshot = publishedSnapshotsRef.current[activePagePath];
+
+    // If activeSections is identical to the published version, NO draft should be saved
+    if (publishedSnapshot && currentSnapshot === publishedSnapshot) {
+      setDraftStatus({ text: "Published to Live", isSaving: false });
+      return;
+    }
+
+    // If activeSections is already saved as a draft, do nothing
+    if (lastSavedDraftSnapshotRef.current[activePagePath] === currentSnapshot) {
+      return;
+    }
+
+    setDraftStatus((prev) => ({ ...prev, isSaving: true, text: "Saving draft to server..." }));
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await saveVisualBuilderDraftAction(activePagePath, activeSections);
+        if (res.success && res.updatedAt) {
+          lastSavedDraftSnapshotRef.current[activePagePath] = currentSnapshot;
+          const timeStr = new Date(res.updatedAt).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+          setDraftStatus({ text: `Draft saved to server (${timeStr})`, isSaving: false });
+          setServerDrafts((prev) => ({
+            ...prev,
+            [activePagePath]: { sections: activeSections, updatedAt: res.updatedAt },
+          }));
+        } else if ((res as any)?.unauthorized || (res as any)?.sessionExpired) {
+          setDraftStatus({ text: "Session expired — sign in as Director", isSaving: false });
+        } else {
+          setDraftStatus({ text: "Draft save paused", isSaving: false });
+        }
+      } catch (err: any) {
+        if (err?.message?.includes("Unauthorized")) {
+          setDraftStatus({ text: "Session expired — sign in as Director", isSaving: false });
+        } else {
+          console.error("Draft auto-save failed:", err);
+          setDraftStatus({ text: "Auto-save failed (offline)", isSaving: false });
+        }
+      }
+    }, 2500);
+
+    return () => clearTimeout(timer);
+  }, [activeSections, activePagePath]);
+
+  // Discard working draft and revert to live published
+  const handleDiscardDraft = async () => {
+    if (
+      !window.confirm(
+        `Discard all working draft changes for "${activePagePath}" and revert to the live published site?`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const res = await discardVisualBuilderDraftAction(activePagePath);
+      const reverted =
+        res.publishedSections ||
+        (initialPagesData && initialPagesData[activePagePath]) ||
+        (activePagePath === "/" ? initialSections : defaultPageBuilderSections);
+
+      setActiveSections(reverted, true);
+      publishedSnapshotsRef.current[activePagePath] = JSON.stringify(reverted);
+      delete lastSavedDraftSnapshotRef.current[activePagePath];
+
+      setServerDrafts((prev) => {
+        const next = { ...prev };
+        delete next[activePagePath];
+        return next;
+      });
+      setDraftStatus({ text: "Published to Live", isSaving: false });
+      setToastNotice("Draft discarded. Reverted to live published version.");
+      setTimeout(() => setToastNotice(null), 3000);
+    } catch (err) {
+      console.error("Failed to discard draft:", err);
+      setToastNotice("Failed to discard draft.");
+      setTimeout(() => setToastNotice(null), 3000);
+    }
+  };
+
   const [selectedSectionId, setSelectedSectionId] = useState<string>(
     activeSections[0]?.id || ""
   );
@@ -389,12 +560,167 @@ export const SiteCmsEditorView: React.FC<Props> = ({
   const [activeCompositeColIdx, setActiveCompositeColIdx] = useState<number>(0);
   const [activeWidgetEditId, setActiveWidgetEditId] = useState<string | null>(null);
   const [showAddWidgetMenu, setShowAddWidgetMenu] = useState<number | null>(null);
+  const [widgetSearchQuery, setWidgetSearchQuery] = useState<string>("");
+  const [widgetCategoryFilter, setWidgetCategoryFilter] = useState<string>("all");
 
   // Viewport Switcher: Desktop | Tablet (768px) | Mobile (390px)
   const [viewport, setViewport] = useState<"desktop" | "tablet" | "mobile">(
     "desktop"
   );
   const [hoveredSectionId, setHoveredSectionId] = useState<string | null>(null);
+
+  // Contextual Element Focus State (Targeted Inspector Mode)
+  const [selectedElementKey, setSelectedElementKey] = useState<
+    | "headline"
+    | "subheadline"
+    | "badge"
+    | "tags"
+    | "button"
+    | "secondaryButton"
+    | "image"
+    | "item"
+    | "bg"
+    | "video"
+    | "floatingBadge"
+    | null
+  >(null);
+  const [selectedElementItemIndex, setSelectedElementItemIndex] = useState<number | null>(null);
+
+  // Navigator Tree Expansion State
+  const [expandedSectionIds, setExpandedSectionIds] = useState<Record<string, boolean>>({
+    "sec-hero-01": true,
+  });
+
+  const toggleSectionExpanded = (secId: string) => {
+    setExpandedSectionIds((prev) => ({
+      ...prev,
+      [secId]: !prev[secId],
+    }));
+  };
+
+  // Helper to resolve all interactive sub-elements within any section for Navigator & Quick Jump Map
+  const getSectionInnerElements = (sec: BuilderSection) => {
+    const list: {
+      key:
+        | "headline"
+        | "subheadline"
+        | "badge"
+        | "tags"
+        | "button"
+        | "secondaryButton"
+        | "image"
+        | "item"
+        | "bg"
+        | "video"
+        | "floatingBadge";
+      label: string;
+      sublabel?: string;
+      icon: IconName;
+      index?: number;
+    }[] = [];
+
+    if (sec.badgeText) {
+      list.push({
+        key: "badge",
+        label: sec.type === "trust_strip" ? "Rating Eyebrow" : "Eyebrow Badge",
+        sublabel: sec.badgeText,
+        icon: "sparkles",
+      });
+    }
+
+    if (sec.tags && sec.tags.length > 0) {
+      list.push({
+        key: "tags",
+        label: "Top Benefit Badges",
+        sublabel: `${sec.tags.length} badges`,
+        icon: "layers",
+      });
+    }
+
+    if (sec.headline) {
+      list.push({
+        key: "headline",
+        label: "Main Headline",
+        sublabel: sec.headline.slice(0, 32) + (sec.headline.length > 32 ? "..." : ""),
+        icon: "file-text",
+      });
+    }
+
+    if (sec.subheadline) {
+      list.push({
+        key: "subheadline",
+        label: "Subheadline Copy",
+        sublabel: sec.subheadline.slice(0, 36) + (sec.subheadline.length > 36 ? "..." : ""),
+        icon: "file-text",
+      });
+    }
+
+    if (sec.buttonText) {
+      list.push({
+        key: "button",
+        label: "Primary CTA Button",
+        sublabel: sec.buttonText,
+        icon: "arrow-right",
+      });
+    }
+
+    if (sec.secondaryButtonText) {
+      list.push({
+        key: "secondaryButton",
+        label: "Secondary Button",
+        sublabel: sec.secondaryButtonText,
+        icon: "arrow-right",
+      });
+    }
+
+    if (sec.image) {
+      list.push({
+        key: "image",
+        label: "Showcase Photograph",
+        sublabel: sec.image,
+        icon: "layers",
+      });
+    }
+
+    if (sec.type === "hero" && sec.floatingBadgeEnabled !== false) {
+      list.push({
+        key: "floatingBadge",
+        label: "Live Sessions Badge",
+        sublabel: sec.floatingBadgeTitle || "Live Evening Sessions",
+        icon: (sec.floatingBadgeIcon as IconName) || "star",
+      });
+    }
+
+    if (sec.videoUrl) {
+      list.push({
+        key: "video",
+        label: "Spotlight Video Player",
+        sublabel: sec.videoTitle || "Video",
+        icon: "video",
+      });
+    }
+
+    if (sec.items && sec.items.length > 0) {
+      sec.items.forEach((item, idx) => {
+        list.push({
+          key: "item",
+          label: item.title ? item.title.slice(0, 24) : `Card #${idx + 1}`,
+          sublabel: item.tag || item.desc?.slice(0, 24),
+          icon: (item.icon as IconName) || "check-circle",
+          index: idx,
+        });
+      });
+    }
+
+    list.push({
+      key: "bg",
+      label: "Layout & Spacing",
+      sublabel: `${sec.bgColor || "paper"} • ${sec.paddingDensity || "normal"}`,
+      icon: "sparkles",
+    });
+
+    return list;
+  };
 
   // Direct Click-to-Edit Selection on the Live Canvas
   const handleSelectElement = (
@@ -403,15 +729,19 @@ export const SiteCmsEditorView: React.FC<Props> = ({
       | "headline"
       | "subheadline"
       | "badge"
+      | "tags"
       | "button"
       | "secondaryButton"
       | "image"
       | "item"
       | "bg"
-      | "video",
+      | "video"
+      | "floatingBadge",
     itemIndex?: number
   ) => {
     setSelectedSectionId(sectionId);
+    setSelectedElementKey(elementKey);
+    setSelectedElementItemIndex(itemIndex ?? null);
     setIsSidebarOpen(true);
     setPanelCategory("page");
     setSidebarTab("inspect");
@@ -426,12 +756,16 @@ export const SiteCmsEditorView: React.FC<Props> = ({
 
     const targetSec = activeSections.find((s) => s.id === sectionId);
     const label =
-      elementKey === "video"
+      elementKey === "floatingBadge"
+        ? "Live Evening Sessions Badge"
+        : elementKey === "video"
         ? "Video Spotlight Settings"
         : elementKey === "headline"
         ? "Headline"
         : elementKey === "subheadline"
         ? "Subheadline"
+        : elementKey === "tags"
+        ? "Hero Tags & Badges"
         : elementKey === "badge"
         ? targetSec?.type === "trust_strip"
           ? "Google Reviews & Rating"
@@ -450,8 +784,8 @@ export const SiteCmsEditorView: React.FC<Props> = ({
           : `Card #${(itemIndex ?? 0) + 1}`
         : "Section Style";
 
-    setToastNotice(`Editing: ${label}`);
-    setTimeout(() => setToastNotice(null), 3500);
+    setToastNotice(`Focused: ${label}`);
+    setTimeout(() => setToastNotice(null), 3000);
   };
 
   // Drag & Drop State
@@ -1120,7 +1454,7 @@ export const SiteCmsEditorView: React.FC<Props> = ({
       videoDesc:
         "Watch how healthcare workers achieved their Level 3 and 5 diplomas with zero exams.",
       videoThumbnail: "/images/certificate-moment.jpg",
-      videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+      videoUrl: "",
       items:
         type === "stats_counter"
           ? [
@@ -1244,13 +1578,28 @@ export const SiteCmsEditorView: React.FC<Props> = ({
           ? "New Feature Guarantee"
           : type === "lead_form"
           ? "Request Free Callback"
+          : type === "stats_metric"
+          ? "First-Time Pass Rate"
+          : type === "quote_card"
+          ? "Student Testimonial"
+          : type === "checklist"
+          ? "Course Key Features"
           : "New Content Element",
-      eyebrow: type === "text" ? "Verified Quality" : undefined,
+      eyebrow:
+        type === "text"
+          ? "Verified Quality"
+          : type === "stats_metric"
+          ? "Verified Metric"
+          : undefined,
       content:
         type === "text"
           ? "Describe your course benefits, tutor mentoring, or cohort timelines."
           : type === "icon_box"
           ? "Detailed explanation of this British training credential."
+          : type === "quote_card"
+          ? "The tutor feedback was detailed and fast. Studying online while working 12-hour shifts made completing my Level 3 possible."
+          : type === "stats_metric"
+          ? "Based on 2025/2026 external qualification assessment submissions."
           : undefined,
       icon: "shield-check",
       imageUrl: "/images/adult-care-training.jpg",
@@ -1260,8 +1609,25 @@ export const SiteCmsEditorView: React.FC<Props> = ({
       buttonLink: "/book",
       secondaryButtonText: "View Diplomas",
       secondaryButtonLink: "/courses",
-      videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+      videoUrl: "",
       badge: "Accredited",
+      statNumber: "98%",
+      statLabel: "First-Time Pass Rate",
+      quoteAuthor: "Sarah Jenkins",
+      quoteRole: "Senior Healthcare Assistant, NHS Trust",
+      rating: 5,
+      checklistItems: [
+        "100% coursework assessment with no written exams",
+        "Dedicated 1-on-1 certified assessor support",
+        "Flexible study hours around shift rotas",
+        "Spread tuition over 6 or 12 months with 0% interest",
+      ],
+      badgeList: [
+        "NCFE CACHE Regulated",
+        "TQUK Approved Centre",
+        "Ofqual Regulated Framework",
+        "100% Coursework Assessment",
+      ],
       formFields: {
         showName: true,
         showPhone: true,
@@ -1426,6 +1792,63 @@ export const SiteCmsEditorView: React.FC<Props> = ({
       return;
     }
 
+    if (selectedSection?.type === "choose_path") {
+      const newItem: BuilderSectionItem = {
+        title: "New Career Pathway",
+        subtitle: "Career Role or Progression Level",
+        desc: "Ofqual-regulated qualification preparing you for leadership and specialist roles.",
+        icon: "shield-check",
+        badge: "Level 3",
+        tag: "Regulated",
+        link: "/courses",
+      };
+      updateSelectedField("items", [...currentItems, newItem]);
+      return;
+    }
+
+    if (selectedSection?.type === "how_it_works") {
+      const stepNum = currentItems.length + 1;
+      const newItem: BuilderSectionItem = {
+        number: stepNum < 10 ? `0${stepNum}` : `${stepNum}`,
+        title: `Step ${stepNum} Title`,
+        subtitle: "Clear step guidance",
+        desc: "Explain the admissions process, live classes, portfolio submissions, or certification.",
+        badge: "Step milestone",
+      };
+      updateSelectedField("items", [...currentItems, newItem]);
+      return;
+    }
+
+    if (selectedSection?.type === "pricing") {
+      const optNum = currentItems.length + 1;
+      const newItem: BuilderSectionItem = {
+        number: optNum < 10 ? `Option 0${optNum}` : `Option ${optNum}`,
+        title: "New Payment Option",
+        subtitle: "Clear, transparent tuition term",
+        desc: "Explain discounts, zero interest instalment terms, or funding qualification criteria.",
+        badge: "Flexible Plan",
+        bullets: [
+          "Key feature or student saving",
+          "Includes all assessment and verification fees",
+        ],
+        link: "/courses",
+      };
+      updateSelectedField("items", [...currentItems, newItem]);
+      return;
+    }
+
+    if (selectedSection?.type === "testimonials") {
+      const newItem: BuilderSectionItem = {
+        title: "Graduate Name",
+        subtitle: "Course Title / Current Promotion",
+        desc: "Authentic student review describing their live evening teaching experience, tutor support, and career outcome.",
+        image: "/images/hero-learner.jpg",
+        rating: 5,
+      };
+      updateSelectedField("items", [...currentItems, newItem]);
+      return;
+    }
+
     const newItem: BuilderSectionItem = {
       title: "New Highlight / Feature Card",
       desc: "Detailed description of the requirement, benefit, or answer.",
@@ -1461,8 +1884,20 @@ export const SiteCmsEditorView: React.FC<Props> = ({
           footerConfig
         );
         if (result.success) {
+          publishedSnapshotsRef.current[activePagePath] = JSON.stringify(activeSections);
+          delete lastSavedDraftSnapshotRef.current[activePagePath];
+          setServerDrafts((prev) => {
+            const next = { ...prev };
+            delete next[activePagePath];
+            return next;
+          });
+          setDraftStatus({ text: "Published to Live", isSaving: false });
           setToastNotice(`"${activePageObj.name}" and site navigation published live successfully!`);
           setTimeout(() => setToastNotice(null), 5000);
+        } else if ((result as any)?.unauthorized || (result as any)?.sessionExpired) {
+          alert("Your session has expired or Director/Owner privileges are required. Please log in as College Director (Millie Davis) or Super Admin.");
+        } else {
+          alert((result as any)?.error || "Failed to publish changes.");
         }
       } catch (err: unknown) {
         alert(err instanceof Error ? err.message : "Failed to publish changes.");
@@ -1873,11 +2308,35 @@ export const SiteCmsEditorView: React.FC<Props> = ({
           </button>
         </div>
 
-        {/* Action Controls */}
+        {/* Action Controls & Server Draft Management */}
         <div className="flex items-center gap-2">
+          {/* Server Draft Status Badge */}
+          {serverDrafts[activePagePath] ? (
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/15 border border-amber-400/40 rounded-sm text-amber-300 text-[11px] font-mono shadow-xs">
+                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                <span>{draftStatus.text}</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleDiscardDraft}
+                disabled={isPending}
+                className="px-2.5 py-1 text-xs text-rose-300 hover:text-white hover:bg-rose-950/60 rounded-sm border border-rose-500/40 transition-colors disabled:opacity-50 cursor-pointer"
+                title="Discard unpublished working draft and revert to live published page"
+              >
+                Discard Draft
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/15 border border-emerald-400/30 rounded-sm text-emerald-300 text-[11px] font-mono shadow-xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-400" />
+              <span>{draftStatus.text}</span>
+            </div>
+          )}
+
           <button
             onClick={handleResetDefault}
-            className="px-3 py-1.5 rounded-sm text-xs text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+            className="px-3 py-1.5 rounded-sm text-xs text-white/70 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
           >
             Reset Page
           </button>
@@ -1892,10 +2351,10 @@ export const SiteCmsEditorView: React.FC<Props> = ({
           <button
             onClick={handlePublishPage}
             disabled={isPending}
-            className="px-4 py-1.5 rounded-sm bg-gold-500 hover:bg-gold-300 text-navy-900 text-xs font-bold transition-all shadow-sm disabled:opacity-50 flex items-center gap-1.5"
+            className="px-4 py-1.5 rounded-sm bg-gold-500 hover:bg-gold-300 text-navy-900 text-xs font-bold transition-all shadow-sm disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
           >
             <Icon name="check" size={14} />
-            <span>{isPending ? "Publishing..." : "Publish Page"}</span>
+            <span>{isPending ? "Publishing..." : "Publish to Live"}</span>
           </button>
         </div>
       </header>
@@ -2355,87 +2814,162 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                 const isSelected = sec.id === selectedSectionId;
                 const isDragging = draggedSectionIndex === idx;
                 const isDragOver = dragOverSectionIndex === idx;
+                const isExpanded = expandedSectionIds[sec.id] ?? isSelected;
+                const innerElements = getSectionInnerElements(sec);
 
                 return (
-                  <div
-                    key={sec.id}
-                    draggable
-                    onDragStart={(e) => handleDragStartSection(e, idx)}
-                    onDragOver={(e) => handleDragOverSection(e, idx)}
-                    onDrop={(e) => handleDropOnSection(e, idx)}
-                    onDragEnd={handleDragEnd}
-                    onClick={() => {
-                      setSelectedSectionId(sec.id);
-                      setSidebarTab("inspect");
-                    }}
-                    onMouseEnter={() => setHoveredSectionId(sec.id)}
-                    onMouseLeave={() => setHoveredSectionId(null)}
-                    className={`p-2.5 rounded-sm border transition-all cursor-grab active:cursor-grabbing flex items-center justify-between gap-2 ${
-                      isDragging
-                        ? "opacity-40 border-dashed border-navy-900 bg-navy-50"
-                        : isDragOver
-                        ? "border-t-4 border-t-gold-500 bg-gold-50/50"
-                        : isSelected
-                        ? "border-navy-900 bg-navy-50/50 shadow-xs"
-                        : "border-line bg-white hover:border-navy-900/40"
-                    } ${!sec.enabled ? "opacity-50" : ""}`}
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <Icon
-                        name="grip-vertical"
-                        size={13}
-                        className="text-ink-soft/40 hover:text-navy-900 flex-shrink-0"
-                      />
-                      <span className="font-mono text-xs text-ink-soft/70">
-                        {idx + 1}.
-                      </span>
-                      <div className="min-w-0">
-                        <strong className="text-xs font-bold text-navy-900 block truncate">
-                          {sec.name}
-                        </strong>
-                        <span className="text-[10px] text-ink-soft uppercase font-mono">
-                          {sec.type}
+                  <div key={sec.id} className="space-y-1">
+                    <div
+                      draggable
+                      onDragStart={(e) => handleDragStartSection(e, idx)}
+                      onDragOver={(e) => handleDragOverSection(e, idx)}
+                      onDrop={(e) => handleDropOnSection(e, idx)}
+                      onDragEnd={handleDragEnd}
+                      onClick={() => {
+                        setSelectedSectionId(sec.id);
+                        setSelectedElementKey(null);
+                        setSelectedElementItemIndex(null);
+                        setSidebarTab("inspect");
+                      }}
+                      onMouseEnter={() => setHoveredSectionId(sec.id)}
+                      onMouseLeave={() => setHoveredSectionId(null)}
+                      className={`p-2 rounded-sm border transition-all cursor-grab active:cursor-grabbing flex items-center justify-between gap-2 ${
+                        isDragging
+                          ? "opacity-40 border-dashed border-navy-900 bg-navy-50"
+                          : isDragOver
+                          ? "border-t-4 border-t-gold-500 bg-gold-50/50"
+                          : isSelected
+                          ? "border-navy-900 bg-navy-50/50 shadow-xs"
+                          : "border-line bg-white hover:border-navy-900/40"
+                      } ${!sec.enabled ? "opacity-50" : ""}`}
+                    >
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleSectionExpanded(sec.id);
+                          }}
+                          className="p-1 hover:bg-navy-100 rounded text-ink-soft hover:text-navy-900 transition-colors cursor-pointer shrink-0"
+                          title={isExpanded ? "Collapse block elements" : "Expand block elements"}
+                        >
+                          <Icon name={isExpanded ? "chevron-down" : "chevron-right"} size={11} />
+                        </button>
+                        <Icon
+                          name="grip-vertical"
+                          size={13}
+                          className="text-ink-soft/40 hover:text-navy-900 flex-shrink-0"
+                        />
+                        <span className="font-mono text-xs text-ink-soft/70">
+                          {idx + 1}.
                         </span>
+                        <div className="min-w-0">
+                          <strong className="text-xs font-bold text-navy-900 block truncate">
+                            {sec.name}
+                          </strong>
+                          <span className="text-[10px] text-ink-soft uppercase font-mono">
+                            {sec.type} • {innerElements.length - 1} items
+                          </span>
+                        </div>
+                      </div>
+
+                      <div
+                        className="flex items-center gap-1 flex-shrink-0"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          title="Move Up"
+                          disabled={idx === 0}
+                          onClick={() => moveSection(idx, "up")}
+                          className="p-1 hover:bg-paper rounded-sm text-ink-soft disabled:opacity-20 text-xs"
+                        >
+                          <Icon name="chevron-up" size={12} />
+                        </button>
+                        <button
+                          title="Move Down"
+                          disabled={idx === activeSections.length - 1}
+                          onClick={() => moveSection(idx, "down")}
+                          className="p-1 hover:bg-paper rounded-sm text-ink-soft disabled:opacity-20 text-xs"
+                        >
+                          <Icon name="chevron-down" size={12} />
+                        </button>
+                        <button
+                          title={sec.enabled ? "Hide Section" : "Show Section"}
+                          onClick={() => toggleSectionEnabled(sec.id)}
+                          className={`p-1 hover:bg-paper rounded-sm text-xs ${
+                            sec.enabled ? "text-navy-900" : "text-ink-soft"
+                          }`}
+                        >
+                          <Icon name={sec.enabled ? "eye" : "eye-off"} size={13} />
+                        </button>
+                        <button
+                          title="Delete Section"
+                          onClick={() => deleteSection(sec.id)}
+                          className="p-1 hover:bg-rose-50 text-rose-700 rounded-sm text-xs"
+                        >
+                          <Icon name="trash" size={12} />
+                        </button>
                       </div>
                     </div>
 
-                    <div
-                      className="flex items-center gap-1 flex-shrink-0"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <button
-                        title="Move Up"
-                        disabled={idx === 0}
-                        onClick={() => moveSection(idx, "up")}
-                        className="p-1 hover:bg-paper rounded-sm text-ink-soft disabled:opacity-20 text-xs"
-                      >
-                        <Icon name="chevron-up" size={12} />
-                      </button>
-                      <button
-                        title="Move Down"
-                        disabled={idx === activeSections.length - 1}
-                        onClick={() => moveSection(idx, "down")}
-                        className="p-1 hover:bg-paper rounded-sm text-ink-soft disabled:opacity-20 text-xs"
-                      >
-                        <Icon name="chevron-down" size={12} />
-                      </button>
-                      <button
-                        title={sec.enabled ? "Hide Section" : "Show Section"}
-                        onClick={() => toggleSectionEnabled(sec.id)}
-                        className={`p-1 hover:bg-paper rounded-sm text-xs ${
-                          sec.enabled ? "text-navy-900" : "text-ink-soft"
-                        }`}
-                      >
-                        <Icon name={sec.enabled ? "eye" : "eye-off"} size={13} />
-                      </button>
-                      <button
-                        title="Delete Section"
-                        onClick={() => deleteSection(sec.id)}
-                        className="p-1 hover:bg-rose-50 text-rose-700 rounded-sm text-xs"
-                      >
-                        <Icon name="trash" size={12} />
-                      </button>
-                    </div>
+                    {/* Nested Sub-Elements Tree View (Navigator) */}
+                    {isExpanded && (
+                      <div className="ml-5 pl-2.5 border-l-2 border-line/80 space-y-1 py-1">
+                        {innerElements.map((el) => {
+                          const isElementActive =
+                            isSelected &&
+                            selectedElementKey === el.key &&
+                            (el.index === undefined || el.index === selectedElementItemIndex);
+
+                          return (
+                            <button
+                              key={`${el.key}-${el.index ?? 0}`}
+                              type="button"
+                              onClick={() => {
+                                setSelectedSectionId(sec.id);
+                                setSelectedElementKey(el.key);
+                                setSelectedElementItemIndex(el.index ?? null);
+                                setSidebarTab("inspect");
+                                if (el.key === "item" || el.key === "image" || el.key === "video") {
+                                  setInspectorSubTab("items");
+                                } else if (el.key === "bg") {
+                                  setInspectorSubTab("style");
+                                } else {
+                                  setInspectorSubTab("content");
+                                }
+                              }}
+                              className={`w-full px-2 py-1.5 rounded-xs text-left flex items-center justify-between gap-1 text-[11px] transition-all cursor-pointer group shadow-2xs border ${
+                                isElementActive
+                                  ? "bg-navy-900 text-gold-300 border-navy-900 font-bold"
+                                  : "bg-white hover:bg-navy-50 text-navy-900 border-line/60"
+                              }`}
+                            >
+                              <span className="flex items-center gap-1.5 min-w-0">
+                                <Icon
+                                  name={el.icon}
+                                  size={11}
+                                  className={
+                                    isElementActive
+                                      ? "text-gold-400"
+                                      : "text-gold-600 group-hover:text-navy-900"
+                                  }
+                                />
+                                <span className="truncate">{el.label}</span>
+                              </span>
+                              {el.sublabel && (
+                                <span
+                                  className={`text-[9px] font-mono truncate max-w-[110px] ${
+                                    isElementActive ? "text-gold-200" : "text-ink-soft group-hover:text-ink"
+                                  }`}
+                                >
+                                  {el.sublabel}
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -2453,36 +2987,142 @@ export const SiteCmsEditorView: React.FC<Props> = ({
           {/* TAB 2: Section Inspector (Elementor Properties Panel) */}
           {sidebarTab === "inspect" && selectedSection && (
             <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
-              <div className="p-4 border-b border-line bg-paper flex items-center justify-between flex-shrink-0">
-                <div>
-                  <span className="text-[10px] font-mono text-ink-soft uppercase tracking-wider block">
-                    Inspector • {selectedSection.type}
-                  </span>
-                  <strong className="text-sm font-bold text-navy-900">
-                    {selectedSection.name}
-                  </strong>
+              <div className="p-3.5 border-b border-line bg-paper flex items-center justify-between flex-shrink-0">
+                <div className="flex-1 min-w-0 pr-2">
+                  {selectedElementKey ? (
+                    <div>
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedElementKey(null)}
+                          className="text-[10px] font-bold text-navy-900 hover:text-gold-700 underline flex items-center gap-0.5 cursor-pointer"
+                        >
+                          <Icon name="arrow-left" size={10} />
+                          <span>{selectedSection.name}</span>
+                        </button>
+                        <span className="text-[10px] text-ink-soft">/</span>
+                        <span className="text-[9px] font-mono text-gold-700 bg-gold-300/30 px-1.5 py-0.5 rounded font-bold uppercase truncate">
+                          Focus Mode
+                        </span>
+                      </div>
+                      <strong className="text-xs font-bold text-navy-900 block truncate">
+                        {selectedElementKey === "floatingBadge"
+                          ? "Hero Live Sessions Badge"
+                          : selectedElementKey === "button"
+                          ? "Primary CTA Button"
+                          : selectedElementKey === "secondaryButton"
+                          ? "Secondary Button"
+                          : selectedElementKey === "headline"
+                          ? "Main Headline & Typography"
+                          : selectedElementKey === "subheadline"
+                          ? "Subheadline Copy & Typography"
+                          : selectedElementKey === "badge"
+                          ? "Eyebrow / Badge Text"
+                          : selectedElementKey === "tags"
+                          ? "Top Benefit Badges"
+                          : selectedElementKey === "image"
+                          ? "Showcase Photograph"
+                          : selectedElementKey === "video"
+                          ? "Spotlight Video Player"
+                          : selectedElementKey === "bg"
+                          ? "Layout & Section Background"
+                          : selectedElementKey === "item"
+                          ? `Card #${(selectedElementItemIndex ?? 0) + 1}`
+                          : selectedSection.name}
+                      </strong>
+                    </div>
+                  ) : (
+                    <div>
+                      <span className="text-[10px] font-mono text-ink-soft uppercase tracking-wider block">
+                        Inspector • {selectedSection.type}
+                      </span>
+                      <strong className="text-sm font-bold text-navy-900 block truncate">
+                        {selectedSection.name}
+                      </strong>
+                    </div>
+                  )}
                 </div>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => duplicateSection(selectedSection.id)}
-                    title="Duplicate section"
-                    className="px-2 py-1 text-xs border border-line rounded-sm hover:bg-white font-semibold flex items-center gap-1"
-                  >
-                    <Icon name="copy" size={11} />
-                    <span>Copy</span>
-                  </button>
-                  <button
-                    onClick={() => toggleSectionEnabled(selectedSection.id)}
-                    className="px-2 py-1 text-xs border border-line rounded-sm hover:bg-white font-semibold flex items-center gap-1"
-                  >
-                    <Icon name={selectedSection.enabled ? "eye-off" : "eye"} size={11} />
-                    <span>{selectedSection.enabled ? "Disable" : "Enable"}</span>
-                  </button>
+                <div className="flex items-center gap-1 shrink-0">
+                  {selectedElementKey ? (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedElementKey(null)}
+                      className="px-2 py-1 text-[11px] font-bold text-navy-900 bg-white hover:bg-gold-50 border border-line rounded-xs flex items-center gap-1 transition-all shadow-2xs cursor-pointer"
+                    >
+                      <Icon name="arrow-left" size={10} />
+                      <span>All Elements</span>
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => duplicateSection(selectedSection.id)}
+                        title="Duplicate section"
+                        className="px-2 py-1 text-xs border border-line rounded-sm hover:bg-white font-semibold flex items-center gap-1 cursor-pointer"
+                      >
+                        <Icon name="copy" size={11} />
+                        <span>Copy</span>
+                      </button>
+                      <button
+                        onClick={() => toggleSectionEnabled(selectedSection.id)}
+                        className="px-2 py-1 text-xs border border-line rounded-sm hover:bg-white font-semibold flex items-center gap-1 cursor-pointer"
+                      >
+                        <Icon name={selectedSection.enabled ? "eye-off" : "eye"} size={11} />
+                        <span>{selectedSection.enabled ? "Disable" : "Enable"}</span>
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
 
-              {/* Inspector Sub-Tabs */}
-              <div className="flex border-b border-line bg-white text-[11px] font-semibold flex-shrink-0">
+              {/* Contextual Focused Element Inspector vs All Elements Overview */}
+              {selectedElementKey ? (
+                <FocusedElementInspector
+                  section={selectedSection}
+                  elementKey={selectedElementKey}
+                  itemIndex={selectedElementItemIndex}
+                  onBack={() => setSelectedElementKey(null)}
+                  updateField={updateSelectedField}
+                  updateItemField={updateItemField}
+                />
+              ) : (
+                <>
+                  {/* Block Element Quick-Jump Map (Elementor Outline Strip) */}
+                  <div className="p-3 bg-paper border-b border-line space-y-1.5 flex-shrink-0">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-semibold text-navy-900 uppercase tracking-wider">
+                        Interactive Elements in this Block
+                      </span>
+                      <span className="text-[10px] text-ink-soft font-mono">
+                        {getSectionInnerElements(selectedSection).length} items
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {getSectionInnerElements(selectedSection).map((el) => (
+                        <button
+                          key={`${el.key}-${el.index ?? 0}`}
+                          type="button"
+                          onClick={() => {
+                            setSelectedElementKey(el.key);
+                            setSelectedElementItemIndex(el.index ?? null);
+                            if (el.key === "item" || el.key === "image" || el.key === "video") {
+                              setInspectorSubTab("items");
+                            } else if (el.key === "bg") {
+                              setInspectorSubTab("style");
+                            } else {
+                              setInspectorSubTab("content");
+                            }
+                          }}
+                          className="px-2 py-1 bg-white hover:bg-navy-900 hover:text-white rounded-xs border border-line text-left transition-all shadow-2xs group flex items-center gap-1.5 cursor-pointer text-[10px] font-medium"
+                        >
+                          <Icon name={el.icon} size={11} className="text-gold-600 group-hover:text-gold-300 shrink-0" />
+                          <span className="truncate max-w-[120px]">{el.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Inspector Sub-Tabs */}
+                  <div className="flex border-b border-line bg-white text-[11px] font-semibold flex-shrink-0">
                 <button
                   onClick={() => setInspectorSubTab("content")}
                   className={`flex-1 py-2 text-center border-b-2 transition-colors flex items-center justify-center gap-1.5 ${
@@ -2699,6 +3339,10 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                                   {[
                                     { type: "text", label: "Text Block", icon: "file-text" },
                                     { type: "icon_box", label: "Icon Box", icon: "shield-check" },
+                                    { type: "stats_metric", label: "Stat Counter", icon: "star" },
+                                    { type: "quote_card", label: "Student Quote", icon: "message-square" },
+                                    { type: "badge_strip", label: "Awarding Badges", icon: "shield-check" },
+                                    { type: "checklist", label: "Course Checklist", icon: "check-circle" },
                                     { type: "image", label: "Image Box", icon: "layers" },
                                     { type: "cta_button", label: "Action Buttons", icon: "arrow-right" },
                                     { type: "lead_form", label: "Lead Form Box", icon: "mail" },
@@ -2834,6 +3478,170 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                                                   className="w-full px-2 py-1 border border-line rounded-sm bg-white leading-normal"
                                                 />
                                               </div>
+
+                                              {/* Text Widget Typography Settings */}
+                                              <div className="pt-2 border-t border-line/70 space-y-2 bg-paper/50 p-2 rounded-xs">
+                                                <label className="block text-[10px] font-semibold text-navy-900 uppercase tracking-wider flex items-center gap-1">
+                                                  <Icon name="sparkles" size={10} className="text-gold-600" />
+                                                  <span>Micro-Widget Typography</span>
+                                                </label>
+
+                                                {/* Font Family (Heading / Body / Serif) */}
+                                                <div>
+                                                  <label className="block text-[9px] font-semibold text-ink-soft uppercase mb-0.5">
+                                                    Font Family
+                                                  </label>
+                                                  <div className="grid grid-cols-3 gap-1">
+                                                    {[
+                                                      { key: "heading", label: "Heading" },
+                                                      { key: "body", label: "Body" },
+                                                      { key: "serif", label: "Serif" },
+                                                    ].map((f) => {
+                                                      const isSelected = (widget.fontFamily || "heading") === f.key;
+                                                      return (
+                                                        <button
+                                                          key={f.key}
+                                                          type="button"
+                                                          onClick={() =>
+                                                            updateMicroWidget(activeCompositeColIdx, wIdx, "fontFamily", f.key)
+                                                          }
+                                                          className={`py-1 rounded-xs border text-[10px] font-semibold text-center transition-all ${
+                                                            isSelected
+                                                              ? "bg-navy-900 text-white border-navy-900 shadow-xs"
+                                                              : "bg-white border-line text-ink hover:border-navy-900/40"
+                                                          }`}
+                                                        >
+                                                          {f.label}
+                                                        </button>
+                                                      );
+                                                    })}
+                                                  </div>
+                                                </div>
+
+                                                {/* Font Size & Weight */}
+                                                <div className="grid grid-cols-2 gap-1.5">
+                                                  <div>
+                                                    <label className="block text-[9px] font-semibold text-ink-soft uppercase mb-0.5">
+                                                      Size
+                                                    </label>
+                                                    <select
+                                                      value={widget.fontSize || "md"}
+                                                      onChange={(e) =>
+                                                        updateMicroWidget(activeCompositeColIdx, wIdx, "fontSize", e.target.value)
+                                                      }
+                                                      className="w-full px-1.5 py-1 text-[11px] border border-line rounded-xs bg-white font-medium"
+                                                    >
+                                                      <option value="sm">SM (Small)</option>
+                                                      <option value="md">MD (Medium)</option>
+                                                      <option value="lg">LG (Large)</option>
+                                                      <option value="xl">XL (Extra Large)</option>
+                                                      <option value="2xl">2XL (Hero)</option>
+                                                    </select>
+                                                  </div>
+                                                  <div>
+                                                    <label className="block text-[9px] font-semibold text-ink-soft uppercase mb-0.5">
+                                                      Weight
+                                                    </label>
+                                                    <select
+                                                      value={widget.fontWeight || "bold"}
+                                                      onChange={(e) =>
+                                                        updateMicroWidget(activeCompositeColIdx, wIdx, "fontWeight", e.target.value)
+                                                      }
+                                                      className="w-full px-1.5 py-1 text-[11px] border border-line rounded-xs bg-white font-medium"
+                                                    >
+                                                      <option value="normal">400 Regular</option>
+                                                      <option value="medium">500 Medium</option>
+                                                      <option value="semibold">600 Semi-Bold</option>
+                                                      <option value="bold">700 Bold</option>
+                                                      <option value="extrabold">800 Extra-Bold</option>
+                                                    </select>
+                                                  </div>
+                                                </div>
+
+                                                {/* Font Slant / Style */}
+                                                <div className="grid grid-cols-2 gap-1.5">
+                                                  <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                      updateMicroWidget(activeCompositeColIdx, wIdx, "fontStyle", "normal")
+                                                    }
+                                                    className={`py-1 text-[10px] rounded-xs border text-center transition-all ${
+                                                      (widget.fontStyle || "normal") === "normal"
+                                                        ? "bg-navy-900 text-white border-navy-900 font-bold"
+                                                        : "bg-white border-line text-ink"
+                                                    }`}
+                                                  >
+                                                    Normal
+                                                  </button>
+                                                  <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                      updateMicroWidget(activeCompositeColIdx, wIdx, "fontStyle", "italic")
+                                                    }
+                                                    className={`py-1 text-[10px] rounded-xs border text-center italic transition-all ${
+                                                      widget.fontStyle === "italic"
+                                                        ? "bg-navy-900 text-white border-navy-900 font-bold"
+                                                        : "bg-white border-line text-ink"
+                                                      }`}
+                                                  >
+                                                    Italic
+                                                  </button>
+                                                </div>
+
+                                                {/* Text Color */}
+                                                <div>
+                                                  <label className="block text-[9px] font-semibold text-ink-soft uppercase mb-0.5">
+                                                    Color
+                                                  </label>
+                                                  <div className="flex items-center gap-1.5">
+                                                    <select
+                                                      value={
+                                                        widget.textColor?.startsWith("#")
+                                                          ? "custom"
+                                                          : widget.textColor || "auto"
+                                                      }
+                                                      onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        if (val === "custom") {
+                                                          updateMicroWidget(activeCompositeColIdx, wIdx, "textColor", "#23216B");
+                                                        } else {
+                                                          updateMicroWidget(activeCompositeColIdx, wIdx, "textColor", val);
+                                                        }
+                                                      }}
+                                                      className="flex-1 px-1.5 py-1 text-[11px] border border-line rounded-xs bg-white font-medium"
+                                                    >
+                                                      <option value="auto">Auto Contrast</option>
+                                                      <option value="navy">Oxford Navy</option>
+                                                      <option value="white">Pure White</option>
+                                                      <option value="gold">College Gold</option>
+                                                      <option value="ink_soft">Soft Slate</option>
+                                                      <option value="custom">Custom HEX...</option>
+                                                    </select>
+                                                    {widget.textColor?.startsWith("#") && (
+                                                      <div className="flex items-center gap-1">
+                                                        <input
+                                                          type="color"
+                                                          value={widget.textColor.length === 7 ? widget.textColor : "#23216B"}
+                                                          onChange={(e) =>
+                                                            updateMicroWidget(activeCompositeColIdx, wIdx, "textColor", e.target.value)
+                                                          }
+                                                          className="w-6 h-6 p-0 border border-line rounded-xs cursor-pointer bg-white"
+                                                        />
+                                                        <input
+                                                          type="text"
+                                                          value={widget.textColor}
+                                                          onChange={(e) => {
+                                                            let val = e.target.value.trim();
+                                                            if (val && !val.startsWith("#")) val = "#" + val;
+                                                            updateMicroWidget(activeCompositeColIdx, wIdx, "textColor", val);
+                                                          }}
+                                                          className="w-16 px-1 py-0.5 font-mono text-[10px] border border-line rounded-xs uppercase"
+                                                        />
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                </div>
+                                              </div>
                                             </>
                                           )}
 
@@ -2952,64 +3760,89 @@ export const SiteCmsEditorView: React.FC<Props> = ({
 
                                           {/* Fields for CTA BUTTON */}
                                           {widget.type === "cta_button" && (
-                                            <>
-                                              <div className="grid grid-cols-2 gap-2">
-                                                <div>
-                                                  <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
-                                                    Primary Button Text
-                                                  </label>
-                                                  <input
-                                                    type="text"
-                                                    value={widget.buttonText || ""}
-                                                    onChange={(e) =>
-                                                      updateMicroWidget(activeCompositeColIdx, wIdx, "buttonText", e.target.value)
-                                                    }
-                                                    className="w-full px-2 py-1 border border-line rounded-sm bg-white font-bold"
-                                                  />
-                                                </div>
-                                                <div>
-                                                  <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
-                                                    Link Destination
-                                                  </label>
-                                                  <input
-                                                    type="text"
-                                                    value={widget.buttonLink || ""}
-                                                    onChange={(e) =>
-                                                      updateMicroWidget(activeCompositeColIdx, wIdx, "buttonLink", e.target.value)
-                                                    }
-                                                    className="w-full px-2 py-1 font-mono text-[11px] border border-line rounded-sm bg-white"
-                                                  />
-                                                </div>
-                                              </div>
-                                              <div className="grid grid-cols-2 gap-2">
-                                                <div>
-                                                  <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
-                                                    Secondary Button (optional)
-                                                  </label>
-                                                  <input
-                                                    type="text"
-                                                    value={widget.secondaryButtonText || ""}
-                                                    onChange={(e) =>
-                                                      updateMicroWidget(activeCompositeColIdx, wIdx, "secondaryButtonText", e.target.value)
-                                                    }
-                                                    className="w-full px-2 py-1 border border-line rounded-sm bg-white"
-                                                  />
-                                                </div>
-                                                <div>
-                                                  <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
-                                                    Secondary Link
-                                                  </label>
-                                                  <input
-                                                    type="text"
-                                                    value={widget.secondaryButtonLink || ""}
-                                                    onChange={(e) =>
-                                                      updateMicroWidget(activeCompositeColIdx, wIdx, "secondaryButtonLink", e.target.value)
-                                                    }
-                                                    className="w-full px-2 py-1 font-mono text-[11px] border border-line rounded-sm bg-white"
-                                                  />
-                                                </div>
-                                              </div>
-                                            </>
+                                            <div className="space-y-3">
+                                              <ButtonCustomizerFields
+                                                label="Primary CTA Button"
+                                                buttonText={widget.buttonText || ""}
+                                                onButtonTextChange={(val) =>
+                                                  updateMicroWidget(activeCompositeColIdx, wIdx, "buttonText", val)
+                                                }
+                                                buttonLink={widget.buttonLink}
+                                                onButtonLinkChange={(val) =>
+                                                  updateMicroWidget(activeCompositeColIdx, wIdx, "buttonLink", val)
+                                                }
+                                                linkPlaceholder="/book or /courses"
+                                                defaultVariant="primary"
+                                                defaultSize="sm"
+                                                config={{
+                                                  bgColor: widget.buttonBgColor,
+                                                  textColor: widget.buttonTextColor,
+                                                  fontFamily: widget.buttonFontFamily,
+                                                  fontWeight: widget.buttonFontWeight,
+                                                  textTransform: widget.buttonTextTransform,
+                                                  icon: widget.buttonIcon,
+                                                  iconPosition: widget.buttonIconPosition,
+                                                  radius: widget.buttonRadius,
+                                                  size: widget.buttonSize,
+                                                }}
+                                                onChange={(key, val) => {
+                                                  const fieldMap: Record<string, string> = {
+                                                    bgColor: "buttonBgColor",
+                                                    textColor: "buttonTextColor",
+                                                    fontFamily: "buttonFontFamily",
+                                                    fontWeight: "buttonFontWeight",
+                                                    textTransform: "buttonTextTransform",
+                                                    icon: "buttonIcon",
+                                                    iconPosition: "buttonIconPosition",
+                                                    radius: "buttonRadius",
+                                                    size: "buttonSize",
+                                                  };
+                                                  const mappedField = fieldMap[key] || key;
+                                                  updateMicroWidget(activeCompositeColIdx, wIdx, mappedField, val);
+                                                }}
+                                              />
+
+                                              <ButtonCustomizerFields
+                                                label="Secondary Action Button (optional)"
+                                                buttonText={widget.secondaryButtonText || ""}
+                                                onButtonTextChange={(val) =>
+                                                  updateMicroWidget(activeCompositeColIdx, wIdx, "secondaryButtonText", val)
+                                                }
+                                                buttonLink={widget.secondaryButtonLink}
+                                                onButtonLinkChange={(val) =>
+                                                  updateMicroWidget(activeCompositeColIdx, wIdx, "secondaryButtonLink", val)
+                                                }
+                                                linkPlaceholder="/courses"
+                                                defaultVariant="outline"
+                                                defaultSize="sm"
+                                                config={{
+                                                  bgColor: widget.secondaryButtonBgColor,
+                                                  textColor: widget.secondaryButtonTextColor,
+                                                  fontFamily: widget.secondaryButtonFontFamily,
+                                                  fontWeight: widget.secondaryButtonFontWeight,
+                                                  textTransform: widget.secondaryButtonTextTransform,
+                                                  icon: widget.secondaryButtonIcon,
+                                                  iconPosition: widget.secondaryButtonIconPosition,
+                                                  radius: widget.secondaryButtonRadius,
+                                                  size: widget.secondaryButtonSize,
+                                                }}
+                                                onChange={(key, val) => {
+                                                  const fieldMap: Record<string, string> = {
+                                                    bgColor: "secondaryButtonBgColor",
+                                                    textColor: "secondaryButtonTextColor",
+                                                    fontFamily: "secondaryButtonFontFamily",
+                                                    fontWeight: "secondaryButtonFontWeight",
+                                                    textTransform: "secondaryButtonTextTransform",
+                                                    icon: "secondaryButtonIcon",
+                                                    iconPosition: "secondaryButtonIconPosition",
+                                                    radius: "secondaryButtonRadius",
+                                                    size: "secondaryButtonSize",
+                                                  };
+                                                  const mappedField = fieldMap[key] || key;
+                                                  updateMicroWidget(activeCompositeColIdx, wIdx, mappedField, val);
+                                                }}
+                                              />
+                                            </div>
                                           )}
 
                                           {/* Fields for LEAD FORM */}
@@ -3074,6 +3907,196 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                                               />
                                             </div>
                                           )}
+
+                                          {/* Fields for STATS METRIC */}
+                                          {widget.type === "stats_metric" && (
+                                            <>
+                                              <div className="grid grid-cols-2 gap-2">
+                                                <div>
+                                                  <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                                                    Metric Number
+                                                  </label>
+                                                  <input
+                                                    type="text"
+                                                    value={widget.statNumber || ""}
+                                                    onChange={(e) =>
+                                                      updateMicroWidget(activeCompositeColIdx, wIdx, "statNumber", e.target.value)
+                                                    }
+                                                    placeholder="98%"
+                                                    className="w-full px-2 py-1 font-bold text-sm text-gold-600 border border-line rounded-sm bg-white"
+                                                  />
+                                                </div>
+                                                <div>
+                                                  <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                                                    Eyebrow Tag
+                                                  </label>
+                                                  <input
+                                                    type="text"
+                                                    value={widget.eyebrow || ""}
+                                                    onChange={(e) =>
+                                                      updateMicroWidget(activeCompositeColIdx, wIdx, "eyebrow", e.target.value)
+                                                    }
+                                                    placeholder="Verified Result"
+                                                    className="w-full px-2 py-1 border border-line rounded-sm bg-white"
+                                                  />
+                                                </div>
+                                              </div>
+                                              <div>
+                                                <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                                                  Metric Title / Label
+                                                </label>
+                                                <input
+                                                  type="text"
+                                                  value={widget.statLabel || widget.title || ""}
+                                                  onChange={(e) => {
+                                                    updateMicroWidget(activeCompositeColIdx, wIdx, "statLabel", e.target.value);
+                                                    updateMicroWidget(activeCompositeColIdx, wIdx, "title", e.target.value);
+                                                  }}
+                                                  placeholder="First-Time Pass Rate"
+                                                  className="w-full px-2 py-1 font-semibold border border-line rounded-sm bg-white"
+                                                />
+                                              </div>
+                                              <div>
+                                                <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                                                  Footnote / Explanation
+                                                </label>
+                                                <textarea
+                                                  rows={2}
+                                                  value={widget.content || ""}
+                                                  onChange={(e) =>
+                                                    updateMicroWidget(activeCompositeColIdx, wIdx, "content", e.target.value)
+                                                  }
+                                                  placeholder="Across 2025/2026 assessor reviews..."
+                                                  className="w-full px-2 py-1 border border-line rounded-sm bg-white text-xs"
+                                                />
+                                              </div>
+                                            </>
+                                          )}
+
+                                          {/* Fields for QUOTE CARD */}
+                                          {widget.type === "quote_card" && (
+                                            <>
+                                              <div>
+                                                <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                                                  Star Rating (1-5)
+                                                </label>
+                                                <input
+                                                  type="number"
+                                                  min={1}
+                                                  max={5}
+                                                  value={widget.rating || 5}
+                                                  onChange={(e) =>
+                                                    updateMicroWidget(activeCompositeColIdx, wIdx, "rating", Number(e.target.value))
+                                                  }
+                                                  className="w-20 px-2 py-1 font-bold border border-line rounded-sm bg-white"
+                                                />
+                                              </div>
+                                              <div>
+                                                <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                                                  Quote Text
+                                                </label>
+                                                <textarea
+                                                  rows={3}
+                                                  value={widget.content || ""}
+                                                  onChange={(e) =>
+                                                    updateMicroWidget(activeCompositeColIdx, wIdx, "content", e.target.value)
+                                                  }
+                                                  placeholder="Student testimonial..."
+                                                  className="w-full px-2 py-1 italic border border-line rounded-sm bg-white text-xs"
+                                                />
+                                              </div>
+                                              <div className="grid grid-cols-2 gap-2">
+                                                <div>
+                                                  <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                                                    Student Name
+                                                  </label>
+                                                  <input
+                                                    type="text"
+                                                    value={widget.quoteAuthor || ""}
+                                                    onChange={(e) =>
+                                                      updateMicroWidget(activeCompositeColIdx, wIdx, "quoteAuthor", e.target.value)
+                                                    }
+                                                    placeholder="Sarah Jenkins"
+                                                    className="w-full px-2 py-1 font-bold border border-line rounded-sm bg-white"
+                                                  />
+                                                </div>
+                                                <div>
+                                                  <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                                                    Role / Workplace
+                                                  </label>
+                                                  <input
+                                                    type="text"
+                                                    value={widget.quoteRole || ""}
+                                                    onChange={(e) =>
+                                                      updateMicroWidget(activeCompositeColIdx, wIdx, "quoteRole", e.target.value)
+                                                    }
+                                                    placeholder="Senior Carer, NHS Trust"
+                                                    className="w-full px-2 py-1 border border-line rounded-sm bg-white text-xs"
+                                                  />
+                                                </div>
+                                              </div>
+                                            </>
+                                          )}
+
+                                          {/* Fields for BADGE STRIP */}
+                                          {widget.type === "badge_strip" && (
+                                            <div>
+                                              <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                                                Accreditation Badges (comma-separated)
+                                              </label>
+                                              <textarea
+                                                rows={3}
+                                                value={(widget.badgeList || []).join(", ")}
+                                                onChange={(e) => {
+                                                  const list = e.target.value
+                                                    .split(",")
+                                                    .map((s) => s.trim())
+                                                    .filter(Boolean);
+                                                  updateMicroWidget(activeCompositeColIdx, wIdx, "badgeList", list);
+                                                }}
+                                                placeholder="NCFE CACHE Regulated, TQUK Approved Centre, Ofqual Framework, 100% Coursework"
+                                                className="w-full px-2 py-1 border border-line rounded-sm bg-white text-xs"
+                                              />
+                                            </div>
+                                          )}
+
+                                          {/* Fields for CHECKLIST */}
+                                          {widget.type === "checklist" && (
+                                            <>
+                                              <div>
+                                                <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                                                  Checklist Title
+                                                </label>
+                                                <input
+                                                  type="text"
+                                                  value={widget.title || ""}
+                                                  onChange={(e) =>
+                                                    updateMicroWidget(activeCompositeColIdx, wIdx, "title", e.target.value)
+                                                  }
+                                                  placeholder="Key Course Benefits"
+                                                  className="w-full px-2 py-1 font-bold border border-line rounded-sm bg-white"
+                                                />
+                                              </div>
+                                              <div>
+                                                <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                                                  Checklist Items (one per line)
+                                                </label>
+                                                <textarea
+                                                  rows={4}
+                                                  value={(widget.checklistItems || []).join("\n")}
+                                                  onChange={(e) => {
+                                                    const items = e.target.value
+                                                      .split("\n")
+                                                      .map((s) => s.trim())
+                                                      .filter(Boolean);
+                                                    updateMicroWidget(activeCompositeColIdx, wIdx, "checklistItems", items);
+                                                  }}
+                                                  placeholder="No written exams&#10;1-on-1 tutor support&#10;Flexible shift study"
+                                                  className="w-full px-2 py-1 border border-line rounded-sm bg-white text-xs font-mono"
+                                                />
+                                              </div>
+                                            </>
+                                          )}
                                         </div>
                                       )}
                                     </div>
@@ -3106,10 +4129,258 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                         </div>
                       )}
 
+                      {/* Qualification / Course Manager Direct Access Callout */}
+                      {selectedSection.type === "featured_courses" && (
+                        <div className="p-3.5 bg-paper rounded-sm border border-line space-y-3">
+                          <div className="flex items-start gap-2.5">
+                            <div className="w-8 h-8 rounded bg-navy-900 text-gold-300 flex items-center justify-center shrink-0 mt-0.5">
+                              <Icon name="graduation-cap" size={16} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <strong className="text-xs font-bold text-navy-900 block">
+                                Qualification Data & Slashed Tuition
+                              </strong>
+                              <p className="text-[11px] text-ink-soft leading-normal mt-0.5">
+                                All course titles, RRP regular slashed prices, selling fees, syllabus modules, delivery schedules, and video previews are managed centrally in Course Manager.
+                              </p>
+                            </div>
+                          </div>
+
+                          <Link
+                            href="/admin/courses"
+                            target="_blank"
+                            className="w-full py-2 px-3 bg-navy-900 hover:bg-navy-800 text-gold-300 text-xs font-bold rounded-sm flex items-center justify-center gap-1.5 shadow-xs transition-colors"
+                          >
+                            <span>Open Course Manager in New Tab</span>
+                            <Icon name="arrow-right" size={11} />
+                          </Link>
+                        </div>
+                      )}
+
+                      {/* Hero Top Tags & Micro-Badges Repeater */}
+                      {selectedSection.type === "hero" && (
+                        <div className="p-3 bg-paper rounded-sm border border-line space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider">
+                              Top Hero Tags & Badges ({(selectedSection.tags || []).length || 3})
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const currentTags: BuilderTagItem[] = selectedSection.tags || [
+                                  { id: "tag-1", label: "Live Online Classes", variant: "live" },
+                                  { id: "tag-2", label: "Regulated Qualifications", variant: "navy" },
+                                  { id: "tag-3", label: "Flexible Instalments", variant: "gold" },
+                                ];
+                                const newTag: BuilderTagItem = {
+                                  id: `tag-${Date.now()}`,
+                                  label: "New Benefit Badge",
+                                  variant: "navy",
+                                };
+                                updateSelectedField("tags", [...currentTags, newTag]);
+                              }}
+                              className="text-[11px] font-bold text-navy-900 hover:text-gold-700 flex items-center gap-1 cursor-pointer"
+                            >
+                              <Icon name="plus" size={12} />
+                              <span>Add Tag</span>
+                            </button>
+                          </div>
+                          <div className="space-y-2">
+                            {(selectedSection.tags || [
+                              { id: "tag-1", label: "Live Online Classes", variant: "live" },
+                              { id: "tag-2", label: "Regulated Qualifications", variant: "navy" },
+                              { id: "tag-3", label: "Flexible Instalments", variant: "gold" },
+                            ]).map((tag, tIdx, arr) => (
+                              <div
+                                key={tag.id || tIdx}
+                                className="p-2 bg-white rounded-xs border border-line flex items-center gap-2 shadow-2xs"
+                              >
+                                <input
+                                  type="text"
+                                  value={tag.label}
+                                  onChange={(e) => {
+                                    const updated = [...arr];
+                                    updated[tIdx] = { ...updated[tIdx], label: e.target.value };
+                                    updateSelectedField("tags", updated);
+                                  }}
+                                  placeholder="Tag label..."
+                                  className="flex-1 px-2 py-1 text-xs border border-line rounded-xs"
+                                />
+                                <select
+                                  value={tag.variant || "default"}
+                                  onChange={(e) => {
+                                    const updated = [...arr];
+                                    updated[tIdx] = {
+                                      ...updated[tIdx],
+                                      variant: e.target.value as any,
+                                    };
+                                    updateSelectedField("tags", updated);
+                                  }}
+                                  className="text-[11px] px-2 py-1 border border-line rounded-xs bg-paper font-medium"
+                                >
+                                  <option value="live">Live (Pulsing Red)</option>
+                                  <option value="navy">Navy</option>
+                                  <option value="gold">Gold</option>
+                                  <option value="default">Default</option>
+                                </select>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const updated = arr.filter((_, idx) => idx !== tIdx);
+                                    updateSelectedField("tags", updated);
+                                  }}
+                                  className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xs transition-colors cursor-pointer"
+                                  title="Delete Tag"
+                                >
+                                  <Icon name="trash" size={12} />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Hero Floating Live Sessions Indicator Badge */}
+                      {selectedSection.type === "hero" && (
+                        <div className="p-3.5 bg-paper rounded-sm border border-line space-y-3 shadow-2xs">
+                          <div className="flex items-center justify-between border-b border-line pb-2">
+                            <strong className="text-xs font-bold text-navy-900 flex items-center gap-1.5">
+                              <Icon name="sparkles" size={13} className="text-gold-500" />
+                              <span>Hero Floating Live Badge</span>
+                            </strong>
+                            <label className="inline-flex items-center gap-1.5 cursor-pointer text-[11px] font-semibold text-navy-900">
+                              <input
+                                type="checkbox"
+                                checked={selectedSection.floatingBadgeEnabled !== false}
+                                onChange={(e) =>
+                                  updateSelectedField("floatingBadgeEnabled", e.target.checked)
+                                }
+                                className="rounded border-line text-navy-900 focus:ring-0"
+                              />
+                              <span>Show on Photo</span>
+                            </label>
+                          </div>
+
+                          {selectedSection.floatingBadgeEnabled !== false && (
+                            <>
+                              {/* Live Mini Preview Box */}
+                              <div className="p-2.5 bg-white rounded-xs border border-line flex items-center gap-2.5 shadow-2xs">
+                                <div className="w-8 h-8 rounded-sm bg-navy-900 text-white flex items-center justify-center shrink-0">
+                                  <Icon
+                                    name={(selectedSection.floatingBadgeIcon as any) || "star"}
+                                    size={16}
+                                    className="text-gold-500"
+                                  />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <span className="font-heading font-bold text-xs text-navy-900 block leading-tight truncate">
+                                    {selectedSection.floatingBadgeTitle || "Live Evening Sessions"}
+                                  </span>
+                                  <span className="text-[10px] text-ink-soft block leading-tight truncate">
+                                    {selectedSection.floatingBadgeSubtitle || "Recordings available 24/7 to rewatch"}
+                                  </span>
+                                </div>
+                                <span className="text-[9px] font-mono text-gold-700 bg-gold-300/30 px-1.5 py-0.5 rounded uppercase font-bold shrink-0">
+                                  Preview
+                                </span>
+                              </div>
+
+                              <div>
+                                <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                                  Badge Title
+                                </label>
+                                <input
+                                  type="text"
+                                  value={selectedSection.floatingBadgeTitle ?? "Live Evening Sessions"}
+                                  onChange={(e) =>
+                                    updateSelectedField("floatingBadgeTitle", e.target.value)
+                                  }
+                                  placeholder="e.g. Live Evening Sessions"
+                                  className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white font-medium focus:outline-none focus:border-navy-900"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                                  Badge Subtitle / Caption
+                                </label>
+                                <input
+                                  type="text"
+                                  value={selectedSection.floatingBadgeSubtitle ?? "Recordings available 24/7 to rewatch"}
+                                  onChange={(e) =>
+                                    updateSelectedField("floatingBadgeSubtitle", e.target.value)
+                                  }
+                                  placeholder="e.g. Recordings available 24/7 to rewatch"
+                                  className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1.5">
+                                  Badge SVG Icon
+                                </label>
+                                <div className="grid grid-cols-4 gap-1.5">
+                                  {[
+                                    { name: "star", label: "Star" },
+                                    { name: "video", label: "Video" },
+                                    { name: "clock", label: "Clock" },
+                                    { name: "calendar", label: "Calendar" },
+                                    { name: "graduation-cap", label: "Academic" },
+                                    { name: "sparkles", label: "Sparkles" },
+                                    { name: "users", label: "Tutors" },
+                                    { name: "book-open", label: "Study" },
+                                    { name: "shield-check", label: "Shield" },
+                                    { name: "check-circle", label: "Check" },
+                                    { name: "play", label: "Play" },
+                                    { name: "bell", label: "Bell" },
+                                  ].map((ic) => {
+                                    const active = (selectedSection.floatingBadgeIcon || "star") === ic.name;
+                                    return (
+                                      <button
+                                        key={ic.name}
+                                        type="button"
+                                        onClick={() =>
+                                          updateSelectedField("floatingBadgeIcon", ic.name)
+                                        }
+                                        className={`flex flex-col items-center justify-center p-2 rounded-xs border text-[10px] transition-all cursor-pointer ${
+                                          active
+                                            ? "bg-navy-900 text-gold-300 border-navy-900 shadow-xs ring-1 ring-gold-500"
+                                            : "bg-white text-ink-soft border-line hover:border-navy-900/40"
+                                        }`}
+                                      >
+                                        <Icon
+                                          name={ic.name as any}
+                                          size={16}
+                                          className={active ? "text-gold-500" : "text-navy-900"}
+                                        />
+                                        <span className="mt-1 truncate max-w-full font-medium">
+                                          {ic.label}
+                                        </span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )}
+
                       <div>
-                        <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
-                          Main Headline
-                        </label>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider">
+                            Main Headline
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => setInspectorSubTab("style")}
+                            className="text-[10px] text-navy-900 hover:text-gold-600 font-semibold flex items-center gap-1 cursor-pointer"
+                            title="Open Font Style, Size, Weight and Color in Style Tab"
+                          >
+                            <Icon name="sparkles" size={10} className="text-gold-500" />
+                            <span>Font & Style Settings →</span>
+                          </button>
+                        </div>
                         <textarea
                           rows={2}
                           value={selectedSection.headline}
@@ -3119,9 +4390,20 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                       </div>
 
                       <div>
-                        <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
-                          Subheadline / Explanatory Copy
-                        </label>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider">
+                            Subheadline / Explanatory Copy
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => setInspectorSubTab("style")}
+                            className="text-[10px] text-navy-900 hover:text-gold-600 font-semibold flex items-center gap-1 cursor-pointer"
+                            title="Open Font Style, Size, Weight and Color in Style Tab"
+                          >
+                            <Icon name="sparkles" size={10} className="text-gold-500" />
+                            <span>Font & Style Settings →</span>
+                          </button>
+                        </div>
                         <textarea
                           rows={3}
                           value={selectedSection.subheadline}
@@ -3131,61 +4413,81 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                       </div>
 
                       {selectedSection.buttonText !== undefined && (
-                        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-line">
-                          <div>
-                            <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
-                              Primary Button Text
-                            </label>
-                            <input
-                              type="text"
-                              value={selectedSection.buttonText || ""}
-                              onChange={(e) => updateSelectedField("buttonText", e.target.value)}
-                              className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs focus:outline-none focus:border-navy-900"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
-                              Button Destination Link
-                            </label>
-                            <input
-                              type="text"
-                              value={selectedSection.buttonLink || ""}
-                              onChange={(e) => updateSelectedField("buttonLink", e.target.value)}
-                              className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs font-mono focus:outline-none focus:border-navy-900"
-                            />
-                          </div>
-                        </div>
+                        <ButtonCustomizerFields
+                          label="Primary CTA Button"
+                          buttonText={selectedSection.buttonText || ""}
+                          onButtonTextChange={(val) => updateSelectedField("buttonText", val)}
+                          buttonLink={selectedSection.buttonLink}
+                          onButtonLinkChange={(val) => updateSelectedField("buttonLink", val)}
+                          linkPlaceholder="/book or /courses"
+                          defaultVariant="primary"
+                          defaultSize={selectedSection.type === "hero" ? "lg" : "md"}
+                          config={{
+                            bgColor: selectedSection.buttonBgColor,
+                            textColor: selectedSection.buttonTextColor,
+                            fontFamily: selectedSection.buttonFontFamily,
+                            fontWeight: selectedSection.buttonFontWeight,
+                            textTransform: selectedSection.buttonTextTransform,
+                            icon: selectedSection.buttonIcon,
+                            iconPosition: selectedSection.buttonIconPosition,
+                            radius: selectedSection.buttonRadius,
+                            size: selectedSection.buttonSize,
+                          }}
+                          onChange={(key, val) => {
+                            const fieldMap: Record<string, string> = {
+                              bgColor: "buttonBgColor",
+                              textColor: "buttonTextColor",
+                              fontFamily: "buttonFontFamily",
+                              fontWeight: "buttonFontWeight",
+                              textTransform: "buttonTextTransform",
+                              icon: "buttonIcon",
+                              iconPosition: "buttonIconPosition",
+                              radius: "buttonRadius",
+                              size: "buttonSize",
+                            };
+                            const mappedField = fieldMap[key] || key;
+                            updateSelectedField(mappedField as any, val);
+                          }}
+                        />
                       )}
 
                       {selectedSection.secondaryButtonText !== undefined && (
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
-                              Secondary Button Text
-                            </label>
-                            <input
-                              type="text"
-                              value={selectedSection.secondaryButtonText || ""}
-                              onChange={(e) =>
-                                updateSelectedField("secondaryButtonText", e.target.value)
-                              }
-                              className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs focus:outline-none focus:border-navy-900"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
-                              Secondary Destination Link
-                            </label>
-                            <input
-                              type="text"
-                              value={selectedSection.secondaryButtonLink || ""}
-                              onChange={(e) =>
-                                updateSelectedField("secondaryButtonLink", e.target.value)
-                              }
-                              className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs font-mono focus:outline-none focus:border-navy-900"
-                            />
-                          </div>
-                        </div>
+                        <ButtonCustomizerFields
+                          label="Secondary Action Button"
+                          buttonText={selectedSection.secondaryButtonText || ""}
+                          onButtonTextChange={(val) => updateSelectedField("secondaryButtonText", val)}
+                          buttonLink={selectedSection.secondaryButtonLink}
+                          onButtonLinkChange={(val) => updateSelectedField("secondaryButtonLink", val)}
+                          linkPlaceholder="/courses"
+                          defaultVariant="outline"
+                          defaultSize={selectedSection.type === "hero" ? "lg" : "md"}
+                          config={{
+                            bgColor: selectedSection.secondaryButtonBgColor,
+                            textColor: selectedSection.secondaryButtonTextColor,
+                            fontFamily: selectedSection.secondaryButtonFontFamily,
+                            fontWeight: selectedSection.secondaryButtonFontWeight,
+                            textTransform: selectedSection.secondaryButtonTextTransform,
+                            icon: selectedSection.secondaryButtonIcon,
+                            iconPosition: selectedSection.secondaryButtonIconPosition,
+                            radius: selectedSection.secondaryButtonRadius,
+                            size: selectedSection.secondaryButtonSize,
+                          }}
+                          onChange={(key, val) => {
+                            const fieldMap: Record<string, string> = {
+                              bgColor: "secondaryButtonBgColor",
+                              textColor: "secondaryButtonTextColor",
+                              fontFamily: "secondaryButtonFontFamily",
+                              fontWeight: "secondaryButtonFontWeight",
+                              textTransform: "secondaryButtonTextTransform",
+                              icon: "secondaryButtonIcon",
+                              iconPosition: "secondaryButtonIconPosition",
+                              radius: "secondaryButtonRadius",
+                              size: "secondaryButtonSize",
+                            };
+                            const mappedField = fieldMap[key] || key;
+                            updateSelectedField(mappedField as any, val);
+                          }}
+                        />
                       )}
                     </>
                   )}
@@ -3240,12 +4542,16 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                           Active: {activeBg}
                         </span>
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-2 gap-2 mb-3">
                         {[
                           { key: "white", label: "Crisp White", bgClass: "bg-white border-line text-ink" },
                           { key: "paper", label: "Parchment Paper", bgClass: "bg-paper border-line text-ink" },
                           { key: "navy", label: "Deep Royal Navy", bgClass: "bg-navy-900 text-white border-navy-800" },
                           { key: "cream", label: "Gold / Cream Tint", bgClass: "bg-gold-50/70 border-gold-200 text-ink" },
+                          { key: "slate", label: "Midnight Slate", bgClass: "bg-[#0B132B] text-white border-[#1C2541]" },
+                          { key: "sage", label: "Sage Mist", bgClass: "bg-[#EFF5F2] border-emerald-200 text-ink" },
+                          { key: "sand", label: "Warm Sand", bgClass: "bg-[#F7F4EE] border-[#E8E2D5] text-ink" },
+                          { key: "navy_gradient", label: "Navy Indigo Gradient", bgClass: "bg-gradient-to-r from-[#1C1A57] to-[#34318F] text-white border-navy-700" },
                         ].map((bg) => {
                           const isSelected = activeBg === bg.key;
                           return (
@@ -3261,13 +4567,565 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                                   : "opacity-80 hover:opacity-100"
                               }`}
                             >
-                              <span>{bg.label}</span>
+                              <span className="truncate">{bg.label}</span>
                               {isSelected && (
-                                <Icon name="check" size={13} className="text-gold-500" />
+                                <Icon name="check" size={13} className="text-gold-500 shrink-0" />
                               )}
                             </button>
                           );
                         })}
+                      </div>
+
+                      {/* Custom Hex Color Picker */}
+                      <div className="p-3 bg-paper/60 rounded-sm border border-line space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <label className="block text-[10px] font-semibold text-navy-900 uppercase tracking-wider">
+                            Custom Hex Background Color
+                          </label>
+                          {activeBg?.startsWith("#") && (
+                            <span className="text-[10px] font-mono text-gold-600 font-bold flex items-center gap-1">
+                              <span
+                                className="inline-block w-2.5 h-2.5 rounded-full border border-black/20"
+                                style={{ backgroundColor: activeBg }}
+                              />
+                              Custom Hex
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="relative flex items-center justify-center">
+                            <input
+                              type="color"
+                              value={
+                                activeBg?.startsWith("#") && activeBg.length === 7
+                                  ? activeBg
+                                  : "#23216B"
+                              }
+                              onChange={(e) => updateSelectedField("bgColor", e.target.value)}
+                              className="w-10 h-10 p-0.5 rounded-xs border border-line cursor-pointer bg-white"
+                            />
+                          </div>
+                          <input
+                            type="text"
+                            placeholder="#23216B"
+                            value={activeBg?.startsWith("#") ? activeBg : ""}
+                            onChange={(e) => {
+                              let val = e.target.value.trim();
+                              if (val && !val.startsWith("#")) {
+                                val = "#" + val;
+                              }
+                              updateSelectedField("bgColor", val);
+                            }}
+                            className="flex-1 px-3 py-2 font-mono text-xs border border-line rounded-sm bg-white uppercase tracking-wider focus:outline-none focus:border-navy-900"
+                          />
+                        </div>
+
+                        {/* Quick-Pick Brand Swatches */}
+                        <div>
+                          <span className="text-[9px] font-mono text-ink-soft uppercase block mb-1">
+                            Popular Academic Swatches:
+                          </span>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {[
+                              { hex: "#23216B", name: "Oxford Navy" },
+                              { hex: "#0B132B", name: "Deep Slate" },
+                              { hex: "#1C1A57", name: "Midnight Indigo" },
+                              { hex: "#064E3B", name: "British Emerald" },
+                              { hex: "#4A154B", name: "Imperial Plum" },
+                              { hex: "#8B3A2B", name: "Terracotta" },
+                              { hex: "#1E293B", name: "Charcoal" },
+                            ].map((swatch) => (
+                              <button
+                                key={swatch.hex}
+                                type="button"
+                                title={`${swatch.name} (${swatch.hex})`}
+                                onClick={() => updateSelectedField("bgColor", swatch.hex)}
+                                className={`w-6 h-6 rounded-xs border transition-transform cursor-pointer hover:scale-110 flex items-center justify-center ${
+                                  activeBg?.toLowerCase() === swatch.hex.toLowerCase()
+                                    ? "ring-2 ring-gold-500 scale-105"
+                                    : "border-black/20"
+                                }`}
+                                style={{ backgroundColor: swatch.hex }}
+                              >
+                                {activeBg?.toLowerCase() === swatch.hex.toLowerCase() && (
+                                  <span className="text-white text-[9px] font-bold">✓</span>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <p className="text-[10px] text-ink-soft">
+                          Pick any custom brand HEX code. Text contrast automatically adjusts to dark or light.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* TYPOGRAPHY CONTROLS (Font Style, Size, Color, Weight) */}
+                    <div className="pt-2 border-t border-line space-y-4">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider flex items-center gap-1.5">
+                          <Icon name="sparkles" size={12} className="text-gold-600" />
+                          <span>Typography & Font Styling</span>
+                        </label>
+                        <span className="text-[10px] text-ink-soft font-mono">
+                          Live Responsive Scale
+                        </span>
+                      </div>
+
+                      {/* 1. Main Headline Typography Card */}
+                      <div className="p-3 bg-paper/70 rounded-sm border border-line space-y-3">
+                        <div className="flex items-center justify-between border-b border-line pb-1.5">
+                          <strong className="text-xs font-bold text-navy-900 flex items-center gap-1">
+                            <span>Main Headline</span>
+                          </strong>
+                          <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded-xs bg-navy-900/5 text-navy-900">
+                            {selectedSection.headlineFontFamily || "heading"} • {selectedSection.headlineFontSize || "lg"} • {selectedSection.headlineFontWeight || "bold"}
+                          </span>
+                        </div>
+
+                        {/* Font Family (Style) */}
+                        <div>
+                          <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-1">
+                            Font Family
+                          </label>
+                          <div className="grid grid-cols-3 gap-1.5">
+                            {[
+                              { key: "heading", label: "Saira Condensed", sub: "Heading (Default)" },
+                              { key: "body", label: "Source Sans 3", sub: "Body Sans" },
+                              { key: "serif", label: "Collegiate Serif", sub: "Academic" },
+                            ].map((f) => {
+                              const isSelected = (selectedSection.headlineFontFamily || "heading") === f.key;
+                              return (
+                                <button
+                                  key={f.key}
+                                  type="button"
+                                  onClick={() => updateSelectedField("headlineFontFamily", f.key)}
+                                  className={`p-1.5 rounded-xs border text-left transition-all cursor-pointer ${
+                                    isSelected
+                                      ? "bg-navy-900 text-white border-navy-900 shadow-xs"
+                                      : "bg-white border-line text-ink hover:border-navy-900/40"
+                                  }`}
+                                >
+                                  <div className="text-[11px] font-bold leading-tight truncate">{f.label}</div>
+                                  <div className={`text-[9px] ${isSelected ? "text-gold-300" : "text-ink-soft"}`}>{f.sub}</div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Font Size Scale */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="block text-[10px] font-semibold text-ink-soft uppercase">
+                              Font Size
+                            </label>
+                            <span className="text-[9px] font-mono text-ink-soft">
+                              {(selectedSection.headlineFontSize || "lg").toUpperCase()}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-5 gap-1">
+                            {[
+                              { key: "sm", label: "SM", desc: "Small ~28px" },
+                              { key: "md", label: "MD", desc: "Medium ~36px" },
+                              { key: "lg", label: "LG", desc: "Large ~48px (Default)" },
+                              { key: "xl", label: "XL", desc: "Extra Large ~60px" },
+                              { key: "2xl", label: "2XL", desc: "Hero Giant ~72px" },
+                            ].map((s) => {
+                              const isSelected = (selectedSection.headlineFontSize || "lg") === s.key;
+                              return (
+                                <button
+                                  key={s.key}
+                                  type="button"
+                                  title={s.desc}
+                                  onClick={() => updateSelectedField("headlineFontSize", s.key)}
+                                  className={`py-1 rounded-xs border text-xs font-bold text-center transition-all cursor-pointer ${
+                                    isSelected
+                                      ? "bg-navy-900 text-white border-navy-900 shadow-xs"
+                                      : "bg-white border-line text-ink hover:border-navy-900/40"
+                                  }`}
+                                >
+                                  {s.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Font Weight */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="block text-[10px] font-semibold text-ink-soft uppercase">
+                              Font Weight
+                            </label>
+                            <span className="text-[9px] font-mono text-ink-soft">
+                              {(selectedSection.headlineFontWeight || "bold").toUpperCase()}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-5 gap-1">
+                            {[
+                              { key: "normal", label: "400", title: "Regular 400" },
+                              { key: "medium", label: "500", title: "Medium 500" },
+                              { key: "semibold", label: "600", title: "Semi-Bold 600" },
+                              { key: "bold", label: "700", title: "Bold 700 (Default)" },
+                              { key: "extrabold", label: "800", title: "Extra-Bold 800" },
+                            ].map((w) => {
+                              const isSelected = (selectedSection.headlineFontWeight || "bold") === w.key;
+                              return (
+                                <button
+                                  key={w.key}
+                                  type="button"
+                                  title={w.title}
+                                  onClick={() => updateSelectedField("headlineFontWeight", w.key)}
+                                  className={`py-1 rounded-xs border text-xs font-semibold text-center transition-all cursor-pointer ${
+                                    isSelected
+                                      ? "bg-navy-900 text-white border-navy-900 shadow-xs font-bold"
+                                      : "bg-white border-line text-ink hover:border-navy-900/40"
+                                  }`}
+                                >
+                                  {w.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Font Slant / Style */}
+                        <div>
+                          <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-1">
+                            Font Slant / Style
+                          </label>
+                          <div className="grid grid-cols-2 gap-1.5">
+                            {[
+                              { key: "normal", label: "Normal (Upright)" },
+                              { key: "italic", label: "Italic (Slanted)" },
+                            ].map((st) => {
+                              const isSelected = (selectedSection.headlineFontStyle || "normal") === st.key;
+                              return (
+                                <button
+                                  key={st.key}
+                                  type="button"
+                                  onClick={() => updateSelectedField("headlineFontStyle", st.key)}
+                                  className={`py-1 px-2 rounded-xs border text-xs text-center transition-all cursor-pointer ${
+                                    st.key === "italic" ? "italic" : ""
+                                  } ${
+                                    isSelected
+                                      ? "bg-navy-900 text-white border-navy-900 shadow-xs font-semibold"
+                                      : "bg-white border-line text-ink hover:border-navy-900/40"
+                                  }`}
+                                >
+                                  {st.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Font Color */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="block text-[10px] font-semibold text-ink-soft uppercase">
+                              Text Color
+                            </label>
+                            {selectedSection.headlineColor?.startsWith("#") && (
+                              <span className="text-[10px] font-mono text-gold-600 font-bold flex items-center gap-1">
+                                <span
+                                  className="inline-block w-2.5 h-2.5 rounded-full border border-black/20"
+                                  style={{ backgroundColor: selectedSection.headlineColor }}
+                                />
+                                {selectedSection.headlineColor}
+                              </span>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-5 gap-1 mb-2">
+                            {[
+                              { key: "auto", label: "Auto", desc: "Auto Smart Contrast" },
+                              { key: "navy", label: "Navy", desc: "Oxford Navy" },
+                              { key: "white", label: "White", desc: "Pure White" },
+                              { key: "gold", label: "Gold", desc: "College Gold" },
+                              { key: "ink_soft", label: "Slate", desc: "Soft Slate" },
+                            ].map((c) => {
+                              const isSelected = (selectedSection.headlineColor || "auto") === c.key;
+                              return (
+                                <button
+                                  key={c.key}
+                                  type="button"
+                                  title={c.desc}
+                                  onClick={() => updateSelectedField("headlineColor", c.key)}
+                                  className={`py-1 rounded-xs border text-[11px] font-semibold text-center transition-all cursor-pointer ${
+                                    isSelected
+                                      ? "bg-navy-900 text-white border-navy-900 shadow-xs font-bold"
+                                      : "bg-white border-line text-ink hover:border-navy-900/40"
+                                  }`}
+                                >
+                                  {c.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          {/* Custom Hex Color Picker for Headline */}
+                          <div className="flex items-center gap-2 pt-1 border-t border-line/50">
+                            <input
+                              type="color"
+                              value={
+                                selectedSection.headlineColor?.startsWith("#") && selectedSection.headlineColor.length === 7
+                                  ? selectedSection.headlineColor
+                                  : "#23216B"
+                              }
+                              onChange={(e) => updateSelectedField("headlineColor", e.target.value)}
+                              className="w-8 h-8 p-0.5 rounded-xs border border-line cursor-pointer bg-white"
+                              title="Pick custom text color wheel"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Custom HEX (e.g. #D9B84A)"
+                              value={selectedSection.headlineColor?.startsWith("#") ? selectedSection.headlineColor : ""}
+                              onChange={(e) => {
+                                let val = e.target.value.trim();
+                                if (val && !val.startsWith("#")) val = "#" + val;
+                                updateSelectedField("headlineColor", val || "auto");
+                              }}
+                              className="flex-1 px-2.5 py-1 font-mono text-xs border border-line rounded-sm bg-white uppercase tracking-wider focus:outline-none focus:border-navy-900"
+                            />
+                            {selectedSection.headlineColor && selectedSection.headlineColor !== "auto" && (
+                              <button
+                                type="button"
+                                onClick={() => updateSelectedField("headlineColor", "auto")}
+                                title="Reset to Auto Smart Contrast"
+                                className="px-2 py-1 text-[10px] text-ink-soft hover:text-navy-900 border border-line rounded-xs bg-white"
+                              >
+                                Reset
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 2. Subheadline / Body Typography Card */}
+                      <div className="p-3 bg-paper/70 rounded-sm border border-line space-y-3">
+                        <div className="flex items-center justify-between border-b border-line pb-1.5">
+                          <strong className="text-xs font-bold text-navy-900 flex items-center gap-1">
+                            <span>Subheadline / Explanatory Copy</span>
+                          </strong>
+                          <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded-xs bg-navy-900/5 text-navy-900">
+                            {selectedSection.subheadlineFontFamily || "body"} • {selectedSection.subheadlineFontSize || "md"} • {selectedSection.subheadlineFontWeight || "normal"}
+                          </span>
+                        </div>
+
+                        {/* Font Family (Style) */}
+                        <div>
+                          <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-1">
+                            Font Family
+                          </label>
+                          <div className="grid grid-cols-3 gap-1.5">
+                            {[
+                              { key: "body", label: "Source Sans 3", sub: "Body Sans (Default)" },
+                              { key: "heading", label: "Saira Condensed", sub: "Heading" },
+                              { key: "serif", label: "Collegiate Serif", sub: "Academic" },
+                            ].map((f) => {
+                              const isSelected = (selectedSection.subheadlineFontFamily || "body") === f.key;
+                              return (
+                                <button
+                                  key={f.key}
+                                  type="button"
+                                  onClick={() => updateSelectedField("subheadlineFontFamily", f.key)}
+                                  className={`p-1.5 rounded-xs border text-left transition-all cursor-pointer ${
+                                    isSelected
+                                      ? "bg-navy-900 text-white border-navy-900 shadow-xs"
+                                      : "bg-white border-line text-ink hover:border-navy-900/40"
+                                  }`}
+                                >
+                                  <div className="text-[11px] font-bold leading-tight truncate">{f.label}</div>
+                                  <div className={`text-[9px] ${isSelected ? "text-gold-300" : "text-ink-soft"}`}>{f.sub}</div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Font Size Scale */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="block text-[10px] font-semibold text-ink-soft uppercase">
+                              Font Size
+                            </label>
+                            <span className="text-[9px] font-mono text-ink-soft">
+                              {(selectedSection.subheadlineFontSize || "md").toUpperCase()}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-4 gap-1">
+                            {[
+                              { key: "sm", label: "SM", desc: "Small ~14px" },
+                              { key: "md", label: "MD", desc: "Medium ~16px (Default)" },
+                              { key: "lg", label: "LG", desc: "Lead ~18px" },
+                              { key: "xl", label: "XL", desc: "Large Lead ~20px" },
+                            ].map((s) => {
+                              const isSelected = (selectedSection.subheadlineFontSize || "md") === s.key;
+                              return (
+                                <button
+                                  key={s.key}
+                                  type="button"
+                                  title={s.desc}
+                                  onClick={() => updateSelectedField("subheadlineFontSize", s.key)}
+                                  className={`py-1 rounded-xs border text-xs font-bold text-center transition-all cursor-pointer ${
+                                    isSelected
+                                      ? "bg-navy-900 text-white border-navy-900 shadow-xs"
+                                      : "bg-white border-line text-ink hover:border-navy-900/40"
+                                  }`}
+                                >
+                                  {s.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Font Weight */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="block text-[10px] font-semibold text-ink-soft uppercase">
+                              Font Weight
+                            </label>
+                            <span className="text-[9px] font-mono text-ink-soft">
+                              {(selectedSection.subheadlineFontWeight || "normal").toUpperCase()}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-4 gap-1">
+                            {[
+                              { key: "normal", label: "400 Regular" },
+                              { key: "medium", label: "500 Medium" },
+                              { key: "semibold", label: "600 Semi-Bold" },
+                              { key: "bold", label: "700 Bold" },
+                            ].map((w) => {
+                              const isSelected = (selectedSection.subheadlineFontWeight || "normal") === w.key;
+                              return (
+                                <button
+                                  key={w.key}
+                                  type="button"
+                                  onClick={() => updateSelectedField("subheadlineFontWeight", w.key)}
+                                  className={`py-1 rounded-xs border text-xs text-center transition-all cursor-pointer ${
+                                    isSelected
+                                      ? "bg-navy-900 text-white border-navy-900 shadow-xs font-bold"
+                                      : "bg-white border-line text-ink hover:border-navy-900/40"
+                                  }`}
+                                >
+                                  {w.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Font Slant / Style */}
+                        <div>
+                          <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-1">
+                            Font Slant / Style
+                          </label>
+                          <div className="grid grid-cols-2 gap-1.5">
+                            {[
+                              { key: "normal", label: "Normal (Upright)" },
+                              { key: "italic", label: "Italic (Slanted)" },
+                            ].map((st) => {
+                              const isSelected = (selectedSection.subheadlineFontStyle || "normal") === st.key;
+                              return (
+                                <button
+                                  key={st.key}
+                                  type="button"
+                                  onClick={() => updateSelectedField("subheadlineFontStyle", st.key)}
+                                  className={`py-1 px-2 rounded-xs border text-xs text-center transition-all cursor-pointer ${
+                                    st.key === "italic" ? "italic" : ""
+                                  } ${
+                                    isSelected
+                                      ? "bg-navy-900 text-white border-navy-900 shadow-xs font-semibold"
+                                      : "bg-white border-line text-ink hover:border-navy-900/40"
+                                  }`}
+                                >
+                                  {st.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Font Color */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="block text-[10px] font-semibold text-ink-soft uppercase">
+                              Text Color
+                            </label>
+                            {selectedSection.subheadlineColor?.startsWith("#") && (
+                              <span className="text-[10px] font-mono text-gold-600 font-bold flex items-center gap-1">
+                                <span
+                                  className="inline-block w-2.5 h-2.5 rounded-full border border-black/20"
+                                  style={{ backgroundColor: selectedSection.subheadlineColor }}
+                                />
+                                {selectedSection.subheadlineColor}
+                              </span>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-5 gap-1 mb-2">
+                            {[
+                              { key: "auto", label: "Auto", desc: "Auto Smart Contrast" },
+                              { key: "navy", label: "Navy", desc: "Oxford Navy" },
+                              { key: "white", label: "White", desc: "Pure White" },
+                              { key: "gold", label: "Gold", desc: "College Gold" },
+                              { key: "ink_soft", label: "Slate", desc: "Soft Slate" },
+                            ].map((c) => {
+                              const isSelected = (selectedSection.subheadlineColor || "auto") === c.key;
+                              return (
+                                <button
+                                  key={c.key}
+                                  type="button"
+                                  title={c.desc}
+                                  onClick={() => updateSelectedField("subheadlineColor", c.key)}
+                                  className={`py-1 rounded-xs border text-[11px] font-semibold text-center transition-all cursor-pointer ${
+                                    isSelected
+                                      ? "bg-navy-900 text-white border-navy-900 shadow-xs font-bold"
+                                      : "bg-white border-line text-ink hover:border-navy-900/40"
+                                  }`}
+                                >
+                                  {c.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          {/* Custom Hex Color Picker for Subheadline */}
+                          <div className="flex items-center gap-2 pt-1 border-t border-line/50">
+                            <input
+                              type="color"
+                              value={
+                                selectedSection.subheadlineColor?.startsWith("#") && selectedSection.subheadlineColor.length === 7
+                                  ? selectedSection.subheadlineColor
+                                  : "#5A5A6E"
+                              }
+                              onChange={(e) => updateSelectedField("subheadlineColor", e.target.value)}
+                              className="w-8 h-8 p-0.5 rounded-xs border border-line cursor-pointer bg-white"
+                              title="Pick custom subheadline text color wheel"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Custom HEX (e.g. #5A5A6E)"
+                              value={selectedSection.subheadlineColor?.startsWith("#") ? selectedSection.subheadlineColor : ""}
+                              onChange={(e) => {
+                                let val = e.target.value.trim();
+                                if (val && !val.startsWith("#")) val = "#" + val;
+                                updateSelectedField("subheadlineColor", val || "auto");
+                              }}
+                              className="flex-1 px-2.5 py-1 font-mono text-xs border border-line rounded-sm bg-white uppercase tracking-wider focus:outline-none focus:border-navy-900"
+                            />
+                            {selectedSection.subheadlineColor && selectedSection.subheadlineColor !== "auto" && (
+                              <button
+                                type="button"
+                                onClick={() => updateSelectedField("subheadlineColor", "auto")}
+                                title="Reset to Auto Smart Contrast"
+                                className="px-2 py-1 text-[10px] text-ink-soft hover:text-navy-900 border border-line rounded-xs bg-white"
+                              >
+                                Reset
+                              </button>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
 
@@ -3399,11 +5257,35 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                       </div>
                     )}
 
+                    {/* Mobile Overrides Visual Banner */}
+                    {viewport === "mobile" && (
+                      <div className="p-3 bg-navy-950 text-white rounded-sm border border-gold-400/40 space-y-1 shadow-xs">
+                        <div className="flex items-center gap-1.5 text-gold-300 font-bold text-xs">
+                          <Icon name="smartphone" size={14} />
+                          <span>Mobile Layout Overrides Active (390px)</span>
+                        </div>
+                        <p className="text-[10px] text-white/70 leading-relaxed">
+                          Adjusting vertical spacing or text alignment below will apply specifically to mobile screens without changing your desktop presentation.
+                        </p>
+                      </div>
+                    )}
+
                     {/* Section Padding Density */}
                     <div>
-                      <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1.5">
-                        Vertical Spacing (Padding)
-                      </label>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider">
+                          Vertical Spacing (Padding)
+                        </label>
+                        {viewport === "mobile" && selectedSection.paddingDensityMobile && (
+                          <button
+                            type="button"
+                            onClick={() => updateSelectedField("paddingDensityMobile", undefined)}
+                            className="text-[10px] text-navy-900 hover:text-gold-700 underline cursor-pointer"
+                          >
+                            Reset to Desktop
+                          </button>
+                        )}
+                      </div>
                       <div className="grid grid-cols-3 gap-2">
                         {[
                           { key: "compact", label: "Compact" },
@@ -3411,15 +5293,25 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                           { key: "spacious", label: "Spacious" },
                         ].map((dens) => {
                           const isSelected =
-                            (selectedSection.paddingDensity || "normal") === dens.key;
+                            viewport === "mobile"
+                              ? (selectedSection.paddingDensityMobile ||
+                                  selectedSection.paddingDensity ||
+                                  "normal") === dens.key
+                              : (selectedSection.paddingDensity || "normal") === dens.key;
                           return (
                             <button
                               key={dens.key}
                               type="button"
-                              onClick={() => updateSelectedField("paddingDensity", dens.key)}
+                              onClick={() => {
+                                if (viewport === "mobile") {
+                                  updateSelectedField("paddingDensityMobile", dens.key);
+                                } else {
+                                  updateSelectedField("paddingDensity", dens.key);
+                                }
+                              }}
                               className={`py-1.5 rounded-sm border text-xs font-semibold text-center transition-all cursor-pointer ${
                                 isSelected
-                                  ? "bg-navy-900 text-white border-navy-900"
+                                  ? "bg-navy-900 text-white border-navy-900 shadow-xs"
                                   : "bg-white border-line text-ink hover:border-navy-900/40"
                               }`}
                             >
@@ -3432,16 +5324,35 @@ export const SiteCmsEditorView: React.FC<Props> = ({
 
                     {/* Text Alignment */}
                     <div>
-                      <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1.5">
-                        Text Alignment
-                      </label>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider">
+                          Text Alignment
+                        </label>
+                        {viewport === "mobile" && selectedSection.alignMobile && (
+                          <button
+                            type="button"
+                            onClick={() => updateSelectedField("alignMobile", undefined)}
+                            className="text-[10px] text-navy-900 hover:text-gold-700 underline cursor-pointer"
+                          >
+                            Reset to Desktop
+                          </button>
+                        )}
+                      </div>
                       <div className="grid grid-cols-2 gap-2">
                         <button
                           type="button"
-                          onClick={() => updateSelectedField("align", "left")}
+                          onClick={() => {
+                            if (viewport === "mobile") {
+                              updateSelectedField("alignMobile", "left");
+                            } else {
+                              updateSelectedField("align", "left");
+                            }
+                          }}
                           className={`py-2 rounded-sm border text-xs font-semibold cursor-pointer ${
-                            (selectedSection.align || "left") === "left"
-                              ? "bg-navy-900 text-white border-navy-900"
+                            (viewport === "mobile"
+                              ? selectedSection.alignMobile || selectedSection.align || "left"
+                              : selectedSection.align || "left") === "left"
+                              ? "bg-navy-900 text-white border-navy-900 shadow-xs"
                               : "bg-white border-line text-ink"
                           }`}
                         >
@@ -3449,10 +5360,18 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                         </button>
                         <button
                           type="button"
-                          onClick={() => updateSelectedField("align", "center")}
+                          onClick={() => {
+                            if (viewport === "mobile") {
+                              updateSelectedField("alignMobile", "center");
+                            } else {
+                              updateSelectedField("align", "center");
+                            }
+                          }}
                           className={`py-2 rounded-sm border text-xs font-semibold cursor-pointer ${
-                            selectedSection.align === "center"
-                              ? "bg-navy-900 text-white border-navy-900"
+                            (viewport === "mobile"
+                              ? selectedSection.alignMobile || selectedSection.align
+                              : selectedSection.align) === "center"
+                              ? "bg-navy-900 text-white border-navy-900 shadow-xs"
                               : "bg-white border-line text-ink"
                           }`}
                         >
@@ -3577,33 +5496,180 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                   )}
 
                   {selectedSection.image !== undefined && (
-                    <div className="space-y-2">
-                      <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider">
-                        Educational Photograph
-                      </label>
-                      <div className="grid grid-cols-3 gap-2">
-                        {AVAILABLE_IMAGES.map((img) => (
-                          <button
-                            key={img.path}
-                            type="button"
-                            onClick={() => updateSelectedField("image", img.path)}
-                            className={`relative aspect-[16/9] rounded-sm overflow-hidden border-2 transition-all ${
-                              selectedSection.image === img.path
-                                ? "border-gold-500 shadow-md ring-2 ring-gold-500/20"
-                                : "border-line opacity-70 hover:opacity-100"
-                            }`}
-                          >
-                            <img
-                              src={img.path}
-                              alt={img.label}
-                              className="w-full h-full object-cover"
-                            />
-                          </button>
-                        ))}
+                    <div id="inspector-image-control" className="space-y-3 p-3 bg-paper rounded-sm border border-line shadow-2xs">
+                      <div className="flex items-center justify-between border-b border-line pb-2">
+                        <strong className="text-xs font-bold text-navy-900 flex items-center gap-1.5">
+                          <Icon name="layers" size={13} className="text-gold-600" />
+                          <span>Educational Photograph</span>
+                        </strong>
+                        <span className="text-[10px] font-mono text-ink-soft">
+                          Hero & Content Media
+                        </span>
+                      </div>
+
+                      {/* Direct Drag & Drop Zone */}
+                      <ImageDropzone
+                        value={selectedSection.image}
+                        onChange={(url) => updateSelectedField("image", url)}
+                        label="Drop New Image From Desktop"
+                        helperText="PNG, JPG, or WebP. Replaces image immediately in live preview."
+                        previewHeight={130}
+                      />
+
+                      <div className="space-y-1.5 pt-1">
+                        <label className="block text-[10px] font-semibold text-ink-soft uppercase tracking-wider">
+                          Or select official college stock photograph:
+                        </label>
+                        <div className="grid grid-cols-3 gap-2">
+                          {AVAILABLE_IMAGES.map((img) => (
+                            <button
+                              key={img.path}
+                              type="button"
+                              onClick={() => updateSelectedField("image", img.path)}
+                              className={`relative aspect-[16/9] rounded-sm overflow-hidden border-2 transition-all cursor-pointer ${
+                                selectedSection.image === img.path
+                                  ? "border-gold-500 shadow-md ring-2 ring-gold-500/20"
+                                  : "border-line opacity-70 hover:opacity-100"
+                              }`}
+                            >
+                              <img
+                                src={img.path}
+                                alt={img.label}
+                                className="w-full h-full object-cover"
+                              />
+                            </button>
+                          ))}
+                        </div>
                       </div>
                       <span className="text-[10px] text-ink-soft block font-mono">
                         Active: {selectedSection.image}
                       </span>
+                    </div>
+                  )}
+
+                  {/* Hero Floating Live Sessions Indicator Badge (also accessible under Items/Media) */}
+                  {selectedSection.type === "hero" && (
+                    <div className="p-3.5 bg-paper rounded-sm border border-line space-y-3 shadow-2xs">
+                      <div className="flex items-center justify-between border-b border-line pb-2">
+                        <strong className="text-xs font-bold text-navy-900 flex items-center gap-1.5">
+                          <Icon name="sparkles" size={13} className="text-gold-500" />
+                          <span>Hero Floating Live Badge</span>
+                        </strong>
+                        <label className="inline-flex items-center gap-1.5 cursor-pointer text-[11px] font-semibold text-navy-900">
+                          <input
+                            type="checkbox"
+                            checked={selectedSection.floatingBadgeEnabled !== false}
+                            onChange={(e) =>
+                              updateSelectedField("floatingBadgeEnabled", e.target.checked)
+                            }
+                            className="rounded border-line text-navy-900 focus:ring-0"
+                          />
+                          <span>Show on Photo</span>
+                        </label>
+                      </div>
+
+                      {selectedSection.floatingBadgeEnabled !== false && (
+                        <>
+                          {/* Live Mini Preview Box */}
+                          <div className="p-2.5 bg-white rounded-xs border border-line flex items-center gap-2.5 shadow-2xs">
+                            <div className="w-8 h-8 rounded-sm bg-navy-900 text-white flex items-center justify-center shrink-0">
+                              <Icon
+                                name={(selectedSection.floatingBadgeIcon as any) || "star"}
+                                size={16}
+                                className="text-gold-500"
+                              />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <span className="font-heading font-bold text-xs text-navy-900 block leading-tight truncate">
+                                {selectedSection.floatingBadgeTitle || "Live Evening Sessions"}
+                              </span>
+                              <span className="text-[10px] text-ink-soft block leading-tight truncate">
+                                {selectedSection.floatingBadgeSubtitle || "Recordings available 24/7 to rewatch"}
+                              </span>
+                            </div>
+                            <span className="text-[9px] font-mono text-gold-700 bg-gold-300/30 px-1.5 py-0.5 rounded uppercase font-bold shrink-0">
+                              Preview
+                            </span>
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                              Badge Title
+                            </label>
+                            <input
+                              type="text"
+                              value={selectedSection.floatingBadgeTitle ?? "Live Evening Sessions"}
+                              onChange={(e) =>
+                                updateSelectedField("floatingBadgeTitle", e.target.value)
+                              }
+                              placeholder="e.g. Live Evening Sessions"
+                              className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white font-medium focus:outline-none focus:border-navy-900"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                              Badge Subtitle / Caption
+                            </label>
+                            <input
+                              type="text"
+                              value={selectedSection.floatingBadgeSubtitle ?? "Recordings available 24/7 to rewatch"}
+                              onChange={(e) =>
+                                updateSelectedField("floatingBadgeSubtitle", e.target.value)
+                              }
+                              placeholder="e.g. Recordings available 24/7 to rewatch"
+                              className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1.5">
+                              Badge SVG Icon
+                            </label>
+                            <div className="grid grid-cols-4 gap-1.5">
+                              {[
+                                { name: "star", label: "Star" },
+                                { name: "video", label: "Video" },
+                                { name: "clock", label: "Clock" },
+                                { name: "calendar", label: "Calendar" },
+                                { name: "graduation-cap", label: "Academic" },
+                                { name: "sparkles", label: "Sparkles" },
+                                { name: "users", label: "Tutors" },
+                                { name: "book-open", label: "Study" },
+                                { name: "shield-check", label: "Shield" },
+                                { name: "check-circle", label: "Check" },
+                                { name: "play", label: "Play" },
+                                { name: "bell", label: "Bell" },
+                              ].map((ic) => {
+                                const active = (selectedSection.floatingBadgeIcon || "star") === ic.name;
+                                return (
+                                  <button
+                                    key={ic.name}
+                                    type="button"
+                                    onClick={() =>
+                                      updateSelectedField("floatingBadgeIcon", ic.name)
+                                    }
+                                    className={`flex flex-col items-center justify-center p-2 rounded-xs border text-[10px] transition-all cursor-pointer ${
+                                      active
+                                        ? "bg-navy-900 text-gold-300 border-navy-900 shadow-xs ring-1 ring-gold-500"
+                                        : "bg-white text-ink-soft border-line hover:border-navy-900/40"
+                                    }`}
+                                  >
+                                    <Icon
+                                      name={ic.name as any}
+                                      size={16}
+                                      className={active ? "text-gold-500" : "text-navy-900"}
+                                    />
+                                    <span className="mt-1 truncate max-w-full font-medium">
+                                      {ic.label}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </>
+                      )}
                     </div>
                   )}
 
@@ -3829,6 +5895,22 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                                   />
                                 </div>
 
+                                {/* Subtitle / Role */}
+                                <div>
+                                  <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                                    Subtitle / Role
+                                  </label>
+                                  <input
+                                    type="text"
+                                    placeholder="e.g. Care Assistant to Registered Manager"
+                                    value={item.subtitle || ""}
+                                    onChange={(e) =>
+                                      updateItemField(i, "subtitle", e.target.value)
+                                    }
+                                    className="w-full px-2 py-1 text-xs border border-line rounded-sm bg-white"
+                                  />
+                                </div>
+
                                 {/* Description */}
                                 <div>
                                   <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
@@ -3893,8 +5975,10 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                   </div>
                 </div>
               )}
-            </div>
+            </>
           )}
+        </div>
+      )}
 
           {/* TAB 3: Widget Palette & Reusable Templates (Wix & Elementor Drag Elements) */}
           {sidebarTab === "widgets" && (
@@ -4018,52 +6102,130 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                 )}
               </div>
 
-              {/* SECTION B: Standard Page Sections & Widgets */}
-              <div className="space-y-3 pt-2 border-t border-line">
+              {/* SECTION B: Elementor & Webflow Widget Library */}
+              <div className="space-y-3 pt-3 border-t border-line">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-mono text-ink-soft uppercase tracking-wider">
-                    Standard Page Sections
-                  </span>
-                  <span className="text-[10px] text-ink-soft">
-                    Drag or click to insert
+                  <div>
+                    <span className="text-[10px] font-mono text-ink-soft uppercase tracking-wider block">
+                      Elementor / Webflow Palette
+                    </span>
+                    <strong className="text-xs font-bold text-navy-900">
+                      Standard Page Widgets
+                    </strong>
+                  </div>
+                  <span className="text-[10px] text-ink-soft font-mono">
+                    {WIDGET_DEFINITIONS.length} Available
                   </span>
                 </div>
 
-                <div className="space-y-2">
-                  {WIDGET_DEFINITIONS.map((w) => (
-                    <div
-                      key={w.type}
-                      draggable
-                      onDragStart={(e) => {
-                        e.dataTransfer.setData("application/widget-type", w.type);
-                        setDraggedWidgetType(w.type);
-                      }}
-                      onDragEnd={handleDragEnd}
-                      onClick={() => insertWidgetAt(w.type)}
-                      className="p-3 rounded-sm border border-line bg-paper hover:bg-white hover:border-navy-900 transition-all cursor-grab active:cursor-grabbing space-y-1 shadow-xs group"
+                {/* 1. Elementor Widget Search Filter */}
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Search widgets (e.g. video, quote, cta)..."
+                    value={widgetSearchQuery}
+                    onChange={(e) => setWidgetSearchQuery(e.target.value)}
+                    className="w-full px-3 py-1.5 text-xs border border-line rounded-sm bg-white focus:outline-none focus:border-navy-900"
+                  />
+                  {widgetSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setWidgetSearchQuery("")}
+                      className="absolute right-2.5 top-2 text-ink-soft hover:text-navy-900 text-xs"
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Icon name={w.iconName} size={15} className="text-navy-900" />
-                          <strong className="text-xs font-bold text-navy-900 group-hover:text-navy-700">
-                            {w.title}
-                          </strong>
-                        </div>
-                        <span className="text-xs font-bold text-navy-900 group-hover:underline flex items-center gap-0.5">
-                          <Icon name="plus" size={11} />
-                          <span>Insert</span>
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-ink-soft leading-normal pl-4">
-                        {w.desc}
-                      </p>
-                      <div className="pl-4 pt-1">
-                        <span className="inline-block text-[9px] px-1.5 py-0.2 rounded-sm bg-line/60 font-mono text-ink-soft uppercase">
-                          {w.category}
-                        </span>
-                      </div>
-                    </div>
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                {/* 2. Category Filter Pills */}
+                <div className="flex flex-wrap gap-1">
+                  {[
+                    { key: "all", label: "All" },
+                    { key: "Header & Lead", label: "Hero" },
+                    { key: "Courses & Curricula", label: "Courses" },
+                    { key: "Trust & Badges", label: "Trust" },
+                    { key: "Social Proof", label: "Proof" },
+                    { key: "Conversion", label: "Leads & CTA" },
+                    { key: "Custom Builder", label: "Modular" },
+                  ].map((cat) => (
+                    <button
+                      key={cat.key}
+                      type="button"
+                      onClick={() => setWidgetCategoryFilter(cat.key)}
+                      className={`px-2 py-0.5 rounded-xs text-[10px] font-semibold transition-all cursor-pointer ${
+                        widgetCategoryFilter === cat.key
+                          ? "bg-navy-900 text-gold-300 font-bold shadow-2xs"
+                          : "bg-paper hover:bg-white text-ink-soft hover:text-navy-900 border border-line"
+                      }`}
+                    >
+                      {cat.label}
+                    </button>
                   ))}
+                </div>
+
+                {/* 3. Filtered Widgets List */}
+                <div className="space-y-2">
+                  {(() => {
+                    const filtered = WIDGET_DEFINITIONS.filter((w) => {
+                      const q = widgetSearchQuery.toLowerCase().trim();
+                      const matchesSearch =
+                        !q ||
+                        w.title.toLowerCase().includes(q) ||
+                        w.desc.toLowerCase().includes(q) ||
+                        w.category.toLowerCase().includes(q) ||
+                        w.type.toLowerCase().includes(q);
+                      const matchesCategory =
+                        widgetCategoryFilter === "all" ||
+                        w.category === widgetCategoryFilter;
+                      return matchesSearch && matchesCategory;
+                    });
+
+                    if (filtered.length === 0) {
+                      return (
+                        <p className="text-xs text-ink-soft italic p-4 text-center border border-dashed rounded-sm">
+                          No widgets matching &quot;{widgetSearchQuery}&quot;.
+                        </p>
+                      );
+                    }
+
+                    return filtered.map((w) => (
+                      <div
+                        key={w.type}
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData("application/widget-type", w.type);
+                          setDraggedWidgetType(w.type);
+                        }}
+                        onDragEnd={handleDragEnd}
+                        onClick={() => insertWidgetAt(w.type)}
+                        className="p-3 rounded-sm border border-line bg-paper hover:bg-white hover:border-navy-900 transition-all cursor-grab active:cursor-grabbing space-y-1 shadow-xs group"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-6 h-6 rounded-xs bg-navy-100 group-hover:bg-navy-900 text-navy-900 group-hover:text-gold-300 flex items-center justify-center transition-colors shrink-0">
+                              <Icon name={w.iconName} size={13} />
+                            </div>
+                            <strong className="text-xs font-bold text-navy-900 group-hover:text-navy-700 truncate">
+                              {w.title}
+                            </strong>
+                          </div>
+                          <span className="text-[11px] font-bold text-navy-900 group-hover:text-gold-700 flex items-center gap-0.5 shrink-0">
+                            <Icon name="plus" size={11} />
+                            <span>Insert</span>
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-ink-soft leading-normal pl-8">
+                          {w.desc}
+                        </p>
+                        <div className="pl-8 pt-0.5">
+                          <span className="inline-block text-[9px] px-1.5 py-0.2 rounded-xs bg-line/60 font-mono text-ink-soft uppercase">
+                            {w.category}
+                          </span>
+                        </div>
+                      </div>
+                    ));
+                  })()}
                 </div>
               </div>
             </div>
@@ -4238,56 +6400,245 @@ export const SiteCmsEditorView: React.FC<Props> = ({
               </div>
 
               {/* 2. Top Announcement Bar Settings */}
-              <div className="p-3 bg-paper rounded-sm border border-line space-y-2">
-                <div className="flex items-center justify-between">
-                  <strong className="text-xs font-bold text-navy-900 flex items-center gap-1.5">
-                    <Icon name="bell" size={13} className="text-gold-700" />
-                    <span>Top Announcement Bar</span>
-                  </strong>
-                  <label className="flex items-center gap-1 text-[11px] font-semibold text-ink-soft cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={headerNav.announcementActive}
-                      onChange={(e) =>
-                        setHeaderNav({
-                          ...headerNav,
-                          announcementActive: e.target.checked,
-                        })
-                      }
-                      className="rounded-sm text-navy-900"
-                    />
-                    <span>Active</span>
-                  </label>
-                </div>
-                <textarea
-                  rows={2}
-                  value={headerNav.announcementText}
-                  onChange={(e) =>
-                    setHeaderNav({
-                      ...headerNav,
-                      announcementText: e.target.value,
-                    })
+              {(() => {
+                const getEffectiveAnnouncements = (): AnnouncementItem[] => {
+                  if (headerNav.announcements && headerNav.announcements.length > 0) {
+                    return headerNav.announcements;
                   }
-                  className="w-full px-2 py-1 text-xs border border-line rounded-sm bg-white leading-normal"
-                />
-                <div>
-                  <label className="block text-[10px] text-ink-soft mb-0.5">
-                    Link URL (optional):
-                  </label>
-                  <input
-                    type="text"
-                    value={headerNav.announcementLink || ""}
-                    onChange={(e) =>
-                      setHeaderNav({
-                        ...headerNav,
-                        announcementLink: e.target.value,
-                      })
-                    }
-                    placeholder="/funding"
-                    className="w-full px-2 py-1 text-xs border border-line rounded-sm bg-white font-mono"
-                  />
-                </div>
-              </div>
+                  if (headerNav.announcementText) {
+                    return [
+                      {
+                        id: "ann-1",
+                        text: headerNav.announcementText,
+                        link: headerNav.announcementLink || "",
+                        badge: "0% FINANCE",
+                        active: headerNav.announcementActive,
+                      },
+                    ];
+                  }
+                  return defaultAnnouncements;
+                };
+
+                const currentAnnouncements = getEffectiveAnnouncements();
+
+                const handleAddAnnouncement = () => {
+                  const newAnn: AnnouncementItem = {
+                    id: `ann-${Date.now().toString().slice(-4)}`,
+                    text: "New upcoming cohort enrolling now — limited places available",
+                    link: "/funding",
+                    badge: "NEW",
+                    active: true,
+                  };
+                  const updated = [...currentAnnouncements, newAnn];
+                  setHeaderNav({
+                    ...headerNav,
+                    announcements: updated,
+                    announcementText: updated.find((a) => a.active)?.text || updated[0]?.text || "",
+                    announcementLink: updated.find((a) => a.active)?.link || updated[0]?.link || "",
+                  });
+                };
+
+                const handleUpdateAnnouncement = (id: string, patch: Partial<AnnouncementItem>) => {
+                  const updated = currentAnnouncements.map((a) => (a.id === id ? { ...a, ...patch } : a));
+                  setHeaderNav({
+                    ...headerNav,
+                    announcements: updated,
+                    announcementText: updated.find((a) => a.active)?.text || updated[0]?.text || "",
+                    announcementLink: updated.find((a) => a.active)?.link || updated[0]?.link || "",
+                  });
+                };
+
+                const handleRemoveAnnouncement = (id: string) => {
+                  if (currentAnnouncements.length <= 1) {
+                    alert("At least one announcement item must remain. You can uncheck 'Active' to hide it.");
+                    return;
+                  }
+                  const updated = currentAnnouncements.filter((a) => a.id !== id);
+                  setHeaderNav({
+                    ...headerNav,
+                    announcements: updated,
+                    announcementText: updated.find((a) => a.active)?.text || updated[0]?.text || "",
+                    announcementLink: updated.find((a) => a.active)?.link || updated[0]?.link || "",
+                  });
+                };
+
+                const handleMoveAnnouncement = (index: number, direction: "up" | "down") => {
+                  const targetIndex = direction === "up" ? index - 1 : index + 1;
+                  if (targetIndex < 0 || targetIndex >= currentAnnouncements.length) return;
+                  const listCopy = [...currentAnnouncements];
+                  const [moved] = listCopy.splice(index, 1);
+                  listCopy.splice(targetIndex, 0, moved);
+                  setHeaderNav({
+                    ...headerNav,
+                    announcements: listCopy,
+                    announcementText: listCopy.find((a) => a.active)?.text || listCopy[0]?.text || "",
+                    announcementLink: listCopy.find((a) => a.active)?.link || listCopy[0]?.link || "",
+                  });
+                };
+
+                return (
+                  <div className="p-3 bg-paper rounded-sm border border-line space-y-3">
+                    <div className="flex items-center justify-between pb-2 border-b border-line/60">
+                      <div>
+                        <strong className="text-xs font-bold text-navy-900 flex items-center gap-1.5">
+                          <Icon name="bell" size={13} className="text-gold-700" />
+                          <span>Top Announcement Bar ({currentAnnouncements.length})</span>
+                        </strong>
+                        <p className="text-[10px] text-ink-soft">
+                          Rotating gold ticker displayed above the main header menu.
+                        </p>
+                      </div>
+                      <label className="flex items-center gap-1 text-[11px] font-semibold text-ink-soft cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={headerNav.announcementActive}
+                          onChange={(e) =>
+                            setHeaderNav({
+                              ...headerNav,
+                              announcementActive: e.target.checked,
+                            })
+                          }
+                          className="rounded-sm text-navy-900"
+                        />
+                        <span>Master Active</span>
+                      </label>
+                    </div>
+
+                    <div className="space-y-2.5 max-h-96 overflow-y-auto pr-0.5">
+                      {currentAnnouncements.map((ann, idx) => (
+                        <div
+                          key={ann.id || idx}
+                          className={`p-2.5 rounded-sm border transition-all ${
+                            ann.active
+                              ? "bg-white border-line shadow-2xs"
+                              : "bg-paper/70 border-line/50 opacity-60"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-1.5">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] font-mono font-bold text-navy-900 bg-gold-300/40 px-1.5 py-0.5 rounded-xs">
+                                #{idx + 1}
+                              </span>
+                              <label className="flex items-center gap-1 text-[10px] font-semibold text-ink cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={ann.active}
+                                  onChange={(e) =>
+                                    handleUpdateAnnouncement(ann.id, { active: e.target.checked })
+                                  }
+                                  className="rounded-sm"
+                                />
+                                <span>Active</span>
+                              </label>
+                            </div>
+
+                            <div className="flex items-center gap-0.5">
+                              <button
+                                type="button"
+                                disabled={idx === 0}
+                                onClick={() => handleMoveAnnouncement(idx, "up")}
+                                className="p-1 text-ink-soft hover:text-navy-900 disabled:opacity-25"
+                                title="Move Announcement Up"
+                              >
+                                <Icon name="chevron-up" size={11} />
+                              </button>
+                              <button
+                                type="button"
+                                disabled={idx === currentAnnouncements.length - 1}
+                                onClick={() => handleMoveAnnouncement(idx, "down")}
+                                className="p-1 text-ink-soft hover:text-navy-900 disabled:opacity-25"
+                                title="Move Announcement Down"
+                              >
+                                <Icon name="chevron-down" size={11} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveAnnouncement(ann.id)}
+                                className="p-1 text-ink-soft hover:text-rose-600 ml-1"
+                                title="Remove Announcement"
+                              >
+                                <Icon name="trash" size={11} />
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            {/* 1. Badge Input */}
+                            <div>
+                              <label className="block text-[9px] font-bold uppercase tracking-wider text-ink-soft mb-0.5">
+                                Promotional Badge (optional)
+                              </label>
+                              <input
+                                type="text"
+                                value={ann.badge || ""}
+                                onChange={(e) =>
+                                  handleUpdateAnnouncement(ann.id, { badge: e.target.value })
+                                }
+                                placeholder="e.g. 0% FINANCE, OFFER, ACCREDITED"
+                                className="w-full px-2 py-1 text-[11px] border border-line rounded-xs bg-paper focus:bg-white font-bold text-navy-900 uppercase"
+                              />
+                            </div>
+
+                            {/* 2. Announcement Text / Writeup (BEFORE the Link) */}
+                            <div>
+                              <label className="block text-[9px] font-bold uppercase tracking-wider text-ink-soft mb-0.5">
+                                Announcement Text / Writeup
+                              </label>
+                              <textarea
+                                rows={2}
+                                value={ann.text}
+                                onChange={(e) =>
+                                  handleUpdateAnnouncement(ann.id, { text: e.target.value })
+                                }
+                                className="w-full px-2 py-1 text-xs border border-line rounded-xs bg-paper focus:bg-white leading-normal"
+                                placeholder="e.g. Autumn & Winter 2026 Cohorts Enrolling Now..."
+                              />
+                            </div>
+
+                            {/* 3. Link Destination (AFTER the Writeup) */}
+                            <div>
+                              <label className="block text-[9px] font-bold uppercase tracking-wider text-ink-soft mb-0.5">
+                                Link Destination (placed after writeup)
+                              </label>
+                              <input
+                                type="text"
+                                value={ann.link || ""}
+                                onChange={(e) =>
+                                  handleUpdateAnnouncement(ann.id, { link: e.target.value })
+                                }
+                                placeholder="/funding or /courses"
+                                className="w-full px-2 py-1 text-[11px] border border-line rounded-xs bg-paper focus:bg-white font-mono"
+                              />
+                              <div className="flex items-center gap-1 flex-wrap pt-1">
+                                <span className="text-[9px] text-ink-soft">Quick links:</span>
+                                {["/funding", "/courses", "/contact", "/book"].map((qk) => (
+                                  <button
+                                    key={qk}
+                                    type="button"
+                                    onClick={() => handleUpdateAnnouncement(ann.id, { link: qk })}
+                                    className="text-[9px] px-1.5 py-0.5 bg-paper rounded border border-line hover:border-navy-900 text-ink-soft font-mono cursor-pointer"
+                                  >
+                                    {qk}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleAddAnnouncement}
+                      className="w-full py-1.5 px-3 bg-navy-900 text-gold-300 hover:bg-navy-800 text-xs font-bold rounded-sm flex items-center justify-center gap-1.5 transition-all shadow-xs"
+                    >
+                      <Icon name="plus" size={12} />
+                      <span>Add Announcement Banner</span>
+                    </button>
+                  </div>
+                );
+              })()}
 
               {/* 3. Navigation Links Reorderable List */}
               <div className="space-y-2">
@@ -4476,36 +6827,52 @@ export const SiteCmsEditorView: React.FC<Props> = ({
               </div>
 
               {/* 4. Header Action Button & Contacts */}
+              <ButtonCustomizerFields
+                label="Header Action CTA Button"
+                buttonText={headerNav.ctaButtonText || ""}
+                onButtonTextChange={(val) =>
+                  setHeaderNav({ ...headerNav, ctaButtonText: val })
+                }
+                buttonLink={headerNav.ctaButtonLink}
+                onButtonLinkChange={(val) =>
+                  setHeaderNav({ ...headerNav, ctaButtonLink: val })
+                }
+                linkPlaceholder="/book or /courses"
+                defaultVariant="primary"
+                defaultSize="md"
+                config={{
+                  bgColor: headerNav.ctaButtonBgColor,
+                  textColor: headerNav.ctaButtonTextColor,
+                  fontFamily: headerNav.ctaButtonFontFamily,
+                  fontWeight: headerNav.ctaButtonFontWeight,
+                  textTransform: headerNav.ctaButtonTextTransform,
+                  icon: headerNav.ctaButtonIcon,
+                  iconPosition: headerNav.ctaButtonIconPosition,
+                  radius: headerNav.ctaButtonRadius,
+                  size: headerNav.ctaButtonSize,
+                }}
+                onChange={(key, val) => {
+                  const fieldMap: Record<string, string> = {
+                    bgColor: "ctaButtonBgColor",
+                    textColor: "ctaButtonTextColor",
+                    fontFamily: "ctaButtonFontFamily",
+                    fontWeight: "ctaButtonFontWeight",
+                    textTransform: "ctaButtonTextTransform",
+                    icon: "ctaButtonIcon",
+                    iconPosition: "ctaButtonIconPosition",
+                    radius: "ctaButtonRadius",
+                    size: "ctaButtonSize",
+                  };
+                  const mappedField = fieldMap[key] || key;
+                  setHeaderNav({ ...headerNav, [mappedField]: val });
+                }}
+              />
+
               <div className="p-3 bg-paper rounded-sm border border-line space-y-2.5">
                 <strong className="text-xs font-bold text-navy-900 block">
-                  Header CTA Button & Fast Phone Call
+                  Support Telephone &amp; WhatsApp
                 </strong>
                 <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div>
-                    <label className="block text-[10px] text-ink-soft mb-0.5">Button Label</label>
-                    <input
-                      type="text"
-                      value={headerNav.ctaButtonText}
-                      onChange={(e) =>
-                        setHeaderNav({ ...headerNav, ctaButtonText: e.target.value })
-                      }
-                      className="w-full px-2 py-1 border border-line rounded-sm bg-white font-bold"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] text-ink-soft mb-0.5">Button Target URL</label>
-                    <input
-                      type="text"
-                      value={headerNav.ctaButtonLink}
-                      onChange={(e) =>
-                        setHeaderNav({ ...headerNav, ctaButtonLink: e.target.value })
-                      }
-                      className="w-full px-2 py-1 border border-line rounded-sm bg-white font-mono"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-line">
                   <div>
                     <label className="block text-[10px] text-ink-soft mb-0.5">Telephone</label>
                     <input
@@ -5148,6 +7515,8 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                     <div
                       onClick={() => {
                         setSelectedSectionId(sec.id);
+                        setSelectedElementKey(null);
+                        setSelectedElementItemIndex(null);
                         setSidebarTab("inspect");
                       }}
                       onMouseEnter={() => setHoveredSectionId(sec.id)}
@@ -5220,6 +7589,9 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                       <SectionRenderer
                         section={sec}
                         isEditor={true}
+                        courses={liveCourses}
+                        selectedElementKey={sec.id === selectedSectionId ? selectedElementKey : null}
+                        selectedElementItemIndex={sec.id === selectedSectionId ? selectedElementItemIndex : null}
                         onSelectElement={(elementKey, itemIndex) =>
                           handleSelectElement(sec.id, elementKey, itemIndex)
                         }

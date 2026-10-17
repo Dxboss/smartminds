@@ -16,6 +16,7 @@ import {
 import { Icon } from "@/components/ui/Icon";
 import { formatCurrency } from "@/content/pricing";
 import { ChangePasswordPrompt } from "@/components/student/ChangePasswordPrompt";
+import { SafeguardingCard } from "@/components/student/SafeguardingCard";
 
 export const instant = false;
 
@@ -44,6 +45,12 @@ export default async function StudentDashboardPage() {
   const primaryEnrolment = enrolments[0];
   const assignedClass = seedClasses.find((c) => c.id === primaryEnrolment?.classId);
   const nextSession = seedSessions.find((s) => s.classId === assignedClass?.id);
+
+  const isParentAccount =
+    learner?.learnerType === "child" || Boolean(learner?.childName);
+  const childName = learner?.childName || "Your Child";
+  const childYearGroup = learner?.childYearGroup || "School Student";
+  const trainingLocation = primaryEnrolment?.trainingLocation;
 
   const cohortSchedule = getCohortSchedule();
   const effectiveZoomLink =
@@ -80,6 +87,53 @@ export default async function StudentDashboardPage() {
       {/* Temporary Password Security Prompt */}
       {session.mustChangePassword && (
         <ChangePasswordPrompt userEmail={session.email} />
+      )}
+
+      {/* Parent / Guardian Safeguarding & Consent Checklist Banner (if child account) */}
+      {isParentAccount && (
+        <SafeguardingCard
+          learnerId={learner?.id}
+          learnerEmail={learner?.email || session.email}
+          childName={childName}
+          childYearGroup={childYearGroup}
+          safeguardingCompleted={Boolean(learner?.safeguardingCompleted)}
+          initialConcerns={learner?.childConcerns}
+          initialEmergencyPhone={learner?.emergencyPhone}
+          parentSignature={learner?.parentSignature}
+        />
+      )}
+
+      {/* Practical Clinical / Assessment Venue Card (if trainingLocation exists) */}
+      {trainingLocation && (
+        <div className="bg-white rounded-md border border-line p-6 shadow-sm space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-line pb-3">
+            <div className="flex items-center gap-2">
+              <Icon name="map-pin" size={20} className="text-navy-900" />
+              <h2 className="font-heading text-xl font-bold text-navy-900">
+                Practical Clinical & Assessment Venue
+              </h2>
+            </div>
+            <span className="text-xs font-bold px-2.5 py-0.5 rounded-sm bg-navy-900 text-gold-300 self-start sm:self-auto">
+              {trainingLocation} Campus Hub
+            </span>
+          </div>
+          <div className="p-4 rounded-sm bg-paper border border-line flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
+            <div className="space-y-1">
+              <span className="font-bold text-navy-900 text-sm block">
+                Smartminds Approved Training Centre ({trainingLocation})
+              </span>
+              <p className="text-ink-soft leading-relaxed">
+                Your practical intensive workshops and clinical observation assessments take place at our {trainingLocation} facility. Detailed joining instructions, venue parking, and equipment requirements have been emailed to your registered address.
+              </p>
+            </div>
+            <div className="shrink-0">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xs bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold text-xs">
+                <Icon name="check" size={14} className="text-emerald-700" />
+                <span>Venue Allocation Confirmed</span>
+              </span>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Urgent / Upcoming Instalment Banner */}
@@ -119,6 +173,7 @@ export default async function StudentDashboardPage() {
           </Link>
         </div>
       )}
+
       {/* Welcome & Access Status Banner */}
       <div className="bg-white rounded-md border border-line p-6 sm:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-sm">
         <div className="space-y-1.5">
@@ -131,15 +186,17 @@ export default async function StudentDashboardPage() {
               }`}
             />
             <span>
-              Access Status:{" "}
+              {isParentAccount ? "Parent / Guardian Account" : "Adult Learner Account"} • Status:{" "}
               {learner?.accessStatus === "active" ? "Active Study" : "Access Paused"}
             </span>
           </div>
           <h1 className="font-heading text-3xl sm:text-4xl font-bold text-navy-900">
-            Welcome back, {session.name}
+            {isParentAccount ? `Parent Console: ${session.name}` : `Welcome back, ${session.name}`}
           </h1>
           <p className="text-sm text-ink-soft">
-            {primaryEnrolment
+            {isParentAccount
+              ? `Managing tuition & progress for ${childName} (${childYearGroup}) on ${primaryEnrolment?.courseTitle || "Tutoring / Course"}`
+              : primaryEnrolment
               ? `Currently enrolled on: ${primaryEnrolment.courseTitle} (${primaryEnrolment.courseLevelLabel})`
               : "Review your live classroom timetable, coursework deadlines, and academic results."}
           </p>

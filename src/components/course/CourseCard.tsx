@@ -17,7 +17,7 @@ export interface CourseCardProps {
  * Maps each course to an authentic British FE college photograph.
  */
 const getCourseImage = (course: Course): string => {
-  if (course.image && course.image.startsWith("/images/")) {
+  if (course.image && course.image.trim().length > 0) {
     return course.image;
   }
   const id = course.id.toLowerCase();
@@ -47,6 +47,10 @@ const CourseCover: React.FC<{ course: Course; priority?: boolean }> = ({
   priority = false,
 }) => {
   const photoSrc = getCourseImage(course);
+  const isCustomOrData =
+    photoSrc.startsWith("data:") ||
+    photoSrc.startsWith("http://") ||
+    photoSrc.startsWith("https://");
 
   return (
     <div className="relative aspect-[16/9] w-full overflow-hidden bg-navy-900 border-b border-line">
@@ -57,6 +61,7 @@ const CourseCover: React.FC<{ course: Course; priority?: boolean }> = ({
         priority={priority}
         loading={priority ? "eager" : undefined}
         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 380px"
+        unoptimized={isCustomOrData}
         className="object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
       />
 
@@ -178,6 +183,30 @@ export const CourseCard: React.FC<CourseCardProps> = ({
                 Funded Route Available
               </span>
             )}
+
+            {course.custom_delivery_text ? (
+              <span className="inline-flex items-center gap-1 text-xs text-navy-900 bg-indigo-50 border border-indigo-200 px-2.5 py-1 rounded-sm font-medium">
+                <Icon name="monitor" size={13} className="text-navy-900 flex-shrink-0" />
+                {course.custom_delivery_text}
+              </span>
+            ) : course.training_locations && course.training_locations.length > 0 ? (
+              <span className="inline-flex items-center gap-1 text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-sm font-medium">
+                <Icon name="map-pin" size={13} className="text-emerald-700 flex-shrink-0" />
+                Practical: {course.training_locations.length} UK Venues
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-xs text-navy-900 bg-paper px-2.5 py-1 rounded-sm border border-line font-medium">
+                <Icon name="monitor" size={13} className="text-ink-soft flex-shrink-0" />
+                100% Online Study
+              </span>
+            )}
+
+            {course.is_private_tutoring && (
+              <span className="inline-flex items-center gap-1 text-xs text-navy-900 bg-gold-300/30 border border-gold-500/40 px-2.5 py-1 rounded-sm font-semibold">
+                <Icon name="users" size={13} className="text-navy-900 flex-shrink-0" />
+                DBS Private Tutoring
+              </span>
+            )}
           </div>
         </div>
 
@@ -201,15 +230,19 @@ export const CourseCard: React.FC<CourseCardProps> = ({
               <span className="text-[11px] uppercase tracking-wider text-ink-soft block font-mono">
                 From (Pay in Full)
               </span>
-              <div className="flex items-baseline gap-2">
+              <div className="flex items-baseline gap-2 flex-wrap">
                 <span className="font-heading font-bold text-2xl text-navy-900 leading-tight">
                   {formatCurrency(pricing.fullPayPrice)}
                 </span>
-                {pricing.saving > 0 && (
+                {pricing.hasPriceSlash ? (
+                  <span className="text-xs line-through text-ink-soft">
+                    {formatCurrency(pricing.regularPrice)}
+                  </span>
+                ) : pricing.saving > 0 ? (
                   <span className="text-xs line-through text-ink-soft">
                     {formatCurrency(pricing.total)}
                   </span>
-                )}
+                ) : null}
               </div>
               {pricing.months > 1 && (
                 <span className="text-xs text-ink-soft block mt-0.5 font-medium">

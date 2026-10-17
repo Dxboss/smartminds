@@ -1,8 +1,5 @@
-import { Metadata } from "next";
-import {
-  collegePagesData,
-  defaultPageBuilderSections,
-} from "@/lib/repositories/seedData";
+import type { Metadata } from "next";
+import { getPublishedCmsPageSections, getLiveCourses } from "@/lib/persistedData";
 import { SectionRenderer } from "@/components/cms/SectionRenderer";
 
 export const metadata: Metadata = {
@@ -19,14 +16,15 @@ export const metadata: Metadata = {
 };
 
 export default function HomePage() {
-  const sections = collegePagesData["/"] || defaultPageBuilderSections;
+  const sections = getPublishedCmsPageSections("/");
+  const liveCourses = getLiveCourses();
 
   return (
     <main className="bg-paper text-ink min-h-screen">
       {sections
         .filter((sec) => sec.enabled)
         .map((sec) => (
-          <SectionRenderer key={sec.id} section={sec} />
+          <SectionRenderer key={sec.id} section={sec} courses={liveCourses} />
         ))}
     </main>
   );

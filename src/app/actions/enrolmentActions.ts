@@ -1,15 +1,15 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { courses } from "@/content/courses";
 import { globalSettings } from "@/content/globals";
 import {
   defaultPlan6Months,
   defaultPlan3Months,
   defaultPlan10Months,
   defaultPlan12Months,
+  defaultPlan14Months,
 } from "@/content/plans";
-import { PaymentPlanTemplate } from "@/content/types";
+import { PaymentPlanTemplate, CourseLevel } from "@/content/types";
 import { calculatePricing, formatCurrency } from "@/content/pricing";
 import {
   seedLearners,
@@ -21,7 +21,7 @@ import {
 import { Learner, Enrolment, PaymentRecord, PaymentScheduleItem } from "@/lib/repositories/types";
 import { siteConfig } from "@/content/siteConfig";
 import { sendEmail } from "@/lib/email";
-import { savePersistedRecord } from "@/lib/persistedData";
+import { savePersistedRecord, getLiveCourses } from "@/lib/persistedData";
 import { setSessionCookie } from "@/lib/session";
 import { getBaseUrl } from "@/lib/baseUrl";
 import {
@@ -34,7 +34,7 @@ import { validateCoupon, calculateDiscountedPricing } from "@/lib/coupons";
 export interface EnrolmentFormInput {
   courseId: string;
   levelLabel?: string;
-  planId: string; // "full" | "3" | "6" | "10" | "12" | plan ID
+  planId: string; // "full" | "3" | "6" | "10" | "12" | "14" | plan ID
   fullName: string;
   email: string;
   phone: string;
@@ -46,6 +46,13 @@ export interface EnrolmentFormInput {
   cardNumberLast4?: string;
   couponCode?: string;
   termsAccepted: boolean;
+  learnerType?: "myself" | "child";
+  guardianName?: string;
+  guardianPhone?: string;
+  guardianEmail?: string;
+  childName?: string;
+  childYearGroup?: string;
+  trainingLocation?: string;
 }
 
 const fullPayPlanTemplate: PaymentPlanTemplate = {
@@ -56,6 +63,29 @@ const fullPayPlanTemplate: PaymentPlanTemplate = {
   grace_days: 0,
   after_grace: "pause_access",
 };
+
+function resolvePlanForLevel(
+  level: CourseLevel,
+  planId: string,
+  paymentOption: "full" | "instalments"
+): PaymentPlanTemplate {
+  if (paymentOption === "full" || planId === "full") {
+    return fullPayPlanTemplate;
+  }
+  if (level.plans && level.plans.length > 0) {
+    const match = level.plans.find(
+      (p) => p.id === planId || p.months.toString() === planId
+    );
+    if (match) return match;
+  }
+  if (planId === "3" || planId === "plan-3m") return defaultPlan3Months;
+  if (planId === "6" || planId === "plan-6m") return defaultPlan6Months;
+  if (planId === "10" || planId === "plan-10m") return defaultPlan10Months;
+  if (planId === "12" || planId === "plan-12m") return defaultPlan12Months;
+  if (planId === "14" || planId === "plan-14m") return defaultPlan14Months;
+
+  return level.plans?.[0] || defaultPlan6Months;
+}
 
 export async function processSelfEnrolmentAction(input: EnrolmentFormInput) {
   // 1. Validation
@@ -95,7 +125,7 @@ export async function processSelfEnrolmentAction(input: EnrolmentFormInput) {
   }
 
   // 2. Resolve Course & Pricing
-  const course = courses.find((c) => c.id === input.courseId);
+  const course = getLiveCourses().find((c) => c.id === input.courseId);
   if (!course) {
     throw new Error("Selected course was not found. Please refresh and try again.");
   }
@@ -107,23 +137,11 @@ export async function processSelfEnrolmentAction(input: EnrolmentFormInput) {
     throw new Error("Course level is invalid.");
   }
 
-  let selectedPlan: PaymentPlanTemplate = defaultPlan6Months;
-  if (input.paymentOption === "full" || input.planId === "full") {
-    selectedPlan = fullPayPlanTemplate;
-  } else if (input.planId === "3" || input.planId === "plan-3m") {
-    selectedPlan = defaultPlan3Months;
-  } else if (input.planId === "6" || input.planId === "plan-6m") {
-    selectedPlan = defaultPlan6Months;
-  } else if (input.planId === "10" || input.planId === "plan-10m") {
-    selectedPlan = defaultPlan10Months;
-  } else if (input.planId === "12" || input.planId === "plan-12m") {
-    selectedPlan = defaultPlan12Months;
-  } else if (level.plans && level.plans.length > 0) {
-    const customMatch = level.plans.find(
-      (p) => p.id === input.planId || p.months.toString() === input.planId
-    );
-    if (customMatch) selectedPlan = customMatch;
-  }
+  const selectedPlan: PaymentPlanTemplate = resolvePlanForLevel(
+    level,
+    input.planId,
+    input.paymentOption
+  );
 
   let pricing = calculatePricing(level, selectedPlan, globalSettings);
   let appliedCoupon = null;
@@ -168,12 +186,21 @@ export async function processSelfEnrolmentAction(input: EnrolmentFormInput) {
       phone: input.phone.trim(),
       enrolmentDate: new Date().toISOString(),
       accessStatus: "active",
-      notes: `Self-enrolled: ${course.title} (${level.level_label})${input.dob ? ` | DOB: ${input.dob}` : ""}${input.address ? ` | Address: ${input.address}` : ""}`,
+      notes: `Self-enrolled: ${course.title} (${level.level_label})${input.dob ? ` | DOB: ${input.dob}` : ""}${input.address ? ` | Address: ${input.address}` : ""}${input.childName ? ` | Child: ${input.childName} (${input.childYearGroup})` : ""}${input.trainingLocation ? ` | Campus: ${input.trainingLocation}` : ""}`,
+      learnerType: input.learnerType || "myself",
+      guardianName: input.guardianName || (input.learnerType === "child" ? input.fullName.trim() : undefined),
+      guardianPhone: input.guardianPhone || (input.learnerType === "child" ? input.phone.trim() : undefined),
+      guardianEmail: input.guardianEmail || (input.learnerType === "child" ? cleanEmail : undefined),
+      childName: input.childName,
+      childYearGroup: input.childYearGroup,
+      safeguardingCompleted: false,
     };
     seedLearners.push(learner);
   } else {
     learner.accessStatus = "active";
     if (input.phone) learner.phone = input.phone.trim();
+    if (input.childName) learner.childName = input.childName;
+    if (input.childYearGroup) learner.childYearGroup = input.childYearGroup;
   }
 
   // 4. Create or Activate Course Enrolment
@@ -202,6 +229,7 @@ export async function processSelfEnrolmentAction(input: EnrolmentFormInput) {
       classId,
       sessionTiming: input.preferredSession === "afternoon" ? "afternoon" : "evening",
       tutorName: matchingClass?.tutorName || "Dr. Eleanor Vance",
+      trainingLocation: input.trainingLocation,
       enrolledAt: new Date().toISOString(),
       status: "active",
       fundingType: "self_pay",
@@ -449,6 +477,9 @@ export async function processSelfEnrolmentAction(input: EnrolmentFormInput) {
     paymentOption: input.paymentOption,
     portalUrl: "/student",
     isReturningStudent,
+    learnerType: input.learnerType || "myself",
+    childName: input.childName,
+    trainingLocation: input.trainingLocation,
   };
 }
 
@@ -479,23 +510,18 @@ export async function createStripeCheckoutAction(input: {
     };
   }
 
-  const course = courses.find((c) => c.id === input.courseId);
+  const course = getLiveCourses().find((c) => c.id === input.courseId);
   if (!course) throw new Error("Selected course was not found.");
   const level =
     course.levels.find((l) => l.level_label === input.levelLabel) ||
     course.levels[0];
   if (!level) throw new Error("Course level is invalid.");
 
-  let selectedPlan: PaymentPlanTemplate = defaultPlan6Months;
-  if (input.paymentOption === "full" || input.planId === "full") {
-    selectedPlan = fullPayPlanTemplate;
-  } else if (input.planId === "3") {
-    selectedPlan = defaultPlan3Months;
-  } else if (input.planId === "10") {
-    selectedPlan = defaultPlan10Months;
-  } else if (input.planId === "12") {
-    selectedPlan = defaultPlan12Months;
-  }
+  const selectedPlan: PaymentPlanTemplate = resolvePlanForLevel(
+    level,
+    input.planId,
+    input.paymentOption
+  );
 
   const pricing = calculatePricing(level, selectedPlan, globalSettings);
   const amountCharged =
@@ -612,5 +638,39 @@ export async function verifyExistingStudentAction(identifier: string) {
       studentId,
     },
   };
+}
+
+/**
+ * Server Action for Parents to complete their child's safeguarding and consent form post-login.
+ */
+export async function submitSafeguardingFormAction(input: {
+  learnerId?: string;
+  learnerEmail?: string;
+  parentSignature: string;
+  childConcerns?: string;
+  emergencyPhone?: string;
+}) {
+  const learner = seedLearners.find(
+    (l) =>
+      (input.learnerId && l.id === input.learnerId) ||
+      (input.learnerEmail && l.email.toLowerCase() === input.learnerEmail.toLowerCase())
+  );
+
+  if (learner) {
+    learner.safeguardingCompleted = true;
+    learner.parentSignature = input.parentSignature;
+    if (input.childConcerns) learner.childConcerns = input.childConcerns;
+    if (input.emergencyPhone) learner.emergencyPhone = input.emergencyPhone;
+
+    // Persist
+    savePersistedRecord({ learner });
+  }
+
+  try {
+    revalidatePath("/student");
+    revalidatePath("/admin/learners");
+  } catch {}
+
+  return { success: true };
 }
 

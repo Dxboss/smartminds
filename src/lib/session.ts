@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 import { SessionUser, UserRole } from "./repositories/types";
 
 export const DEMO_COOKIE_NAME = "smartminds_demo_session";
@@ -192,6 +193,9 @@ export async function verifySession(token: string): Promise<SessionUser | null> 
 
 export async function getServerSession(): Promise<SessionUser | null> {
   try {
+    try {
+      await connection();
+    } catch {}
     const cookieStore = await cookies();
     const sessionCookie = cookieStore.get(DEMO_COOKIE_NAME);
     if (!sessionCookie?.value) return null;

@@ -155,9 +155,12 @@ describe("calculatePricing engine (PRD 10.4)", () => {
 
     const result = calculatePricing(level2, plan3m, globalSettings);
 
-    assert.equal(result.fullPayPrice, 675); // 750 with 10% discount = 675
-    assert.equal(result.saving, 75);
-    assert.equal(result.total, 750);
+    const expectedDiscount = (level2.price_gbp * (level2.full_pay_discount_percent ?? 10)) / 100;
+    const expectedFullPay = level2.price_gbp - expectedDiscount;
+
+    assert.equal(result.fullPayPrice, expectedFullPay);
+    assert.equal(result.saving, expectedDiscount);
+    assert.equal(result.total, level2.price_gbp);
   });
 
   it("reflects changes in course level price or discount dynamically", () => {

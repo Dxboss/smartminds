@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { siteConfig } from "@/content/siteConfig";
@@ -14,7 +14,9 @@ import { Container } from "@/components/ui/Container";
 import {
   HeaderNavConfig,
   defaultHeaderNavConfig,
+  AnnouncementItem,
 } from "@/lib/repositories/seedData";
+import { resolveCustomButtonClasses } from "@/components/ui/buttonCustomizer";
 
 export interface HeaderProps {
   config?: HeaderNavConfig;
@@ -79,7 +81,58 @@ export const Header: React.FC<HeaderProps> = ({
     };
   }, [mobileMenuOpen]);
 
-  // Hide marketing website header completely inside application portals (unless forced in editor)
+  // 1. All hooks MUST be called unconditionally at top of component per Rules of Hooks
+  const activeAnnouncements = useMemo(() => {
+    if (effectiveConfig.announcements && effectiveConfig.announcements.length > 0) {
+      const active = effectiveConfig.announcements.filter((a) => a.active);
+      if (active.length > 0) return active;
+    }
+    if (effectiveConfig.announcementText) {
+      return [
+        {
+          id: "default-ann",
+          text: effectiveConfig.announcementText,
+          link: effectiveConfig.announcementLink,
+          badge: undefined,
+          active: true,
+        },
+      ];
+    }
+    return [];
+  }, [effectiveConfig.announcements, effectiveConfig.announcementText, effectiveConfig.announcementLink]);
+
+  const navItems = effectiveConfig.navLinks || siteConfig.navigation;
+
+  const headerCtaBtn = useMemo(() => {
+    return resolveCustomButtonClasses(
+      {
+        bgColor: effectiveConfig.ctaButtonBgColor,
+        textColor: effectiveConfig.ctaButtonTextColor,
+        fontFamily: effectiveConfig.ctaButtonFontFamily,
+        fontWeight: effectiveConfig.ctaButtonFontWeight,
+        textTransform: effectiveConfig.ctaButtonTextTransform,
+        icon: effectiveConfig.ctaButtonIcon,
+        iconPosition: effectiveConfig.ctaButtonIconPosition,
+        radius: effectiveConfig.ctaButtonRadius,
+        size: effectiveConfig.ctaButtonSize,
+      },
+      "primary",
+      "md",
+      false
+    );
+  }, [
+    effectiveConfig.ctaButtonBgColor,
+    effectiveConfig.ctaButtonTextColor,
+    effectiveConfig.ctaButtonFontFamily,
+    effectiveConfig.ctaButtonFontWeight,
+    effectiveConfig.ctaButtonTextTransform,
+    effectiveConfig.ctaButtonIcon,
+    effectiveConfig.ctaButtonIconPosition,
+    effectiveConfig.ctaButtonRadius,
+    effectiveConfig.ctaButtonSize,
+  ]);
+
+  // 2. Early return for portal / admin routes comes AFTER all hooks
   if (
     !isEditor &&
     (pathname.startsWith("/portal") ||
@@ -91,34 +144,49 @@ export const Header: React.FC<HeaderProps> = ({
     return null;
   }
 
-  const navItems = effectiveConfig.navLinks || siteConfig.navigation;
-
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-line shadow-subtle transition-all">
       {/* 1. Dynamic Top Announcement Ticker */}
-      {effectiveConfig.announcementActive && (
+      {effectiveConfig.announcementActive && activeAnnouncements.length > 0 && (
         <aside
-          aria-label="College Announcement"
+          aria-label="College Announcements"
           className="bg-gold-500 text-navy-900 py-2 text-xs font-bold tracking-wide border-b border-gold-600/20 overflow-hidden relative cursor-default select-none"
         >
           <div className="flex animate-marquee hover:[animation-play-state:paused] whitespace-nowrap will-change-transform">
-            {[0, 1, 2, 3].map((idx) => (
-              <div
-                key={idx}
-                className="flex items-center gap-2.5 px-6 shrink-0"
-              >
-                <Icon name="sparkles" size={13} className="text-navy-900 shrink-0" />
-                <span>{effectiveConfig.announcementText}</span>
-                {effectiveConfig.announcementLink && !isEditor && (
-                  <Link
-                    href={effectiveConfig.announcementLink}
-                    className="underline hover:text-navy-950 font-black ml-1 inline-flex items-center gap-0.5 cursor-pointer"
+            {[0, 1, 2, 3].map((cycleIdx: number) => (
+              <div key={cycleIdx} className="flex items-center shrink-0">
+                {activeAnnouncements.map((item: AnnouncementItem, itemIdx: number) => (
+                  <div
+                    key={`${cycleIdx}-${item.id || itemIdx}`}
+                    className="flex items-center gap-2 px-5 shrink-0"
                   >
-                    <span>Learn more</span>
-                    <Icon name="arrow-right" size={11} />
-                  </Link>
-                )}
-                <span className="text-navy-900/35 text-[10px] mx-2 font-black">•</span>
+                    {item.badge ? (
+                      <span className="bg-navy-900 text-gold-300 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-xs shrink-0 shadow-xs">
+                        {item.badge}
+                      </span>
+                    ) : (
+                      <Icon name="sparkles" size={13} className="text-navy-900 shrink-0" />
+                    )}
+                    <span>{item.text}</span>
+                    {item.link && (
+                      !isEditor ? (
+                        <Link
+                          href={item.link}
+                          className="underline hover:text-navy-950 font-black ml-1.5 inline-flex items-center gap-0.5 cursor-pointer"
+                        >
+                          <span>Learn more</span>
+                          <Icon name="arrow-right" size={11} />
+                        </Link>
+                      ) : (
+                        <span className="underline font-black ml-1.5 inline-flex items-center gap-0.5 opacity-90 cursor-default">
+                          <span>Learn more</span>
+                          <Icon name="arrow-right" size={11} />
+                        </span>
+                      )
+                    )}
+                    <span className="text-navy-900/40 text-[10px] mx-3 font-black">•</span>
+                  </div>
+                ))}
               </div>
             ))}
           </div>
@@ -470,19 +538,31 @@ export const Header: React.FC<HeaderProps> = ({
             {effectiveConfig.ctaButtonLink &&
             effectiveConfig.ctaButtonLink !== "/book" ? (
               <Button
-                variant="primary"
-                size="md"
                 href={effectiveConfig.ctaButtonLink}
+                className={headerCtaBtn.className}
+                style={headerCtaBtn.style}
               >
-                {effectiveConfig.ctaButtonText || "Get free advice"}
+                {headerCtaBtn.icon && headerCtaBtn.iconPosition === "left" && (
+                  <Icon name={headerCtaBtn.icon} size={15} />
+                )}
+                <span>{effectiveConfig.ctaButtonText || "Get free advice"}</span>
+                {headerCtaBtn.icon && headerCtaBtn.iconPosition === "right" && (
+                  <Icon name={headerCtaBtn.icon} size={15} />
+                )}
               </Button>
             ) : (
               <Button
-                variant="primary"
-                size="md"
                 onClick={() => (isEditor ? null : openBooking())}
+                className={headerCtaBtn.className}
+                style={headerCtaBtn.style}
               >
-                {effectiveConfig.ctaButtonText || "Get free advice"}
+                {headerCtaBtn.icon && headerCtaBtn.iconPosition === "left" && (
+                  <Icon name={headerCtaBtn.icon} size={15} />
+                )}
+                <span>{effectiveConfig.ctaButtonText || "Get free advice"}</span>
+                {headerCtaBtn.icon && headerCtaBtn.iconPosition === "right" && (
+                  <Icon name={headerCtaBtn.icon} size={15} />
+                )}
               </Button>
             )}
           </div>
@@ -738,27 +818,37 @@ export const Header: React.FC<HeaderProps> = ({
             {effectiveConfig.ctaButtonLink &&
             effectiveConfig.ctaButtonLink !== "/book" ? (
               <Button
-                variant="primary"
                 fullWidth
-                size="md"
                 href={effectiveConfig.ctaButtonLink}
                 onClick={() => setMobileMenuOpen(false)}
-                className="min-h-[44px]"
+                className={`min-h-[44px] ${headerCtaBtn.className}`}
+                style={headerCtaBtn.style}
               >
-                {effectiveConfig.ctaButtonText || "Get free advice"}
+                {headerCtaBtn.icon && headerCtaBtn.iconPosition === "left" && (
+                  <Icon name={headerCtaBtn.icon} size={15} />
+                )}
+                <span>{effectiveConfig.ctaButtonText || "Get free advice"}</span>
+                {headerCtaBtn.icon && headerCtaBtn.iconPosition === "right" && (
+                  <Icon name={headerCtaBtn.icon} size={15} />
+                )}
               </Button>
             ) : (
               <Button
-                variant="primary"
                 fullWidth
-                size="md"
                 onClick={() => {
                   setMobileMenuOpen(false);
                   openBooking();
                 }}
-                className="min-h-[44px]"
+                className={`min-h-[44px] ${headerCtaBtn.className}`}
+                style={headerCtaBtn.style}
               >
-                {effectiveConfig.ctaButtonText || "Get free advice"}
+                {headerCtaBtn.icon && headerCtaBtn.iconPosition === "left" && (
+                  <Icon name={headerCtaBtn.icon} size={15} />
+                )}
+                <span>{effectiveConfig.ctaButtonText || "Get free advice"}</span>
+                {headerCtaBtn.icon && headerCtaBtn.iconPosition === "right" && (
+                  <Icon name={headerCtaBtn.icon} size={15} />
+                )}
               </Button>
             )}
             <a

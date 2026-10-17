@@ -881,7 +881,11 @@ export type CompositeWidgetType =
   | "cta_button"
   | "lead_form"
   | "video_player"
-  | "divider";
+  | "divider"
+  | "stats_metric"
+  | "quote_card"
+  | "badge_strip"
+  | "checklist";
 
 export interface CompositeWidget {
   id: string;
@@ -903,6 +907,13 @@ export interface CompositeWidget {
   videoUrl?: string;
   align?: "left" | "center" | "right";
   badge?: string;
+  statNumber?: string;
+  statLabel?: string;
+  quoteAuthor?: string;
+  quoteRole?: string;
+  rating?: number;
+  checklistItems?: string[];
+  badgeList?: string[];
   formFields?: {
     showName?: boolean;
     showPhone?: boolean;
@@ -911,11 +922,40 @@ export interface CompositeWidget {
     showNotes?: boolean;
     buttonLabel?: string;
   };
+  fontFamily?: "heading" | "body" | "serif";
+  fontSize?: "sm" | "md" | "lg" | "xl" | "2xl";
+  fontWeight?: "normal" | "medium" | "semibold" | "bold" | "extrabold";
+  fontStyle?: "normal" | "italic";
+  textColor?: "auto" | "navy" | "white" | "gold" | "ink_soft" | (string & {});
+  buttonBgColor?: string;
+  buttonTextColor?: string;
+  buttonFontFamily?: "heading" | "body";
+  buttonFontWeight?: "normal" | "medium" | "semibold" | "bold" | "extrabold";
+  buttonTextTransform?: "normal" | "uppercase";
+  buttonIcon?: string;
+  buttonIconPosition?: "left" | "right";
+  buttonRadius?: "none" | "sm" | "md" | "full";
+  buttonSize?: "sm" | "md" | "lg";
+  secondaryButtonBgColor?: string;
+  secondaryButtonTextColor?: string;
+  secondaryButtonFontFamily?: "heading" | "body";
+  secondaryButtonFontWeight?: "normal" | "medium" | "semibold" | "bold" | "extrabold";
+  secondaryButtonTextTransform?: "normal" | "uppercase";
+  secondaryButtonIcon?: string;
+  secondaryButtonIconPosition?: "left" | "right";
+  secondaryButtonRadius?: "none" | "sm" | "md" | "full";
+  secondaryButtonSize?: "sm" | "md" | "lg";
 }
 
 export interface CompositeColumn {
   id: string;
   widgets: CompositeWidget[];
+}
+
+export interface BuilderTagItem {
+  id?: string;
+  label: string;
+  variant?: "live" | "navy" | "gold" | "default";
 }
 
 export interface BuilderSectionItem {
@@ -926,6 +966,10 @@ export interface BuilderSectionItem {
   rating?: number;
   link?: string;
   image?: string;
+  badge?: string;
+  subtitle?: string;
+  bullets?: string[];
+  number?: string;
 }
 
 export interface BuilderSection {
@@ -936,17 +980,20 @@ export interface BuilderSection {
   headline: string;
   subheadline: string;
   badgeText?: string;
+  tags?: BuilderTagItem[];
   buttonText?: string;
   buttonLink?: string;
   secondaryButtonText?: string;
   secondaryButtonLink?: string;
   image?: string;
-  bgColor?: "white" | "paper" | "navy" | "cream";
+  bgColor?: "white" | "paper" | "navy" | "cream" | "slate" | "sage" | "sand" | "navy_gradient" | (string & {});
   align?: "left" | "center";
+  alignMobile?: "left" | "center";
   mediaPosition?: "left" | "right";
   columns?: 1 | 2 | 3 | 4;
   columnRatio?: "50-50" | "60-40" | "70-30" | "40-60" | "33-67";
   paddingDensity?: "compact" | "normal" | "spacious";
+  paddingDensityMobile?: "compact" | "normal" | "spacious";
   videoUrl?: string;
   videoThumbnail?: string;
   videoTitle?: string;
@@ -955,6 +1002,38 @@ export interface BuilderSection {
   compositeColumns?: CompositeColumn[];
   templateCategory?: string;
   templateDesc?: string;
+  headlineFontFamily?: "heading" | "body" | "serif";
+  headlineFontSize?: "sm" | "md" | "lg" | "xl" | "2xl";
+  headlineFontWeight?: "normal" | "medium" | "semibold" | "bold" | "extrabold";
+  headlineFontStyle?: "normal" | "italic";
+  headlineColor?: "auto" | "navy" | "white" | "gold" | "ink_soft" | (string & {});
+  subheadlineFontFamily?: "heading" | "body" | "serif";
+  subheadlineFontSize?: "sm" | "md" | "lg" | "xl";
+  subheadlineFontWeight?: "normal" | "medium" | "semibold" | "bold";
+  subheadlineFontStyle?: "normal" | "italic";
+  subheadlineColor?: "auto" | "navy" | "white" | "gold" | "ink_soft" | (string & {});
+  buttonBgColor?: string;
+  buttonTextColor?: string;
+  buttonFontFamily?: "heading" | "body";
+  buttonFontWeight?: "normal" | "medium" | "semibold" | "bold" | "extrabold";
+  buttonTextTransform?: "normal" | "uppercase";
+  buttonIcon?: string;
+  buttonIconPosition?: "left" | "right";
+  buttonRadius?: "none" | "sm" | "md" | "full";
+  buttonSize?: "sm" | "md" | "lg";
+  secondaryButtonBgColor?: string;
+  secondaryButtonTextColor?: string;
+  secondaryButtonFontFamily?: "heading" | "body";
+  secondaryButtonFontWeight?: "normal" | "medium" | "semibold" | "bold" | "extrabold";
+  secondaryButtonTextTransform?: "normal" | "uppercase";
+  secondaryButtonIcon?: string;
+  secondaryButtonIconPosition?: "left" | "right";
+  secondaryButtonRadius?: "none" | "sm" | "md" | "full";
+  secondaryButtonSize?: "sm" | "md" | "lg";
+  floatingBadgeTitle?: string;
+  floatingBadgeSubtitle?: string;
+  floatingBadgeIcon?: string;
+  floatingBadgeEnabled?: boolean;
 }
 
 export const defaultPageBuilderSections: BuilderSection[] = [
@@ -964,6 +1043,11 @@ export const defaultPageBuilderSections: BuilderSection[] = [
     name: "Hero Banner",
     enabled: true,
     badgeText: "British Accredited Training",
+    tags: [
+      { id: "tag-1", label: "Live Online Classes", variant: "live" },
+      { id: "tag-2", label: "Regulated Qualifications", variant: "navy" },
+      { id: "tag-3", label: "Flexible Instalments", variant: "gold" },
+    ],
     headline: "Live classes with real tutors. Qualifications that move your career forward.",
     subheadline:
       "Study recognised UK diplomas in health, social care, education, and business through interactive live evening classes with dedicated tutor mentoring.",
@@ -972,6 +1056,10 @@ export const defaultPageBuilderSections: BuilderSection[] = [
     secondaryButtonText: "View all courses",
     secondaryButtonLink: "/courses",
     image: "/images/hero-learner.jpg",
+    floatingBadgeTitle: "Live Evening Sessions",
+    floatingBadgeSubtitle: "Recordings available 24/7 to rewatch",
+    floatingBadgeIcon: "star",
+    floatingBadgeEnabled: true,
   },
   {
     id: "sec-trust-02",
@@ -1025,6 +1113,56 @@ export const defaultPageBuilderSections: BuilderSection[] = [
     enabled: true,
     headline: "Choose your path by outcome",
     subheadline: "Select where you want your qualification to take you.",
+    items: [
+      {
+        title: "Work in Adult Care",
+        subtitle: "Care Assistant to Registered Manager",
+        desc: "Ofqual-regulated Level 2 to Level 5 diplomas preparing you for direct care, supervisory, and CQC registered management roles.",
+        icon: "shield-check",
+        badge: "Levels 2 – 5",
+        link: "/courses?category=Health+%26+Social+Care",
+      },
+      {
+        title: "Teach & Train Adults",
+        subtitle: "College Lecturer or Corporate Trainer",
+        desc: "Qualify to teach in further education colleges and training organisations with the Level 3 Award in Education & Training (AET).",
+        icon: "graduation-cap",
+        badge: "Level 3",
+        link: "/courses/award-in-education-and-training-aet",
+      },
+      {
+        title: "Business & Office Administration",
+        subtitle: "Administrative Officer to Office Manager",
+        desc: "Master organisational workflows, commercial communication, and executive administration with regulated Level 2 & 3 diplomas.",
+        icon: "book-open",
+        badge: "Levels 2 – 3",
+        link: "/courses/diploma-in-business-administration",
+      },
+      {
+        title: "Early Years & Nursery Practice",
+        subtitle: "Early Years Educator / Nursery Practitioner",
+        desc: "Full licence-to-practise qualification enabling you to work in pre-schools, nurseries, and reception classes across the UK.",
+        icon: "user",
+        badge: "Level 3 EYE",
+        link: "/courses/diploma-early-years-educator",
+      },
+      {
+        title: "CPD for Your Current Job",
+        subtitle: "Mandatory Healthcare & Compliance Refreshers",
+        desc: "Fast 1-day accredited certificates in Safeguarding, Medication Administration, and Equality & Diversity to keep your records compliant.",
+        icon: "clock",
+        badge: "Certificates",
+        link: "/cpd",
+      },
+      {
+        title: "1-on-1 Tutoring for Your Child",
+        subtitle: "KS3 & GCSE Academic Grade Boost",
+        desc: "Dedicated weekly sessions in English and Mathematics delivered by verified DBS-checked educators to build confidence and exam technique.",
+        icon: "star",
+        badge: "KS3 & GCSE",
+        link: "/private-tutoring",
+      },
+    ],
   },
   {
     id: "sec-journey-04",
@@ -1034,6 +1172,36 @@ export const defaultPageBuilderSections: BuilderSection[] = [
     headline: "How it works: from consultation to qualification",
     subheadline:
       "Our structured route gives you personal tutor support from day one, fitting around your working week with both live classes and 24/7 access to recordings.",
+    items: [
+      {
+        number: "01",
+        title: "Talk to us",
+        subtitle: "Free, zero-pressure advice call",
+        desc: "Speak directly with an academic adviser. We review your career objectives, prior experience, and confirm whether you are eligible for government funding or self-paced instalments.",
+        badge: "15-minute call",
+      },
+      {
+        number: "02",
+        title: "Choose course & plan",
+        subtitle: "Transparent pricing with no hidden fees",
+        desc: "Select your qualification level. Pay in full to save with an upfront discount, or spread the exact full price over monthly instalments at no extra charge.",
+        badge: "Flexible payment",
+      },
+      {
+        number: "03",
+        title: "Join live classes",
+        subtitle: "Interactive teaching with real tutors",
+        desc: "Participate in structured evening webinars with experienced UK practitioners. Ask questions in real time, participate in discussions, and receive individual tutor guidance.",
+        badge: "Live + recordings",
+      },
+      {
+        number: "04",
+        title: "Get certified",
+        subtitle: "Ofqual-regulated British diploma",
+        desc: "Submit coursework units with step-by-step marker feedback. Earn your accredited qualification from recognised awarding bodies (TQUK / CPD) to unlock new career opportunities.",
+        badge: "Official diploma",
+      },
+    ],
   },
   {
     id: "sec-pricing-05",
@@ -1043,6 +1211,47 @@ export const defaultPageBuilderSections: BuilderSection[] = [
     headline: "Flexible ways to pay — no hidden fees, no interest charges",
     subheadline:
       "We believe career qualifications should be accessible. Choose an upfront discount, spread your fees monthly with zero markup, or check whether your course is covered by government funding.",
+    items: [
+      {
+        number: "Option 01",
+        title: "Pay in full",
+        subtitle: "Save 10% on your total course fee",
+        desc: "Pay your tuition upfront in a single secure payment and receive an instant 10% discount across any regulated or CPD diploma.",
+        badge: "Best Value",
+        bullets: [
+          "Instant 10% reduction applied to course total",
+          "Immediate enrolment and access to course materials",
+          "Includes free official textbook and all assessment registration fees",
+        ],
+        link: "/courses",
+      },
+      {
+        number: "Option 02",
+        title: "Monthly instalments",
+        subtitle: "0% interest, spread over 3–12 months",
+        desc: "Spread your course fees equally across monthly payments with zero APR, zero hidden admin charges, and direct college agreement.",
+        badge: "Most Popular",
+        bullets: [
+          "Fixed, predictable monthly instalments aligned with your pay date",
+          "Low initial deposit from just £100",
+          "Direct college arrangement with no third-party lender involvement",
+        ],
+        link: "/courses",
+      },
+      {
+        number: "Option 03",
+        title: "Government funding",
+        subtitle: "Check eligibility for fully-funded places",
+        desc: "Depending on your UK location, employment status, and prior qualifications, your training may be 100% funded through official grant schemes.",
+        badge: "Grant Funded",
+        bullets: [
+          "Available through AEB and Free Courses for Jobs",
+          "Zero tuition fees for eligible candidates",
+          "Admissions team checks eligibility during your free consultation",
+        ],
+        link: "/funding",
+      },
+    ],
   },
   {
     id: "sec-courses-06",
@@ -1066,8 +1275,31 @@ export const defaultPageBuilderSections: BuilderSection[] = [
     videoTitle: "Watch learners share their qualification journey",
     videoDesc:
       "Real feedback recorded by our graduates sharing their study experience, tutor support, and career progression.",
-    videoUrl: "https://www.youtube.com/watch?v=M7lc1UVf-VE",
+    videoUrl: "",
     videoThumbnail: "/images/certificate-moment.jpg",
+    items: [
+      {
+        title: "Sarah M.",
+        subtitle: "Level 5 Diploma in Leadership & Management for Adult Care",
+        desc: "The evening classes made studying manageable while working full-time as a deputy manager. My tutor, Dr. Vance, gave detailed feedback on every unit. I passed with confidence and was promoted to Registered Manager within two months.",
+        image: "/images/hero-learner.jpg",
+        rating: 5,
+      },
+      {
+        title: "David K.",
+        subtitle: "Level 3 Award in Education and Training (AET)",
+        desc: "I needed the AET to start teaching clinical skills at a local college. The live micro-teach session on Zoom was brilliant — supportive, practical, and constructive. Excellent tutor guidance from start to finish.",
+        image: "/images/tutor-teaching.jpg",
+        rating: 5,
+      },
+      {
+        title: "Amara O.",
+        subtitle: "Level 3 Diploma for the Early Years Educator",
+        desc: "Spreading the course fees over 10 months with 0% interest made this possible for me. The learning resources and observation guidance were crystal clear. I am now fully qualified and leading a nursery room.",
+        image: "/images/early-years-training.jpg",
+        rating: 5,
+      },
+    ],
   },
   {
     id: "sec-faqs-08",
@@ -1339,6 +1571,14 @@ export interface NavLinkItem {
   children?: NavDropdownChild[];
 }
 
+export interface AnnouncementItem {
+  id: string;
+  text: string;
+  link?: string;
+  badge?: string;
+  active: boolean;
+}
+
 export interface HeaderNavConfig {
   logoType?: "vector" | "image";
   logoImageUrl?: string;
@@ -1348,12 +1588,46 @@ export interface HeaderNavConfig {
   announcementActive: boolean;
   announcementText: string;
   announcementLink?: string;
+  announcements?: AnnouncementItem[];
   supportPhone: string;
   whatsappNumber: string;
   ctaButtonText: string;
   ctaButtonLink: string;
+  ctaButtonBgColor?: string;
+  ctaButtonTextColor?: string;
+  ctaButtonFontFamily?: "heading" | "body";
+  ctaButtonFontWeight?: "normal" | "medium" | "semibold" | "bold" | "extrabold";
+  ctaButtonTextTransform?: "normal" | "uppercase";
+  ctaButtonIcon?: string;
+  ctaButtonIconPosition?: "left" | "right";
+  ctaButtonRadius?: "none" | "sm" | "md" | "full";
+  ctaButtonSize?: "sm" | "md" | "lg";
   navLinks: NavLinkItem[];
 }
+
+export const defaultAnnouncements: AnnouncementItem[] = [
+  {
+    id: "ann-1",
+    text: "Autumn & Winter 2026 Cohorts Enrolling Now — Spread Fees over 12 Months with 0% Interest",
+    link: "/funding",
+    badge: "0% FINANCE",
+    active: true,
+  },
+  {
+    id: "ann-2",
+    text: "100% Coursework & Portfolio Assessed — No Written Exams for NVQ Diplomas",
+    link: "/courses",
+    badge: "ACCREDITED",
+    active: true,
+  },
+  {
+    id: "ann-3",
+    text: "Book a Free 1-to-1 Course Advisory Call with a Vocational Assessor",
+    link: "/contact",
+    badge: "FREE ADVICE",
+    active: true,
+  },
+];
 
 export const defaultHeaderNavConfig: HeaderNavConfig = {
   logoType: "vector",
@@ -1365,6 +1639,7 @@ export const defaultHeaderNavConfig: HeaderNavConfig = {
   announcementText:
     "Autumn & Winter 2026 Cohorts Enrolling Now — Spread Fees over 12 Months with 0% Interest",
   announcementLink: "/funding",
+  announcements: defaultAnnouncements,
   supportPhone: "01452 225 225",
   whatsappNumber: "07932 034 548",
   ctaButtonText: "Get free advice",
@@ -1399,6 +1674,7 @@ export const defaultHeaderNavConfig: HeaderNavConfig = {
     },
     { id: "nav-2", label: "CPD", href: "/cpd" },
     { id: "nav-3", label: "Private Tutoring", href: "/private-tutoring" },
+    { id: "nav-blog", label: "Guides", href: "/blog" },
     { id: "nav-4", label: "Funding", href: "/funding" },
     {
       id: "nav-5",
@@ -1460,6 +1736,7 @@ export const defaultFooterConfig: FooterConfig = {
     { id: "f-2", label: "CPD Short Courses", href: "/cpd" },
     { id: "f-3", label: "Private Tutoring", href: "/private-tutoring" },
     { id: "f-4", label: "Funded Options", href: "/funding" },
+    { id: "f-blog", label: "Career Guides & Advice", href: "/blog" },
   ],
   collegeLinks: [
     { id: "f-5", label: "About Smartminds", href: "/about" },
@@ -2110,6 +2387,282 @@ export const collegePagesData: Record<string, BuilderSection[]> = {
         "If you have a safeguarding query or need personal welfare guidance, contact our designated officer in complete confidence.",
       buttonText: "Contact Safeguarding Lead",
       buttonLink: "/contact",
+    },
+  ],
+  "/cpd": [
+    {
+      id: "sec-cpd-hero",
+      type: "hero",
+      name: "CPD Courses Hero",
+      enabled: true,
+      badgeText: "Accredited by The CPD Group",
+      headline: "Continuing Professional Development (CPD)",
+      subheadline:
+        "Essential mandatory compliance refresher and skills certificates for healthcare assistants, support workers, nurses, and nursery practitioners.",
+      buttonText: "Browse CPD Courses",
+      buttonLink: "#cpd-list",
+      secondaryButtonText: "Book Free Consultation",
+      secondaryButtonLink: "/book",
+      image: "/images/adult-care-training.jpg",
+    },
+    {
+      id: "sec-cpd-trust",
+      type: "trust_strip",
+      name: "CPD Accreditation Strip",
+      enabled: true,
+      headline: "Certified Professional Standards",
+      subheadline: "Accredited courses with same-week verification and digital certification",
+      items: [
+        { title: "The CPD Group", desc: "Accredited Provider", icon: "cpd", tag: "Certified" },
+        { title: "Fast Certification", desc: "Digital CPD Certificate", icon: "shield-check", tag: "Same Week" },
+        { title: "100% Online", desc: "Self-Paced or Live Webinars", icon: "video", tag: "Flexible" },
+        { title: "Employer Verified", desc: "Meets CQC Compliance", icon: "award", tag: "Recognised" },
+      ],
+    },
+    {
+      id: "sec-cpd-why",
+      type: "why_smartminds",
+      name: "Why Choose Smartminds CPD",
+      enabled: true,
+      headline: "Why Complete Your Mandatory Training with Us",
+      subheadline:
+        "Fast, authoritative, and recognised certificates designed for busy care and education workers.",
+      columns: 2,
+      items: [
+        {
+          title: "Immediate Certificate Delivery",
+          desc: "Receive your accredited CPD certificate within 48 hours of completing course requirements.",
+          tag: "Fast Turnaround",
+        },
+        {
+          title: "CQC and Ofsted Aligned",
+          desc: "All CPD modules are written in strict alignment with mandatory workforce standards.",
+          tag: "Compliance",
+        },
+        {
+          title: "Practical, Up-to-Date Content",
+          desc: "Written by practicing healthcare managers and clinical educators with current industry guidance.",
+          tag: "Current Standards",
+        },
+        {
+          title: "Affordable Group Rates",
+          desc: "Discounts available for care agencies, residential homes, and nursery teams booking multiple staff.",
+          tag: "Group Booking",
+        },
+      ],
+    },
+    {
+      id: "sec-cpd-faq",
+      type: "faq_accordion",
+      name: "CPD Frequently Asked Questions",
+      enabled: true,
+      headline: "Everything You Need to Know About CPD",
+      subheadline: "Clear answers on certificate validity, study hours, and corporate team bookings.",
+      items: [
+        {
+          title: "How long is a CPD certificate valid for?",
+          desc: "Most UK healthcare compliance certificates (such as Safeguarding and Medication) are valid for 1 to 3 years depending on statutory employer requirements.",
+        },
+        {
+          title: "Can my employer verify my certificate?",
+          desc: "Yes. Every certificate includes an official verification reference that employers can check directly with our registry.",
+        },
+        {
+          title: "Do you offer group discounts for care homes?",
+          desc: "Yes, we provide bulk cohort discounts for care homes, domiciliary agencies, and schools.",
+        },
+      ],
+    },
+    {
+      id: "sec-cpd-cta",
+      type: "cta_banner",
+      name: "CPD Advisory CTA",
+      enabled: true,
+      badgeText: "Team Training",
+      headline: "Need Mandatory Refresher Training for Your Team?",
+      subheadline:
+        "Speak with an advisor to book tailored group sessions or request a customized corporate invoice.",
+      buttonText: "Request Group Quote",
+      buttonLink: "/contact",
+      secondaryButtonText: "Prefer WhatsApp? Chat with us",
+      secondaryButtonLink: "https://wa.me/447123456789",
+    },
+  ],
+  "/book": [
+    {
+      id: "sec-book-hero",
+      type: "hero",
+      name: "Consultation Booking Hero",
+      enabled: true,
+      badgeText: "Free 15-Minute Advice Call",
+      headline: "Book a Free Consultation with an Academic Advisor",
+      subheadline:
+        "Speak directly with an experienced course advisor. We review your career objectives, prior experience, and confirm whether you are eligible for government funding or self-paced instalments.",
+      buttonText: "Select Time Slot",
+      buttonLink: "#booking-widget",
+      image: "/images/tutor-teaching.jpg",
+    },
+    {
+      id: "sec-book-how",
+      type: "how_it_works",
+      name: "How Your Consultation Works",
+      enabled: true,
+      headline: "Three Simple Steps to Plan Your Qualification",
+      subheadline: "Zero-pressure guidance tailored to your work rota and career milestones.",
+      items: [
+        {
+          number: "01",
+          title: "Choose Your Slot",
+          subtitle: "Select a date and time that fits your rota",
+          desc: "Pick any 15-minute window that suits your schedule. Evening and weekend slots are available.",
+          badge: "Step 1",
+        },
+        {
+          number: "02",
+          title: "1-on-1 Call",
+          subtitle: "Discuss courses, entry criteria, and funding",
+          desc: "An assessor will call you at your booked time to answer all questions and check funding eligibility.",
+          badge: "Step 2",
+        },
+        {
+          number: "03",
+          title: "Receive Enrolment Plan",
+          subtitle: "No obligation, clear breakdown",
+          desc: "We send you a summary of your course options, instalment schedule, and start dates.",
+          badge: "Step 3",
+        },
+      ],
+    },
+    {
+      id: "sec-book-faq",
+      type: "faq_accordion",
+      name: "Consultation FAQ",
+      enabled: true,
+      headline: "Frequently Asked Questions About the Call",
+      subheadline: "What to expect when speaking with our advisory team.",
+      items: [
+        {
+          title: "Is the consultation really free?",
+          desc: "Yes, 100% free with zero pressure or commitment to enrol.",
+        },
+        {
+          title: "Do I need to prepare anything?",
+          desc: "No preparation is required. It helps to have an idea of your current role and what career progression you are aiming for.",
+        },
+        {
+          title: "Can you check my funding eligibility on the call?",
+          desc: "Yes. Our advisor will ask a few standard residency and employment questions to see if you qualify for government funding.",
+        },
+      ],
+    },
+    {
+      id: "sec-book-cta",
+      type: "cta_banner",
+      name: "Immediate Assistance CTA",
+      enabled: true,
+      headline: "Need an Answer Right Now?",
+      subheadline:
+        "You don't have to wait for a scheduled slot. Chat with an advisor on WhatsApp or give us a quick call.",
+      buttonText: "Message on WhatsApp",
+      buttonLink: "https://wa.me/447123456789",
+      secondaryButtonText: "Call Admissions",
+      secondaryButtonLink: "tel:+447123456789",
+    },
+  ],
+  "/private-tutoring": [
+    {
+      id: "sec-tutoring-hero",
+      type: "hero",
+      name: "Private Tutoring Hero",
+      enabled: true,
+      badgeText: "KS3 & GCSE Specialists",
+      headline: "1-on-1 Academic Tutoring in English & Mathematics",
+      subheadline:
+        "Personalised online lessons with verified DBS-checked specialist educators designed to rebuild confidence, master curriculum topics, and boost GCSE exam grades.",
+      buttonText: "Book Free Assessment",
+      buttonLink: "/book",
+      image: "/images/teacher-training.jpg",
+    },
+    {
+      id: "sec-tutoring-trust",
+      type: "trust_strip",
+      name: "Tutoring Standards Strip",
+      enabled: true,
+      headline: "Rigorous Safeguarding & Academic Quality",
+      subheadline: "Verified British educators dedicated to student progress",
+      items: [
+        { title: "Enhanced DBS Checked", desc: "Complete Child Safeguarding", icon: "shield-check", tag: "Verified" },
+        { title: "Certified UK Tutors", desc: "Specialist Subject Teachers", icon: "graduation-cap", tag: "Qualified" },
+        { title: "1-on-1 Focus", desc: "Individualised Lesson Plans", icon: "users", tag: "Personal" },
+        { title: "Weekly Progress Reports", desc: "Clear Feedback for Parents", icon: "book-open", tag: "Transparent" },
+      ],
+    },
+    {
+      id: "sec-tutoring-why",
+      type: "why_smartminds",
+      name: "Why Parents Trust Smartminds Tutoring",
+      enabled: true,
+      headline: "How We Help Students Achieve Their Potential",
+      subheadline: "A structured, encouraging approach to mastering core subjects.",
+      columns: 2,
+      items: [
+        {
+          title: "Diagnostic Baseline Assessment",
+          desc: "Every learner begins with a gentle diagnostic to pinpoint specific knowledge gaps and misconceptions.",
+          tag: "Assessment",
+        },
+        {
+          title: "Customised Learning Pace",
+          desc: "No rushing through topics. We take the time needed until mathematical and literacy concepts click.",
+          tag: "Pace",
+        },
+        {
+          title: "GCSE Exam Technique",
+          desc: "Targeted practice on past paper questions, timing strategies, and mark scheme breakdown.",
+          tag: "Exam Prep",
+        },
+        {
+          title: "Regular Parent Updates",
+          desc: "Written feedback after each session so parents know exactly what progress has been made.",
+          tag: "Communication",
+        },
+      ],
+    },
+    {
+      id: "sec-tutoring-faq",
+      type: "faq_accordion",
+      name: "Tutoring Frequently Asked Questions",
+      enabled: true,
+      headline: "Frequently Asked Questions About Private Tutoring",
+      subheadline: "Everything you need to know about our tutoring programmes.",
+      items: [
+        {
+          title: "How are tutoring sessions delivered?",
+          desc: "Lessons are delivered live 1-on-1 via our secure interactive online classroom with video, digital whiteboard, and screen sharing.",
+        },
+        {
+          title: "What year groups do you cater for?",
+          desc: "We specialise in Key Stage 3 (Years 7–9) and GCSE preparation (Years 10–11) in English Language, English Literature, and Mathematics.",
+        },
+        {
+          title: "How often do sessions take place?",
+          desc: "Most students attend one or two 60-minute sessions per week, scheduled at a regular evening or weekend time slot.",
+        },
+      ],
+    },
+    {
+      id: "sec-tutoring-cta",
+      type: "cta_banner",
+      name: "Tutoring Assessment CTA",
+      enabled: true,
+      badgeText: "Get Started",
+      headline: "Give Your Child the Grade Advantage This Term",
+      subheadline:
+        "Book a free 15-minute consultation to discuss your child's academic goals and arrange a diagnostic session.",
+      buttonText: "Book Free Consultation",
+      buttonLink: "/book",
+      secondaryButtonText: "Ask on WhatsApp",
+      secondaryButtonLink: "https://wa.me/447123456789",
     },
   ],
 };

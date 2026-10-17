@@ -16,6 +16,12 @@ import { Tag } from "@/components/ui/Tag";
 import { Button } from "@/components/ui/Button";
 import { ArcMask } from "@/components/ui/ArcMask";
 import { ConsentGuard } from "@/components/consent/ConsentGuard";
+import { resolveSectionBg } from "@/components/ui/sectionBg";
+import {
+  resolveTypography,
+  resolveSubheadlineTypography,
+} from "@/components/ui/typographyUtils";
+import { resolveCustomButtonClasses } from "@/components/ui/buttonCustomizer";
 
 interface Props {
   section: BuilderSection;
@@ -28,17 +34,34 @@ export const CompositeBlockRenderer: React.FC<Props> = ({
   isEditor = false,
   onSelectElement,
 }) => {
-  const isNavy = section.bgColor === "navy";
-  const isPaper = section.bgColor === "paper";
-  const isCream = section.bgColor === "cream";
+  const { bgClass, isDark, isNavy, style: bgStyle } = resolveSectionBg(
+    section.bgColor,
+    "paper"
+  );
 
-  const bgClass = isNavy
-    ? "bg-navy-900 text-white"
-    : isCream
-    ? "bg-gold-50/70 text-ink border-y border-gold-200"
-    : isPaper
-    ? "bg-paper text-ink"
-    : "bg-white text-ink";
+  const { className: hlClass, style: hlStyle } = resolveTypography({
+    fontFamily: section.headlineFontFamily,
+    fontSize: section.headlineFontSize,
+    fontWeight: section.headlineFontWeight,
+    fontStyle: section.headlineFontStyle,
+    color: section.headlineColor,
+    isDark,
+    defaultFamily: "heading",
+    defaultSize: "lg",
+    defaultWeight: "bold",
+  });
+
+  const { className: subClass, style: subStyle } = resolveSubheadlineTypography({
+    fontFamily: section.subheadlineFontFamily,
+    fontSize: section.subheadlineFontSize,
+    fontWeight: section.subheadlineFontWeight,
+    fontStyle: section.subheadlineFontStyle,
+    color: section.subheadlineColor,
+    isDark,
+    defaultFamily: "body",
+    defaultSize: "md",
+    defaultWeight: "normal",
+  });
 
   const paddingClass =
     section.paddingDensity === "compact"
@@ -70,7 +93,10 @@ export const CompositeBlockRenderer: React.FC<Props> = ({
         }));
 
   return (
-    <section className={`${bgClass} ${paddingClass} relative transition-colors`}>
+    <section
+      style={bgStyle}
+      className={`${bgClass} ${paddingClass} relative transition-colors`}
+    >
       <Container>
         {/* Section Header (Optional) */}
         {(section.headline || section.badgeText) && (
@@ -102,13 +128,14 @@ export const CompositeBlockRenderer: React.FC<Props> = ({
             {section.headline && (
               <Heading
                 level="h2"
+                style={hlStyle}
                 onClick={(e) => {
                   if (isEditor && onSelectElement) {
                     e.stopPropagation();
                     onSelectElement("headline");
                   }
                 }}
-                className={`mb-3 ${isNavy ? "text-white" : "text-navy-900"} ${
+                className={`mb-3 ${hlClass} ${
                   isEditor
                     ? "cursor-pointer hover:outline hover:outline-dashed hover:outline-1 hover:outline-gold-500"
                     : ""
@@ -120,15 +147,14 @@ export const CompositeBlockRenderer: React.FC<Props> = ({
 
             {section.subheadline && (
               <p
+                style={subStyle}
                 onClick={(e) => {
                   if (isEditor && onSelectElement) {
                     e.stopPropagation();
                     onSelectElement("subheadline");
                   }
                 }}
-                className={`text-sm sm:text-base leading-relaxed ${
-                  isNavy ? "text-paper/85" : "text-ink-soft"
-                } ${
+                className={`leading-relaxed ${subClass} ${
                   isEditor
                     ? "cursor-pointer hover:outline hover:outline-dashed hover:outline-1 hover:outline-gold-500"
                     : ""
@@ -200,6 +226,17 @@ export const CompositeBlockRenderer: React.FC<Props> = ({
   );
 };
 
+function isDarkHex(hex?: string): boolean {
+  if (!hex || !hex.startsWith("#")) return false;
+  const clean = hex.replace("#", "");
+  if (clean.length !== 6) return false;
+  const r = parseInt(clean.slice(0, 2), 16);
+  const g = parseInt(clean.slice(2, 4), 16);
+  const b = parseInt(clean.slice(4, 6), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance < 0.5;
+}
+
 function isDarkBorder(isNavy: boolean) {
   return isNavy
     ? "border-white/20 bg-white/5 text-paper/70"
@@ -239,31 +276,52 @@ const MicroWidgetRenderer: React.FC<MicroWidgetProps> = ({
       )}
 
       {/* 1. TEXT BLOCK */}
-      {widget.type === "text" && (
-        <div className={`space-y-2 text-${widget.align || "left"}`}>
-          {widget.eyebrow && (
-            <Eyebrow tone={isDark ? "gold" : "navy"}>{widget.eyebrow}</Eyebrow>
-          )}
-          {widget.title && (
-            <h3
-              className={`font-heading text-xl sm:text-2xl font-bold ${
-                isDark ? "text-white" : "text-navy-900"
-              }`}
-            >
-              {widget.title}
-            </h3>
-          )}
-          {widget.content && (
-            <p
-              className={`text-xs sm:text-sm leading-relaxed ${
-                isDark ? "text-paper/85" : "text-ink-soft"
-              }`}
-            >
-              {widget.content}
-            </p>
-          )}
-        </div>
-      )}
+      {widget.type === "text" && (() => {
+        const textHl = resolveTypography({
+          fontFamily: widget.fontFamily,
+          fontSize: widget.fontSize,
+          fontWeight: widget.fontWeight,
+          fontStyle: widget.fontStyle,
+          color: widget.textColor,
+          isDark,
+          defaultFamily: "heading",
+          defaultSize: "md",
+          defaultWeight: "bold",
+        });
+        const textBody = resolveSubheadlineTypography({
+          fontFamily: widget.fontFamily === "serif" ? "serif" : undefined,
+          fontStyle: widget.fontStyle,
+          color: widget.textColor,
+          isDark,
+          defaultFamily: "body",
+          defaultSize: "sm",
+          defaultWeight: "normal",
+        });
+
+        return (
+          <div className={`space-y-2 text-${widget.align || "left"}`}>
+            {widget.eyebrow && (
+              <Eyebrow tone={isDark ? "gold" : "navy"}>{widget.eyebrow}</Eyebrow>
+            )}
+            {widget.title && (
+              <h3
+                style={textHl.style}
+                className={`leading-tight ${textHl.className}`}
+              >
+                {widget.title}
+              </h3>
+            )}
+            {widget.content && (
+              <p
+                style={textBody.style}
+                className={`leading-relaxed ${textBody.className}`}
+              >
+                {widget.content}
+              </p>
+            )}
+          </div>
+        );
+      })()}
 
       {/* 2. ICON BOX */}
       {widget.type === "icon_box" && (
@@ -354,36 +412,77 @@ const MicroWidgetRenderer: React.FC<MicroWidgetProps> = ({
       )}
 
       {/* 4. ACTION CTA BUTTONS */}
-      {widget.type === "cta_button" && (
-        <div className="flex flex-wrap gap-3 items-center pt-1">
-          {widget.buttonText && (
-            <Link
-              href={widget.buttonLink || "/book"}
-              className={`inline-flex items-center justify-center px-4 py-2 rounded-sm text-xs font-bold transition-all ${
-                isDark
-                  ? "bg-gold-500 hover:bg-gold-300 text-navy-900 shadow-xs"
-                  : "bg-navy-900 hover:bg-navy-800 text-white shadow-xs"
-              }`}
-            >
-              <span>{widget.buttonText}</span>
-              <Icon name="arrow-right" size={13} className="ml-1.5" />
-            </Link>
-          )}
+      {widget.type === "cta_button" && (() => {
+        const primaryBtn = resolveCustomButtonClasses(
+          {
+            bgColor: widget.buttonBgColor,
+            textColor: widget.buttonTextColor,
+            fontFamily: widget.buttonFontFamily,
+            fontWeight: widget.buttonFontWeight,
+            textTransform: widget.buttonTextTransform,
+            icon: widget.buttonIcon || "arrow-right",
+            iconPosition: widget.buttonIconPosition || "right",
+            radius: widget.buttonRadius || "sm",
+            size: widget.buttonSize || "sm",
+          },
+          isDark ? "on-navy-gold" : "primary",
+          "sm",
+          isDark
+        );
 
-          {widget.secondaryButtonText && (
-            <Link
-              href={widget.secondaryButtonLink || "/courses"}
-              className={`inline-flex items-center justify-center px-4 py-2 rounded-sm text-xs font-semibold border transition-all ${
-                isDark
-                  ? "border-white/20 text-white hover:bg-white/10"
-                  : "border-line text-navy-900 hover:bg-paper"
-              }`}
-            >
-              <span>{widget.secondaryButtonText}</span>
-            </Link>
-          )}
-        </div>
-      )}
+        const secondaryBtn = resolveCustomButtonClasses(
+          {
+            bgColor: widget.secondaryButtonBgColor,
+            textColor: widget.secondaryButtonTextColor,
+            fontFamily: widget.secondaryButtonFontFamily,
+            fontWeight: widget.secondaryButtonFontWeight,
+            textTransform: widget.secondaryButtonTextTransform,
+            icon: widget.secondaryButtonIcon,
+            iconPosition: widget.secondaryButtonIconPosition || "right",
+            radius: widget.secondaryButtonRadius || "sm",
+            size: widget.secondaryButtonSize || "sm",
+          },
+          "outline",
+          "sm",
+          isDark
+        );
+
+        return (
+          <div className="flex flex-wrap gap-3 items-center pt-1">
+            {widget.buttonText && (
+              <Link
+                href={widget.buttonLink || "/book"}
+                className={primaryBtn.className}
+                style={primaryBtn.style}
+              >
+                {primaryBtn.icon && primaryBtn.iconPosition === "left" && (
+                  <Icon name={primaryBtn.icon} size={14} />
+                )}
+                <span>{widget.buttonText}</span>
+                {primaryBtn.icon && primaryBtn.iconPosition === "right" && (
+                  <Icon name={primaryBtn.icon} size={14} />
+                )}
+              </Link>
+            )}
+
+            {widget.secondaryButtonText && (
+              <Link
+                href={widget.secondaryButtonLink || "/courses"}
+                className={secondaryBtn.className}
+                style={secondaryBtn.style}
+              >
+                {secondaryBtn.icon && secondaryBtn.iconPosition === "left" && (
+                  <Icon name={secondaryBtn.icon} size={14} />
+                )}
+                <span>{widget.secondaryButtonText}</span>
+                {secondaryBtn.icon && secondaryBtn.iconPosition === "right" && (
+                  <Icon name={secondaryBtn.icon} size={14} />
+                )}
+              </Link>
+            )}
+          </div>
+        );
+      })()}
 
       {/* 5. LEAD FORM BOX */}
       {widget.type === "lead_form" && (
@@ -541,19 +640,33 @@ const MicroWidgetRenderer: React.FC<MicroWidgetProps> = ({
 
       {/* 6. VIDEO PLAYER */}
       {widget.type === "video_player" && (
-        <div className="rounded-lg overflow-hidden border border-line bg-navy-900 aspect-video relative">
-          <ConsentGuard
-            category="marketing"
-            fallbackTitle="Video Consent Required"
-            fallbackDescription="Cookie consent required for video player embed."
-          >
-            <iframe
-              src={widget.videoUrl || "https://www.youtube.com/embed/dQw4w9WgXcQ"}
-              title={widget.title || "Video Player"}
-              className="w-full h-full border-0"
-              allowFullScreen
-            />
-          </ConsentGuard>
+        <div className="rounded-lg overflow-hidden border border-line bg-navy-900 aspect-video relative flex items-center justify-center text-center p-6 text-white">
+          {widget.videoUrl ? (
+            <ConsentGuard
+              category="marketing"
+              fallbackTitle="Video Consent Required"
+              fallbackDescription="Cookie consent required for video player embed."
+            >
+              <iframe
+                src={widget.videoUrl}
+                title={widget.title || "Video Player"}
+                className="w-full h-full border-0"
+                allowFullScreen
+              />
+            </ConsentGuard>
+          ) : (
+            <div className="space-y-3 max-w-sm">
+              <div className="w-12 h-12 rounded-full bg-white/10 text-gold-300 flex items-center justify-center mx-auto">
+                <Icon name="video" size={22} />
+              </div>
+              <strong className="block text-sm font-heading font-bold text-white">
+                {widget.title || "Qualification Briefing Stream"}
+              </strong>
+              <p className="text-xs text-white/70">
+                Live stream link will appear here once scheduled by the academic office.
+              </p>
+            </div>
+          )}
         </div>
       )}
 
@@ -565,6 +678,172 @@ const MicroWidgetRenderer: React.FC<MicroWidgetProps> = ({
               isDark ? "border-white/15" : "border-line"
             }`}
           />
+        </div>
+      )}
+
+      {/* 8. HIGH-IMPACT STAT METRIC */}
+      {widget.type === "stats_metric" && (
+        <div
+          className={`p-5 rounded-md border transition-all ${
+            isDark
+              ? "bg-white/5 border-white/10 text-white"
+              : "bg-white border-line shadow-subtle text-ink"
+          }`}
+        >
+          <div className="space-y-1">
+            {widget.eyebrow && (
+              <span className="text-[10px] font-mono uppercase tracking-wider font-bold text-gold-500 block">
+                {widget.eyebrow}
+              </span>
+            )}
+            <div className="font-heading text-4xl sm:text-5xl font-bold tracking-tight text-gold-500">
+              {widget.statNumber || "98%"}
+            </div>
+            <div
+              className={`text-sm sm:text-base font-bold ${
+                isDark ? "text-white" : "text-navy-900"
+              }`}
+            >
+              {widget.statLabel || widget.title || "First-Time Pass Rate"}
+            </div>
+            {widget.content && (
+              <p
+                className={`text-xs leading-relaxed ${
+                  isDark ? "text-paper/80" : "text-ink-soft"
+                }`}
+              >
+                {widget.content}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 9. STUDENT / EMPLOYER OUTCOME QUOTE */}
+      {widget.type === "quote_card" && (
+        <div
+          className={`p-5 rounded-md border relative transition-all ${
+            isDark
+              ? "bg-white/5 border-white/10 text-white"
+              : "bg-white border-line shadow-subtle text-ink"
+          }`}
+        >
+          {/* Star Rating */}
+          <div className="flex items-center gap-1 mb-3 text-gold-500">
+            {Array.from({ length: widget.rating || 5 }).map((_, i) => (
+              <Icon
+                key={i}
+                name="star"
+                size={14}
+                className="fill-current text-gold-500"
+              />
+            ))}
+          </div>
+          {widget.content && (
+            <blockquote
+              className={`text-xs sm:text-sm italic leading-relaxed mb-4 ${
+                isDark ? "text-paper/90" : "text-ink"
+              }`}
+            >
+              &ldquo;{widget.content}&rdquo;
+            </blockquote>
+          )}
+          <div className="flex items-center gap-3 pt-3 border-t border-line/60">
+            <div className="w-8 h-8 rounded-full bg-gold-500/20 text-gold-600 font-bold flex items-center justify-center text-xs">
+              {(widget.quoteAuthor || "SJ").slice(0, 2).toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <div
+                className={`text-xs font-bold ${
+                  isDark ? "text-white" : "text-navy-900"
+                }`}
+              >
+                {widget.quoteAuthor || "Sarah Jenkins"}
+              </div>
+              <div className="text-[11px] text-ink-soft">
+                {widget.quoteRole || "Senior Care Practitioner, NHS Trust"}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 10. REGULATED AWARDING BADGE STRIP */}
+      {widget.type === "badge_strip" && (
+        <div
+          className={`p-4 rounded-md border flex flex-wrap items-center gap-2 sm:gap-3 ${
+            isDark ? "bg-white/5 border-white/10" : "bg-paper/70 border-line"
+          }`}
+        >
+          {(widget.badgeList && widget.badgeList.length > 0
+            ? widget.badgeList
+            : [
+                "NCFE CACHE Regulated",
+                "TQUK Approved Centre",
+                "Ofqual Regulated Framework",
+                "100% Coursework Assessment",
+              ]
+          ).map((badge, idx) => (
+            <span
+              key={idx}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xs text-[11px] font-semibold border ${
+                isDark
+                  ? "bg-white/10 border-white/20 text-gold-300"
+                  : "bg-white border-line text-navy-900 shadow-2xs"
+              }`}
+            >
+              <Icon name="shield-check" size={12} className="text-gold-500" />
+              {badge}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* 11. CHECKLIST */}
+      {widget.type === "checklist" && (
+        <div
+          className={`p-5 rounded-md border space-y-3 ${
+            isDark
+              ? "bg-white/5 border-white/10 text-white"
+              : "bg-white border-line shadow-subtle text-ink"
+          }`}
+        >
+          {widget.title && (
+            <h4
+              className={`text-xs sm:text-sm font-bold uppercase tracking-wider ${
+                isDark ? "text-gold-300" : "text-navy-900"
+              }`}
+            >
+              {widget.title}
+            </h4>
+          )}
+          <ul className="space-y-2.5">
+            {(widget.checklistItems && widget.checklistItems.length > 0
+              ? widget.checklistItems
+              : [
+                  "100% coursework assessment with no written exams",
+                  "Dedicated 1-on-1 certified assessor support",
+                  "Flexible study hours around shift rotas",
+                  "Spread tuition over 6 or 12 months with 0% interest",
+                ]
+            ).map((item, idx) => (
+              <li
+                key={idx}
+                className="flex items-start gap-2.5 text-xs sm:text-sm leading-snug"
+              >
+                <div className="p-0.5 rounded-full bg-emerald-500/10 text-emerald-600 shrink-0 mt-0.5">
+                  <Icon
+                    name="check-circle"
+                    size={14}
+                    className="text-emerald-600"
+                  />
+                </div>
+                <span className={isDark ? "text-paper/90" : "text-ink"}>
+                  {item}
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>

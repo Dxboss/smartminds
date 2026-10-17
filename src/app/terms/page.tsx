@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { collegePagesData } from "@/lib/repositories/seedData";
+import { getPublishedCmsPageSections } from "@/lib/persistedData";
 import { SectionRenderer } from "@/components/cms/SectionRenderer";
 import { Container } from "@/components/ui/Container";
 import { Heading } from "@/components/ui/Heading";
@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 };
 
 export default function TermsPage() {
-  const sections = collegePagesData["/terms"];
+  const sections = getPublishedCmsPageSections("/terms");
 
   if (sections && sections.length > 0) {
     return (

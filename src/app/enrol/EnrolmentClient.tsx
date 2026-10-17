@@ -40,6 +40,9 @@ import { CohortScheduleConfig } from "@/lib/repositories/types";
 interface Props {
   courses: Course[];
   initialCourseId?: string;
+  initialLevelLabel?: string;
+  initialPaymentOption?: "full" | "instalments";
+  initialPlanId?: string;
   currentUser?: CurrentUserProps;
   cohortSchedule?: CohortScheduleConfig;
 }
@@ -56,13 +59,16 @@ const fullPayPlanTemplate: PaymentPlanTemplate = {
 export const EnrolmentClient: React.FC<Props> = ({
   courses,
   initialCourseId,
+  initialLevelLabel,
+  initialPaymentOption,
+  initialPlanId,
   currentUser,
   cohortSchedule,
 }) => {
   const afternoonTimeLabel = cohortSchedule?.afternoon?.timeLabel || "14:00 – 16:00";
   const eveningTimeLabel = cohortSchedule?.evening?.timeLabel || "18:30 – 20:30";
   const router = useRouter();
-  const { loginAs } = useAuth();
+  const { loginAs, updateUserSession } = useAuth();
   const [isPending, startTransition] = useTransition();
 
   // Selected course & level
@@ -70,9 +76,15 @@ export const EnrolmentClient: React.FC<Props> = ({
   const [selectedCourseId, setSelectedCourseId] = useState<string>(defaultCourse?.id || "");
   const currentCourse = courses.find((c) => c.id === selectedCourseId) || courses[0];
 
-  const [selectedLevelLabel, setSelectedLevelLabel] = useState<string>(
-    currentCourse?.levels[0]?.level_label || ""
-  );
+  const defaultLevelLabel =
+    (initialLevelLabel &&
+      defaultCourse?.levels.find(
+        (l) => l.level_label.toLowerCase() === initialLevelLabel.toLowerCase()
+      )?.level_label) ||
+    currentCourse?.levels[0]?.level_label ||
+    "";
+
+  const [selectedLevelLabel, setSelectedLevelLabel] = useState<string>(defaultLevelLabel);
 
   // Auto-redirect countdown state
   const [redirectSeconds, setRedirectSeconds] = useState<number>(3);
@@ -81,10 +93,66 @@ export const EnrolmentClient: React.FC<Props> = ({
     currentCourse?.levels.find((l) => l.level_label === selectedLevelLabel) ||
     currentCourse?.levels[0];
 
+  // Course-specific payment plans
+  const availablePlans: PaymentPlanTemplate[] =
+    currentLevel?.plans && currentLevel.plans.length > 0
+      ? currentLevel.plans
+      : [defaultPlan3Months, defaultPlan6Months, defaultPlan10Months, defaultPlan12Months];
+
+  const getPlanIdentifier = (p: PaymentPlanTemplate): string => p.id || p.months.toString();
+
+  const [selectedPlanId, setSelectedPlanId] = useState<string>(() => {
+    if (initialPlanId) {
+      const match = availablePlans.find(
+        (p) => getPlanIdentifier(p) === initialPlanId || p.months.toString() === initialPlanId
+      );
+      if (match) return getPlanIdentifier(match);
+    }
+    return availablePlans[0] ? getPlanIdentifier(availablePlans[0]) : "plan-6m";
+  });
+
+  // Keep plan ID synchronized if level or available plans change
+  useEffect(() => {
+    if (availablePlans.length > 0 && !availablePlans.some((p) => getPlanIdentifier(p) === selectedPlanId)) {
+      setSelectedPlanId(getPlanIdentifier(availablePlans[0]));
+    }
+  }, [availablePlans, selectedPlanId]);
+
   // Payment plan selection
-  const [paymentOption, setPaymentOption] = useState<"full" | "instalments">("full");
-  const [planMonths, setPlanMonths] = useState<string>("6");
+  const [paymentOption, setPaymentOption] = useState<"full" | "instalments">(
+    initialPaymentOption === "instalments" || initialPaymentOption === "full"
+      ? initialPaymentOption
+      : "full"
+  );
   const [preferredSession, setPreferredSession] = useState<"evening" | "afternoon">("evening");
+
+  // Learner profile type: Independent Adult (19+) vs Parent/Guardian registering Child
+  const [learnerType, setLearnerType] = useState<"myself" | "child">(
+    currentCourse?.is_private_tutoring ? "child" : "myself"
+  );
+  const [childName, setChildName] = useState("");
+  const [childYearGroup, setChildYearGroup] = useState("Year 7 - 9 (KS3)");
+  const [childConcerns, setChildConcerns] = useState("");
+  const [emergencyPhone, setEmergencyPhone] = useState("");
+
+  // Campus practical location for blended practical qualifications
+  const [selectedLocation, setSelectedLocation] = useState<string>(
+    currentCourse?.training_locations?.[0] || ""
+  );
+
+  // Synchronize when currentCourse changes
+  useEffect(() => {
+    if (currentCourse?.is_private_tutoring) {
+      setLearnerType("child");
+    }
+    if (currentCourse?.training_locations && currentCourse.training_locations.length > 0) {
+      if (!selectedLocation || !currentCourse.training_locations.includes(selectedLocation)) {
+        setSelectedLocation(currentCourse.training_locations[0]);
+      }
+    } else {
+      setSelectedLocation("");
+    }
+  }, [currentCourse, selectedLocation]);
 
   // Form Fields
   const [fullName, setFullName] = useState(currentUser?.name || "");
@@ -189,19 +257,19 @@ export const EnrolmentClient: React.FC<Props> = ({
     amountCharged: number;
     receiptRef: string;
     portalUrl: string;
+    isReturningStudent?: boolean;
+    learnerType?: "myself" | "child";
+    childName?: string;
+    trainingLocation?: string;
   } | null>(null);
 
   // Pricing calculations
   const activePlan: PaymentPlanTemplate =
     paymentOption === "full"
       ? fullPayPlanTemplate
-      : planMonths === "3"
-      ? defaultPlan3Months
-      : planMonths === "10"
-      ? defaultPlan10Months
-      : planMonths === "12"
-      ? defaultPlan12Months
-      : defaultPlan6Months;
+      : availablePlans.find((p) => getPlanIdentifier(p) === selectedPlanId) ||
+        availablePlans[0] ||
+        defaultPlan6Months;
 
   const basePricing = currentLevel
     ? calculatePricing(currentLevel, activePlan, globalSettings)
@@ -213,6 +281,12 @@ export const EnrolmentClient: React.FC<Props> = ({
 
   const amountToChargeNow =
     paymentOption === "full" ? pricing?.fullPayPrice || 0 : pricing?.deposit || 0;
+
+  const discountPercent =
+    currentLevel?.full_pay_discount_percent !== null &&
+    currentLevel?.full_pay_discount_percent !== undefined
+      ? currentLevel.full_pay_discount_percent
+      : globalSettings.default_full_pay_discount_percent;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -229,16 +303,46 @@ export const EnrolmentClient: React.FC<Props> = ({
         return;
       }
     } else {
-      if (!fullName.trim() || !email.trim() || !phone.trim()) {
-        setErrorMsg("Please complete all personal details (Full Legal Name, Email, and Telephone).");
-        return;
+      if (learnerType === "child") {
+        if (!childName.trim()) {
+          setErrorMsg("Please enter the child/student's full legal name.");
+          return;
+        }
+        if (!childYearGroup.trim()) {
+          setErrorMsg("Please specify the child's school year or key stage.");
+          return;
+        }
+        if (!dob.trim()) {
+          setErrorMsg("Child's date of birth is required for school enrolment records.");
+          return;
+        }
+        if (!fullName.trim() || !email.trim() || !phone.trim()) {
+          setErrorMsg("Please complete parent/guardian contact details (Full Name, Email, and Phone).");
+          return;
+        }
+        if (!address.trim()) {
+          setErrorMsg("Residential home address and postcode are required for official records.");
+          return;
+        }
+      } else {
+        if (!fullName.trim() || !email.trim() || !phone.trim()) {
+          setErrorMsg("Please complete all personal details (Full Legal Name, Email, and Telephone).");
+          return;
+        }
+        if (!dob.trim()) {
+          setErrorMsg("Date of birth is compulsory for official awarding body registration.");
+          return;
+        }
+        if (!address.trim()) {
+          setErrorMsg("Home address and postcode are compulsory for official student records.");
+          return;
+        }
       }
-      if (!dob.trim()) {
-        setErrorMsg("Date of birth is compulsory for official awarding body registration.");
-        return;
-      }
-      if (!address.trim()) {
-        setErrorMsg("Home address and postcode are compulsory for official student records.");
+    }
+
+    if (currentCourse?.training_locations && currentCourse.training_locations.length > 0) {
+      if (!selectedLocation) {
+        setErrorMsg("Please select your preferred practical training campus location.");
         return;
       }
     }
@@ -262,7 +366,7 @@ export const EnrolmentClient: React.FC<Props> = ({
         const stripeRes = await createStripeCheckoutAction({
           courseId: currentCourse.id,
           levelLabel: currentLevel?.level_label,
-          planId: paymentOption === "full" ? "full" : planMonths,
+          planId: paymentOption === "full" ? "full" : (activePlan?.id || activePlan?.months?.toString() || "plan-6m"),
           fullName: effectiveName,
           email: effectiveEmail,
           phone: effectivePhone,
@@ -284,7 +388,7 @@ export const EnrolmentClient: React.FC<Props> = ({
         const result = await processSelfEnrolmentAction({
           courseId: currentCourse.id,
           levelLabel: currentLevel?.level_label,
-          planId: paymentOption === "full" ? "full" : planMonths,
+          planId: paymentOption === "full" ? "full" : (activePlan?.id || activePlan?.months?.toString() || "plan-6m"),
           fullName: effectiveName,
           email: effectiveEmail,
           phone: effectivePhone,
@@ -296,6 +400,13 @@ export const EnrolmentClient: React.FC<Props> = ({
           cardNumberLast4: cardNumber.replace(/\D/g, "").slice(-4) || "4242",
           couponCode: appliedCoupon?.code,
           termsAccepted,
+          learnerType,
+          childName: learnerType === "child" ? childName.trim() : undefined,
+          childYearGroup: learnerType === "child" ? childYearGroup.trim() : undefined,
+          guardianName: learnerType === "child" ? effectiveName : undefined,
+          guardianPhone: learnerType === "child" ? effectivePhone : undefined,
+          guardianEmail: learnerType === "child" ? effectiveEmail : undefined,
+          trainingLocation: currentCourse?.training_locations?.length ? selectedLocation : undefined,
         });
 
         if (result.success) {
@@ -315,7 +426,25 @@ export const EnrolmentClient: React.FC<Props> = ({
     if (isReturning) return; // Existing students must never be auto-logged in or redirected
 
     // Automatically synchronize client auth state for new student onboarding
-    loginAs("student");
+    updateUserSession({
+      id: confirmedResult.studentId,
+      name: confirmedResult.studentName,
+      email: confirmedResult.studentEmail,
+      role: "student",
+      learnerId: confirmedResult.studentId,
+      enrolledCourse: `${confirmedResult.courseTitle} (${confirmedResult.levelName})`,
+      enrolledCourseTitle: confirmedResult.courseTitle,
+      enrolledLevelLabel: confirmedResult.levelName,
+      accountType: confirmedResult.learnerType === "child" ? "parent_guardian" : "adult_learner",
+      childName: confirmedResult.childName,
+      childYearGroup: learnerType === "child" ? childYearGroup : undefined,
+      trainingLocation: confirmedResult.trainingLocation,
+      totalFee: pricing?.total,
+      depositPaid: pricing?.deposit,
+      balanceRemaining: pricing ? pricing.total - pricing.deposit : undefined,
+      instalmentPlanMonths: activePlan.months,
+      safeguardingCompleted: false,
+    });
 
     if (redirectSeconds <= 0) {
       router.push("/student");
@@ -327,7 +456,7 @@ export const EnrolmentClient: React.FC<Props> = ({
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [confirmedResult, redirectSeconds, autoRedirectCancelled, router, loginAs]);
+  }, [confirmedResult, redirectSeconds, autoRedirectCancelled, router, updateUserSession, learnerType, childYearGroup, pricing, activePlan.months]);
 
   // SUCCESS CONFIRMATION SCREEN
   if (confirmedResult) {
@@ -350,6 +479,8 @@ export const EnrolmentClient: React.FC<Props> = ({
             <p className="text-ink-soft text-base max-w-lg mx-auto">
               {isReturning
                 ? "Your new course has been successfully linked to your existing student portal."
+                : confirmedResult.learnerType === "child"
+                ? `Enrolment for ${confirmedResult.childName || "your child"} is confirmed. Your parent/guardian portal is now active.`
                 : "Your official student profile has been created and your enrolment is now active."}
             </p>
           </div>
@@ -371,7 +502,7 @@ export const EnrolmentClient: React.FC<Props> = ({
               <button
                 type="button"
                 onClick={() => setAutoRedirectCancelled(true)}
-                className="text-ink-soft hover:text-navy-900 underline font-medium"
+                className="text-ink-soft hover:text-navy-900 underline font-medium cursor-pointer"
               >
                 Stay on this page
               </button>
@@ -390,8 +521,16 @@ export const EnrolmentClient: React.FC<Props> = ({
                 {confirmedResult.studentId}
               </span>
             </div>
+            {confirmedResult.childName && (
+              <div className="flex justify-between items-center border-b border-line pb-3">
+                <span className="text-xs font-semibold text-ink-soft">Registered Child</span>
+                <span className="font-semibold text-navy-900 text-sm">{confirmedResult.childName}</span>
+              </div>
+            )}
             <div className="flex justify-between items-center border-b border-line pb-3">
-              <span className="text-xs font-semibold text-ink-soft">Student Name</span>
+              <span className="text-xs font-semibold text-ink-soft">
+                {confirmedResult.learnerType === "child" ? "Parent / Guardian Name" : "Student Name"}
+              </span>
               <span className="font-semibold text-navy-900 text-sm">{confirmedResult.studentName}</span>
             </div>
             <div className="flex justify-between items-center border-b border-line pb-3">
@@ -400,6 +539,14 @@ export const EnrolmentClient: React.FC<Props> = ({
                 {confirmedResult.courseTitle} ({confirmedResult.levelName})
               </span>
             </div>
+            {confirmedResult.trainingLocation && (
+              <div className="flex justify-between items-center border-b border-line pb-3">
+                <span className="text-xs font-semibold text-ink-soft">Practical Campus Hub</span>
+                <span className="font-semibold text-navy-900 text-sm bg-white px-2 py-0.5 rounded-xs border border-line">
+                  {confirmedResult.trainingLocation} Centre
+                </span>
+              </div>
+            )}
             <div className="flex justify-between items-center border-b border-line pb-3">
               <span className="text-xs font-semibold text-ink-soft">Payment Collected</span>
               <span className="font-bold text-navy-900 text-sm">{formatCurrency(confirmedResult.amountCharged)}</span>
@@ -417,9 +564,11 @@ export const EnrolmentClient: React.FC<Props> = ({
               <p className="font-semibold text-navy-900">
                 Confirmation dispatched to {confirmedResult.studentEmail}
               </p>
-              <p className="text-white/70">
+              <p className="text-ink-soft">
                 {isReturning
                   ? "We have emailed your additional course confirmation and updated induction timetable."
+                  : confirmedResult.learnerType === "child"
+                  ? "We have emailed your parent credentials, tuition schedule, and the pre-session safeguarding confirmation."
                   : "We have emailed your portal credentials, official payment receipt, and induction webinar timetable."}
               </p>
             </div>
@@ -430,7 +579,7 @@ export const EnrolmentClient: React.FC<Props> = ({
             <button
               type="button"
               onClick={() => router.push(isReturning ? "/login" : "/student")}
-              className="w-full sm:w-auto px-8 py-3.5 rounded-sm bg-navy-900 hover:bg-navy-700 text-white font-semibold text-sm transition-colors shadow-sm inline-flex items-center justify-center gap-2 min-h-[44px]"
+              className="w-full sm:w-auto px-8 py-3.5 rounded-sm bg-navy-900 hover:bg-navy-700 text-white font-semibold text-sm transition-colors shadow-sm inline-flex items-center justify-center gap-2 min-h-[44px] cursor-pointer"
             >
               <span>{isReturning ? "Sign in to Student Portal" : "Access Your Student Portal Now"}</span>
               <Icon name="arrow-right" size={16} />
@@ -486,9 +635,15 @@ export const EnrolmentClient: React.FC<Props> = ({
                 <select
                   value={selectedCourseId}
                   onChange={(e) => {
-                    setSelectedCourseId(e.target.value);
-                    const c = courses.find((x) => x.id === e.target.value);
-                    if (c && c.levels[0]) setSelectedLevelLabel(c.levels[0].level_label);
+                    const newId = e.target.value;
+                    setSelectedCourseId(newId);
+                    const c = courses.find((x) => x.id === newId);
+                    if (c && c.levels[0]) {
+                      setSelectedLevelLabel(c.levels[0].level_label);
+                      if (c.levels[0].plans && c.levels[0].plans.length > 0) {
+                        setSelectedPlanId(getPlanIdentifier(c.levels[0].plans[0]));
+                      }
+                    }
                   }}
                   className="w-full px-3.5 py-2.5 rounded-sm border border-line bg-paper text-sm text-navy-900 font-medium focus:ring-2 focus:ring-gold-500 focus:outline-none min-h-[44px]"
                 >
@@ -511,7 +666,12 @@ export const EnrolmentClient: React.FC<Props> = ({
                       <button
                         key={lvl.level_label}
                         type="button"
-                        onClick={() => setSelectedLevelLabel(lvl.level_label)}
+                        onClick={() => {
+                          setSelectedLevelLabel(lvl.level_label);
+                          if (lvl.plans && lvl.plans.length > 0) {
+                            setSelectedPlanId(getPlanIdentifier(lvl.plans[0]));
+                          }
+                        }}
                         className={`p-3 rounded-sm border text-left transition-all ${
                           selectedLevelLabel === lvl.level_label
                             ? "border-navy-900 bg-navy-50 font-bold"
@@ -542,18 +702,22 @@ export const EnrolmentClient: React.FC<Props> = ({
                         : "border-line bg-white hover:bg-paper"
                     }`}
                   >
-                    <span className="absolute top-2 right-2 px-2 py-0.5 rounded-xs text-[10px] font-bold bg-gold-500 text-navy-900 uppercase">
-                      Save 10%
-                    </span>
+                    {discountPercent > 0 && (
+                      <span className="absolute top-2 right-2 px-2 py-0.5 rounded-xs text-[10px] font-bold bg-gold-500 text-navy-900 uppercase">
+                        Save {discountPercent}%
+                      </span>
+                    )}
                     <strong className="block text-sm font-bold text-navy-900">
                       Pay in Full
                     </strong>
                     <span className="text-xs text-ink-soft block mt-1">
                       {pricing ? formatCurrency(pricing.fullPayPrice) : ""} upfront
                     </span>
-                    <span className="text-[11px] text-emerald-700 font-semibold mt-1 block">
-                      Save {pricing ? formatCurrency(pricing.saving) : ""} instantly
-                    </span>
+                    {discountPercent > 0 && pricing && pricing.saving > 0 && (
+                      <span className="text-[11px] text-emerald-700 font-semibold mt-1 block">
+                        Save {formatCurrency(pricing.saving)} instantly
+                      </span>
+                    )}
                   </button>
 
                   {/* Monthly instalments */}
@@ -587,26 +751,35 @@ export const EnrolmentClient: React.FC<Props> = ({
                     <label className="block text-xs font-semibold text-navy-900">
                       Choose Monthly Schedule:
                     </label>
-                    <div className="grid grid-cols-4 gap-2">
-                      {[
-                        { id: "3", label: "3 Months" },
-                        { id: "6", label: "6 Months" },
-                        { id: "10", label: "10 Months" },
-                        { id: "12", label: "12 Months" },
-                      ].map((p) => (
-                        <button
-                          key={p.id}
-                          type="button"
-                          onClick={() => setPlanMonths(p.id)}
-                          className={`py-1.5 px-2 text-xs font-semibold rounded-xs border text-center transition-colors ${
-                            planMonths === p.id
-                              ? "bg-navy-900 text-gold-300 border-navy-900"
-                              : "bg-white text-ink-soft border-line hover:border-navy-700"
-                          }`}
-                        >
-                          {p.label}
-                        </button>
-                      ))}
+                    <div
+                      className={`grid gap-2 ${
+                        availablePlans.length > 2
+                          ? "grid-cols-2 sm:grid-cols-4"
+                          : "grid-cols-1 sm:grid-cols-2"
+                      }`}
+                    >
+                      {availablePlans.map((p) => {
+                        const pId = getPlanIdentifier(p);
+                        return (
+                          <button
+                            key={pId}
+                            type="button"
+                            onClick={() => setSelectedPlanId(pId)}
+                            className={`py-2 px-2.5 text-xs font-semibold rounded-xs border text-center transition-colors cursor-pointer ${
+                              selectedPlanId === pId
+                                ? "bg-navy-900 text-gold-300 border-navy-900 shadow-xs"
+                                : "bg-white text-ink-soft border-line hover:border-navy-700"
+                            }`}
+                          >
+                            <span className="block font-bold">
+                              {p.months} Month{p.months > 1 ? "s" : ""}
+                            </span>
+                            <span className="text-[10px] block opacity-85 mt-0.5">
+                              {p.deposit_value > 0 ? `£${p.deposit_value} dep` : "£0 dep"}
+                            </span>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -614,7 +787,7 @@ export const EnrolmentClient: React.FC<Props> = ({
             </div>
 
             {/* Step 2: Student Details & Study Schedule */}
-            <div className="space-y-4 pt-4 border-t border-line">
+            <div className="space-y-5 pt-4 border-t border-line">
               <div className="flex items-center gap-2.5 pb-2 border-b border-line">
                 <span className="w-6 h-6 rounded-full bg-navy-900 text-gold-300 text-xs font-bold flex items-center justify-center">
                   2
@@ -623,6 +796,109 @@ export const EnrolmentClient: React.FC<Props> = ({
                   Learner Personal Details & Study Session
                 </h2>
               </div>
+
+              {/* Who is this enrolment for? Independent Adult (19+) vs Parent/Guardian registering Child */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-navy-900">
+                  Who is this enrolment for? *
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setLearnerType("myself")}
+                    className={`p-3.5 rounded-sm border text-left transition-all relative cursor-pointer ${
+                      learnerType === "myself"
+                        ? "border-navy-900 bg-navy-50/60 ring-2 ring-navy-900"
+                        : "border-line bg-white hover:bg-paper"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-navy-900">
+                        Adult Learner (19+) — Myself
+                      </span>
+                      <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-xs bg-paper border border-line text-navy-900">
+                        Independent
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-ink-soft mt-1">
+                      Enrolling on my own behalf; I will study, submit coursework, and manage tuition independently.
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setLearnerType("child")}
+                    className={`p-3.5 rounded-sm border text-left transition-all relative cursor-pointer ${
+                      learnerType === "child"
+                        ? "border-navy-900 bg-navy-50/60 ring-2 ring-navy-900"
+                        : "border-line bg-white hover:bg-paper"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-navy-900">
+                        Parent / Guardian — My Child
+                      </span>
+                      <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-xs bg-gold-300 text-navy-900">
+                        Parent Account
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-ink-soft mt-1">
+                      Registering a child or student under 19 for tuition, private tutoring, or extra GCSE/A-Level classes.
+                    </p>
+                  </button>
+                </div>
+              </div>
+
+              {/* Practical Training Campus Venue (Only for Blended Practical Courses like Phlebotomy and L4 CET) */}
+              {currentCourse?.training_locations && currentCourse.training_locations.length > 0 ? (
+                <div className="p-4 rounded-sm bg-paper border border-line space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Icon name="map-pin" size={16} className="text-navy-900" />
+                      <label className="text-xs font-bold text-navy-900">
+                        Practical Assessment & Clinical Training Hub *
+                      </label>
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider bg-gold-300/30 text-navy-900 px-2 py-0.5 rounded-xs border border-gold-500/30">
+                      Mandatory Practical Sessions
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-ink-soft">
+                    This accredited qualification includes hands-on clinical and practical assessments. Please choose your preferred training centre:
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                    {currentCourse.training_locations.map((loc) => (
+                      <button
+                        key={loc}
+                        type="button"
+                        onClick={() => setSelectedLocation(loc)}
+                        className={`p-3 rounded-xs border text-left transition-all cursor-pointer ${
+                          selectedLocation === loc
+                            ? "bg-navy-900 text-gold-300 border-navy-900 shadow-xs"
+                            : "bg-white text-ink-soft border-line hover:border-navy-700"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold block">{loc}</span>
+                          {selectedLocation === loc && (
+                            <Icon name="check" size={14} className="text-gold-300 shrink-0" />
+                          )}
+                        </div>
+                        <span className="text-[10px] block opacity-80 mt-0.5">
+                          Smartminds Approved Centre
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 rounded-xs bg-navy-50/60 border border-navy-900/10 flex items-center gap-2 text-xs text-navy-900">
+                  <Icon name="globe" size={14} className="text-navy-900 shrink-0" />
+                  <span>
+                    <strong>100% Online Study:</strong> No physical travel or campus attendance required. All teaching, tutor tutorials, and coursework submissions occur online.
+                  </span>
+                </div>
+              )}
 
               {/* Account Type Selector: New Learner vs Existing Student */}
               <div className="flex border border-line rounded-sm overflow-hidden bg-paper p-1">
@@ -841,80 +1117,238 @@ export const EnrolmentClient: React.FC<Props> = ({
                     </div>
                   </div>
 
-                  {/* Personal KYC Details (Compulsory) */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-bold text-navy-900 mb-1">
-                        Full Legal Name *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                        placeholder="e.g. Jane Doe"
-                        className="w-full px-3.5 py-2 rounded-sm border border-line text-sm focus:ring-2 focus:ring-gold-500 focus:outline-none min-h-[44px]"
-                      />
-                    </div>
+                  {/* BRANCH: PARENT REGISTERING CHILD VS INDEPENDENT ADULT */}
+                  {learnerType === "child" ? (
+                    <div className="space-y-4">
+                      {/* 1. Child Details */}
+                      <div className="p-4 rounded-sm bg-navy-50/50 border border-navy-900/10 space-y-3">
+                        <div className="flex items-center gap-2 pb-1 border-b border-navy-900/10">
+                          <Icon name="user" size={16} className="text-navy-900" />
+                          <span className="text-xs font-bold text-navy-900 uppercase tracking-wider">
+                            1. Child / Student Information
+                          </span>
+                        </div>
 
-                    <div>
-                      <label className="block text-xs font-bold text-navy-900 mb-1">
-                        Email Address *
-                      </label>
-                      <input
-                        type="email"
-                        required
-                        readOnly={Boolean(currentUser)}
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="student@example.co.uk"
-                        className={`w-full px-3.5 py-2 rounded-sm border border-line text-sm focus:ring-2 focus:ring-gold-500 focus:outline-none min-h-[44px] ${
-                          currentUser ? "bg-paper text-ink-soft cursor-not-allowed" : ""
-                        }`}
-                      />
-                    </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-bold text-navy-900 mb-1">
+                              Child's Full Legal Name *
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              value={childName}
+                              onChange={(e) => setChildName(e.target.value)}
+                              placeholder="e.g. Leo Smith"
+                              className="w-full px-3.5 py-2 rounded-sm border border-line text-sm focus:ring-2 focus:ring-gold-500 focus:outline-none min-h-[44px] bg-white"
+                            />
+                          </div>
 
-                    <div>
-                      <label className="block text-xs font-bold text-navy-900 mb-1">
-                        Telephone Number *
-                      </label>
-                      <input
-                        type="tel"
-                        required
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        placeholder="07000 000000"
-                        className="w-full px-3.5 py-2 rounded-sm border border-line text-sm focus:ring-2 focus:ring-gold-500 focus:outline-none min-h-[44px]"
-                      />
-                    </div>
+                          <div>
+                            <label className="block text-xs font-bold text-navy-900 mb-1">
+                              School Year / Key Stage *
+                            </label>
+                            <select
+                              value={childYearGroup}
+                              onChange={(e) => setChildYearGroup(e.target.value)}
+                              className="w-full px-3.5 py-2 rounded-sm border border-line text-sm focus:ring-2 focus:ring-gold-500 focus:outline-none min-h-[44px] bg-white"
+                            >
+                              <option value="Year 1 - 3 (KS1 Primary)">Year 1 – 3 (KS1 Primary)</option>
+                              <option value="Year 4 - 6 (KS2 / 11+ Preparation)">Year 4 – 6 (KS2 / 11+ Preparation)</option>
+                              <option value="Year 7 - 9 (KS3 Secondary)">Year 7 – 9 (KS3 Secondary)</option>
+                              <option value="Year 10 - 11 (GCSE Examinations)">Year 10 – 11 (GCSE Examinations)</option>
+                              <option value="Year 12 - 13 (A-Level / Sixth Form)">Year 12 – 13 (A-Level / Sixth Form)</option>
+                            </select>
+                          </div>
 
-                    <div>
-                      <label className="block text-xs font-bold text-navy-900 mb-1">
-                        Date of Birth *
-                      </label>
-                      <input
-                        type="date"
-                        required
-                        value={dob}
-                        onChange={(e) => setDob(e.target.value)}
-                        className="w-full px-3.5 py-2 rounded-sm border border-line text-sm focus:ring-2 focus:ring-gold-500 focus:outline-none min-h-[44px]"
-                      />
-                    </div>
+                          <div>
+                            <label className="block text-xs font-bold text-navy-900 mb-1">
+                              Child's Date of Birth *
+                            </label>
+                            <input
+                              type="date"
+                              required
+                              value={dob}
+                              onChange={(e) => setDob(e.target.value)}
+                              className="w-full px-3.5 py-2 rounded-sm border border-line text-sm focus:ring-2 focus:ring-gold-500 focus:outline-none min-h-[44px] bg-white"
+                            />
+                          </div>
 
-                    <div className="sm:col-span-2">
-                      <label className="block text-xs font-bold text-navy-900 mb-1">
-                        Home Address & Postcode *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={address}
-                        onChange={(e) => setAddress(e.target.value)}
-                        placeholder="House number, Street name, City, Postcode"
-                        className="w-full px-3.5 py-2 rounded-sm border border-line text-sm focus:ring-2 focus:ring-gold-500 focus:outline-none min-h-[44px]"
-                      />
+                          <div>
+                            <label className="block text-xs font-bold text-navy-900 mb-1">
+                              Learning Needs / Focus Subjects (Optional)
+                            </label>
+                            <input
+                              type="text"
+                              value={childConcerns}
+                              onChange={(e) => setChildConcerns(e.target.value)}
+                              placeholder="e.g. Maths GCSE booster, Dyslexia, or None"
+                              className="w-full px-3.5 py-2 rounded-sm border border-line text-sm focus:ring-2 focus:ring-gold-500 focus:outline-none min-h-[44px] bg-white"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 2. Parent / Guardian Details */}
+                      <div className="p-4 rounded-sm bg-paper border border-line space-y-3">
+                        <div className="flex items-center gap-2 pb-1 border-b border-line">
+                          <Icon name="shield-check" size={16} className="text-navy-900" />
+                          <span className="text-xs font-bold text-navy-900 uppercase tracking-wider">
+                            2. Parent / Legal Guardian Contact & Billing
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-bold text-navy-900 mb-1">
+                              Parent / Guardian Full Legal Name *
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              value={fullName}
+                              onChange={(e) => setFullName(e.target.value)}
+                              placeholder="e.g. Sarah Smith"
+                              className="w-full px-3.5 py-2 rounded-sm border border-line text-sm focus:ring-2 focus:ring-gold-500 focus:outline-none min-h-[44px] bg-white"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-bold text-navy-900 mb-1">
+                              Parent Email Address *
+                            </label>
+                            <input
+                              type="email"
+                              required
+                              readOnly={Boolean(currentUser)}
+                              value={email}
+                              onChange={(e) => setEmail(e.target.value)}
+                              placeholder="parent@example.co.uk"
+                              className={`w-full px-3.5 py-2 rounded-sm border border-line text-sm focus:ring-2 focus:ring-gold-500 focus:outline-none min-h-[44px] bg-white ${
+                                currentUser ? "bg-paper text-ink-soft cursor-not-allowed" : ""
+                              }`}
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-bold text-navy-900 mb-1">
+                              Primary Mobile Telephone *
+                            </label>
+                            <input
+                              type="tel"
+                              required
+                              value={phone}
+                              onChange={(e) => setPhone(e.target.value)}
+                              placeholder="07000 000000"
+                              className="w-full px-3.5 py-2 rounded-sm border border-line text-sm focus:ring-2 focus:ring-gold-500 focus:outline-none min-h-[44px] bg-white"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-bold text-navy-900 mb-1">
+                              Emergency / Secondary Phone (Optional)
+                            </label>
+                            <input
+                              type="tel"
+                              value={emergencyPhone}
+                              onChange={(e) => setEmergencyPhone(e.target.value)}
+                              placeholder="07000 111111"
+                              className="w-full px-3.5 py-2 rounded-sm border border-line text-sm focus:ring-2 focus:ring-gold-500 focus:outline-none min-h-[44px] bg-white"
+                            />
+                          </div>
+
+                          <div className="sm:col-span-2">
+                            <label className="block text-xs font-bold text-navy-900 mb-1">
+                              Home Address & Postcode *
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              value={address}
+                              onChange={(e) => setAddress(e.target.value)}
+                              placeholder="House number, Street name, City, Postcode"
+                              className="w-full px-3.5 py-2 rounded-sm border border-line text-sm focus:ring-2 focus:ring-gold-500 focus:outline-none min-h-[44px] bg-white"
+                            />
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    /* ADULT LEARNER KYC DETAILS */
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-navy-900 mb-1">
+                          Full Legal Name *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={fullName}
+                          onChange={(e) => setFullName(e.target.value)}
+                          placeholder="e.g. Jane Doe"
+                          className="w-full px-3.5 py-2 rounded-sm border border-line text-sm focus:ring-2 focus:ring-gold-500 focus:outline-none min-h-[44px]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-navy-900 mb-1">
+                          Email Address *
+                        </label>
+                        <input
+                          type="email"
+                          required
+                          readOnly={Boolean(currentUser)}
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder="student@example.co.uk"
+                          className={`w-full px-3.5 py-2 rounded-sm border border-line text-sm focus:ring-2 focus:ring-gold-500 focus:outline-none min-h-[44px] ${
+                            currentUser ? "bg-paper text-ink-soft cursor-not-allowed" : ""
+                          }`}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-navy-900 mb-1">
+                          Telephone Number *
+                        </label>
+                        <input
+                          type="tel"
+                          required
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          placeholder="07000 000000"
+                          className="w-full px-3.5 py-2 rounded-sm border border-line text-sm focus:ring-2 focus:ring-gold-500 focus:outline-none min-h-[44px]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-navy-900 mb-1">
+                          Date of Birth *
+                        </label>
+                        <input
+                          type="date"
+                          required
+                          value={dob}
+                          onChange={(e) => setDob(e.target.value)}
+                          className="w-full px-3.5 py-2 rounded-sm border border-line text-sm focus:ring-2 focus:ring-gold-500 focus:outline-none min-h-[44px]"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <label className="block text-xs font-bold text-navy-900 mb-1">
+                          Home Address & Postcode *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={address}
+                          onChange={(e) => setAddress(e.target.value)}
+                          placeholder="House number, Street name, City, Postcode"
+                          className="w-full px-3.5 py-2 rounded-sm border border-line text-sm focus:ring-2 focus:ring-gold-500 focus:outline-none min-h-[44px]"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -954,8 +1388,10 @@ export const EnrolmentClient: React.FC<Props> = ({
                     <span className="text-ink-soft">Enrolment Plan:</span>
                     <span className="font-bold text-navy-900">
                       {paymentOption === "full"
-                        ? "Full Tuition (10% Upfront Discount Applied)"
-                        : `${pricing?.months || 6}-Month Instalment Plan (0% APR)`}
+                        ? discountPercent > 0
+                          ? `Full Tuition (${discountPercent}% Upfront Discount Applied)`
+                          : "Full Tuition (Single Payment)"
+                        : `${pricing?.months || activePlan.months}-Month Instalment Plan (0% APR)`}
                     </span>
                   </div>
                   <div className="flex justify-between items-center text-sm pt-2 border-t border-line/60">
@@ -1048,9 +1484,9 @@ export const EnrolmentClient: React.FC<Props> = ({
                 </span>
               </div>
 
-              {paymentOption === "full" && basePricing && basePricing.saving > 0 && (
+              {paymentOption === "full" && basePricing && basePricing.saving > 0 && discountPercent > 0 && (
                 <div className="flex justify-between text-xs text-emerald-700 font-semibold border-t border-line/60 pt-2">
-                  <span>Upfront 10% Discount</span>
+                  <span>Upfront {discountPercent}% Discount</span>
                   <span>- {formatCurrency(basePricing.saving)}</span>
                 </div>
               )}

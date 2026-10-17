@@ -41,6 +41,16 @@ export interface Learner {
   courseTitle?: string;
   archivedAt?: string;
   archiveReason?: string;
+  learnerType?: "myself" | "child";
+  guardianName?: string;
+  guardianPhone?: string;
+  guardianEmail?: string;
+  childName?: string;
+  childYearGroup?: string;
+  safeguardingCompleted?: boolean;
+  parentSignature?: string;
+  childConcerns?: string;
+  emergencyPhone?: string;
 }
 
 export interface ClassCohort {
@@ -81,6 +91,7 @@ export interface Enrolment {
   classId: string;
   sessionTiming?: "afternoon" | "evening";
   tutorName?: string;
+  trainingLocation?: string;
   enrolledAt: string;
   status: EnrolmentStatus;
   fundingType: FundingStatus;

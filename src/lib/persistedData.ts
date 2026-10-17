@@ -12,6 +12,8 @@ import {
   EnquiryLead,
   PaymentGatewaySettings,
 } from "@/lib/repositories/types";
+import type { Course } from "@/content/types";
+import type { BlogPost } from "@/content/blog";
 
 export interface PersistedUserRecord {
   id: string;
@@ -39,6 +41,7 @@ export interface PersistedRecordsStore {
   userCredentials?: PersistedUserRecord[];
   passwordResetTokens?: PasswordResetTokenRecord[];
   cmsPagesData?: Record<string, any>;
+  cmsPagesDraftData?: Record<string, { sections: any[]; updatedAt: string }>;
   courseOverrides?: Record<string, any>;
   cohorts?: any[];
   classSessions?: any[];
@@ -49,6 +52,7 @@ export interface PersistedRecordsStore {
   globalGraceDays?: number;
   cohortSchedule?: CohortScheduleConfig;
   paymentGatewaySettings?: PaymentGatewaySettings;
+  blogPosts?: BlogPost[];
 }
 
 function getStoreFilePath(): string {
@@ -96,6 +100,10 @@ export function loadPersistedRecords(): PersistedRecordsStore {
         parsed.cmsPagesData && typeof parsed.cmsPagesData === "object"
           ? parsed.cmsPagesData
           : {},
+      cmsPagesDraftData:
+        parsed.cmsPagesDraftData && typeof parsed.cmsPagesDraftData === "object"
+          ? parsed.cmsPagesDraftData
+          : {},
       courseOverrides:
         parsed.courseOverrides && typeof parsed.courseOverrides === "object"
           ? parsed.courseOverrides
@@ -117,6 +125,7 @@ export function loadPersistedRecords(): PersistedRecordsStore {
         parsed.paymentGatewaySettings && typeof parsed.paymentGatewaySettings === "object"
           ? parsed.paymentGatewaySettings
           : undefined,
+      blogPosts: Array.isArray(parsed.blogPosts) ? parsed.blogPosts : undefined,
     };
   } catch (err) {
     console.error("[persistedData] Failed to load store:", err);
@@ -295,11 +304,231 @@ export function savePersistedCmsPage(pagePath: string, sections: any[]): void {
     const store = loadPersistedRecords();
     if (!store.cmsPagesData) store.cmsPagesData = {};
     store.cmsPagesData[pagePath] = sections;
+    if (store.cmsPagesDraftData && store.cmsPagesDraftData[pagePath]) {
+      delete store.cmsPagesDraftData[pagePath];
+    }
     const filePath = getStoreFilePath();
     fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
     syncPersistedRecords(true);
   } catch (err) {
     console.error("[persistedData] Failed to save CMS page:", err);
+  }
+}
+
+export function getPublishedCmsPageSections(pagePath: string): any[] {
+  try {
+    const store = loadPersistedRecords();
+    if (
+      store.cmsPagesData &&
+      store.cmsPagesData[pagePath] &&
+      Array.isArray(store.cmsPagesData[pagePath]) &&
+      store.cmsPagesData[pagePath].length > 0
+    ) {
+      return store.cmsPagesData[pagePath];
+    }
+  } catch (err) {
+    console.error(`[persistedData] Failed to load published CMS page for "${pagePath}":`, err);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { collegePagesData, defaultPageBuilderSections } = require("@/lib/repositories/seedData");
+  return collegePagesData?.[pagePath] || (pagePath === "/" ? defaultPageBuilderSections : []);
+}
+
+export function getAllPublishedCmsPages(): Record<string, any[]> {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { collegePagesData } = require("@/lib/repositories/seedData");
+  try {
+    const store = loadPersistedRecords();
+    if (store.cmsPagesData) {
+      return {
+        ...(collegePagesData || {}),
+        ...store.cmsPagesData,
+      };
+    }
+  } catch (err) {
+    console.error("[persistedData] Failed to load all published CMS pages:", err);
+  }
+  return collegePagesData || {};
+}
+
+export function deletePersistedCmsPage(pagePath: string): boolean {
+  try {
+    const store = loadPersistedRecords();
+    let changed = false;
+    if (store.cmsPagesData && store.cmsPagesData[pagePath]) {
+      delete store.cmsPagesData[pagePath];
+      changed = true;
+    }
+    if (store.cmsPagesDraftData && store.cmsPagesDraftData[pagePath]) {
+      delete store.cmsPagesDraftData[pagePath];
+      changed = true;
+    }
+    if (changed) {
+      const filePath = getStoreFilePath();
+      fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+      syncPersistedRecords(true);
+    }
+    return true;
+  } catch (err) {
+    console.error("[persistedData] Failed to delete CMS page:", err);
+    return false;
+  }
+}
+
+export function getLiveBlogPosts(): BlogPost[] {
+  try {
+    const store = loadPersistedRecords();
+    if (Array.isArray(store.blogPosts) && store.blogPosts.length > 0) {
+      return store.blogPosts;
+    }
+  } catch (err) {
+    console.error("[persistedData] Failed to load live blog posts:", err);
+  }
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { blogPosts } = require("@/content/blog");
+    return blogPosts || [];
+  } catch {
+    return [];
+  }
+}
+
+export function savePersistedBlogPost(post: BlogPost): void {
+  try {
+    const store = loadPersistedRecords();
+    const current = Array.isArray(store.blogPosts) && store.blogPosts.length > 0
+      ? [...store.blogPosts]
+      : [...getLiveBlogPosts()];
+
+    const existingIdx = current.findIndex(
+      (p) => p.id === post.id || p.slug === post.slug
+    );
+    if (existingIdx >= 0) {
+      current[existingIdx] = post;
+    } else {
+      current.unshift(post);
+    }
+
+    store.blogPosts = current;
+    const filePath = getStoreFilePath();
+    fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+    syncPersistedRecords(true);
+
+    // Asynchronous synchronization directly to Neon PostgreSQL
+    if (process.env.DATABASE_URL) {
+      import("@/lib/db")
+        .then(({ sql }) => {
+          sql`
+            INSERT INTO blog_articles (
+              id, slug, title, category, read_time, published_at, excerpt, data, updated_at
+            ) VALUES (
+              ${post.id},
+              ${post.slug},
+              ${post.title},
+              ${post.category},
+              ${post.readTimeMinutes ? `${post.readTimeMinutes} min read` : "5 min read"},
+              ${post.publishedAt},
+              ${post.excerpt},
+              ${JSON.stringify(post)},
+              now()
+            )
+            ON CONFLICT (id) DO UPDATE SET
+              slug = EXCLUDED.slug,
+              title = EXCLUDED.title,
+              category = EXCLUDED.category,
+              read_time = EXCLUDED.read_time,
+              published_at = EXCLUDED.published_at,
+              excerpt = EXCLUDED.excerpt,
+              data = EXCLUDED.data,
+              updated_at = now();
+          `.catch((dbErr) =>
+            console.error("[Neon DB] Failed to sync blog post to PostgreSQL:", dbErr)
+          );
+        })
+        .catch(() => {});
+    }
+  } catch (err) {
+    console.error("[persistedData] Failed to save blog post:", err);
+    throw err;
+  }
+}
+
+export function deletePersistedBlogPost(postIdOrSlug: string): void {
+  try {
+    const store = loadPersistedRecords();
+    const current = Array.isArray(store.blogPosts) && store.blogPosts.length > 0
+      ? [...store.blogPosts]
+      : [...getLiveBlogPosts()];
+
+    store.blogPosts = current.filter(
+      (p) => p.id !== postIdOrSlug && p.slug !== postIdOrSlug
+    );
+    const filePath = getStoreFilePath();
+    fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+    syncPersistedRecords(true);
+
+    // Asynchronous deletion from Neon PostgreSQL
+    if (process.env.DATABASE_URL) {
+      import("@/lib/db")
+        .then(({ sql }) => {
+          sql`DELETE FROM blog_articles WHERE id = ${postIdOrSlug} OR slug = ${postIdOrSlug}`.catch((dbErr) =>
+            console.error("[Neon DB] Failed to delete blog post from PostgreSQL:", dbErr)
+          );
+        })
+        .catch(() => {});
+    }
+  } catch (err) {
+    console.error("[persistedData] Failed to delete blog post:", err);
+    throw err;
+  }
+}
+
+export function savePersistedCmsDraft(
+  pagePath: string,
+  sections: any[]
+): { success: boolean; updatedAt: string } {
+  try {
+    const store = loadPersistedRecords();
+    if (!store.cmsPagesDraftData) store.cmsPagesDraftData = {};
+    const updatedAt = new Date().toISOString();
+    store.cmsPagesDraftData[pagePath] = {
+      sections,
+      updatedAt,
+    };
+    const filePath = getStoreFilePath();
+    fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+    return { success: true, updatedAt };
+  } catch (err) {
+    console.error("[persistedData] Failed to save CMS draft:", err);
+    return { success: false, updatedAt: new Date().toISOString() };
+  }
+}
+
+export function discardPersistedCmsDraft(pagePath: string): boolean {
+  try {
+    const store = loadPersistedRecords();
+    if (store.cmsPagesDraftData && store.cmsPagesDraftData[pagePath]) {
+      delete store.cmsPagesDraftData[pagePath];
+      const filePath = getStoreFilePath();
+      fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+      return true;
+    }
+    return false;
+  } catch (err) {
+    console.error("[persistedData] Failed to discard CMS draft:", err);
+    return false;
+  }
+}
+
+export function getPersistedCmsDraft(
+  pagePath: string
+): { sections: any[]; updatedAt: string } | null {
+  try {
+    const store = loadPersistedRecords();
+    return store.cmsPagesDraftData?.[pagePath] || null;
+  } catch (err) {
+    return null;
   }
 }
 
@@ -327,6 +556,34 @@ export function deletePersistedCourse(courseId: string): void {
     }
   } catch (err) {
     console.error("[persistedData] Failed to delete course override:", err);
+  }
+}
+
+export function getLiveCourses(): Course[] {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { courses } = require("@/content/courses");
+    const store = loadPersistedRecords();
+    if (store.courseOverrides && Object.keys(store.courseOverrides).length > 0) {
+      const merged: Course[] = courses.map((c: Course) => {
+        if (store.courseOverrides?.[c.id]) {
+          return { ...c, ...store.courseOverrides[c.id] };
+        }
+        return c;
+      });
+      Object.values(store.courseOverrides).forEach((custom: any) => {
+        if (!merged.some((c) => c.id === custom.id)) {
+          merged.push(custom);
+        }
+      });
+      return merged;
+    }
+    return courses;
+  } catch (err) {
+    console.error("[persistedData] Failed to get live courses:", err);
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { courses } = require("@/content/courses");
+    return courses;
   }
 }
 
@@ -565,6 +822,22 @@ export function syncPersistedRecords(force: boolean = false): void {
     // Sync Payment Gateway & Bank Settings
     if (store.paymentGatewaySettings && collegePaymentGatewaySettings) {
       Object.assign(collegePaymentGatewaySettings, store.paymentGatewaySettings);
+    }
+
+    // Sync Course Overrides directly into in-memory courses array
+    if (store.courseOverrides && Object.keys(store.courseOverrides).length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { courses } = require("@/content/courses");
+      if (Array.isArray(courses)) {
+        Object.entries(store.courseOverrides).forEach(([id, override]: [string, any]) => {
+          const idx = courses.findIndex((c: any) => c.id === id);
+          if (idx >= 0) {
+            courses[idx] = { ...courses[idx], ...override };
+          } else {
+            courses.push(override);
+          }
+        });
+      }
     }
   } catch (err) {
     console.error("[persistedData] Failed to sync records into memory:", err);
@@ -1036,6 +1309,3 @@ export function verifyAndConsumePasswordResetToken(
     return false;
   }
 }
-
-
-

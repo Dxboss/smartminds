@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Course, CourseLevel, Unit, FAQ, DeliveryMode } from "@/content/types";
 import { formatCurrency } from "@/content/pricing";
 import { Icon } from "@/components/ui/Icon";
+import { ImageDropzone } from "@/components/ui/ImageDropzone";
 import {
   updateCoursePricingAction,
   updateCourseDetailsAction,
@@ -28,10 +29,22 @@ export function CoursesManagerView({
   // Edit Modal State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
-  const [editTab, setEditTab] = useState<"general" | "pricing" | "curriculum" | "faqs">("general");
+  const [editTab, setEditTab] = useState<
+    "general" | "pricing" | "curriculum" | "outcomes" | "specs" | "faqs"
+  >("general");
   const [selectedLevelIdx, setSelectedLevelIdx] = useState(0);
   const [editLevels, setEditLevels] = useState<CourseLevel[]>([]);
   const [editLevelLabel, setEditLevelLabel] = useState("");
+
+  // Wix-style Media Library State
+  const [mediaLibrary, setMediaLibrary] = useState<{ label: string; url: string }[]>([
+    { label: "Healthcare & Adult Care (Default)", url: "/images/adult-care-training.jpg" },
+    { label: "Childcare & Early Years", url: "/images/early-years-training.jpg" },
+    { label: "Teacher Training & Education", url: "/images/teacher-training.jpg" },
+    { label: "Vocational Assessor & Tutoring", url: "/images/tutor-teaching.jpg" },
+    { label: "Accredited Certificate / Graduation", url: "/images/certificate-moment.jpg" },
+    { label: "Online Distance Learner", url: "/images/hero-learner.jpg" },
+  ]);
 
   // General fields
   const [editTitle, setEditTitle] = useState("");
@@ -41,10 +54,32 @@ export function CoursesManagerView({
   const [editAwardingBody, setEditAwardingBody] = useState("");
   const [editAwardingRef, setEditAwardingRef] = useState("");
   const [editDelivery, setEditDelivery] = useState<DeliveryMode>("live_online");
+  const [editCustomDeliveryText, setEditCustomDeliveryText] = useState("");
   const [editImage, setEditImage] = useState("/images/adult-care-training.jpg");
+  const [editIntroVideoUrl, setEditIntroVideoUrl] = useState("");
+  const [editIntroVideoPoster, setEditIntroVideoPoster] = useState("");
+  const [editTrainingLocations, setEditTrainingLocations] = useState<string[]>([]);
+  const [editAttendanceType, setEditAttendanceType] = useState<"online_only" | "blended_practical">("online_only");
 
-  // Active Level fields
+  // Career Opportunities & Progression
+  const [editJobProspects, setEditJobProspects] = useState<string[]>([]);
+  const [editProgression, setEditProgression] = useState<string[]>([]);
+
+  // Workplace Assessment Guide & Inclusions
+  const [editWorkplaceEvidenceText, setEditWorkplaceEvidenceText] = useState("");
+  const [editObservationMethodsText, setEditObservationMethodsText] = useState("");
+  const [editTuitionIncludes, setEditTuitionIncludes] = useState<string[]>([]);
+  const [editFreeTextbook, setEditFreeTextbook] = useState(true);
+
+  // Header Spec Bar Customizations
+  const [editIntakeText, setEditIntakeText] = useState("");
+  const [editAssessmentModelText, setEditAssessmentModelText] = useState("");
+  const [editSupportModelText, setEditSupportModelText] = useState("");
+
+  // Active Level fields & Curriculum
+  const [expandedUnitIdx, setExpandedUnitIdx] = useState<number | null>(null);
   const [editPrice, setEditPrice] = useState("");
+  const [editRegularPrice, setEditRegularPrice] = useState("");
   const [editDiscountPercent, setEditDiscountPercent] = useState("10");
   const [editDeposit, setEditDeposit] = useState("");
   const [editDuration, setEditDuration] = useState("4 – 6 months");
@@ -53,14 +88,29 @@ export function CoursesManagerView({
   const [editRequirements, setEditRequirements] = useState<string[]>([]);
   const [editFaqs, setEditFaqs] = useState<FAQ[]>([]);
 
+  const handleImageUpload = (url: string, fileName?: string) => {
+    setEditImage(url);
+    const label = fileName
+      ? `Uploaded: ${fileName}`
+      : `Custom Image (${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })})`;
+    setMediaLibrary((prev) => {
+      if (prev.some((m) => m.url === url)) return prev;
+      return [{ label, url }, ...prev];
+    });
+  };
+
   // Add Course Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newCategory, setNewCategory] = useState("Health & Social Care");
   const [newAwardingBody, setNewAwardingBody] = useState("TQUK & NCFE");
   const [newAwardingRef, setNewAwardingRef] = useState("");
+  const [newDelivery, setNewDelivery] = useState<DeliveryMode>("live_online");
+  const [newCustomDeliveryText, setNewCustomDeliveryText] = useState("");
+  const [newIntroVideoUrl, setNewIntroVideoUrl] = useState("");
   const [newLevelLabel, setNewLevelLabel] = useState("Level 3");
   const [newPrice, setNewPrice] = useState("1250");
+  const [newRegularPrice, setNewRegularPrice] = useState("1650");
   const [newDiscountPercent, setNewDiscountPercent] = useState("10");
   const [newDeposit, setNewDeposit] = useState("150");
   const [newDuration, setNewDuration] = useState("4 – 6 months");
@@ -104,7 +154,16 @@ export function CoursesManagerView({
     setEditAwardingBody(course.awarding_body || "");
     setEditAwardingRef(course.awarding_reference || "");
     setEditDelivery(course.delivery || "live_online");
+    setEditIntroVideoUrl(course.intro_video_url || "");
+    setEditIntroVideoPoster(course.intro_video_poster || "");
     setEditImage(course.image || "/images/adult-care-training.jpg");
+    setEditTrainingLocations(course.training_locations ? [...course.training_locations] : []);
+    setEditAttendanceType(
+      course.attendance_type ||
+        (course.training_locations && course.training_locations.length > 0
+          ? "blended_practical"
+          : "online_only")
+    );
     setEditFaqs(course.faqs ? course.faqs.map((f) => ({ ...f })) : []);
 
     const loadedLevels: CourseLevel[] =
@@ -134,6 +193,7 @@ export function CoursesManagerView({
     const lvl = loadedLevels[0];
     setEditLevelLabel(lvl?.level_label || "Level 1");
     setEditPrice(lvl ? lvl.price_gbp.toString() : "0");
+    setEditRegularPrice(lvl?.regular_price_gbp ? lvl.regular_price_gbp.toString() : "");
     setEditDiscountPercent(
       lvl?.full_pay_discount_percent !== null && lvl?.full_pay_discount_percent !== undefined
         ? lvl.full_pay_discount_percent.toString()
@@ -146,6 +206,35 @@ export function CoursesManagerView({
     const dep = lvl?.plans?.[0]?.deposit_value;
     setEditDeposit(dep !== undefined ? dep.toString() : "150");
 
+    // Course Detail Page Specs & Outcomes
+    setEditJobProspects(course.job_prospects ? [...course.job_prospects] : []);
+    setEditProgression(course.progression ? [...course.progression] : []);
+    setEditWorkplaceEvidenceText(course.workplace_evidence_text || "");
+    setEditObservationMethodsText(course.observation_methods_text || "");
+    setEditTuitionIncludes(
+      course.tuition_includes && course.tuition_includes.length > 0
+        ? [...course.tuition_includes]
+        : [
+            "Weekly live online evening lectures delivered via Zoom with qualified assessors",
+            "24/7 access to the Smartminds Learner Portal and recorded lecture streams",
+            "Dedicated named tutor providing individual written feedback within 5 working days",
+            "Official awarding organisation registration fees and Ofqual certificate issuance",
+            "One-to-one academic mentoring, assignment planning, and study skills guidance",
+          ]
+    );
+    setEditFreeTextbook(course.free_textbook !== undefined ? course.free_textbook : true);
+    setEditIntakeText(course.intake_text || "Rolling Admissions");
+    setEditAssessmentModelText(course.assessment_model_text || "100% Portfolio Based");
+    setEditSupportModelText(course.support_model_text || "Named British Assessor");
+    setExpandedUnitIdx(null);
+
+    if (course.image) {
+      setMediaLibrary((prev) => {
+        if (prev.some((m) => m.url === course.image)) return prev;
+        return [{ label: `Course Photo: ${course.title.slice(0, 24)}`, url: course.image }, ...prev];
+      });
+    }
+
     setEditTab("general");
     setModalError("");
     setIsEditModalOpen(true);
@@ -154,6 +243,8 @@ export function CoursesManagerView({
   const syncCurrentLevel = (levelsArr: CourseLevel[], idx: number): CourseLevel[] => {
     if (!levelsArr[idx]) return levelsArr;
     const parsedPrice = parseFloat(editPrice) || levelsArr[idx].price_gbp;
+    const parsedRegular = parseFloat(editRegularPrice);
+    const regular_price_gbp = !isNaN(parsedRegular) && parsedRegular > 0 ? parsedRegular : null;
     const parsedDeposit = parseFloat(editDeposit);
     const parsedDiscount = parseFloat(editDiscountPercent);
     const parsedGlh = parseInt(editGlh, 10) || levelsArr[idx].guided_learning_hours;
@@ -164,6 +255,7 @@ export function CoursesManagerView({
         ...lvl,
         level_label: editLevelLabel.trim() || lvl.level_label || `Level ${i + 1}`,
         price_gbp: parsedPrice,
+        regular_price_gbp,
         full_pay_discount_percent: isNaN(parsedDiscount) ? null : Math.max(0, Math.min(100, parsedDiscount)),
         duration_text: editDuration,
         guided_learning_hours: parsedGlh,
@@ -201,6 +293,7 @@ export function CoursesManagerView({
     if (lvl) {
       setEditLevelLabel(lvl.level_label);
       setEditPrice(lvl.price_gbp.toString());
+      setEditRegularPrice(lvl.regular_price_gbp ? lvl.regular_price_gbp.toString() : "");
       setEditDiscountPercent(
         lvl.full_pay_discount_percent !== null && lvl.full_pay_discount_percent !== undefined
           ? lvl.full_pay_discount_percent.toString()
@@ -224,6 +317,7 @@ export function CoursesManagerView({
       course_id: selectedCourse.id,
       level_label: newLvlLabel,
       price_gbp: 495,
+      regular_price_gbp: 695,
       full_pay_discount_percent: 10,
       duration_text: "4 – 6 months",
       guided_learning_hours: 180,
@@ -254,6 +348,7 @@ export function CoursesManagerView({
 
     setEditLevelLabel(newLvl.level_label);
     setEditPrice(newLvl.price_gbp.toString());
+    setEditRegularPrice(newLvl.regular_price_gbp ? newLvl.regular_price_gbp.toString() : "");
     setEditDiscountPercent("10");
     setEditDuration(newLvl.duration_text);
     setEditGlh(newLvl.guided_learning_hours.toString());
@@ -295,6 +390,7 @@ export function CoursesManagerView({
     if (activeLvl) {
       setEditLevelLabel(activeLvl.level_label);
       setEditPrice(activeLvl.price_gbp.toString());
+      setEditRegularPrice(activeLvl.regular_price_gbp ? activeLvl.regular_price_gbp.toString() : "");
       setEditDiscountPercent(
         activeLvl.full_pay_discount_percent !== null && activeLvl.full_pay_discount_percent !== undefined
           ? activeLvl.full_pay_discount_percent.toString()
@@ -349,9 +445,24 @@ export function CoursesManagerView({
           awarding_body: editAwardingBody.trim() || null,
           awarding_reference: editAwardingRef.trim() || null,
           delivery: editDelivery,
+          custom_delivery_text: editCustomDeliveryText.trim() || undefined,
+          intro_video_url: editIntroVideoUrl.trim() || null,
+          intro_video_poster: editIntroVideoPoster.trim() || null,
+          training_locations:
+            editAttendanceType === "blended_practical" ? editTrainingLocations : undefined,
+          attendance_type: editAttendanceType,
           image: editImage.trim() || "/images/adult-care-training.jpg",
           levels: finalLevels,
           faqs: editFaqs,
+          job_prospects: editJobProspects.filter(Boolean),
+          progression: editProgression.filter(Boolean),
+          workplace_evidence_text: editWorkplaceEvidenceText.trim() || undefined,
+          observation_methods_text: editObservationMethodsText.trim() || undefined,
+          tuition_includes: editTuitionIncludes.filter(Boolean),
+          free_textbook: editFreeTextbook,
+          intake_text: editIntakeText.trim() || undefined,
+          assessment_model_text: editAssessmentModelText.trim() || undefined,
+          support_model_text: editSupportModelText.trim() || undefined,
         });
 
         if (result.success && result.course) {
@@ -384,6 +495,8 @@ export function CoursesManagerView({
     }
 
     const price = parseFloat(newPrice);
+    const regular = parseFloat(newRegularPrice);
+    const parsedRegular = !isNaN(regular) && regular > 0 ? regular : null;
     const deposit = parseFloat(newDeposit);
     const discount = parseFloat(newDiscountPercent);
     const glh = parseInt(newGlh, 10);
@@ -406,7 +519,8 @@ export function CoursesManagerView({
       description: newSummary.trim(),
       category: newCategory,
       type: "regulated",
-      delivery: "live_online",
+      delivery: newDelivery,
+      custom_delivery_text: newCustomDeliveryText.trim() || undefined,
       start_mode: "rolling",
       start_dates: ["Every Monday", "First of each month"],
       awarding_body: newAwardingBody.trim() || null,
@@ -414,11 +528,25 @@ export function CoursesManagerView({
       assessment_method: "criteria",
       funding: "both",
       funding_notes: "Eligible learners can access 0% interest monthly instalment plans.",
-      intro_video_url: null,
+      intro_video_url: newIntroVideoUrl.trim() || null,
       free_textbook: true,
       faqs: [],
       job_prospects: ["Practitioner", "Senior Carer", "Team Leader"],
       progression: ["Higher National Diploma", "University Degree"],
+      workplace_evidence_text:
+        "You will build a professional portfolio using real workplace evidence gathered during your employment or voluntary care placement, including care plan reviews, risk assessments, and reflective accounts.",
+      observation_methods_text:
+        "Workplace observations can be conducted remotely via recorded video session or in-person with a registered Expert Witness (such as your registered manager or clinical lead).",
+      tuition_includes: [
+        "Weekly live online evening lectures delivered via Zoom with qualified assessors",
+        "24/7 access to the Smartminds Learner Portal and recorded lecture streams",
+        "Dedicated named tutor providing individual written feedback within 5 working days",
+        "Official awarding organisation registration fees and Ofqual certificate issuance",
+        "One-to-one academic mentoring, assignment planning, and study skills guidance",
+      ],
+      intake_text: "Rolling Admissions",
+      assessment_model_text: "100% Portfolio Based",
+      support_model_text: "Named British Assessor",
       image: newImage.trim() || "/images/adult-care-training.jpg",
       imageAlt: `${newTitle} training at Smartminds College`,
       seo_title: `${newTitle} | Smartminds Training College`,
@@ -429,6 +557,7 @@ export function CoursesManagerView({
           course_id: `course-${Date.now().toString().slice(-4)}`,
           level_label: newLevelLabel,
           price_gbp: price,
+          regular_price_gbp: parsedRegular,
           full_pay_discount_percent: isNaN(discount) ? 10 : Math.max(0, Math.min(100, discount)),
           duration_text: newDuration,
           guided_learning_hours: isNaN(glh) ? 300 : glh,
@@ -466,6 +595,7 @@ export function CoursesManagerView({
           setIsAddModalOpen(false);
           setNewTitle("");
           setNewSummary("");
+          setNewRegularPrice("1650");
           setToastMessage(`Course "${newCourseObj.title}" added to catalogue.`);
           setTimeout(() => setToastMessage(null), 5000);
         }
@@ -691,6 +821,11 @@ export function CoursesManagerView({
                               <span className="font-bold text-navy-900">
                                 {formatCurrency(lvl.price_gbp)}
                               </span>
+                              {lvl.regular_price_gbp && lvl.regular_price_gbp > lvl.price_gbp && (
+                                <span className="line-through text-ink-soft text-[11px]" title="Regular / slashed price">
+                                  {formatCurrency(lvl.regular_price_gbp)}
+                                </span>
+                              )}
                               {discount > 0 && (
                                 <span className="text-[11px] text-emerald-700 font-semibold bg-emerald-50 px-1 py-0.5 rounded-sm border border-emerald-100">
                                   -{discount}% upfront
@@ -708,10 +843,21 @@ export function CoursesManagerView({
                     </td>
                     <td className="py-4 px-4 whitespace-nowrap">
                       <span className="px-2 py-0.5 rounded-sm bg-indigo-50 text-indigo-800 text-xs font-semibold">
-                        {c.delivery === "live_online"
-                          ? "Live Online (Zoom)"
-                          : "Blended Learning"}
+                        {c.custom_delivery_text ||
+                          (c.delivery === "live_online"
+                            ? "Live Online (Zoom)"
+                            : "Blended Learning")}
                       </span>
+                      {c.custom_delivery_text && (
+                        <span className="block text-[10px] text-ink-soft">
+                          Custom: {c.custom_delivery_text}
+                        </span>
+                      )}
+                      {c.training_locations && c.training_locations.length > 0 && (
+                        <span className="block text-[10px] font-semibold text-emerald-700 mt-0.5">
+                          📍 {c.training_locations.length} Practical Venues
+                        </span>
+                      )}
                       <span className="block text-xs text-ink-soft mt-0.5">
                         {c.start_mode === "rolling"
                           ? "Rolling Intake"
@@ -836,6 +982,32 @@ export function CoursesManagerView({
 
               <button
                 type="button"
+                onClick={() => setEditTab("outcomes")}
+                className={`px-3 py-1.5 rounded-sm transition-colors flex items-center gap-1.5 ${
+                  editTab === "outcomes"
+                    ? "bg-navy-900 text-white"
+                    : "text-ink-soft hover:bg-paper hover:text-navy-900"
+                }`}
+              >
+                <Icon name="user" size={14} />
+                <span>Careers & Outcomes ({editJobProspects.length + editProgression.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setEditTab("specs")}
+                className={`px-3 py-1.5 rounded-sm transition-colors flex items-center gap-1.5 ${
+                  editTab === "specs"
+                    ? "bg-navy-900 text-white"
+                    : "text-ink-soft hover:bg-paper hover:text-navy-900"
+                }`}
+              >
+                <Icon name="shield-check" size={14} />
+                <span>Assessment & Inclusions</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setEditTab("faqs")}
                 className={`px-3 py-1.5 rounded-sm transition-colors flex items-center gap-1.5 ${
                   editTab === "faqs"
@@ -866,7 +1038,7 @@ export function CoursesManagerView({
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
                       <label className="block text-xs font-semibold text-navy-900 uppercase tracking-wider mb-1">
                         Category / Faculty
@@ -878,22 +1050,6 @@ export function CoursesManagerView({
                         className="w-full px-3 py-2 border border-line rounded-sm text-xs focus:outline-none focus:border-navy-900 bg-paper focus:bg-white"
                       />
                     </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-navy-900 uppercase tracking-wider mb-1">
-                        Delivery Mode
-                      </label>
-                      <select
-                        value={editDelivery}
-                        onChange={(e) => setEditDelivery(e.target.value as DeliveryMode)}
-                        className="w-full px-3 py-2 border border-line rounded-sm text-xs focus:outline-none focus:border-navy-900 bg-paper focus:bg-white"
-                      >
-                        <option value="live_online">Live Online (Zoom Seminars)</option>
-                        <option value="blended">Blended Learning (Online + Clinical)</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-semibold text-navy-900 uppercase tracking-wider mb-1">
                         Awarding Organisation
@@ -920,41 +1076,345 @@ export function CoursesManagerView({
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-navy-900 uppercase tracking-wider mb-1">
-                      Featured Course Cover Photo
-                    </label>
-                    <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-                      <div className="relative w-24 h-16 rounded overflow-hidden border border-line bg-gray-100 flex-shrink-0 shadow-sm">
-                        <img
-                          src={editImage || "/images/adult-care-training.jpg"}
-                          alt="Course Cover Preview"
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = "/images/adult-care-training.jpg";
-                          }}
+                  {/* UNIFIED DELIVERY FORMAT & PRACTICAL ATTENDANCE */}
+                  <div className="p-3.5 bg-paper rounded-sm border border-line space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-semibold text-navy-900 uppercase tracking-wider">
+                        Delivery Mode & Practical Attendance
+                      </label>
+                      <span className="text-[10px] text-ink-soft">
+                        Configures student timetable and campus venue selection
+                      </span>
+                    </div>
+
+                    {/* Segmented 3-Pill Selector */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditDelivery("live_online");
+                          setEditAttendanceType("online_only");
+                        }}
+                        className={`p-2.5 rounded-sm border text-left transition-all cursor-pointer ${
+                          editDelivery === "live_online" && editAttendanceType === "online_only"
+                            ? "bg-navy-900 text-white border-navy-900 shadow-xs"
+                            : "bg-white text-ink-soft border-line hover:border-navy-900"
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 font-bold text-xs mb-0.5">
+                          <Icon
+                            name="video"
+                            size={13}
+                            className={
+                              editDelivery === "live_online" && editAttendanceType === "online_only"
+                                ? "text-gold-300"
+                                : "text-navy-900"
+                            }
+                          />
+                          <span>Live Online</span>
+                        </div>
+                        <span className="text-[10px] opacity-80 block leading-tight">
+                          100% distance via weekly Zoom seminars
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditDelivery("blended");
+                          setEditAttendanceType("blended_practical");
+                          if (editTrainingLocations.length === 0) {
+                            setEditTrainingLocations([
+                              "London Stratford",
+                              "Birmingham Central",
+                            ]);
+                          }
+                        }}
+                        className={`p-2.5 rounded-sm border text-left transition-all cursor-pointer ${
+                          editAttendanceType === "blended_practical"
+                            ? "bg-emerald-800 text-white border-emerald-800 shadow-xs"
+                            : "bg-white text-ink-soft border-line hover:border-emerald-700"
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 font-bold text-xs mb-0.5">
+                          <Icon
+                            name="map-pin"
+                            size={13}
+                            className={
+                              editAttendanceType === "blended_practical"
+                                ? "text-gold-300"
+                                : "text-emerald-700"
+                            }
+                          />
+                          <span>Blended Practical</span>
+                        </div>
+                        <span className="text-[10px] opacity-80 block leading-tight">
+                          Online theory + physical campus practicals
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditDelivery("self_paced");
+                          setEditAttendanceType("online_only");
+                        }}
+                        className={`p-2.5 rounded-sm border text-left transition-all cursor-pointer ${
+                          editDelivery === "self_paced"
+                            ? "bg-navy-900 text-white border-navy-900 shadow-xs"
+                            : "bg-white text-ink-soft border-line hover:border-navy-900"
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 font-bold text-xs mb-0.5">
+                          <Icon
+                            name="clock"
+                            size={13}
+                            className={
+                              editDelivery === "self_paced"
+                                ? "text-gold-300"
+                                : "text-navy-900"
+                            }
+                          />
+                          <span>Distance / Self-Paced</span>
+                        </div>
+                        <span className="text-[10px] opacity-80 block leading-tight">
+                          Flexible self-study with 1-to-1 assessor
+                        </span>
+                      </button>
+                    </div>
+
+                    {/* Custom Delivery Schedule Input */}
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-soft mb-1">
+                        Custom Schedule Label / Times (Optional override)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Tuesday & Thursday 6:30pm – 8:30pm (Replays Included)"
+                        value={editCustomDeliveryText}
+                        onChange={(e) => setEditCustomDeliveryText(e.target.value)}
+                        className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900"
+                      />
+                    </div>
+
+                    {/* Embedded UK Campus Venues (Only when Blended Practical) */}
+                    {editAttendanceType === "blended_practical" && (
+                      <div className="pt-2.5 border-t border-line space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-950">
+                            Select Practical Training & Assessment Venues:
+                          </span>
+                          <span className="text-[10px] text-emerald-800 font-semibold font-mono">
+                            {editTrainingLocations.length} locations selected
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                          {[
+                            "London Stratford",
+                            "Birmingham Central",
+                            "Manchester Piccadilly",
+                            "Leeds City Centre",
+                            "Bristol Harbourside",
+                            "Milton Keynes",
+                            "Southampton",
+                            "Portsmouth",
+                          ].map((loc) => {
+                            const isChecked = editTrainingLocations.includes(loc);
+                            return (
+                              <label
+                                key={loc}
+                                className={`flex items-center gap-2 p-2 rounded-sm border text-xs cursor-pointer transition-colors ${
+                                  isChecked
+                                    ? "bg-emerald-50 border-emerald-400 font-bold text-emerald-900"
+                                    : "bg-white border-line text-ink-soft hover:border-navy-900"
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={() => {
+                                    if (isChecked) {
+                                      setEditTrainingLocations(
+                                        editTrainingLocations.filter((l) => l !== loc)
+                                      );
+                                    } else {
+                                      setEditTrainingLocations([...editTrainingLocations, loc]);
+                                    }
+                                  }}
+                                  className="accent-emerald-600"
+                                />
+                                <span>{loc}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Featured Course Cover Photo with Dynamic Media Library */}
+                  <div className="p-3 bg-paper rounded-sm border border-line space-y-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-navy-900 uppercase tracking-wider mb-0.5">
+                        Course Cover Photo
+                      </label>
+                      <p className="text-[10px] text-ink-soft">
+                        Upload a bespoke photograph from your device or select from the accredited college media library.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+                      <div>
+                        <ImageDropzone
+                          value={editImage}
+                          onChange={handleImageUpload}
+                          label="Drag & Drop Course Photo"
+                          helperText="JPG, PNG, WebP (auto-optimized)"
+                          previewHeight={90}
+                          showUrlInput={false}
                         />
                       </div>
-                      <div className="flex-1 w-full space-y-1.5">
-                        <select
-                          value={editImage}
-                          onChange={(e) => setEditImage(e.target.value)}
-                          className="w-full px-3 py-1.5 border border-line rounded-sm text-xs bg-paper focus:bg-white focus:outline-none focus:border-navy-900"
+
+                      <div className="space-y-2">
+                        <div>
+                          <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-soft mb-0.5">
+                            Select from College Media Library
+                          </label>
+                          <select
+                            value={editImage}
+                            onChange={(e) => setEditImage(e.target.value)}
+                            className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900 font-medium"
+                          >
+                            {mediaLibrary.map((item, idx) => (
+                              <option key={idx} value={item.url}>
+                                {item.label}
+                              </option>
+                            ))}
+                            {!mediaLibrary.some((m) => m.url === editImage) && (
+                              <option value={editImage}>
+                                Custom Photo ({editImage.startsWith("data:") ? "Uploaded image" : editImage.slice(0, 24)}...)
+                              </option>
+                            )}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-soft mb-0.5">
+                            Or Enter Photo URL / Path
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="/images/adult-care-training.jpg"
+                            value={editImage}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setEditImage(val);
+                              if (val.trim()) {
+                                setMediaLibrary((prev) => {
+                                  if (prev.some((m) => m.url === val)) return prev;
+                                  return [{ label: `Custom URL: ${val.slice(0, 24)}`, url: val }, ...prev];
+                                });
+                              }
+                            }}
+                            className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs focus:outline-none focus:border-navy-900 font-mono bg-white"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Course Intro / Preview Video URL */}
+                  <div className="p-3 bg-paper rounded-sm border border-line space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-semibold text-navy-900 uppercase tracking-wider">
+                        Course Intro / Preview Video URL (YouTube, Vimeo, or MP4)
+                      </label>
+                      {editIntroVideoUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setEditIntroVideoUrl("")}
+                          className="text-[10px] text-rose-700 hover:underline font-bold"
                         >
-                          <option value="/images/adult-care-training.jpg">Healthcare & Adult Care (Default)</option>
-                          <option value="/images/early-years-training.jpg">Childcare & Early Years</option>
-                          <option value="/images/teacher-training.jpg">Teacher Training & Education</option>
-                          <option value="/images/tutor-teaching.jpg">Vocational Assessor & Tutoring</option>
-                          <option value="/images/certificate-moment.jpg">Accredited Certificate / Graduation</option>
-                          <option value="/images/hero-learner.jpg">Online Distance Learner</option>
-                        </select>
-                        <input
-                          type="text"
-                          placeholder="Or enter custom image URL / path (e.g. /images/...)"
-                          value={editImage}
-                          onChange={(e) => setEditImage(e.target.value)}
-                          className="w-full px-3 py-1.5 border border-line rounded-sm text-xs focus:outline-none focus:border-navy-900 font-mono"
+                          Clear Video
+                        </button>
+                      )}
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="https://www.youtube.com/watch?v=... or https://vimeo.com/... or /videos/intro.mp4"
+                      value={editIntroVideoUrl}
+                      onChange={(e) => setEditIntroVideoUrl(e.target.value)}
+                      className="w-full px-3 py-2 border border-line rounded-sm text-xs focus:outline-none focus:border-navy-900 bg-white font-mono"
+                    />
+                    <p className="text-[10px] text-ink-soft">
+                      Powers the video preview showcase on the public qualification prospectus. Leave blank to display the silent induction briefing walkthrough.
+                    </p>
+
+                    {editIntroVideoUrl && (
+                      <div className="p-2.5 bg-white rounded border border-line/80 flex items-center gap-3">
+                        <div className="w-9 h-9 rounded bg-navy-900 text-gold-300 flex items-center justify-center shrink-0">
+                          <Icon name="video" size={16} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <strong className="text-xs font-bold text-navy-900 block truncate">
+                            Active Preview Video Configured
+                          </strong>
+                          <span className="text-[11px] font-mono text-ink-soft truncate block">
+                            {editIntroVideoUrl}
+                          </span>
+                        </div>
+                        <a
+                          href={editIntroVideoUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-2.5 py-1 text-[11px] font-bold text-navy-900 bg-paper hover:bg-gold-300/40 border border-line rounded-xs shrink-0 flex items-center gap-1"
+                        >
+                          <span>Test Link</span>
+                          <Icon name="arrow-right" size={10} />
+                        </a>
+                      </div>
+                    )}
+
+                    {/* Video Fallback / Poster Cover Image */}
+                    <div className="pt-3 border-t border-line space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-navy-900">
+                          Video Slot Cover / Fallback Poster Image
+                        </label>
+                        {editIntroVideoPoster && (
+                          <button
+                            type="button"
+                            onClick={() => setEditIntroVideoPoster("")}
+                            className="text-[10px] text-rose-700 hover:underline font-bold"
+                          >
+                            Reset to Default
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-ink-soft">
+                        Upload or enter a custom poster/thumbnail image that covers the video player before the user presses play.
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+                        <ImageDropzone
+                          value={editIntroVideoPoster}
+                          onChange={(url) => setEditIntroVideoPoster(url)}
+                          label="Upload Video Poster"
+                          helperText="JPG, PNG, WebP"
+                          previewHeight={70}
+                          showUrlInput={false}
                         />
+                        <div className="space-y-1.5">
+                          <label className="block text-[10px] font-mono uppercase text-ink-soft">
+                            Or Enter Poster Image URL:
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="https://... or /images/..."
+                            value={editIntroVideoPoster}
+                            onChange={(e) => setEditIntroVideoPoster(e.target.value)}
+                            className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs font-mono bg-white focus:outline-none focus:border-navy-900"
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1068,21 +1528,38 @@ export function CoursesManagerView({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-line">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2 border-t border-line">
                     <div>
                       <label className="block text-xs font-semibold text-navy-900 uppercase tracking-wider mb-1">
-                        Base Tuition Fee (£)
+                        Regular Price / RRP (£)
+                      </label>
+                      <input
+                        type="number"
+                        step="10"
+                        value={editRegularPrice}
+                        onChange={(e) => setEditRegularPrice(e.target.value)}
+                        placeholder="e.g. 1450 (Optional)"
+                        className="w-full px-3 py-2 border border-line rounded-sm text-sm focus:outline-none focus:border-navy-900 bg-paper focus:bg-white font-bold"
+                      />
+                      <p className="text-[11px] text-ink-soft mt-1">
+                        Original reference price (slashed out with strikethrough).
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                        Selling Tuition Fee (£)
                       </label>
                       <input
                         type="number"
                         step="10"
                         value={editPrice}
                         onChange={(e) => setEditPrice(e.target.value)}
-                        className="w-full px-3 py-2 border border-line rounded-sm text-sm focus:outline-none focus:border-navy-900 bg-paper focus:bg-white font-bold"
+                        className="w-full px-3 py-2 border border-line rounded-sm text-sm focus:outline-none focus:border-navy-900 bg-paper focus:bg-white font-bold text-navy-900"
                         required
                       />
                       <p className="text-[11px] text-ink-soft mt-1">
-                        Standard course qualification fee before upfront discounts.
+                        Current discounted price learners actually pay.
                       </p>
                     </div>
 
@@ -1102,8 +1579,8 @@ export function CoursesManagerView({
                       />
                       <p className="text-[11px] text-ink-soft mt-1">
                         {parseFloat(editDiscountPercent) > 0
-                          ? `Students save ${editDiscountPercent}% when paying in full upfront.`
-                          : "Set to 0% for no upfront payment discount."}
+                          ? `Learners save ${editDiscountPercent}% when paying upfront.`
+                          : "Set to 0% for no extra upfront discount."}
                       </p>
                     </div>
 
@@ -1124,6 +1601,29 @@ export function CoursesManagerView({
                       </p>
                     </div>
                   </div>
+
+                  {(() => {
+                    const reg = parseFloat(editRegularPrice);
+                    const sel = parseFloat(editPrice);
+                    if (!isNaN(reg) && !isNaN(sel) && reg > sel) {
+                      const diff = reg - sel;
+                      const pct = Math.round((diff / reg) * 100);
+                      return (
+                        <div className="p-3 bg-amber-50/70 border border-gold-300 rounded-sm text-xs flex items-center justify-between gap-3 text-navy-900">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-semibold text-amber-900">Price Slashed Preview:</span>
+                            <span className="line-through text-ink-soft">£{reg.toLocaleString()}</span>
+                            <span className="font-bold text-navy-900 text-sm">£{sel.toLocaleString()}</span>
+                            <span className="bg-amber-100 text-amber-900 font-bold px-1.5 py-0.5 rounded-sm text-[11px]">
+                              Save £{diff.toLocaleString()} ({pct}% OFF)
+                            </span>
+                          </div>
+                          <span className="text-[11px] text-ink-soft hidden sm:inline">Featured on course page & syllabus cards</span>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
@@ -1292,70 +1792,335 @@ export function CoursesManagerView({
                       editUnits.map((unit, uIdx) => (
                         <div
                           key={uIdx}
-                          className="p-3 bg-paper rounded-sm border border-line grid grid-cols-12 gap-2 items-center"
+                          className="p-3 bg-paper rounded-sm border border-line space-y-2"
                         >
-                          <div className="col-span-2">
-                            <label className="text-[10px] uppercase font-bold text-ink-soft block mb-0.5">
-                              Code
-                            </label>
-                            <input
-                              type="text"
-                              value={unit.code}
-                              onChange={(e) => {
-                                const next = [...editUnits];
-                                next[uIdx].code = e.target.value;
-                                setEditUnits(next);
-                              }}
-                              className="w-full px-2 py-1 bg-white border border-line rounded-xs text-xs font-mono"
-                            />
+                          <div className="grid grid-cols-12 gap-2 items-center">
+                            <div className="col-span-2">
+                              <label className="text-[10px] uppercase font-bold text-ink-soft block mb-0.5">
+                                Code
+                              </label>
+                              <input
+                                type="text"
+                                value={unit.code}
+                                onChange={(e) => {
+                                  const next = [...editUnits];
+                                  next[uIdx].code = e.target.value;
+                                  setEditUnits(next);
+                                }}
+                                className="w-full px-2 py-1 bg-white border border-line rounded-xs text-xs font-mono"
+                              />
+                            </div>
+
+                            <div className="col-span-5">
+                              <label className="text-[10px] uppercase font-bold text-ink-soft block mb-0.5">
+                                Unit Title
+                              </label>
+                              <input
+                                type="text"
+                                value={unit.title}
+                                onChange={(e) => {
+                                  const next = [...editUnits];
+                                  next[uIdx].title = e.target.value;
+                                  setEditUnits(next);
+                                }}
+                                className="w-full px-2 py-1 bg-white border border-line rounded-xs text-xs font-semibold text-navy-900"
+                              />
+                            </div>
+
+                            <div className="col-span-2">
+                              <label className="text-[10px] uppercase font-bold text-ink-soft block mb-0.5">
+                                Credits
+                              </label>
+                              <input
+                                type="number"
+                                value={unit.credits || 0}
+                                onChange={(e) => {
+                                  const next = [...editUnits];
+                                  next[uIdx].credits = parseInt(e.target.value, 10) || 0;
+                                  setEditUnits(next);
+                                }}
+                                className="w-full px-2 py-1 bg-white border border-line rounded-xs text-xs"
+                              />
+                            </div>
+
+                            <div className="col-span-3 text-right pt-4 flex items-center justify-end gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setExpandedUnitIdx(expandedUnitIdx === uIdx ? null : uIdx)
+                                }
+                                className="px-2 py-1 text-xs font-semibold text-navy-900 hover:bg-white rounded-xs border border-line transition-colors flex items-center gap-1"
+                              >
+                                <span>{expandedUnitIdx === uIdx ? "Close Details" : "Syllabus Details"}</span>
+                                <Icon
+                                  name="chevron-down"
+                                  size={11}
+                                  className={expandedUnitIdx === uIdx ? "rotate-180" : ""}
+                                />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditUnits(editUnits.filter((_, i) => i !== uIdx));
+                                }}
+                                className="text-rose-700 hover:text-rose-900 text-xs font-semibold px-2 py-1"
+                              >
+                                ✕
+                              </button>
+                            </div>
                           </div>
 
-                          <div className="col-span-6">
-                            <label className="text-[10px] uppercase font-bold text-ink-soft block mb-0.5">
-                              Unit Title
-                            </label>
-                            <input
-                              type="text"
-                              value={unit.title}
-                              onChange={(e) => {
-                                const next = [...editUnits];
-                                next[uIdx].title = e.target.value;
-                                setEditUnits(next);
-                              }}
-                              className="w-full px-2 py-1 bg-white border border-line rounded-xs text-xs font-semibold text-navy-900"
-                            />
-                          </div>
+                          {/* Expandable Unit Learning Outcomes & Evidence */}
+                          {expandedUnitIdx === uIdx && (
+                            <div className="p-3 bg-white border border-line rounded-sm space-y-3 pt-3 animate-in fade-in duration-150">
+                              <div>
+                                <label className="block text-[10px] font-bold uppercase tracking-wider text-navy-900 mb-1">
+                                  Learning Outcomes (One bullet point per line):
+                                </label>
+                                <textarea
+                                  rows={3}
+                                  value={(unit.outcomes || unit.learningOutcomes || []).join("\n")}
+                                  onChange={(e) => {
+                                    const next = [...editUnits];
+                                    const lines = e.target.value
+                                      .split("\n")
+                                      .map((s) => s.trim())
+                                      .filter(Boolean);
+                                    next[uIdx].outcomes = lines;
+                                    next[uIdx].learningOutcomes = lines;
+                                    setEditUnits(next);
+                                  }}
+                                  placeholder="Understand legislative frameworks and statutory care standards&#10;Apply person-centred principles in direct care practice&#10;Evaluate continuous professional development logs"
+                                  className="w-full px-2.5 py-1.5 border border-line rounded-xs text-xs bg-paper focus:bg-white focus:outline-none focus:border-navy-900 leading-relaxed font-sans"
+                                />
+                              </div>
 
-                          <div className="col-span-2">
-                            <label className="text-[10px] uppercase font-bold text-ink-soft block mb-0.5">
-                              Credits
-                            </label>
-                            <input
-                              type="number"
-                              value={unit.credits || 0}
-                              onChange={(e) => {
-                                const next = [...editUnits];
-                                next[uIdx].credits = parseInt(e.target.value, 10) || 0;
-                                setEditUnits(next);
-                              }}
-                              className="w-full px-2 py-1 bg-white border border-line rounded-xs text-xs"
-                            />
-                          </div>
-
-                          <div className="col-span-2 text-right pt-4">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEditUnits(editUnits.filter((_, i) => i !== uIdx));
-                              }}
-                              className="text-rose-700 hover:text-rose-900 text-xs font-semibold px-2 py-1"
-                            >
-                              Remove
-                            </button>
-                          </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                  <label className="block text-[10px] font-bold uppercase tracking-wider text-navy-900 mb-1">
+                                    Assessment Evidence Required:
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={unit.evidence || ""}
+                                    onChange={(e) => {
+                                      const next = [...editUnits];
+                                      next[uIdx].evidence = e.target.value;
+                                      setEditUnits(next);
+                                    }}
+                                    placeholder="e.g. Workplace observation, reflective log, and supervisor witness testimony"
+                                    className="w-full px-2.5 py-1.5 border border-line rounded-xs text-xs bg-paper focus:bg-white focus:outline-none focus:border-navy-900"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-[10px] font-bold uppercase tracking-wider text-navy-900 mb-1">
+                                    Guided Learning Hours (GLH):
+                                  </label>
+                                  <input
+                                    type="number"
+                                    value={unit.guided_learning_hours || 25}
+                                    onChange={(e) => {
+                                      const next = [...editUnits];
+                                      next[uIdx].guided_learning_hours = parseInt(e.target.value, 10) || 0;
+                                      setEditUnits(next);
+                                    }}
+                                    className="w-full px-2.5 py-1.5 border border-line rounded-xs text-xs bg-paper focus:bg-white focus:outline-none focus:border-navy-900"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ))
                     )}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 4: CAREER OPPORTUNITIES & PROGRESSION */}
+              {editTab === "outcomes" && (
+                <div className="space-y-4">
+                  <div className="p-3 bg-paper rounded-sm border border-line">
+                    <h4 className="font-heading text-sm font-bold text-navy-900 mb-0.5">
+                      Career Opportunities & Educational Progression
+                    </h4>
+                    <p className="text-[11px] text-ink-soft">
+                      Configure the target employment roles and subsequent educational pathways displayed on the course prospectus page.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-xs font-semibold text-navy-900 uppercase tracking-wider">
+                      Target Roles & Careers (One role per line)
+                    </label>
+                    <textarea
+                      rows={5}
+                      value={editJobProspects.join("\n")}
+                      onChange={(e) =>
+                        setEditJobProspects(
+                          e.target.value
+                            .split("\n")
+                            .map((s) => s.trim())
+                            .filter(Boolean)
+                        )
+                      }
+                      placeholder="Senior Care Worker&#10;Care Coordinator&#10;Registered Manager&#10;Community Healthcare Assistant"
+                      className="w-full px-3 py-2 border border-line rounded-sm text-xs focus:outline-none focus:border-navy-900 bg-paper focus:bg-white leading-relaxed font-sans"
+                    />
+                    <p className="text-[10px] text-ink-soft">
+                      Displayed under the &quot;Target Roles & Careers&quot; section on the public course details page.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2 pt-2">
+                    <label className="block text-xs font-semibold text-navy-900 uppercase tracking-wider">
+                      Next Progression Routes (One route per line)
+                    </label>
+                    <textarea
+                      rows={5}
+                      value={editProgression.join("\n")}
+                      onChange={(e) =>
+                        setEditProgression(
+                          e.target.value
+                            .split("\n")
+                            .map((s) => s.trim())
+                            .filter(Boolean)
+                        )
+                      }
+                      placeholder="Level 5 Diploma in Leadership for Health and Social Care&#10;Higher National Diploma (HND) in Healthcare Practice&#10;Direct University Entry into Nursing (BSc Hons)"
+                      className="w-full px-3 py-2 border border-line rounded-sm text-xs focus:outline-none focus:border-navy-900 bg-paper focus:bg-white leading-relaxed font-sans"
+                    />
+                    <p className="text-[10px] text-ink-soft">
+                      Displayed under the &quot;Next Progression Routes&quot; section on the public course details page.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 5: ASSESSMENT SPECIFICATIONS & TUITION INCLUSIONS */}
+              {editTab === "specs" && (
+                <div className="space-y-4">
+                  <div className="p-3 bg-paper rounded-sm border border-line">
+                    <h4 className="font-heading text-sm font-bold text-navy-900 mb-0.5">
+                      Workplace Assessment Model, Header Badges & Inclusions
+                    </h4>
+                    <p className="text-[11px] text-ink-soft">
+                      Customize how tuition inclusions, workplace evidence protocols, and hero banner specifications appear to prospective students.
+                    </p>
+                  </div>
+
+                  {/* Header Spec Bar Badges */}
+                  <div className="p-3 bg-paper rounded-sm border border-line space-y-3">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-navy-900">
+                      Header Prospectus Feature Bar (Hero Spec Badges)
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-soft mb-1">
+                          Intake & Admissions Text
+                        </label>
+                        <input
+                          type="text"
+                          value={editIntakeText}
+                          onChange={(e) => setEditIntakeText(e.target.value)}
+                          placeholder="e.g. Rolling Admissions"
+                          className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-soft mb-1">
+                          Assessment Model Text
+                        </label>
+                        <input
+                          type="text"
+                          value={editAssessmentModelText}
+                          onChange={(e) => setEditAssessmentModelText(e.target.value)}
+                          placeholder="e.g. 100% Portfolio Based"
+                          className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-soft mb-1">
+                          Dedicated Support Text
+                        </label>
+                        <input
+                          type="text"
+                          value={editSupportModelText}
+                          onChange={(e) => setEditSupportModelText(e.target.value)}
+                          placeholder="e.g. Named British Assessor"
+                          className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Workplace Evidence & Observation Text */}
+                  <div className="p-3 bg-paper rounded-sm border border-line space-y-3">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-navy-900">
+                      Workplace Evidence & Observation Guide
+                    </label>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-soft mb-1">
+                          Direct Workplace Evidence Card Content
+                        </label>
+                        <textarea
+                          rows={3}
+                          value={editWorkplaceEvidenceText}
+                          onChange={(e) => setEditWorkplaceEvidenceText(e.target.value)}
+                          placeholder="You will build a professional portfolio using real workplace evidence gathered during your employment or voluntary care placement, including care plan reviews, risk assessments, and reflective accounts."
+                          className="w-full px-3 py-2 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900 leading-relaxed font-sans"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-soft mb-1">
+                          Flexible Observation Methods Card Content
+                        </label>
+                        <textarea
+                          rows={3}
+                          value={editObservationMethodsText}
+                          onChange={(e) => setEditObservationMethodsText(e.target.value)}
+                          placeholder="Workplace observations can be conducted remotely via recorded video session or in-person with a registered Expert Witness (such as your registered manager or clinical lead)."
+                          className="w-full px-3 py-2 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900 leading-relaxed font-sans"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* What is Included with Tuition Fees */}
+                  <div className="p-3 bg-paper rounded-sm border border-line space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-bold uppercase tracking-wider text-navy-900">
+                        What is Included with Tuition Fees (One perk per line)
+                      </label>
+                      <label className="flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-navy-900">
+                        <input
+                          type="checkbox"
+                          checked={editFreeTextbook}
+                          onChange={(e) => setEditFreeTextbook(e.target.checked)}
+                          className="accent-navy-900"
+                        />
+                        <span>Free Physical Printed Textbook Perk</span>
+                      </label>
+                    </div>
+
+                    <textarea
+                      rows={5}
+                      value={editTuitionIncludes.join("\n")}
+                      onChange={(e) =>
+                        setEditTuitionIncludes(
+                          e.target.value
+                            .split("\n")
+                            .map((s) => s.trim())
+                            .filter(Boolean)
+                        )
+                      }
+                      placeholder="Weekly live online evening lectures delivered via Zoom with qualified assessors&#10;24/7 access to the Smartminds Learner Portal and recorded lecture streams&#10;Dedicated named tutor providing individual written feedback within 5 working days&#10;Official awarding organisation registration fees and Ofqual certificate issuance&#10;One-to-one academic mentoring, assignment planning, and study skills guidance"
+                      className="w-full px-3 py-2 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900 leading-relaxed font-sans"
+                    />
+                    <p className="text-[10px] text-ink-soft">
+                      Learners see this checklist directly on the course details page and in the enrolment confirmation summary.
+                    </p>
                   </div>
                 </div>
               )}
@@ -1566,46 +2331,118 @@ export function CoursesManagerView({
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-navy-900 uppercase tracking-wider mb-1">
-                  Featured Course Cover Photo
-                </label>
-                <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-                  <div className="relative w-24 h-16 rounded overflow-hidden border border-line bg-gray-100 flex-shrink-0 shadow-sm">
-                    <img
-                      src={newImage || "/images/adult-care-training.jpg"}
-                      alt="Cover Preview"
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = "/images/adult-care-training.jpg";
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                    Delivery Mode
+                  </label>
+                  <select
+                    value={newDelivery}
+                    onChange={(e) => setNewDelivery(e.target.value as DeliveryMode)}
+                    className="w-full px-3 py-2 border border-line rounded-sm text-sm bg-white focus:outline-none focus:border-navy-900"
+                  >
+                    <option value="live_online">Live Online (Zoom Seminars)</option>
+                    <option value="blended">Blended Learning (Online + Clinical)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                    Custom Delivery Schedule (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Evening Zoom Classes + Weekend Assessor Mentoring"
+                    value={newCustomDeliveryText}
+                    onChange={(e) => setNewCustomDeliveryText(e.target.value)}
+                    className="w-full px-3 py-2 border border-line rounded-sm text-sm focus:outline-none focus:border-navy-900"
+                  />
+                </div>
+              </div>
+
+              {/* Featured Course Cover Photo with ImageDropzone */}
+              <div className="p-3 bg-paper rounded-sm border border-line space-y-3">
+                <div>
+                  <label className="block text-xs font-semibold text-navy-900 uppercase tracking-wider mb-0.5">
+                    Featured Course Cover Photo
+                  </label>
+                  <p className="text-[10px] text-ink-soft">
+                    Upload a high-resolution photo from your device or pick a preset.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+                  <div>
+                    <ImageDropzone
+                      value={newImage}
+                      onChange={(url: string, fileName?: string) => {
+                        setNewImage(url);
+                        const label = fileName
+                          ? `Uploaded: ${fileName}`
+                          : `Custom Image (${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })})`;
+                        setMediaLibrary((prev) => {
+                          if (prev.some((m) => m.url === url)) return prev;
+                          return [{ label, url }, ...prev];
+                        });
                       }}
+                      label="Drag & Drop Course Photo"
+                      helperText="JPG, PNG, WebP (auto-optimized)"
+                      previewHeight={85}
+                      showUrlInput={false}
                     />
                   </div>
-                  <div className="flex-1 w-full space-y-1.5">
-                    <select
-                      value={newImage}
-                      onChange={(e) => setNewImage(e.target.value)}
-                      className="w-full px-3 py-1.5 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900"
-                    >
-                      <option value="/images/adult-care-training.jpg">Healthcare & Adult Care (Default)</option>
-                      <option value="/images/early-years-training.jpg">Childcare & Early Years</option>
-                      <option value="/images/teacher-training.jpg">Teacher Training & Education</option>
-                      <option value="/images/tutor-teaching.jpg">Vocational Assessor & Tutoring</option>
-                      <option value="/images/certificate-moment.jpg">Accredited Certificate / Graduation</option>
-                      <option value="/images/hero-learner.jpg">Online Distance Learner</option>
-                    </select>
-                    <input
-                      type="text"
-                      placeholder="Or enter custom image URL / path (e.g. /images/...)"
-                      value={newImage}
-                      onChange={(e) => setNewImage(e.target.value)}
-                      className="w-full px-3 py-1.5 border border-line rounded-sm text-xs focus:outline-none focus:border-navy-900 font-mono"
-                    />
+                  <div className="space-y-2">
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-soft mb-0.5">
+                        Select from College Library
+                      </label>
+                      <select
+                        value={newImage}
+                        onChange={(e) => setNewImage(e.target.value)}
+                        className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900"
+                      >
+                        {mediaLibrary.map((item, idx) => (
+                          <option key={idx} value={item.url}>
+                            {item.label}
+                          </option>
+                        ))}
+                        {!mediaLibrary.some((m) => m.url === newImage) && (
+                          <option value={newImage}>
+                            Custom Photo ({newImage.startsWith("data:") ? "Uploaded image" : newImage.slice(0, 24)}...)
+                          </option>
+                        )}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-soft mb-0.5">
+                        Or Enter Photo URL / Path
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="/images/adult-care-training.jpg"
+                        value={newImage}
+                        onChange={(e) => setNewImage(e.target.value)}
+                        className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs focus:outline-none focus:border-navy-900 font-mono bg-white"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {/* Course Intro Video URL */}
+              <div>
+                <label className="block text-xs font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                  Course Intro Video URL (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="https://www.youtube.com/watch?v=... or https://vimeo.com/..."
+                  value={newIntroVideoUrl}
+                  onChange={(e) => setNewIntroVideoUrl(e.target.value)}
+                  className="w-full px-3 py-2 border border-line rounded-sm text-sm focus:outline-none focus:border-navy-900 font-mono"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-navy-900 uppercase tracking-wider mb-1">
                     Level
@@ -1619,13 +2456,25 @@ export function CoursesManagerView({
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                    Regular (£)
+                  </label>
+                  <input
+                    type="number"
+                    value={newRegularPrice}
+                    onChange={(e) => setNewRegularPrice(e.target.value)}
+                    placeholder="e.g. 1650"
+                    className="w-full px-3 py-2 border border-line rounded-sm text-sm focus:outline-none focus:border-navy-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-navy-900 uppercase tracking-wider mb-1">
                     Tuition (£)
                   </label>
                   <input
                     type="number"
                     value={newPrice}
                     onChange={(e) => setNewPrice(e.target.value)}
-                    className="w-full px-3 py-2 border border-line rounded-sm text-sm focus:outline-none focus:border-navy-900"
+                    className="w-full px-3 py-2 border border-line rounded-sm text-sm focus:outline-none focus:border-navy-900 font-bold"
                   />
                 </div>
                 <div>

@@ -51,7 +51,9 @@ export type IconName =
   | "undo"
   | "redo"
   | "play"
-  | "pause";
+  | "pause"
+  | "map-pin"
+  | "globe";
 
 export interface IconProps extends React.SVGAttributes<SVGElement> {
   name: IconName;
@@ -888,6 +890,37 @@ export const Icon: React.FC<IconProps> = ({
           <>
             <rect x="6" y="4" width="4" height="16" fill="currentColor" stroke="none" />
             <rect x="14" y="4" width="4" height="16" fill="currentColor" stroke="none" />
+          </>
+        );
+
+      case "map-pin":
+        return (
+          <>
+            <path
+              d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <circle
+              cx="12"
+              cy="10"
+              r="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </>
+        );
+
+      case "globe":
+        return (
+          <>
+            <circle cx="12" cy="12" r="10" strokeLinecap="round" strokeLinejoin="round" />
+            <line x1="2" y1="12" x2="22" y2="12" strokeLinecap="round" strokeLinejoin="round" />
+            <path
+              d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </>
         );
 

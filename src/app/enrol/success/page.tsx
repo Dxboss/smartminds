@@ -2,7 +2,6 @@ import { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
-import { courses } from "@/content/courses";
 import { processSelfEnrolmentAction } from "@/app/actions/enrolmentActions";
 import { Icon } from "@/components/ui/Icon";
 import { formatCurrency } from "@/content/pricing";

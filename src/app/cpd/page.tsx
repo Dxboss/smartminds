@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import { courses, formatCurrency } from "@/content";
+import { formatCurrency } from "@/content";
+import { getLiveCourses } from "@/lib/persistedData";
 import { Container } from "@/components/ui/Container";
 import { Heading } from "@/components/ui/Heading";
 import { Eyebrow } from "@/components/ui/Eyebrow";
@@ -25,7 +26,8 @@ export const metadata: Metadata = {
 };
 
 export default function CPDPage() {
-  const cpdCourses = courses.filter((c) => c.type === "cpd" && c.published);
+  const allCourses = getLiveCourses();
+  const cpdCourses = allCourses.filter((c) => c.type === "cpd" && c.published);
 
   return (
     <main className="bg-paper min-h-screen py-10 md:py-16">

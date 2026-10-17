@@ -213,3 +213,14 @@ export async function createPublicBookingAction(input: CreateBookingInput) {
     meetingLink,
   };
 }
+
+export async function getPublicCourseOptionsAction(): Promise<
+  { id: string; title: string; published: boolean }[]
+> {
+  const { getLiveCourses } = await import("@/lib/persistedData");
+  return getLiveCourses().map((c) => ({
+    id: c.id,
+    title: c.title,
+    published: c.published,
+  }));
+}

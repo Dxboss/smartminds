@@ -1,5 +1,6 @@
 import { MetadataRoute } from "next";
-import { courses } from "@/content";
+import { blogPosts } from "@/content";
+import { getLiveCourses } from "@/lib/persistedData";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = "https://smartmindstraining.co.uk";
@@ -18,6 +19,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: currentDate,
       changeFrequency: "weekly",
       priority: 0.9,
+    },
+    {
+      url: `${baseUrl}/blog`,
+      lastModified: currentDate,
+      changeFrequency: "weekly",
+      priority: 0.85,
     },
     {
       url: `${baseUrl}/funding`,
@@ -82,7 +89,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   ];
 
   // Dynamic published course routes
-  const courseRoutes: MetadataRoute.Sitemap = courses
+  const courseRoutes: MetadataRoute.Sitemap = getLiveCourses()
     .filter((c) => c.published)
     .map((course) => ({
       url: `${baseUrl}/courses/${course.slug}`,
@@ -91,5 +98,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.85,
     }));
 
-  return [...staticRoutes, ...courseRoutes];
+  // Dynamic published blog / career guidance article routes
+  const blogRoutes: MetadataRoute.Sitemap = blogPosts.map((post) => ({
+    url: `${baseUrl}/blog/${post.slug}`,
+    lastModified: new Date(post.updatedAt || post.publishedAt),
+    changeFrequency: "monthly",
+    priority: 0.8,
+  }));
+
+  return [...staticRoutes, ...courseRoutes, ...blogRoutes];
 }

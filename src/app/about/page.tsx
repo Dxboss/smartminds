@@ -7,7 +7,7 @@ import { Eyebrow } from "@/components/ui/Eyebrow";
 import { Tag } from "@/components/ui/Tag";
 import { Icon } from "@/components/ui/Icon";
 import { Button } from "@/components/ui/Button";
-import { collegePagesData } from "@/lib/repositories/seedData";
+import { getPublishedCmsPageSections } from "@/lib/persistedData";
 import { SectionRenderer } from "@/components/cms/SectionRenderer";
 
 export const metadata: Metadata = {
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
 };
 
 export default function AboutPage() {
-  const customSections = collegePagesData["/about"];
+  const customSections = getPublishedCmsPageSections("/about");
   if (customSections && customSections.length > 0) {
     return (
       <main className="bg-paper text-ink min-h-screen">

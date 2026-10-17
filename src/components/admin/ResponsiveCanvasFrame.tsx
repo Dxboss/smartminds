@@ -88,6 +88,27 @@ export const ResponsiveCanvasFrame: React.FC<ResponsiveCanvasFrameProps> = ({
     }
   }, [syncStyles]);
 
+  // Intercept all link clicks and form submissions inside the live preview iframe
+  useEffect(() => {
+    const iframe = iframeRef.current;
+    if (!iframe?.contentDocument) return;
+    const doc = iframe.contentDocument;
+
+    const handleInterceptNavigation = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      const clickable = target?.closest("a, button");
+      if (clickable) {
+        // Prevent default browser URL navigation, target="_blank" new tabs, or form submissions
+        e.preventDefault();
+      }
+    };
+
+    doc.addEventListener("click", handleInterceptNavigation, true);
+    return () => {
+      doc.removeEventListener("click", handleInterceptNavigation, true);
+    };
+  }, [mountNode]);
+
   // Reset custom width when switching viewports
   useEffect(() => {
     setCustomWidth(null);

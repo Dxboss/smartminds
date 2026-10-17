@@ -1,6 +1,6 @@
 export type CourseType = "regulated" | "cpd" | "tutoring";
 
-export type DeliveryMode = "live_online" | "blended";
+export type DeliveryMode = "live_online" | "blended" | "self_paced";
 
 export type StartMode = "rolling" | "fixed";
 
@@ -17,6 +17,9 @@ export interface Unit {
   title: string;
   credits?: number;
   learningOutcomes?: string[];
+  outcomes?: string[];
+  evidence?: string;
+  guided_learning_hours?: number;
   mandatory?: boolean;
 }
 
@@ -38,7 +41,8 @@ export interface PaymentPlanTemplate {
 export interface CourseLevel {
   course_id: string;
   level_label: string; // e.g. "Level 2", "Level 3", "KS3", "GCSE"
-  price_gbp: number;
+  price_gbp: number; // Selling price (actual payable price)
+  regular_price_gbp?: number | null; // Regular / RRP price (slashed / strikethrough price)
   full_pay_discount_percent: number | null; // null uses global default (e.g. 10%)
   duration_text: string;
   guided_learning_hours: number;
@@ -64,6 +68,18 @@ export interface Course {
   funding: FundingType;
   funding_notes?: string;
   intro_video_url: string | null;
+  intro_video_poster?: string | null;
+  custom_delivery_text?: string;
+  training_locations?: string[];
+  is_private_tutoring?: boolean;
+  session_duration_info?: string;
+  attendance_type?: "online_only" | "blended_practical";
+  workplace_evidence_text?: string;
+  observation_methods_text?: string;
+  tuition_includes?: string[];
+  intake_text?: string;
+  assessment_model_text?: string;
+  support_model_text?: string;
   free_textbook: boolean;
   faqs: FAQ[];
   job_prospects: string[];

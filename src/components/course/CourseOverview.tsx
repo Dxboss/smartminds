@@ -113,7 +113,8 @@ export const CourseOverview: React.FC<CourseOverviewProps> = ({
               Direct Workplace Evidence:
             </strong>
             <p className="text-ink-soft leading-relaxed text-[11px]">
-              You will build a professional portfolio using real workplace evidence gathered during your employment or voluntary care placement, including care plan reviews, risk assessments, and reflective accounts.
+              {course.workplace_evidence_text ||
+                "You will build a professional portfolio using real workplace evidence gathered during your employment or voluntary care placement, including care plan reviews, risk assessments, and reflective accounts."}
             </p>
           </div>
 
@@ -122,7 +123,8 @@ export const CourseOverview: React.FC<CourseOverviewProps> = ({
               Flexible Observation Methods:
             </strong>
             <p className="text-ink-soft leading-relaxed text-[11px]">
-              Workplace observations can be conducted remotely via recorded video session or in-person with a registered Expert Witness (such as your registered manager or clinical lead).
+              {course.observation_methods_text ||
+                "Workplace observations can be conducted remotely via recorded video session or in-person with a registered Expert Witness (such as your registered manager or clinical lead)."}
             </p>
           </div>
         </div>
@@ -142,41 +144,25 @@ export const CourseOverview: React.FC<CourseOverviewProps> = ({
         </Heading>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-ink">
-          <div className="flex items-start gap-2.5">
-            <Icon
-              name="check"
-              size={15}
-              className="text-navy-900 mt-0.5 shrink-0"
-            />
-            <span>Weekly live online evening lectures delivered via Zoom with qualified assessors</span>
-          </div>
-
-          <div className="flex items-start gap-2.5">
-            <Icon
-              name="check"
-              size={15}
-              className="text-navy-900 mt-0.5 shrink-0"
-            />
-            <span>24/7 access to the Smartminds Learner Portal and recorded lecture streams</span>
-          </div>
-
-          <div className="flex items-start gap-2.5">
-            <Icon
-              name="check"
-              size={15}
-              className="text-navy-900 mt-0.5 shrink-0"
-            />
-            <span>Dedicated named tutor providing individual written feedback within 5 working days</span>
-          </div>
-
-          <div className="flex items-start gap-2.5">
-            <Icon
-              name="check"
-              size={15}
-              className="text-navy-900 mt-0.5 shrink-0"
-            />
-            <span>Official awarding organisation registration fees and Ofqual certificate issuance</span>
-          </div>
+          {(course.tuition_includes && course.tuition_includes.length > 0
+            ? course.tuition_includes
+            : [
+                "Weekly live online evening lectures delivered via Zoom with qualified assessors",
+                "24/7 access to the Smartminds Learner Portal and recorded lecture streams",
+                "Dedicated named tutor providing individual written feedback within 5 working days",
+                "Official awarding organisation registration fees and Ofqual certificate issuance",
+                "One-to-one academic mentoring, assignment planning, and study skills guidance",
+              ]
+          ).map((item, idx) => (
+            <div key={idx} className="flex items-start gap-2.5">
+              <Icon
+                name="check"
+                size={15}
+                className="text-navy-900 mt-0.5 shrink-0"
+              />
+              <span>{item}</span>
+            </div>
+          ))}
 
           {course.free_textbook && (
             <div className="flex items-start gap-2.5">
@@ -190,15 +176,6 @@ export const CourseOverview: React.FC<CourseOverviewProps> = ({
               </span>
             </div>
           )}
-
-          <div className="flex items-start gap-2.5">
-            <Icon
-              name="check"
-              size={15}
-              className="text-navy-900 mt-0.5 shrink-0"
-            />
-            <span>One-to-one academic mentoring, assignment planning, and study skills guidance</span>
-          </div>
         </div>
       </section>
     </div>

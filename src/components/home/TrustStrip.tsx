@@ -7,15 +7,19 @@ import {
   AccreditationBadgeRow,
   AccreditationBadgeItem,
 } from "@/components/accreditation/AccreditationLogos";
+import { resolveSectionBg, SectionBgColor } from "@/components/ui/sectionBg";
+import { EditableElementWrapper } from "@/components/admin/EditableElementWrapper";
 
 export interface TrustStripProps {
   headline?: string;
   subheadline?: string;
   items?: AccreditationBadgeItem[];
-  bgColor?: "white" | "paper" | "navy" | "cream";
+  bgColor?: SectionBgColor;
   columnRatio?: "50-50" | "60-40" | "70-30" | "40-60" | "33-67";
   mediaPosition?: "left" | "right";
   isEditor?: boolean;
+  selectedElementKey?: string | null;
+  selectedElementItemIndex?: number | null;
   onSelectElement?: (
     elementKey:
       | "headline"
@@ -38,10 +42,12 @@ export const TrustStrip: React.FC<TrustStripProps> = ({
   columnRatio = "60-40",
   mediaPosition = "right",
   isEditor,
+  selectedElementKey,
+  selectedElementItemIndex,
   onSelectElement,
 }) => {
   const isImageLeft = mediaPosition === "left";
-  const isDark = bgColor === "navy";
+  const { bgClass, isDark, style: bgStyle } = resolveSectionBg(bgColor, "white");
 
   const getColSpans = (ratio?: string) => {
     switch (ratio) {
@@ -61,38 +67,23 @@ export const TrustStrip: React.FC<TrustStripProps> = ({
 
   const { reviews: reviewsColSpan, badges: badgesColSpan } = getColSpans(columnRatio);
 
-  const bgClass =
-    bgColor === "paper"
-      ? "bg-paper border-b border-line"
-      : bgColor === "navy"
-      ? "bg-navy-900 text-white border-b border-navy-800"
-      : bgColor === "cream"
-      ? "bg-gold-50/70 border-b border-gold-200"
-      : "bg-white border-b border-line";
-
   return (
     <section
       aria-label="Accreditations and Learner Reviews"
-      className={`${bgClass} py-8 shadow-subtle relative z-20`}
+      style={bgStyle}
+      className={`${bgClass} py-8 shadow-subtle relative z-20 border-b border-line`}
     >
       <Container>
         <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
           {/* Reviews Rating & Real Learner Photos */}
-          <div
-            onClick={(e) => {
-              if (isEditor && onSelectElement) {
-                e.stopPropagation();
-                onSelectElement("badge");
-              }
-            }}
-            className={`${reviewsColSpan} ${
-              isImageLeft ? "md:order-2" : "md:order-1"
-            } flex items-center gap-4 ${
-              isEditor
-                ? "cursor-pointer group relative hover:outline hover:outline-dashed hover:outline-2 hover:outline-gold-500 p-2 -m-2 rounded-sm"
-                : ""
-            }`}
-          >
+          <div className={`${reviewsColSpan} ${isImageLeft ? "md:order-2" : "md:order-1"}`}>
+            <EditableElementWrapper
+              isEditor={isEditor}
+              isSelected={isEditor && selectedElementKey === "badge"}
+              label="Reviews & Rating"
+              onClick={() => onSelectElement?.("badge")}
+              className="flex items-center gap-4 p-2 -m-2 rounded-sm"
+            >
             {/* 3 overlapping real student/tutor circular photos */}
             <div className="flex -space-x-3 flex-shrink-0" aria-hidden="true">
               <div className="relative w-11 h-11 rounded-full overflow-hidden border-2 border-white shadow-sm bg-line">
@@ -148,11 +139,7 @@ export const TrustStrip: React.FC<TrustStripProps> = ({
               </p>
             </div>
 
-            {isEditor && (
-              <span className="hidden group-hover:inline-flex absolute -top-4 left-2 z-30 px-1 py-0.5 rounded-xs bg-navy-900 text-gold-300 text-[8px] font-bold shadow-xs whitespace-nowrap">
-                Reviews & Rating ✎
-              </span>
-            )}
+            </EditableElementWrapper>
           </div>
 
           {/* Vertical Divider on Desktop */}

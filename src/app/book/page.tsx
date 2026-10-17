@@ -4,6 +4,7 @@ import { Heading } from "@/components/ui/Heading";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 import { Tag } from "@/components/ui/Tag";
 import { NativeScheduler } from "@/components/booking/NativeScheduler";
+import { getLiveCourses } from "@/lib/persistedData";
 
 export const metadata: Metadata = {
   title: "Book Free Course Advice Call | Smartminds Training College",
@@ -18,6 +19,12 @@ export const metadata: Metadata = {
 };
 
 export default function BookPage() {
+  const liveCourses = getLiveCourses().map((c) => ({
+    id: c.id,
+    title: c.title,
+    published: c.published,
+  }));
+
   return (
     <main className="bg-paper py-12 md:py-20 min-h-screen">
       <Container>
@@ -46,7 +53,7 @@ export default function BookPage() {
 
           {/* College Consultation Scheduler Card */}
           <div className="bg-white rounded-lg border border-line p-6 sm:p-8 shadow-subtle">
-            <NativeScheduler />
+            <NativeScheduler coursesList={liveCourses} />
           </div>
 
           {/* Consultation Reassurance */}

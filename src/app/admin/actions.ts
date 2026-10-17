@@ -19,6 +19,7 @@ import { EnquiryStage, CohortScheduleConfig } from "@/lib/repositories/types";
 import { revalidatePath } from "next/cache";
 import { sendEmail } from "@/lib/email";
 import { buildBookingReminderEmail } from "@/lib/emailTemplates";
+import type { BlogPost } from "@/content/blog";
 
 const isTestEnv = process.env.NODE_ENV === "test";
 
@@ -1144,7 +1145,8 @@ export async function updateCoursePricingAction(
   levelIndex: number,
   newPriceGbp: number,
   depositGbp?: number,
-  fullPayDiscountPercent?: number | null
+  fullPayDiscountPercent?: number | null,
+  regularPriceGbp?: number | null
 ) {
   const session = await getServerSession();
   assertOwnerAuthorized(session);
@@ -1156,6 +1158,9 @@ export async function updateCoursePricingAction(
 
   if (course.levels && course.levels[levelIndex]) {
     course.levels[levelIndex].price_gbp = newPriceGbp;
+    if (regularPriceGbp !== undefined) {
+      course.levels[levelIndex].regular_price_gbp = regularPriceGbp;
+    }
     if (fullPayDiscountPercent !== undefined) {
       course.levels[levelIndex].full_pay_discount_percent = fullPayDiscountPercent;
     }
@@ -1166,10 +1171,16 @@ export async function updateCoursePricingAction(
 
   const updated = await repo.updateCourse(session!, course);
 
-  revalidatePath("/admin/courses");
-  revalidatePath("/courses");
-  revalidatePath(`/courses/${course.slug}`);
-  revalidatePath("/enrol");
+  try {
+    revalidatePath("/admin/courses");
+    revalidatePath("/courses");
+    revalidatePath(`/courses/${course.slug}`);
+    revalidatePath("/enrol");
+    revalidatePath("/");
+    revalidatePath("/admin/cms");
+    revalidatePath("/cpd");
+    revalidatePath("/book");
+  } catch {}
   return { success: true, course: updated };
 }
 
@@ -1207,6 +1218,11 @@ export async function updateCourseDetailsAction(
     if (merged.slug && merged.slug !== existing.slug) {
       revalidatePath(`/courses/${merged.slug}`);
     }
+    revalidatePath("/enrol");
+    revalidatePath("/");
+    revalidatePath("/admin/cms");
+    revalidatePath("/cpd");
+    revalidatePath("/book");
   } catch {}
   return { success: true, course: updated };
 }
@@ -1305,8 +1321,15 @@ export async function createCourseAction(courseData: any) {
   const repo = getCourseRepo();
   const created = await repo.createCourse(session!, courseData);
 
-  revalidatePath("/admin/courses");
-  revalidatePath("/courses");
+  try {
+    revalidatePath("/admin/courses");
+    revalidatePath("/courses");
+    revalidatePath("/");
+    revalidatePath("/admin/cms");
+    revalidatePath("/cpd");
+    revalidatePath("/book");
+    revalidatePath("/enrol");
+  } catch {}
   return { success: true, course: created };
 }
 
@@ -1318,8 +1341,15 @@ export async function deleteCourseAction(courseId: string) {
   const repo = getCourseRepo();
   const deleted = await repo.deleteCourse(session!, courseId);
 
-  revalidatePath("/admin/courses");
-  revalidatePath("/courses");
+  try {
+    revalidatePath("/admin/courses");
+    revalidatePath("/courses");
+    revalidatePath("/");
+    revalidatePath("/admin/cms");
+    revalidatePath("/cpd");
+    revalidatePath("/book");
+    revalidatePath("/enrol");
+  } catch {}
   return { success: true, deleted };
 }
 
@@ -1602,7 +1632,18 @@ export async function saveVisualBuilderSectionsAction(
   footerConfig?: any
 ) {
   const session = await getServerSession();
-  assertOwnerAuthorized(session);
+  if (
+    !isTestEnv &&
+    (!session ||
+      (session.role !== "owner_admin" && session.role !== "super_admin"))
+  ) {
+    return {
+      success: false,
+      unauthorized: true,
+      sessionExpired: !session,
+      error: "Unauthorized: Director/Owner privileges required.",
+    };
+  }
 
   const { collegePageBuilderSections, collegePagesData, defaultHeaderNavConfig, defaultFooterConfig } = await import(
     "@/lib/repositories/seedData"
@@ -1649,13 +1690,72 @@ export async function saveVisualBuilderSectionsAction(
   return { success: true, pagePath, sections };
 }
 
+export async function saveVisualBuilderDraftAction(
+  pagePath: string,
+  sections: any[]
+) {
+  const session = await getServerSession();
+  if (
+    !isTestEnv &&
+    (!session ||
+      (session.role !== "owner_admin" && session.role !== "super_admin"))
+  ) {
+    return {
+      success: false,
+      unauthorized: true,
+      sessionExpired: !session,
+      error: "Unauthorized: Director/Owner privileges required.",
+    };
+  }
+
+  const { savePersistedCmsDraft } = await import("@/lib/persistedData");
+  const result = savePersistedCmsDraft(pagePath, sections);
+  return { success: result.success, updatedAt: result.updatedAt };
+}
+
+export async function discardVisualBuilderDraftAction(pagePath: string) {
+  const session = await getServerSession();
+  if (
+    !isTestEnv &&
+    (!session ||
+      (session.role !== "owner_admin" && session.role !== "super_admin"))
+  ) {
+    return {
+      success: false,
+      unauthorized: true,
+      sessionExpired: !session,
+      error: "Unauthorized: Director/Owner privileges required.",
+    };
+  }
+
+  const { discardPersistedCmsDraft, loadPersistedRecords } = await import(
+    "@/lib/persistedData"
+  );
+  discardPersistedCmsDraft(pagePath);
+  const store = loadPersistedRecords();
+  const publishedSections = store.cmsPagesData?.[pagePath] || null;
+
+  return { success: true, publishedSections };
+}
+
 export async function createNewPageAction(
   page: { id: string; path: string; name: string },
   sections: any[],
   addToMenu?: boolean
 ) {
   const session = await getServerSession();
-  assertOwnerAuthorized(session);
+  if (
+    !isTestEnv &&
+    (!session ||
+      (session.role !== "owner_admin" && session.role !== "super_admin"))
+  ) {
+    return {
+      success: false,
+      unauthorized: true,
+      sessionExpired: !session,
+      error: "Unauthorized: Director/Owner privileges required.",
+    };
+  }
 
   const { collegePagesData, defaultHeaderNavConfig } = await import(
     "@/lib/repositories/seedData"
@@ -1682,10 +1782,24 @@ export async function createNewPageAction(
 
 export async function deletePageAction(pagePath: string) {
   const session = await getServerSession();
-  assertOwnerAuthorized(session);
+  if (
+    !isTestEnv &&
+    (!session ||
+      (session.role !== "owner_admin" && session.role !== "super_admin"))
+  ) {
+    return {
+      success: false,
+      unauthorized: true,
+      sessionExpired: !session,
+      error: "Unauthorized: Director/Owner privileges required.",
+    };
+  }
 
   if (pagePath === "/" || pagePath === "/courses") {
-    throw new Error("System pages cannot be deleted.");
+    return {
+      success: false,
+      error: "System pages cannot be deleted.",
+    };
   }
 
   const { collegePagesData, defaultHeaderNavConfig } = await import(
@@ -1694,6 +1808,9 @@ export async function deletePageAction(pagePath: string) {
   if (collegePagesData) {
     delete collegePagesData[pagePath];
   }
+  const { deletePersistedCmsPage } = await import("@/lib/persistedData");
+  deletePersistedCmsPage(pagePath);
+
   if (defaultHeaderNavConfig) {
     defaultHeaderNavConfig.navLinks = defaultHeaderNavConfig.navLinks.filter(
       (l) => l.href !== pagePath
@@ -1706,7 +1823,18 @@ export async function deletePageAction(pagePath: string) {
 
 export async function saveHeaderNavConfigAction(config: any) {
   const session = await getServerSession();
-  assertOwnerAuthorized(session);
+  if (
+    !isTestEnv &&
+    (!session ||
+      (session.role !== "owner_admin" && session.role !== "super_admin"))
+  ) {
+    return {
+      success: false,
+      unauthorized: true,
+      sessionExpired: !session,
+      error: "Unauthorized: Director/Owner privileges required.",
+    };
+  }
 
   const { defaultHeaderNavConfig, defaultFooterConfig } = await import(
     "@/lib/repositories/seedData"
@@ -1748,7 +1876,18 @@ export async function saveHeaderNavConfigAction(config: any) {
 
 export async function saveFooterConfigAction(config: any) {
   const session = await getServerSession();
-  assertOwnerAuthorized(session);
+  if (
+    !isTestEnv &&
+    (!session ||
+      (session.role !== "owner_admin" && session.role !== "super_admin"))
+  ) {
+    return {
+      success: false,
+      unauthorized: true,
+      sessionExpired: !session,
+      error: "Unauthorized: Director/Owner privileges required.",
+    };
+  }
 
   const { defaultFooterConfig } = await import(
     "@/lib/repositories/seedData"
@@ -2058,4 +2197,41 @@ export async function queryBankTransferAction(data: {
   } catch {}
 
   return { success: true, item: updatedItem };
+}
+
+export async function saveBlogPostAction(post: BlogPost) {
+  const session = await getServerSession();
+  if (!session) throw new Error("Unauthorized");
+  assertOwnerAuthorized(session);
+
+  const { savePersistedBlogPost } = await import("@/lib/persistedData");
+  savePersistedBlogPost(post);
+
+  try {
+    revalidatePath("/blog");
+    if (post.slug) {
+      revalidatePath(`/blog/${post.slug}`);
+    }
+    revalidatePath("/admin/blog");
+    revalidatePath("/");
+  } catch {}
+
+  return { success: true, post };
+}
+
+export async function deleteBlogPostAction(postId: string) {
+  const session = await getServerSession();
+  if (!session) throw new Error("Unauthorized");
+  assertOwnerAuthorized(session);
+
+  const { deletePersistedBlogPost } = await import("@/lib/persistedData");
+  deletePersistedBlogPost(postId);
+
+  try {
+    revalidatePath("/blog");
+    revalidatePath("/admin/blog");
+    revalidatePath("/");
+  } catch {}
+
+  return { success: true };
 }

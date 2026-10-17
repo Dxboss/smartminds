@@ -15,6 +15,16 @@ export const instant = false;
 export const metadata: Metadata = {
   title: "Student Portal | Smartminds Training College",
   description: "Learner study console, course units, live class timetable, and assignments.",
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: {
+      index: false,
+      follow: false,
+      noimageindex: true,
+    },
+  },
 };
 
 const NAV_LINKS = [

@@ -1,12 +1,14 @@
 import React from "react";
+import { resolveSectionBg, SectionBgColor } from "./sectionBg";
 
-export type SectionVariant = "paper" | "white" | "navy" | "cream";
+export type SectionVariant = SectionBgColor;
 
 export interface SectionProps extends React.HTMLAttributes<HTMLElement> {
   variant?: SectionVariant;
   children: React.ReactNode;
   className?: string;
   id?: string;
+  style?: React.CSSProperties;
 }
 
 export const Section: React.FC<SectionProps> = ({
@@ -14,20 +16,17 @@ export const Section: React.FC<SectionProps> = ({
   children,
   className = "",
   id,
+  style,
   ...props
 }) => {
-  const variantClasses = {
-    paper: "bg-paper text-ink",
-    white: "bg-white text-ink",
-    navy: "bg-navy-900 text-white",
-    cream: "bg-gold-50/70 text-ink",
-  }[variant];
+  const { bgClass, style: resolvedStyle } = resolveSectionBg(variant, "paper");
 
   // 64px mobile (py-16 = 4rem = 64px), 96px desktop (md:py-24 = 6rem = 96px)
   return (
     <section
       id={id}
-      className={`relative py-16 md:py-24 ${variantClasses} ${className}`.trim()}
+      style={{ ...resolvedStyle, ...style }}
+      className={`relative py-16 md:py-24 ${bgClass} ${className}`.trim()}
       {...props}
     >
       {children}

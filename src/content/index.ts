@@ -4,3 +4,4 @@ export * from "./plans";
 export * from "./pricing";
 export * from "./courses";
 export * from "./siteConfig";
+export * from "./blog";

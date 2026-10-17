@@ -8,6 +8,8 @@ import { Heading } from "@/components/ui/Heading";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 import { Icon } from "@/components/ui/Icon";
 import { BookingCTAButton } from "@/components/booking/BookingCTAButton";
+import { resolveSectionBg, SectionBgColor } from "@/components/ui/sectionBg";
+import { EditableElementWrapper } from "@/components/admin/EditableElementWrapper";
 
 interface FAQItem {
   question: string;
@@ -71,9 +73,11 @@ export interface HomeFAQProps {
   headline?: string;
   subheadline?: string;
   items?: { title: string; desc?: string; tag?: string }[];
-  bgColor?: "white" | "paper" | "navy" | "cream";
+  bgColor?: SectionBgColor;
   columns?: 2 | 3 | 4;
   isEditor?: boolean;
+  selectedElementKey?: string | null;
+  selectedElementItemIndex?: number | null;
   onSelectElement?: (
     elementKey:
       | "headline"
@@ -95,10 +99,12 @@ export const HomeFAQ: React.FC<HomeFAQProps> = ({
   bgColor = "white",
   columns = 4,
   isEditor,
+  selectedElementKey,
+  selectedElementItemIndex,
   onSelectElement,
 }) => {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
-  const isDark = bgColor === "navy";
+  const { isDark } = resolveSectionBg(bgColor, "white");
 
   const toggleIndex = (index: number) => {
     setOpenIndex((prev) => (prev === index ? null : index));
@@ -121,50 +127,28 @@ export const HomeFAQ: React.FC<HomeFAQProps> = ({
           <Eyebrow tone={isDark ? "gold" : "navy"} className="mb-2">
             Frequently Asked Questions
           </Eyebrow>
-          <div
-            onClick={(e) => {
-              if (isEditor && onSelectElement) {
-                e.stopPropagation();
-                onSelectElement("headline");
-              }
-            }}
-            className={
-              isEditor
-                ? "cursor-pointer group/h relative hover:outline hover:outline-dashed hover:outline-2 hover:outline-gold-500 rounded-sm inline-block"
-                : ""
-            }
+          <EditableElementWrapper
+            isEditor={isEditor}
+            isSelected={isEditor && selectedElementKey === "headline"}
+            label="FAQ Headline"
+            onClick={() => onSelectElement?.("headline")}
+            className="mb-3"
           >
             <Heading level="h2" className={`mb-3 ${isDark ? "text-white" : "text-navy-900"}`}>
               {headline}
             </Heading>
-            {isEditor && (
-              <span className="hidden group-hover/h:inline-flex absolute -top-4 right-0 z-30 px-1 py-0.5 rounded-xs bg-navy-900 text-gold-300 text-[8px] font-bold shadow-xs whitespace-nowrap">
-                FAQ Title ✎
-              </span>
-            )}
-          </div>
-          <div
-            onClick={(e) => {
-              if (isEditor && onSelectElement) {
-                e.stopPropagation();
-                onSelectElement("subheadline");
-              }
-            }}
-            className={
-              isEditor
-                ? "cursor-pointer group/sh relative hover:outline hover:outline-dashed hover:outline-2 hover:outline-gold-500 rounded-sm inline-block"
-                : ""
-            }
+          </EditableElementWrapper>
+
+          <EditableElementWrapper
+            isEditor={isEditor}
+            isSelected={isEditor && selectedElementKey === "subheadline"}
+            label="FAQ Subtitle"
+            onClick={() => onSelectElement?.("subheadline")}
           >
             <p className={`text-base sm:text-lg leading-relaxed ${isDark ? "text-paper/85" : "text-ink-soft"}`}>
               {subheadline}
             </p>
-            {isEditor && (
-              <span className="hidden group-hover/sh:inline-flex absolute -top-4 right-0 z-30 px-1 py-0.5 rounded-xs bg-navy-900 text-gold-300 text-[8px] font-bold shadow-xs whitespace-nowrap">
-                FAQ Subtitle ✎
-              </span>
-            )}
-          </div>
+          </EditableElementWrapper>
         </div>
 
         {/* Dynamic Accordion List (supports 1, 2, or 3 columns) */}

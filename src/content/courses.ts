@@ -4,6 +4,9 @@ import {
   defaultPlan6Months,
   defaultPlan10Months,
   defaultPlan12Months,
+  defaultPlan14Months,
+  standardPaymentPlans,
+  level5PaymentPlans,
 } from "./plans";
 
 export const courses: Course[] = [
@@ -63,8 +66,9 @@ export const courses: Course[] = [
       {
         course_id: "course-adult-care",
         level_label: "Level 2",
-        price_gbp: 750,
-        full_pay_discount_percent: 10,
+        price_gbp: 850,
+        regular_price_gbp: 995,
+        full_pay_discount_percent: 5,
         duration_text: "4 – 6 months",
         guided_learning_hours: 280,
         entry_requirements: [
@@ -94,12 +98,13 @@ export const courses: Course[] = [
             credits: 3,
           },
         ],
-        plans: [defaultPlan3Months, defaultPlan6Months],
+        plans: standardPaymentPlans,
       },
       {
         course_id: "course-adult-care",
         level_label: "Level 3",
         price_gbp: 1400,
+        regular_price_gbp: 1750,
         full_pay_discount_percent: 10,
         duration_text: "6 – 12 months",
         guided_learning_hours: 580,
@@ -140,26 +145,15 @@ export const courses: Course[] = [
             credits: 4,
           },
         ],
-        plans: [
-          {
-            id: "plan-ac-12m",
-            name: "Spread over 12 Months (0% Interest)",
-            months: 12,
-            deposit_type: "fixed",
-            deposit_value: 200,
-            grace_days: 7,
-            after_grace: "pause_access",
-          },
-          defaultPlan3Months,
-          defaultPlan6Months,
-        ],
+        plans: standardPaymentPlans,
       },
       {
         course_id: "course-adult-care",
         level_label: "Level 5",
-        price_gbp: 1750,
-        full_pay_discount_percent: 10,
-        duration_text: "8 – 12 months",
+        price_gbp: 2500,
+        regular_price_gbp: 2850,
+        full_pay_discount_percent: 5,
+        duration_text: "8 – 14 months",
         guided_learning_hours: 692,
         entry_requirements: [
           "Substantial experience in the care sector (Level 3 or equivalent)",
@@ -188,18 +182,7 @@ export const courses: Course[] = [
             credits: 6,
           },
         ],
-        plans: [
-          {
-            id: "plan-ac5-10m",
-            name: "Spread over 10 Months (Deposit £250 + £150/mo)",
-            months: 10,
-            deposit_type: "fixed",
-            deposit_value: 250,
-            grace_days: 7,
-            after_grace: "pause_access",
-          },
-          defaultPlan6Months,
-        ],
+        plans: level5PaymentPlans,
       },
     ],
   },
@@ -254,8 +237,9 @@ export const courses: Course[] = [
       {
         course_id: "course-cypw",
         level_label: "Level 3",
-        price_gbp: 1400,
-        full_pay_discount_percent: 10,
+        price_gbp: 1500,
+        regular_price_gbp: 1950,
+        full_pay_discount_percent: 5,
         duration_text: "6 – 12 months",
         guided_learning_hours: 450,
         entry_requirements: [
@@ -284,25 +268,15 @@ export const courses: Course[] = [
             credits: 4,
           },
         ],
-        plans: [
-          {
-            id: "plan-cypw3-10m",
-            name: "Spread over 10 Months (Deposit £200 + £120/mo)",
-            months: 10,
-            deposit_type: "fixed",
-            deposit_value: 200,
-            grace_days: 7,
-            after_grace: "pause_access",
-          },
-          defaultPlan6Months,
-        ],
+        plans: standardPaymentPlans,
       },
       {
         course_id: "course-cypw",
         level_label: "Level 5",
-        price_gbp: 1750,
-        full_pay_discount_percent: 10,
-        duration_text: "8 – 12 months",
+        price_gbp: 2500,
+        regular_price_gbp: 2850,
+        full_pay_discount_percent: 5,
+        duration_text: "8 – 14 months",
         guided_learning_hours: 570,
         entry_requirements: [
           "Level 3 qualification in health/social care or childcare",
@@ -325,17 +299,7 @@ export const courses: Course[] = [
             credits: 6,
           },
         ],
-        plans: [
-          {
-            id: "plan-cypw5-10m",
-            name: "Spread over 10 Months (Deposit £250 + £150/mo)",
-            months: 10,
-            deposit_type: "fixed",
-            deposit_value: 250,
-            grace_days: 7,
-            after_grace: "pause_access",
-          },
-        ],
+        plans: level5PaymentPlans,
       },
     ],
   },
@@ -389,13 +353,15 @@ export const courses: Course[] = [
     seo_title: "Level 3 Diploma for the Early Years Educator | Smartminds",
     seo_description:
       "Gain your full licence to practise in nurseries and pre-schools with our Level 3 Early Years Educator diploma.",
+    custom_delivery_text: "Blended Learning (Live Classes)",
     published: true,
     levels: [
       {
         course_id: "course-childcare-ey",
         level_label: "Level 3",
-        price_gbp: 1400,
-        full_pay_discount_percent: 10,
+        price_gbp: 1600,
+        regular_price_gbp: 2100,
+        full_pay_discount_percent: 5,
         duration_text: "6 – 12 months",
         guided_learning_hours: 864,
         entry_requirements: [
@@ -424,18 +390,7 @@ export const courses: Course[] = [
             credits: 6,
           },
         ],
-        plans: [
-          {
-            id: "plan-ey-10m",
-            name: "Spread over 10 Months (Deposit £200 + £120/mo)",
-            months: 10,
-            deposit_type: "fixed",
-            deposit_value: 200,
-            grace_days: 7,
-            after_grace: "pause_access",
-          },
-          defaultPlan6Months,
-        ],
+        plans: standardPaymentPlans,
       },
     ],
   },
@@ -444,7 +399,8 @@ export const courses: Course[] = [
   {
     id: "course-leadership-care",
     slug: "leadership-management-adult-care",
-    title: "Level 5 Diploma in Leadership and Management for Adult Care",
+    title:
+      "Level 5 Diploma in Leading and Managing CYPW & Health & Social care -Advanced Practice/ Management(MIX)",
     summary:
       "The benchmark qualification required by CQC for Registered Managers and Deputy Managers in adult social care.",
     description:
@@ -459,7 +415,7 @@ export const courses: Course[] = [
     assessment_method: "criteria",
     funding: "both",
     funding_notes:
-      "Funded routes available or 0% interest self-sponsor payment plan (£250 deposit & £150/month).",
+      "Funded routes available or 0% interest self-sponsor payment plan (£300 deposit & 10mo).",
     intro_video_url: null,
     free_textbook: true,
     faqs: [
@@ -483,17 +439,18 @@ export const courses: Course[] = [
     imageAlt:
       "Care home manager holding Level 5 leadership and management qualification award",
     seo_title:
-      "Level 5 Diploma Leadership in Adult Care (CQC Registered Manager) | Smartminds",
+      "Level 5 Diploma Leading and Managing Care (MIX) | Smartminds",
     seo_description:
       "Achieve your CQC-recognised Level 5 Registered Manager qualification with live tutor mentorship and structured portfolio guidance.",
-    published: false,
+    published: true,
     levels: [
       {
         course_id: "course-leadership-care",
         level_label: "Level 5",
-        price_gbp: 1750,
-        full_pay_discount_percent: 10,
-        duration_text: "8 – 12 months",
+        price_gbp: 3000,
+        regular_price_gbp: 3250,
+        full_pay_discount_percent: 5,
+        duration_text: "8 – 14 months",
         guided_learning_hours: 692,
         entry_requirements: [
           "Minimum 19 years of age",
@@ -522,18 +479,7 @@ export const courses: Course[] = [
             credits: 8,
           },
         ],
-        plans: [
-          {
-            id: "plan-lead-10m",
-            name: "Spread over 10 Months (Deposit £250 + £150/mo)",
-            months: 10,
-            deposit_type: "fixed",
-            deposit_value: 250,
-            grace_days: 7,
-            after_grace: "pause_access",
-          },
-          defaultPlan6Months,
-        ],
+        plans: level5PaymentPlans,
       },
     ],
   },
@@ -557,7 +503,7 @@ export const courses: Course[] = [
     assessment_method: "criteria",
     funding: "both",
     funding_notes:
-      "Promotional fee: Was £1,400, Now £1,250 (Save £150). Pay deposit £120 & £90/mo, or 3 monthly instalments of £200.",
+      "Promotional fee: Was £1,350, Now £1,250 (Save £100). Pay deposit £120 & 12mo, or flexible instalment plans.",
     intro_video_url: null,
     free_textbook: true,
     faqs: [
@@ -588,6 +534,7 @@ export const courses: Course[] = [
         course_id: "course-mental-health-cpd",
         level_label: "Level 3",
         price_gbp: 1250,
+        regular_price_gbp: 1350,
         full_pay_discount_percent: 10,
         duration_text: "4 – 6 months",
         guided_learning_hours: 153,
@@ -622,26 +569,7 @@ export const courses: Course[] = [
             credits: 4,
           },
         ],
-        plans: [
-          {
-            id: "plan-mh-instalments",
-            name: "Deposit £120 + £90/month",
-            months: 12,
-            deposit_type: "fixed",
-            deposit_value: 120,
-            grace_days: 7,
-            after_grace: "pause_access",
-          },
-          {
-            id: "plan-mh-3x",
-            name: "3 Monthly Payments of £200",
-            months: 3,
-            deposit_type: "fixed",
-            deposit_value: 200,
-            grace_days: 7,
-            after_grace: "pause_access",
-          },
-        ],
+        plans: standardPaymentPlans,
       },
     ],
   },
@@ -650,14 +578,22 @@ export const courses: Course[] = [
   {
     id: "course-aet",
     slug: "award-in-education-and-training-aet",
-    title: "Level 3 Award in Education and Training (AET)",
+    title: "Award & Certificate in Education and Training (Level 3 & 4)",
     summary:
-      "The premier introductory qualification for individuals wanting to teach or train in further education, colleges, and private training centres.",
+      "Premier teaching qualifications for individuals wanting to teach or train in further education, colleges, and private training centres.",
     description:
-      "Formerly known as PTLLS, the Level 3 AET equips aspiring trainers and educators with foundational teaching methods, session planning, assessment techniques, and includes a live 15-minute micro-teach delivery session observed and assessed by our centre staff team. Clear progression pathway to CET (Level 4) and DET (Level 5).",
+      "Equips aspiring and practicing educators with pedagogical methods, session planning, assessment techniques, and observed practical micro-teaching sessions. Choose between Level 3 AET or Level 4 CET with practical classroom observations in our regional training centres.",
     category: "Education & Teaching",
     type: "regulated",
-    delivery: "live_online",
+    delivery: "blended",
+    attendance_type: "blended_practical",
+    training_locations: [
+      "Milton Keynes",
+      "London",
+      "Essex/East London",
+      "Southampton",
+      "Portsmouth",
+    ],
     start_mode: "rolling",
     start_dates: ["Every second Monday"],
     awarding_body: "TQUK & NCFE",
@@ -665,43 +601,43 @@ export const courses: Course[] = [
     assessment_method: "criteria",
     funding: "both",
     funding_notes:
-      "Spread payments on our 0% interest flexible instalment plan (£100/month) or enquire about regional funding eligibility.",
+      "Spread payments on our 0% interest flexible instalment plan (£150 deposit + monthly payments) or enquire about regional funding eligibility.",
     intro_video_url: null,
     free_textbook: true,
     faqs: [
       {
         question: "Do I need existing teaching experience?",
         answer:
-          "No teaching experience is required. The Level 3 AET is specifically designed as the gateway qualification for new teachers and trainers.",
+          "No teaching experience is required for Level 3 AET. For Level 4 CET, you should have access to 30 hours of teaching practice.",
       },
       {
-        question: "How is the micro-teach assessed?",
+        question: "Where do the practical micro-teach sessions take place?",
         answer:
-          "You will deliver a 15-minute live micro-teaching session online observed and assessed by our centre team, with full constructive feedback.",
+          "Practical observations take place either via live online recorded micro-teaches or at our regional centres in Milton Keynes, London, Essex/East London, Southampton, or Portsmouth.",
       },
     ],
     job_prospects: [
-      "College Lecturer",
+      "Further Education College Lecturer",
       "Corporate Trainer",
       "Vocational Skills Instructor",
       "Private College Tutor",
     ],
     progression: [
-      "Level 4 Certificate in Education and Training (CET)",
       "Level 5 Diploma in Education and Training (DET)",
       "Assessor Qualifications (CAVA / TAQA)",
     ],
     image: "/images/tutor-teaching.jpg",
     imageAlt: "Vocational tutor leading an adult education training session",
-    seo_title: "Level 3 Award in Education and Training (AET) | Smartminds",
+    seo_title: "Education and Training Qualifications (Level 3 AET & Level 4 CET) | Smartminds",
     seo_description:
-      "Earn your Level 3 AET teaching qualification through live online tutor-led sessions. Flexible payment plans and full tutor mentorship.",
+      "Earn your Level 3 AET or Level 4 Certificate in Education and Training with live mentorship and practical workshops.",
     published: true,
     levels: [
       {
         course_id: "course-aet",
         level_label: "Level 3",
-        price_gbp: 450,
+        price_gbp: 500,
+        regular_price_gbp: 650,
         full_pay_discount_percent: 10,
         duration_text: "6 – 8 weeks",
         guided_learning_hours: 48,
@@ -729,17 +665,34 @@ export const courses: Course[] = [
             credits: 3,
           },
         ],
-        plans: [
+        plans: standardPaymentPlans,
+      },
+      {
+        course_id: "course-aet",
+        level_label: "Level 4",
+        price_gbp: 950,
+        regular_price_gbp: 1200,
+        full_pay_discount_percent: 10,
+        duration_text: "6 – 9 months",
+        guided_learning_hours: 140,
+        entry_requirements: [
+          "Minimum 19 years of age",
+          "Level 3 qualification in your teaching discipline or equivalent",
+          "Access to 30 hours of teaching practice",
+        ],
+        units: [
           {
-            id: "plan-aet-monthly",
-            name: "Deposit £150 + £100/month",
-            months: 3,
-            deposit_type: "fixed",
-            deposit_value: 150,
-            grace_days: 7,
-            after_grace: "pause_access",
+            code: "CET-01",
+            title: "Teaching, Learning and Assessment in Education and Training",
+            credits: 20,
+          },
+          {
+            code: "CET-02",
+            title: "Developing Teaching, Learning and Assessment in Education",
+            credits: 20,
           },
         ],
+        plans: standardPaymentPlans,
       },
     ],
   },
@@ -763,7 +716,7 @@ export const courses: Course[] = [
     assessment_method: "criteria",
     funding: "both",
     funding_notes:
-      "Flexible payment plan: Deposit £250 & £150/month with 0% interest.",
+      "Flexible payment plan: Deposit £200 & 4 months with 0% interest.",
     intro_video_url: null,
     free_textbook: true,
     faqs: [
@@ -792,8 +745,9 @@ export const courses: Course[] = [
       {
         course_id: "course-cava",
         level_label: "Level 3",
-        price_gbp: 850,
-        full_pay_discount_percent: 10,
+        price_gbp: 700,
+        regular_price_gbp: 850,
+        full_pay_discount_percent: 7,
         duration_text: "3 – 6 months",
         guided_learning_hours: 84,
         entry_requirements: [
@@ -817,17 +771,7 @@ export const courses: Course[] = [
             credits: 6,
           },
         ],
-        plans: [
-          {
-            id: "plan-cava",
-            name: "Deposit £250 + £150/month",
-            months: 4,
-            deposit_type: "fixed",
-            deposit_value: 250,
-            grace_days: 7,
-            after_grace: "pause_access",
-          },
-        ],
+        plans: standardPaymentPlans,
       },
     ],
   },
@@ -882,8 +826,9 @@ export const courses: Course[] = [
       {
         course_id: "course-business-admin",
         level_label: "Level 2",
-        price_gbp: 750,
-        full_pay_discount_percent: 10,
+        price_gbp: 950,
+        regular_price_gbp: 1150,
+        full_pay_discount_percent: 5,
         duration_text: "4 – 6 months",
         guided_learning_hours: 155,
         entry_requirements: [
@@ -912,23 +857,14 @@ export const courses: Course[] = [
             credits: 3,
           },
         ],
-        plans: [
-          {
-            id: "plan-ba2",
-            name: "Deposit £150 + £100/month",
-            months: 6,
-            deposit_type: "fixed",
-            deposit_value: 150,
-            grace_days: 7,
-            after_grace: "pause_access",
-          },
-        ],
+        plans: standardPaymentPlans,
       },
       {
         course_id: "course-business-admin",
         level_label: "Level 3",
-        price_gbp: 1200,
-        full_pay_discount_percent: 10,
+        price_gbp: 1700,
+        regular_price_gbp: 1950,
+        full_pay_discount_percent: 5,
         duration_text: "6 – 12 months",
         guided_learning_hours: 282,
         entry_requirements: [
@@ -957,17 +893,7 @@ export const courses: Course[] = [
             credits: 6,
           },
         ],
-        plans: [
-          {
-            id: "plan-ba3",
-            name: "Deposit £300 + £150/month",
-            months: 6,
-            deposit_type: "fixed",
-            deposit_value: 300,
-            grace_days: 7,
-            after_grace: "pause_access",
-          },
-        ],
+        plans: standardPaymentPlans,
       },
     ],
   },
@@ -991,7 +917,7 @@ export const courses: Course[] = [
     assessment_method: "criteria",
     funding: "both",
     funding_notes:
-      "Free government funding available in selected regions (e.g. London & Essex) or self-funded at £300 each with flexible monthly instalments (£150 deposit + £70/mo).",
+      "Free government funding available in selected regions (e.g. London & Essex) or self-funded at £350/£300 with flexible monthly instalments (£100 deposit + 3mo).",
     intro_video_url: null,
     free_textbook: true,
     faqs: [
@@ -1027,7 +953,8 @@ export const courses: Course[] = [
       {
         course_id: "course-functional-skills",
         level_label: "Level 2 English",
-        price_gbp: 300,
+        price_gbp: 350,
+        regular_price_gbp: 450,
         full_pay_discount_percent: 0,
         duration_text: "8 – 12 weeks",
         guided_learning_hours: 55,
@@ -1046,22 +973,13 @@ export const courses: Course[] = [
             title: "Speaking, Listening & Communicating (SLC)",
           },
         ],
-        plans: [
-          {
-            id: "plan-fs-eng",
-            name: "Deposit £150 + £70/month",
-            months: 3,
-            deposit_type: "fixed",
-            deposit_value: 150,
-            grace_days: 7,
-            after_grace: "pause_access",
-          },
-        ],
+        plans: standardPaymentPlans,
       },
       {
         course_id: "course-functional-skills",
         level_label: "Level 2 Maths",
         price_gbp: 300,
+        regular_price_gbp: 400,
         full_pay_discount_percent: 0,
         duration_text: "8 – 12 weeks",
         guided_learning_hours: 55,
@@ -1080,17 +998,7 @@ export const courses: Course[] = [
             title: "Handling Data, Probability & Statistics",
           },
         ],
-        plans: [
-          {
-            id: "plan-fs-mth",
-            name: "Deposit £150 + £70/month",
-            months: 3,
-            deposit_type: "fixed",
-            deposit_value: 150,
-            grace_days: 7,
-            after_grace: "pause_access",
-          },
-        ],
+        plans: standardPaymentPlans,
       },
     ],
   },
@@ -1107,6 +1015,14 @@ export const courses: Course[] = [
     category: "Health & Social Care",
     type: "cpd",
     delivery: "blended",
+    attendance_type: "blended_practical",
+    training_locations: [
+      "Milton Keynes",
+      "London",
+      "Essex/East London",
+      "Southampton",
+      "Portsmouth",
+    ],
     start_mode: "rolling",
     start_dates: ["Every second weekend", "Monthly clinic cohorts"],
     awarding_body: "The CPD Group & Skills for Health",
@@ -1119,7 +1035,7 @@ export const courses: Course[] = [
       {
         question: "Where does the live blood practical take place?",
         answer:
-          "Stage 2 takes place in an NHS facility under 1-to-1 supervision by experienced NHS practitioners.",
+          "Stage 2 takes place in our approved practical training centres in Milton Keynes, London, Essex/East London, Southampton, or Portsmouth, followed by supervised NHS clinic sessions.",
       },
       {
         question: "Do I need Hepatitis B vaccination?",
@@ -1150,6 +1066,7 @@ export const courses: Course[] = [
         course_id: "course-phlebotomy",
         level_label: "CPD & Competency",
         price_gbp: 250,
+        regular_price_gbp: 350,
         full_pay_discount_percent: 0,
         duration_text: "2 Days + NHS Clinic",
         guided_learning_hours: 16,
@@ -1171,17 +1088,7 @@ export const courses: Course[] = [
             title: "NHS Clinical Placement & Live Blood Venous Sampling",
           },
         ],
-        plans: [
-          {
-            id: "plan-phl-2",
-            name: "2 Instalments (£150 deposit + £100 balance)",
-            months: 2,
-            deposit_type: "fixed",
-            deposit_value: 150,
-            grace_days: 7,
-            after_grace: "pause_access",
-          },
-        ],
+        plans: standardPaymentPlans,
       },
     ],
   },
@@ -1234,6 +1141,7 @@ export const courses: Course[] = [
         course_id: "course-cpd-medication",
         level_label: "Level 2 CPD",
         price_gbp: 180,
+        regular_price_gbp: 250,
         full_pay_discount_percent: 0,
         duration_text: "4 weeks (Theory & Practical)",
         guided_learning_hours: 12,
@@ -1259,7 +1167,7 @@ export const courses: Course[] = [
         plans: [
           {
             id: "plan-cpd-med",
-            name: "Single Payment (£180) / Payment Plan Available",
+            name: "Single Payment (£180) / (£0 dep + 1mo)",
             months: 1,
             deposit_type: "fixed",
             deposit_value: 0,
@@ -1271,11 +1179,11 @@ export const courses: Course[] = [
     ],
   },
 
-  // 12. CPD Course: Introduction to Care (15 Care Certificate Standards)
+  // 12. CPD Course: The Care Certificate (15-16 Standards)
   {
     id: "course-care-certificate",
     slug: "introduction-to-care-certificate",
-    title: "Introduction to Care (15 Care Certificate Standards)",
+    title: "The Care Certificate (15-16 Standards)",
     summary:
       "Master all 15 National Care Certificate standards through live interactive classes. Ideal for beginners or career changers.",
     description:
@@ -1309,7 +1217,7 @@ export const courses: Course[] = [
     ],
     image: "/images/hero-learner.jpg",
     imageAlt: "Carer reviewing the 15 care certificate standards",
-    seo_title: "Introduction to Care (Care Certificate) | Smartminds",
+    seo_title: "The Care Certificate (15-16 Standards) | Smartminds",
     seo_description:
       "Comprehensive Care Certificate training covering all 15 standards with live online classes.",
     published: true,
@@ -1318,6 +1226,7 @@ export const courses: Course[] = [
         course_id: "course-care-certificate",
         level_label: "CPD Certificate",
         price_gbp: 108,
+        regular_price_gbp: 150,
         full_pay_discount_percent: 0,
         duration_text: "2 days (Flexible hours)",
         guided_learning_hours: 15,
@@ -1404,6 +1313,7 @@ export const courses: Course[] = [
         course_id: "course-it-user-skills",
         level_label: "Level 1",
         price_gbp: 440,
+        regular_price_gbp: 550,
         full_pay_discount_percent: 10,
         duration_text: "2 – 6 months",
         guided_learning_hours: 130,
@@ -1429,7 +1339,7 @@ export const courses: Course[] = [
         plans: [
           {
             id: "plan-itq-3m",
-            name: "3 Monthly Payments (£150 deposit)",
+            name: "Deposit £150 + 3 Months",
             months: 3,
             deposit_type: "fixed",
             deposit_value: 150,
@@ -1487,13 +1397,14 @@ export const courses: Course[] = [
     imageAlt: "Student working on digital laptop interface in modern office",
     seo_title: "IT & Digital Office Skills CPD Training | Smartminds",
     seo_description:
-      "Gain workplace confidence with accredited IT and digital office skills CPD training from Smartminds Training College.",
+      "Gain workplace confidence with accredited IT and digital skills CPD training from Smartminds Training College.",
     published: true,
     levels: [
       {
         course_id: "course-it-cpd",
         level_label: "CPD Certificate",
         price_gbp: 120,
+        regular_price_gbp: 180,
         full_pay_discount_percent: 0,
         duration_text: "2 – 4 weeks",
         guided_learning_hours: 20,
@@ -1586,7 +1497,8 @@ export const courses: Course[] = [
       {
         course_id: "course-job-skills-cpd",
         level_label: "CPD Certificate",
-        price_gbp: 95,
+        price_gbp: 150,
+        regular_price_gbp: 200,
         full_pay_discount_percent: 0,
         duration_text: "1 – 2 weeks",
         guided_learning_hours: 15,
@@ -1614,7 +1526,7 @@ export const courses: Course[] = [
         plans: [
           {
             id: "plan-js-cpd-full",
-            name: "Single Payment (£95)",
+            name: "Single Payment (£150)",
             months: 1,
             deposit_type: "fixed",
             deposit_value: 0,
@@ -1638,6 +1550,10 @@ export const courses: Course[] = [
     category: "Private Tutoring",
     type: "tutoring",
     delivery: "live_online",
+    attendance_type: "online_only",
+    is_private_tutoring: true,
+    session_duration_info:
+      "Session lasts 60 mins + 15 mins variable extra time (depending on learner's speed & topic) + self-assessment period of up to 30 mins (free & optional).",
     start_mode: "rolling",
     start_dates: ["Flexible weekday and weekend slots"],
     awarding_body: null,
@@ -1647,6 +1563,16 @@ export const courses: Course[] = [
     intro_video_url: null,
     free_textbook: true,
     faqs: [
+      {
+        question: "How long is each tutoring session?",
+        answer:
+          "Each session is scheduled for 60 minutes of direct teaching + up to 15 minutes variable extra time depending on the learner's topic and speed. Learners can also access a free 30-minute self-assessment period.",
+      },
+      {
+        question: "Is there a discount for bulk booking?",
+        answer:
+          "Yes! Booking a 12-week term upfront unlocks our discounted bulk hourly rates (e.g. £20/hr for Year 1–3, £23/hr for Year 4, £25/hr for Year 5, £33/hr for Year 6–7, £35/hr for Year 8–9, £38/hr for GCSE, and £42/hr for A-Levels).",
+      },
       {
         question: "Are your tutors DBS checked?",
         answer:
@@ -1666,62 +1592,265 @@ export const courses: Course[] = [
     image: "/images/tutor-teaching.jpg",
     imageAlt:
       "Dedicated one-on-one subject specialist teacher guiding student revision",
-    seo_title: "1-on-1 Private Tutoring for Children (KS3 & GCSE) | Smartminds",
+    seo_title: "1-on-1 Private Tutoring for Children (Primary, GCSE, A-Levels) | Smartminds",
     seo_description:
-      "Boost your child's academic confidence with live 1-on-1 private tutoring in English & Maths from verified DBS-checked tutors.",
-    published: false,
+      "Boost your child's academic confidence with live 1-on-1 private tutoring in English, Maths & Science. Bulk discounts available.",
+    published: true,
     levels: [
       {
         course_id: "course-tutoring-children",
-        level_label: "Key Stage 3",
-        price_gbp: 360,
-        full_pay_discount_percent: 10,
-        duration_text: "12 weekly sessions",
-        guided_learning_hours: 12,
+        level_label: "Year 1-3",
+        price_gbp: 240,
+        regular_price_gbp: 264,
+        full_pay_discount_percent: 5,
+        duration_text: "12-Week Term (Bulk Rate: £20/hr • Standard: £22/hr)",
+        guided_learning_hours: 15,
         entry_requirements: [
-          "Years 7, 8, or 9 pupils",
+          "Primary pupils in Year 1 to Year 3",
+          "Parent or legal guardian registration and consent required",
+        ],
+        units: [
+          {
+            code: "TUT-Y13-1",
+            title: "Core Phonics, Early Reading & Vocabulary Building",
+          },
+          {
+            code: "TUT-Y13-2",
+            title: "Number Bonds, Addition, Subtraction & Early Maths Confidence",
+          },
+        ],
+        plans: standardPaymentPlans,
+      },
+      {
+        course_id: "course-tutoring-children",
+        level_label: "Year 4",
+        price_gbp: 276,
+        regular_price_gbp: 300,
+        full_pay_discount_percent: 5,
+        duration_text: "12-Week Term (Bulk Rate: £23/hr • Standard: £25/hr)",
+        guided_learning_hours: 15,
+        entry_requirements: [
+          "Pupils in Year 4",
+          "Parent or legal guardian registration required",
+        ],
+        units: [
+          {
+            code: "TUT-Y4-1",
+            title: "Reading Comprehension, Creative Writing & SPaG",
+          },
+          {
+            code: "TUT-Y4-2",
+            title: "Multiplication Tables, Fractions & Mental Arithmetic",
+          },
+        ],
+        plans: standardPaymentPlans,
+      },
+      {
+        course_id: "course-tutoring-children",
+        level_label: "Year 5",
+        price_gbp: 300,
+        regular_price_gbp: 336,
+        full_pay_discount_percent: 5,
+        duration_text: "12-Week Term (Bulk Rate: £25/hr • Standard: £28/hr)",
+        guided_learning_hours: 15,
+        entry_requirements: [
+          "Pupils in Year 5 (including 11+ preparation)",
+          "Parent or legal guardian registration required",
+        ],
+        units: [
+          {
+            code: "TUT-Y5-1",
+            title: "11+ Verbal / Non-Verbal Reasoning & Advanced Comprehension",
+          },
+          {
+            code: "TUT-Y5-2",
+            title: "Decimals, Percentages & Word Problem Solving",
+          },
+        ],
+        plans: standardPaymentPlans,
+      },
+      {
+        course_id: "course-tutoring-children",
+        level_label: "Year 6",
+        price_gbp: 396,
+        regular_price_gbp: 420,
+        full_pay_discount_percent: 5,
+        duration_text: "12-Week Term (Bulk Rate: £33/hr • Standard: £35/hr)",
+        guided_learning_hours: 15,
+        entry_requirements: [
+          "Year 6 pupils preparing for SATs / Secondary transition",
           "Parent or legal guardian consent required",
         ],
         units: [
           {
-            code: "TUT-KS3-1",
-            title: "Diagnostic Skill Assessment and Gap Analysis",
+            code: "TUT-Y6-1",
+            title: "Key Stage 2 SATs Exam Preparation & Technique",
           },
           {
-            code: "TUT-KS3-2",
-            title:
-              "Targeted Curriculum Focus (Algebra, Comprehension, Writing)",
+            code: "TUT-Y6-2",
+            title: "Mathematical Reasoning & Problem Solving",
           },
-          { code: "TUT-KS3-3", title: "Term Progress Review and Assessment" },
         ],
-        plans: [defaultPlan3Months],
+        plans: standardPaymentPlans,
       },
       {
         course_id: "course-tutoring-children",
-        level_label: "GCSE Prep",
-        price_gbp: 480,
-        full_pay_discount_percent: 10,
-        duration_text: "12 weekly sessions",
-        guided_learning_hours: 12,
+        level_label: "Year 7",
+        price_gbp: 396,
+        regular_price_gbp: 420,
+        full_pay_discount_percent: 5,
+        duration_text: "12-Week Term (Bulk Rate: £33/hr • Standard: £35/hr)",
+        guided_learning_hours: 15,
         entry_requirements: [
-          "Years 10 or 11 pupils preparing for GCSE exams",
+          "Secondary Year 7 pupils (KS3)",
           "Parent or legal guardian consent required",
+        ],
+        units: [
+          {
+            code: "TUT-Y7-1",
+            title: "Secondary Literacy, Analysis & Extended Writing",
+          },
+          {
+            code: "TUT-Y7-2",
+            title: "Algebra Foundations, Geometry & Proportional Reasoning",
+          },
+        ],
+        plans: standardPaymentPlans,
+      },
+      {
+        course_id: "course-tutoring-children",
+        level_label: "Year 8",
+        price_gbp: 420,
+        regular_price_gbp: 456,
+        full_pay_discount_percent: 5,
+        duration_text: "12-Week Term (Bulk Rate: £35/hr • Standard: £38/hr)",
+        guided_learning_hours: 15,
+        entry_requirements: [
+          "Secondary Year 8 pupils (KS3)",
+          "Parent or legal guardian consent required",
+        ],
+        units: [
+          {
+            code: "TUT-Y8-1",
+            title: "Textual Analysis, Poetry & Advanced Grammar",
+          },
+          {
+            code: "TUT-Y8-2",
+            title: "Equations, Graphs, Probability & Scientific Principles",
+          },
+        ],
+        plans: standardPaymentPlans,
+      },
+      {
+        course_id: "course-tutoring-children",
+        level_label: "Year 9",
+        price_gbp: 420,
+        regular_price_gbp: 456,
+        full_pay_discount_percent: 5,
+        duration_text: "12-Week Term (Bulk Rate: £35/hr • Standard: £38/hr)",
+        guided_learning_hours: 15,
+        entry_requirements: [
+          "Secondary Year 9 pupils preparing for GCSE options",
+          "Parent or legal guardian consent required",
+        ],
+        units: [
+          {
+            code: "TUT-Y9-1",
+            title: "Pre-GCSE English Literature & Language Masterclass",
+          },
+          {
+            code: "TUT-Y9-2",
+            title: "Higher & Foundation GCSE Mathematics Transition",
+          },
+        ],
+        plans: standardPaymentPlans,
+      },
+      {
+        course_id: "course-tutoring-children",
+        level_label: "GCSE",
+        price_gbp: 456,
+        regular_price_gbp: 480,
+        full_pay_discount_percent: 5,
+        duration_text: "12-Week Term (Bulk Rate: £38/hr • Standard: £40/hr)",
+        guided_learning_hours: 15,
+        entry_requirements: [
+          "Year 10 & 11 GCSE students (AQA, Edexcel, OCR)",
+          "Parent or student registration",
         ],
         units: [
           {
             code: "TUT-GCSE-1",
-            title: "Exam Board Specification Review (AQA / Edexcel / OCR)",
+            title: "GCSE Exam Board Past Paper Practice & Mark Schemes",
           },
           {
             code: "TUT-GCSE-2",
-            title: "Past Paper Question Technique and Timed Practice",
-          },
-          {
-            code: "TUT-GCSE-3",
-            title: "Mock Exam Marking and Grade Improvement Coaching",
+            title: "Grade 7–9 Exam Techniques & Core Curriculum Mastery",
           },
         ],
-        plans: [defaultPlan3Months, defaultPlan6Months],
+        plans: standardPaymentPlans,
+      },
+      {
+        course_id: "course-tutoring-children",
+        level_label: "A-Levels",
+        price_gbp: 504,
+        regular_price_gbp: 540,
+        full_pay_discount_percent: 5,
+        duration_text: "12-Week Term (Bulk Rate: £42/hr • Standard: £45/hr)",
+        guided_learning_hours: 15,
+        entry_requirements: [
+          "Sixth Form / College A-Level students",
+          "Parent or self-registration (16+)",
+        ],
+        units: [
+          {
+            code: "TUT-AL-1",
+            title: "Advanced Analytical Techniques & In-depth Subject Mastery",
+          },
+          {
+            code: "TUT-AL-2",
+            title: "University Entry & High-Tariff Grade Target Preparation",
+          },
+        ],
+        plans: standardPaymentPlans,
+      },
+      {
+        course_id: "course-tutoring-children",
+        level_label: "11+",
+        price_gbp: 300,
+        regular_price_gbp: 350,
+        full_pay_discount_percent: 5,
+        duration_text: "Grammar & Independent School Entrance (Variable Rate)",
+        guided_learning_hours: 15,
+        entry_requirements: [
+          "Primary pupils preparing for 11+ entrance exams",
+          "Parent or guardian registration required",
+        ],
+        units: [
+          {
+            code: "TUT-11P-1",
+            title: "GL Assessment & CEM Examination Technique",
+          },
+        ],
+        plans: standardPaymentPlans,
+      },
+      {
+        course_id: "course-tutoring-children",
+        level_label: "19+",
+        price_gbp: 280,
+        regular_price_gbp: 320,
+        full_pay_discount_percent: 5,
+        duration_text: "Adult Foundation / Functional Skills Support (Variable Rate)",
+        guided_learning_hours: 15,
+        entry_requirements: [
+          "Adult learners 19+ seeking numeracy or literacy skills",
+        ],
+        units: [
+          {
+            code: "TUT-19P-1",
+            title: "Adult Literacy & Numeracy Skill Re-entry",
+          },
+        ],
+        plans: standardPaymentPlans,
       },
     ],
   },

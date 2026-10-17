@@ -16,9 +16,24 @@ export interface AuthUser {
   email: string;
   role: UserRole;
   avatarUrl?: string;
+  learnerId?: string;
   enrolledCourse?: string;
+  enrolledCourseTitle?: string;
+  enrolledLevelLabel?: string;
   cohort?: string;
   keepSignedIn?: boolean;
+  accountType?: "adult_learner" | "parent_guardian";
+  childName?: string;
+  childYearGroup?: string;
+  trainingLocation?: string;
+  instalmentPlanMonths?: number;
+  totalFee?: number;
+  depositPaid?: number;
+  balanceRemaining?: number;
+  safeguardingCompleted?: boolean;
+  childConcerns?: string;
+  emergencyPhone?: string;
+  parentSignature?: string;
 }
 
 export interface AuthContextType {
@@ -31,6 +46,7 @@ export interface AuthContextType {
     role?: UserRole,
     keepSignedIn?: boolean
   ) => Promise<boolean>;
+  updateUserSession: (data: Partial<AuthUser>) => void;
   logout: () => void;
 }
 
@@ -176,6 +192,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     return true;
   };
 
+  const updateUserSession = (data: Partial<AuthUser>) => {
+    try {
+      const current = getSnapshot();
+      const existing = current ? JSON.parse(current) : (user || {});
+      const updated = { ...existing, ...data };
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updated));
+      window.dispatchEvent(new Event(AUTH_CHANGE_EVENT));
+    } catch {
+      // Storage error
+    }
+  };
+
   const logout = () => {
     try {
       localStorage.removeItem(AUTH_STORAGE_KEY);
@@ -194,6 +222,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         isAuthenticated: !!user,
         loginAs,
         loginWithCredentials,
+        updateUserSession,
         logout,
       }}
     >

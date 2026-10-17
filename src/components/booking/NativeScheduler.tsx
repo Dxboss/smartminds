@@ -8,20 +8,33 @@ import { courses } from "@/content/courses";
 import {
   getPublicAvailableSlotsAction,
   createPublicBookingAction,
+  getPublicCourseOptionsAction,
   DaySlotInfo,
 } from "@/app/actions/bookingActions";
+
+export interface CourseOptionItem {
+  id: string;
+  title: string;
+  published: boolean;
+}
 
 interface NativeSchedulerProps {
   courseInterest?: string;
   onBooked?: () => void;
+  coursesList?: CourseOptionItem[];
 }
 
 export const NativeScheduler: React.FC<NativeSchedulerProps> = ({
   courseInterest,
   onBooked,
+  coursesList,
 }) => {
   const [days, setDays] = useState<DaySlotInfo[]>([]);
   const [loadingDays, setLoadingDays] = useState(true);
+  const [courseOptions, setCourseOptions] = useState<CourseOptionItem[]>(
+    coursesList ||
+      courses.map((c) => ({ id: c.id, title: c.title, published: c.published }))
+  );
 
   // Form states
   const [selectedDate, setSelectedDate] = useState<string>("");
@@ -61,7 +74,17 @@ export const NativeScheduler: React.FC<NativeSchedulerProps> = ({
       }
     }
     loadSlots();
-  }, []);
+
+    if (!coursesList) {
+      getPublicCourseOptionsAction()
+        .then((opts) => {
+          if (opts && opts.length > 0) {
+            setCourseOptions(opts);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [coursesList]);
 
   const currentDayInfo = days.find((d) => d.dateString === selectedDate);
 
@@ -361,7 +384,7 @@ export const NativeScheduler: React.FC<NativeSchedulerProps> = ({
               onChange={(e) => setSelectedCourse(e.target.value)}
               className="w-full py-2.5 px-3 rounded-sm border border-line bg-white text-sm focus:outline-none focus:ring-2 focus:ring-navy-900 min-h-[44px]"
             >
-              {courses
+              {courseOptions
                 .filter((c) => c.published)
                 .map((c) => (
                   <option key={c.id} value={c.title}>

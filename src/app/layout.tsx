@@ -44,11 +44,20 @@ const sourceSans3 = Source_Sans_3({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://smartmindstraining.co.uk"),
   title: {
     template: `%s | ${siteConfig.name}`,
     default: `${siteConfig.name} | Live Online Classes & Regulated Qualifications`,
   },
   description: siteConfig.description,
+  alternates: {
+    canonical: "/",
+  },
+  verification: {
+    google:
+      process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION ||
+      "google-site-verification-smartminds-2026",
+  },
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },

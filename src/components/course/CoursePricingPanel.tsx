@@ -111,6 +111,55 @@ export const CoursePricingPanel: React.FC<CoursePricingPanelProps> = ({
           </div>
         )}
 
+        {/* Main Hero Price Box with Regular Price Strikethrough & Selling Price */}
+        <div className="p-4 sm:p-5 rounded-md bg-paper border border-line space-y-3">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <span className="text-[11px] font-mono uppercase tracking-wider text-ink-soft">
+              {selectedLevel.level_label} Tuition Fee
+            </span>
+            {pricing.hasPriceSlash && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xs bg-emerald-50 text-emerald-800 border border-emerald-300 text-[11px] font-bold">
+                <Icon name="sparkles" size={12} className="text-emerald-700" />
+                <span>Save {formatCurrency(pricing.regularSaving)} ({pricing.regularDiscountPercent}% OFF)</span>
+              </span>
+            )}
+          </div>
+
+          <div className="space-y-1">
+            <div className="flex items-baseline gap-2.5 flex-wrap">
+              <span className="font-heading font-bold text-3xl sm:text-4xl text-navy-900 leading-tight">
+                {formatCurrency(paymentMode === "full" ? pricing.fullPayPrice : pricing.sellingPrice)}
+              </span>
+              {pricing.hasPriceSlash ? (
+                <div className="inline-flex items-baseline gap-1 text-ink-soft">
+                  <span className="text-xs">Regular:</span>
+                  <span className="text-base sm:text-lg line-through font-semibold text-ink-soft/80">
+                    {formatCurrency(pricing.regularPrice)}
+                  </span>
+                </div>
+              ) : pricing.saving > 0 && paymentMode === "full" ? (
+                <div className="inline-flex items-baseline gap-1 text-ink-soft">
+                  <span className="text-xs">Standard:</span>
+                  <span className="text-base line-through font-semibold text-ink-soft/80">
+                    {formatCurrency(pricing.total)}
+                  </span>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="text-xs text-ink-soft flex items-center justify-between pt-1">
+              <span>
+                {paymentMode === "full"
+                  ? "Pay in full upfront (Includes 10% cash discount)"
+                  : "Selling price (Spread over 0% interest monthly plans)"}
+              </span>
+              <span className="text-[11px] font-mono text-navy-900 font-bold uppercase">
+                {selectedLevel.level_label}
+              </span>
+            </div>
+          </div>
+        </div>
+
         {/* Payment mode switcher tabs */}
         <div className="grid grid-cols-2 p-1 bg-paper rounded-lg border border-line gap-1">
           <button
@@ -122,10 +171,11 @@ export const CoursePricingPanel: React.FC<CoursePricingPanelProps> = ({
                 : "text-navy-900 hover:bg-white"
             }`}
           >
-            Pay in full (Save{" "}
-            {selectedLevel.full_pay_discount_percent ??
-              globalSettings.default_full_pay_discount_percent}
-            %)
+            Pay in full
+            {(selectedLevel.full_pay_discount_percent ??
+              globalSettings.default_full_pay_discount_percent) > 0
+              ? ` (Save ${selectedLevel.full_pay_discount_percent ?? globalSettings.default_full_pay_discount_percent}%)`
+              : ""}
           </button>
 
           <button
@@ -144,22 +194,35 @@ export const CoursePricingPanel: React.FC<CoursePricingPanelProps> = ({
         {/* Breakdown for Pay in full */}
         {paymentMode === "full" ? (
           <div className="space-y-4">
-            <div className="p-4 rounded-sm bg-paper border border-line">
-              <span className="text-[11px] font-mono uppercase tracking-wider text-ink-soft block mb-1">
+            <div className="p-4 rounded-sm bg-white border border-line space-y-2">
+              <span className="text-[11px] font-mono uppercase tracking-wider text-ink-soft block">
                 Total tuition (Pay in full)
               </span>
-              <div className="flex items-baseline gap-2">
+              <div className="flex items-baseline gap-2 flex-wrap">
                 <span className="font-heading font-bold text-3xl text-navy-900">
                   {formatCurrency(pricing.fullPayPrice)}
                 </span>
-                <span className="text-sm line-through text-ink-soft">
-                  {formatCurrency(pricing.total)}
-                </span>
+                {pricing.hasPriceSlash && (
+                  <span className="text-sm line-through text-ink-soft/70">
+                    Regular: {formatCurrency(pricing.regularPrice)}
+                  </span>
+                )}
+                {pricing.saving > 0 && (
+                  <span className="text-xs line-through text-ink-soft">
+                    Selling: {formatCurrency(pricing.total)}
+                  </span>
+                )}
               </div>
-              <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-gold-300/40 text-xs font-bold text-navy-900">
-                <Icon name="check" size={13} className="text-navy-900" />
-                <span>You save {formatCurrency(pricing.saving)} with upfront settlement</span>
-              </div>
+              {(pricing.hasPriceSlash || pricing.saving > 0) && (
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm bg-gold-300/40 text-xs font-bold text-navy-900">
+                  <Icon name="check" size={13} className="text-navy-900" />
+                  <span>
+                    {pricing.hasPriceSlash
+                      ? `Total saving: ${formatCurrency(pricing.regularPrice - pricing.fullPayPrice)} with special price & upfront discount`
+                      : `You save ${formatCurrency(pricing.saving)} with upfront settlement`}
+                  </span>
+                </div>
+              )}
             </div>
 
             <ul className="space-y-2 text-xs text-ink-soft">
@@ -243,12 +306,26 @@ export const CoursePricingPanel: React.FC<CoursePricingPanelProps> = ({
               )}
 
               <div className="pt-2 border-t border-line flex justify-between items-baseline">
-                <span className="text-xs font-bold text-navy-900">
-                  Total course fee:
-                </span>
-                <span className="font-heading font-bold text-xl text-navy-900">
-                  {formatCurrency(pricing.total)}
-                </span>
+                <div>
+                  <span className="text-xs font-bold text-navy-900 block">
+                    Total course fee:
+                  </span>
+                  {pricing.hasPriceSlash && (
+                    <span className="text-[11px] text-ink-soft line-through block">
+                      Regular: {formatCurrency(pricing.regularPrice)}
+                    </span>
+                  )}
+                </div>
+                <div className="text-right">
+                  <span className="font-heading font-bold text-xl text-navy-900 block">
+                    {formatCurrency(pricing.total)}
+                  </span>
+                  {pricing.hasPriceSlash && (
+                    <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded-xs border border-emerald-200">
+                      Slashed by {formatCurrency(pricing.regularSaving)}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -261,20 +338,44 @@ export const CoursePricingPanel: React.FC<CoursePricingPanelProps> = ({
 
         {/* Open Enrolment CTA Button */}
         <div className="pt-4 border-t border-line space-y-3">
-          <Link
-            href={`/enrol?course=${course.id}`}
-            className="w-full inline-flex items-center justify-center min-h-[44px] px-5 rounded-sm bg-navy-900 text-white hover:bg-navy-700 font-heading font-bold text-sm transition-colors text-center shadow-sm"
-          >
-            Enrol & Secure Your Place &rarr;
-          </Link>
+          {(() => {
+            const enrolParams = new URLSearchParams({
+              course: course.id,
+              level: selectedLevel.level_label,
+              mode: paymentMode,
+            });
+            if (activePlan?.id) {
+              enrolParams.set("plan", activePlan.id);
+            }
+            const enrolHref = `/enrol?${enrolParams.toString()}`;
+            const discountPercent =
+              selectedLevel.full_pay_discount_percent !== null &&
+              selectedLevel.full_pay_discount_percent !== undefined
+                ? selectedLevel.full_pay_discount_percent
+                : globalSettings.default_full_pay_discount_percent;
 
-          <BookingCTAButton variant="outline" size="md" className="w-full">
-            Talk to an adviser
-          </BookingCTAButton>
+            return (
+              <>
+                <Link
+                  href={enrolHref}
+                  className="w-full inline-flex items-center justify-center min-h-[44px] px-5 rounded-sm bg-navy-900 text-white hover:bg-navy-700 font-heading font-bold text-sm transition-colors text-center shadow-sm"
+                >
+                  Enrol & Secure Your Place &rarr;
+                </Link>
 
-          <p className="text-center text-[11px] text-ink-soft">
-            Online enrolment is open. Secure your place now with 10% upfront savings or 0% interest instalments.
-          </p>
+                <BookingCTAButton variant="outline" size="md" className="w-full">
+                  Talk to an adviser
+                </BookingCTAButton>
+
+                <p className="text-center text-[11px] text-ink-soft">
+                  Online enrolment is open. Secure your place now
+                  {discountPercent > 0
+                    ? ` with ${discountPercent}% upfront savings or 0% interest instalments.`
+                    : " with flexible 0% interest instalments."}
+                </p>
+              </>
+            );
+          })()}
         </div>
       </div>
     );
@@ -308,9 +409,16 @@ export const CoursePricingPanel: React.FC<CoursePricingPanelProps> = ({
           <span className="text-[10px] uppercase font-mono text-ink-soft block">
             {selectedLevel.level_label} Pricing
           </span>
-          <span className="font-heading font-bold text-lg text-navy-900 leading-none">
-            {isFundedOnly ? "Funded (£0.00)" : formatCurrency(pricing.fullPayPrice)}
-          </span>
+          <div className="flex items-baseline gap-1.5 flex-wrap">
+            <span className="font-heading font-bold text-lg text-navy-900 leading-none">
+              {isFundedOnly ? "Funded (£0.00)" : formatCurrency(pricing.fullPayPrice)}
+            </span>
+            {!isFundedOnly && pricing.hasPriceSlash && (
+              <span className="text-xs line-through text-ink-soft">
+                {formatCurrency(pricing.regularPrice)}
+              </span>
+            )}
+          </div>
         </div>
 
         <button

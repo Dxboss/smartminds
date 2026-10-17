@@ -11,6 +11,8 @@ import { Icon } from "@/components/ui/Icon";
 import { Tag } from "@/components/ui/Tag";
 import { Button } from "@/components/ui/Button";
 import { formatEmbedUrl, isDirectVideo } from "@/components/cms/SectionRenderer";
+import { resolveSectionBg, SectionBgColor } from "@/components/ui/sectionBg";
+import { EditableElementWrapper } from "@/components/admin/EditableElementWrapper";
 
 export interface ReviewsAndTestimonialsProps {
   headline?: string;
@@ -20,9 +22,12 @@ export interface ReviewsAndTestimonialsProps {
   videoThumbnail?: string;
   videoUrl?: string;
   columnRatio?: "50-50" | "60-40" | "70-30" | "40-60" | "33-67";
-  bgColor?: "white" | "paper" | "navy" | "cream";
+  bgColor?: SectionBgColor;
   mediaPosition?: "left" | "right";
+  items?: import("@/lib/repositories/seedData").BuilderSectionItem[];
   isEditor?: boolean;
+  selectedElementKey?: string | null;
+  selectedElementItemIndex?: number | null;
   onSelectElement?: (
     elementKey:
       | "headline"
@@ -48,20 +53,21 @@ export const ReviewsAndTestimonials: React.FC<ReviewsAndTestimonialsProps> = ({
   columnRatio = "60-40",
   bgColor = "paper",
   mediaPosition = "right",
+  items,
   isEditor = false,
+  selectedElementKey,
+  selectedElementItemIndex,
   onSelectElement,
 }) => {
   const isImageLeft = mediaPosition === "left";
-  const isDark = bgColor === "navy";
+  const { isDark } = resolveSectionBg(bgColor, "paper");
   const [tiktokRequested, setTiktokRequested] = useState(false);
   const [isPlaying, setIsPlaying] = useState(true);
   const [isMuted, setIsMuted] = useState(false);
   const iframeRef = React.useRef<HTMLIFrameElement>(null);
   const videoRef = React.useRef<HTMLVideoElement>(null);
 
-  const effectiveVideoUrl =
-    (videoUrl && videoUrl.trim()) ||
-    "https://www.youtube.com/watch?v=M7lc1UVf-VE";
+  const effectiveVideoUrl = (videoUrl && videoUrl.trim()) || "";
 
   const handleTogglePlayPause = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -130,12 +136,29 @@ export const ReviewsAndTestimonials: React.FC<ReviewsAndTestimonialsProps> = ({
             <Eyebrow tone={isDark ? "gold" : "navy"} className="mb-2">
               Learner Experiences
             </Eyebrow>
-            <Heading level="h2" className={`mb-2 ${isDark ? "text-white" : "text-navy-900"}`}>
-              {headline}
-            </Heading>
-            <p className={`text-base sm:text-lg max-w-xl leading-relaxed ${isDark ? "text-paper/85" : "text-ink-soft"}`}>
-              {subheadline}
-            </p>
+
+            <EditableElementWrapper
+              isEditor={isEditor}
+              isSelected={isEditor && selectedElementKey === "headline"}
+              label="Headline"
+              onClick={() => onSelectElement?.("headline")}
+              className="mb-2"
+            >
+              <Heading level="h2" className={isDark ? "text-white" : "text-navy-900"}>
+                {headline}
+              </Heading>
+            </EditableElementWrapper>
+
+            <EditableElementWrapper
+              isEditor={isEditor}
+              isSelected={isEditor && selectedElementKey === "subheadline"}
+              label="Subheadline"
+              onClick={() => onSelectElement?.("subheadline")}
+            >
+              <p className={`text-base sm:text-lg max-w-xl leading-relaxed ${isDark ? "text-paper/85" : "text-ink-soft"}`}>
+                {subheadline}
+              </p>
+            </EditableElementWrapper>
           </div>
 
           <div className="flex items-center gap-2">
@@ -159,68 +182,75 @@ export const ReviewsAndTestimonials: React.FC<ReviewsAndTestimonialsProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Column 1: Written Testimonials */}
           <div className={`${leftColSpan} space-y-6 ${isImageLeft ? "lg:order-2" : "lg:order-1"}`}>
-            {siteConfig.testimonials.map((t) => (
-              <div
-                key={t.name}
-                className="bg-white rounded-lg border border-line p-6 shadow-subtle hover:border-navy-900/30 transition-colors"
+            {(items && items.length > 0
+              ? items.map((it) => ({
+                  name: it.title,
+                  roleOrCourse: it.subtitle || it.tag || "",
+                  quote: it.desc || "",
+                  image: it.image || "",
+                }))
+              : siteConfig.testimonials
+            ).map((t, idx) => (
+              <EditableElementWrapper
+                key={t.name + idx}
+                isEditor={isEditor}
+                isSelected={isEditor && selectedElementKey === "item" && selectedElementItemIndex === idx}
+                label={`Review #${idx + 1}`}
+                onClick={() => onSelectElement?.("item", idx)}
+                className="rounded-lg"
               >
-                {/* Header with photo, name, course */}
-                <div className="flex items-center justify-between gap-4 mb-4">
-                  <div className="flex items-center gap-3.5">
-                    {t.image ? (
-                      <div className="relative w-12 h-12 rounded-full overflow-hidden border border-line bg-line flex-shrink-0">
-                        <Image
-                          src={t.image}
-                          alt={t.name}
-                          fill
-                          sizes="48px"
-                          className="object-cover"
-                        />
+                <div
+                  className="bg-white rounded-lg border border-line p-6 shadow-subtle hover:border-navy-900/30 transition-colors"
+                >
+                  {/* Header with photo, name, course */}
+                  <div className="flex items-center justify-between gap-4 mb-4">
+                    <div className="flex items-center gap-3.5">
+                      {t.image ? (
+                        <div className="relative w-12 h-12 rounded-full overflow-hidden border border-line bg-line flex-shrink-0">
+                          <Image
+                            src={t.image}
+                            alt={t.name}
+                            fill
+                            sizes="48px"
+                            className="object-cover"
+                          />
+                        </div>
+                      ) : null}
+                      <div>
+                        <strong className="font-heading font-bold text-lg text-navy-900 block leading-tight">
+                          {t.name}
+                        </strong>
+                        <span className="text-xs text-ink-soft block font-medium">
+                          {t.roleOrCourse}
+                        </span>
                       </div>
-                    ) : null}
-                    <div>
-                      <strong className="font-heading font-bold text-lg text-navy-900 block leading-tight">
-                        {t.name}
-                      </strong>
-                      <span className="text-xs text-ink-soft block font-medium">
-                        {t.roleOrCourse}
-                      </span>
                     </div>
                   </div>
-                </div>
 
-                <p className="text-sm text-ink-soft leading-relaxed italic">
-                  &ldquo;{t.quote}&rdquo;
-                </p>
-              </div>
+                  <p className="text-sm text-ink-soft leading-relaxed italic">
+                    &ldquo;{t.quote}&rdquo;
+                  </p>
+                </div>
+              </EditableElementWrapper>
             ))}
           </div>
 
           {/* Column 2: Click-to-Load Video / TikTok Learner Spotlight (Fully Editable) */}
           <div className={`${rightColSpan} ${isImageLeft ? "lg:order-1" : "lg:order-2"}`}>
-            <div
-              onClick={(e) => {
-                if (isEditor && onSelectElement) {
-                  e.stopPropagation();
-                  onSelectElement("video");
-                }
-              }}
-              className={`rounded-lg border p-6 transition-all ${
-                isDark
-                  ? "bg-white/5 border-white/10 hover:border-gold-500/50 text-white"
-                  : "bg-white border-line shadow-subtle text-ink"
-              } ${
-                isEditor
-                  ? "cursor-pointer group/video relative hover:outline hover:outline-dashed hover:outline-2 hover:outline-gold-500"
-                  : ""
-              }`}
+            <EditableElementWrapper
+              isEditor={isEditor}
+              isSelected={isEditor && selectedElementKey === "video"}
+              label="Video Spotlight"
+              onClick={() => onSelectElement?.("video")}
+              className="rounded-lg"
             >
-              {isEditor && (
-                <span className="hidden group-hover/video:inline-flex absolute -top-3.5 right-4 z-30 px-2 py-0.5 rounded-xs bg-navy-900 text-gold-300 text-[9px] font-bold shadow-md items-center gap-1">
-                  <Icon name="video" size={11} />
-                  <span>Video Spotlight Settings ✎</span>
-                </span>
-              )}
+              <div
+                className={`rounded-lg border p-6 transition-all ${
+                  isDark
+                    ? "bg-white/5 border-white/10 text-white"
+                    : "bg-white border-line shadow-subtle text-ink"
+                }`}
+              >
 
               <div className="flex items-center justify-between mb-4">
                 <Tag variant="navy">Video Spotlight</Tag>
@@ -302,44 +332,49 @@ export const ReviewsAndTestimonials: React.FC<ReviewsAndTestimonialsProps> = ({
                       allowFullScreen
                     />
                   ) : (
-                    <div className="p-6 space-y-3 text-white">
-                      <div className="w-12 h-12 rounded-full bg-white/10 text-gold-300 flex items-center justify-center mx-auto">
-                        <Icon name="video" size={24} />
+                    <div className="p-6 space-y-4 text-white text-center flex flex-col items-center justify-center h-full">
+                      <div className="w-14 h-14 rounded-full bg-gold-500/20 text-gold-300 flex items-center justify-center mx-auto">
+                        <Icon name="check-circle" size={28} />
                       </div>
-                      <h4 className="font-heading text-base font-bold text-white">
-                        Student Testimonial
-                      </h4>
-                      <p className="text-xs text-white/70 max-w-xs">
-                        Loading video stream...
-                      </p>
+                      <blockquote className="text-sm italic text-paper/90 leading-relaxed max-w-xs">
+                        &ldquo;{videoDesc || "Studying with Smartminds gave me the exact flexibility I needed as a working healthcare assistant. Fast feedback from my assessor made all the difference."}&rdquo;
+                      </blockquote>
+                      <div className="text-xs font-bold text-gold-300">
+                        {videoTitle || "Verified Graduate Feedback"}
+                      </div>
+                      <span className="text-[11px] text-paper/60">
+                        Smartminds Training College Graduate
+                      </span>
                     </div>
                   )}
 
-                  {/* Custom Minimalist Controls Overlay (Hides third-party controls, keeps branded controls) */}
-                  <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-navy-950 via-navy-950/70 to-transparent p-3 pt-6 flex items-center justify-between text-white z-20">
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={handleTogglePlayPause}
-                        className="px-2.5 py-1.5 rounded-sm bg-navy-900/90 hover:bg-navy-900 text-gold-300 border border-gold-500/30 flex items-center gap-1.5 text-xs font-semibold shadow-xs transition-colors cursor-pointer"
-                        aria-label={isPlaying ? "Pause video" : "Play video"}
-                      >
-                        <Icon name={isPlaying ? "pause" : "play"} size={13} />
-                        <span>{isPlaying ? "Pause" : "Play"}</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleToggleMute}
-                        className="px-2.5 py-1.5 rounded-sm bg-white/10 hover:bg-white/20 text-white/90 hover:text-white border border-white/20 text-xs font-semibold shadow-xs transition-colors cursor-pointer"
-                        aria-label={isMuted ? "Unmute audio" : "Mute audio"}
-                      >
-                        <span>{isMuted ? "Unmute" : "Mute"}</span>
-                      </button>
+                  {/* Custom Minimalist Controls Overlay (Only shown when an active video is playing) */}
+                  {effectiveVideoUrl && (
+                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-navy-950 via-navy-950/70 to-transparent p-3 pt-6 flex items-center justify-between text-white z-20">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleTogglePlayPause}
+                          className="px-2.5 py-1.5 rounded-sm bg-navy-900/90 hover:bg-navy-900 text-gold-300 border border-gold-500/30 flex items-center gap-1.5 text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                          aria-label={isPlaying ? "Pause video" : "Play video"}
+                        >
+                          <Icon name={isPlaying ? "pause" : "play"} size={13} />
+                          <span>{isPlaying ? "Pause" : "Play"}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleToggleMute}
+                          className="px-2.5 py-1.5 rounded-sm bg-white/10 hover:bg-white/20 text-white/90 hover:text-white border border-white/20 text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                          aria-label={isMuted ? "Unmute audio" : "Mute audio"}
+                        >
+                          <span>{isMuted ? "Unmute" : "Mute"}</span>
+                        </button>
+                      </div>
+                      <span className="text-[10px] font-mono text-white/60 uppercase tracking-widest">
+                        Live Study Session
+                      </span>
                     </div>
-                    <span className="text-[10px] font-mono text-white/60 uppercase tracking-widest">
-                      Live Study Session
-                    </span>
-                  </div>
+                  )}
 
                   <button
                     type="button"
@@ -354,7 +389,8 @@ export const ReviewsAndTestimonials: React.FC<ReviewsAndTestimonialsProps> = ({
                   </button>
                 </div>
               )}
-            </div>
+              </div>
+            </EditableElementWrapper>
           </div>
         </div>
       </Container>

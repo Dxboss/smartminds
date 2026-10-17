@@ -16,6 +16,16 @@ export const instant = false;
 export const metadata: Metadata = {
   title: "Administration | Smartminds Training College",
   description: "College operations, admissions pipeline, learner management, and financials.",
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: {
+      index: false,
+      follow: false,
+      noimageindex: true,
+    },
+  },
 };
 
 const STAFF_NAV = [
@@ -33,6 +43,7 @@ const OWNER_EXTRA_NAV = [
   { href: "/admin/staff", label: "Staff & Tutors", icon: "users" as const },
   { href: "/admin/availability", label: "Availability", icon: "clock" as const },
   { href: "/admin/cms", label: "Site Content & CMS", icon: "file-text" as const },
+  { href: "/admin/blog", label: "Articles & Blog", icon: "book-open" as const },
 ];
 
 export default async function AdminLayout({

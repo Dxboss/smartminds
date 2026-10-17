@@ -24,24 +24,57 @@ import { ArcMask } from "@/components/ui/ArcMask";
 import { Button } from "@/components/ui/Button";
 import { ConsentGuard } from "@/components/consent/ConsentGuard";
 import { CompositeBlockRenderer } from "@/components/cms/CompositeBlockRenderer";
+import { resolveCustomButtonClasses } from "@/components/ui/buttonCustomizer";
+import type { Course } from "@/content/types";
+import { EditableElementWrapper } from "@/components/admin/EditableElementWrapper";
 
 interface Props {
   section: BuilderSection;
   isEditor?: boolean;
+  courses?: Course[];
+  selectedElementKey?:
+    | "headline"
+    | "subheadline"
+    | "badge"
+    | "tags"
+    | "button"
+    | "secondaryButton"
+    | "image"
+    | "item"
+    | "bg"
+    | "video"
+    | "floatingBadge"
+    | null;
+  selectedElementItemIndex?: number | null;
   onSelectElement?: (
     elementKey:
       | "headline"
       | "subheadline"
       | "badge"
+      | "tags"
       | "button"
       | "secondaryButton"
       | "image"
       | "item"
       | "bg"
-      | "video",
+      | "video"
+      | "floatingBadge",
     itemIndex?: number
   ) => void;
 }
+
+import {
+  resolveSectionBg,
+  isDarkHex,
+  type SectionBgColor,
+  type SectionBgPreset,
+} from "@/components/ui/sectionBg";
+
+export { resolveSectionBg, isDarkHex, type SectionBgColor, type SectionBgPreset };
+import {
+  resolveTypography,
+  resolveSubheadlineTypography,
+} from "@/components/ui/typographyUtils";
 
 export function isDirectVideo(url?: string): boolean {
   if (!url) return false;
@@ -108,20 +141,14 @@ export function formatEmbedUrl(url?: string, hideControls = false): string {
 const VideoSpotlightBlock: React.FC<{
   section: BuilderSection;
   isEditor?: boolean;
+  selectedElementKey?: Props["selectedElementKey"];
+  selectedElementItemIndex?: Props["selectedElementItemIndex"];
   onSelectElement?: Props["onSelectElement"];
-}> = ({ section, isEditor, onSelectElement }) => {
+}> = ({ section, isEditor, selectedElementKey, selectedElementItemIndex, onSelectElement }) => {
   const [videoRequested, setVideoRequested] = React.useState(false);
   const embedUrl = formatEmbedUrl(section.videoUrl, true);
   const isImageLeft = section.mediaPosition === "left";
-  const bgClass =
-    section.bgColor === "white"
-      ? "bg-white"
-      : section.bgColor === "navy"
-      ? "bg-navy-900 text-white"
-      : section.bgColor === "cream"
-      ? "bg-gold-50/70"
-      : "bg-paper";
-  const isDark = section.bgColor === "navy";
+  const { bgClass, isDark, style } = resolveSectionBg(section.bgColor, "paper");
 
   const paddingClass =
     section.paddingDensity === "compact"
@@ -150,8 +177,35 @@ const VideoSpotlightBlock: React.FC<{
     section.columnRatio
   );
 
+  const { className: hlClass, style: hlStyle } = resolveTypography({
+    fontFamily: section.headlineFontFamily,
+    fontSize: section.headlineFontSize,
+    fontWeight: section.headlineFontWeight,
+    fontStyle: section.headlineFontStyle,
+    color: section.headlineColor,
+    isDark,
+    defaultFamily: "heading",
+    defaultSize: "lg",
+    defaultWeight: "bold",
+  });
+
+  const { className: subClass, style: subStyle } = resolveSubheadlineTypography({
+    fontFamily: section.subheadlineFontFamily,
+    fontSize: section.subheadlineFontSize,
+    fontWeight: section.subheadlineFontWeight,
+    fontStyle: section.subheadlineFontStyle,
+    color: section.subheadlineColor,
+    isDark,
+    defaultFamily: "body",
+    defaultSize: "md",
+    defaultWeight: "normal",
+  });
+
   return (
-    <section className={`${bgClass} ${paddingClass} border-b border-line`}>
+    <section
+      style={style}
+      className={`${bgClass} ${paddingClass} border-b border-line`}
+    >
       <Container>
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
           {/* Text / Content Column */}
@@ -161,115 +215,140 @@ const VideoSpotlightBlock: React.FC<{
             }`}
           >
             {section.badgeText && (
-              <div
-                onClick={(e) => {
-                  if (isEditor && onSelectElement) {
-                    e.stopPropagation();
-                    onSelectElement("badge");
-                  }
-                }}
-                className={
-                  isEditor
-                    ? "cursor-pointer group/badge relative inline-block rounded-xs hover:outline hover:outline-dashed hover:outline-2 hover:outline-gold-500"
-                    : ""
-                }
+              <EditableElementWrapper
+                isEditor={isEditor}
+                isSelected={isEditor && selectedElementKey === "badge"}
+                label="Badge"
+                onClick={() => onSelectElement?.("badge")}
+                inline
               >
                 <Eyebrow tone={isDark ? "gold" : "navy"} className="mb-2">
                   {section.badgeText}
                 </Eyebrow>
-                {isEditor && (
-                  <span className="hidden group-hover/badge:inline-flex absolute -top-5 left-0 z-30 px-1.5 py-0.5 rounded-xs bg-navy-900 text-gold-300 text-[9px] font-bold shadow-xs whitespace-nowrap">
-                    Badge ✎
-                  </span>
-                )}
-              </div>
+              </EditableElementWrapper>
             )}
 
-            <div
-              onClick={(e) => {
-                if (isEditor && onSelectElement) {
-                  e.stopPropagation();
-                  onSelectElement("headline");
-                }
-              }}
-              className={
-                isEditor
-                  ? "cursor-pointer group/hl relative rounded-xs hover:outline hover:outline-dashed hover:outline-2 hover:outline-gold-500"
-                  : ""
-              }
+            <EditableElementWrapper
+              isEditor={isEditor}
+              isSelected={isEditor && selectedElementKey === "headline"}
+              label="Headline"
+              onClick={() => onSelectElement?.("headline")}
             >
               <Heading
                 level="h2"
-                className={isDark ? "text-white" : "text-navy-900"}
+                style={hlStyle}
+                className={hlClass}
               >
                 {section.headline}
               </Heading>
-              {isEditor && (
-                <span className="hidden group-hover/hl:inline-flex absolute -top-5 left-0 z-30 px-1.5 py-0.5 rounded-xs bg-navy-900 text-gold-300 text-[9px] font-bold shadow-xs whitespace-nowrap">
-                  Headline ✎
-                </span>
-              )}
-            </div>
+            </EditableElementWrapper>
 
-            <div
-              onClick={(e) => {
-                if (isEditor && onSelectElement) {
-                  e.stopPropagation();
-                  onSelectElement("subheadline");
-                }
-              }}
-              className={
-                isEditor
-                  ? "cursor-pointer group/sub relative rounded-xs hover:outline hover:outline-dashed hover:outline-2 hover:outline-gold-500"
-                  : ""
-              }
-            >
-              <p
-                className={`text-base sm:text-lg leading-relaxed ${
-                  isDark ? "text-paper/80" : "text-ink-soft"
-                }`}
+            {section.subheadline && (
+              <EditableElementWrapper
+                isEditor={isEditor}
+                isSelected={isEditor && selectedElementKey === "subheadline"}
+                label="Subheadline"
+                onClick={() => onSelectElement?.("subheadline")}
               >
-                {section.subheadline}
-              </p>
-              {isEditor && (
-                <span className="hidden group-hover/sub:inline-flex absolute -top-5 left-0 z-30 px-1.5 py-0.5 rounded-xs bg-navy-900 text-gold-300 text-[9px] font-bold shadow-xs whitespace-nowrap">
-                  Subheadline ✎
-                </span>
-              )}
-            </div>
-
-            {(section.buttonText || section.secondaryButtonText) && (
-              <div className="flex flex-wrap gap-4 pt-2">
-                {section.buttonText && (
-                  <Button
-                    variant={isDark ? "on-navy-gold" : "primary"}
-                    size="md"
-                    onClick={(e) => {
-                      if (isEditor && onSelectElement) {
-                        e.stopPropagation();
-                        onSelectElement("button");
-                      }
-                    }}
-                  >
-                    {section.buttonText}
-                  </Button>
-                )}
-                {section.secondaryButtonText && (
-                  <Button
-                    variant="outline"
-                    size="md"
-                    onClick={(e) => {
-                      if (isEditor && onSelectElement) {
-                        e.stopPropagation();
-                        onSelectElement("secondaryButton");
-                      }
-                    }}
-                  >
-                    {section.secondaryButtonText}
-                  </Button>
-                )}
-              </div>
+                <p
+                  style={subStyle}
+                  className={`leading-relaxed ${subClass}`}
+                >
+                  {section.subheadline}
+                </p>
+              </EditableElementWrapper>
             )}
+
+            {(section.buttonText || section.secondaryButtonText) && (() => {
+              const primaryBtn = resolveCustomButtonClasses(
+                {
+                  bgColor: section.buttonBgColor,
+                  textColor: section.buttonTextColor,
+                  fontFamily: section.buttonFontFamily,
+                  fontWeight: section.buttonFontWeight,
+                  textTransform: section.buttonTextTransform,
+                  icon: section.buttonIcon,
+                  iconPosition: section.buttonIconPosition,
+                  radius: section.buttonRadius,
+                  size: section.buttonSize,
+                },
+                isDark ? "on-navy-gold" : "primary",
+                "md",
+                isDark
+              );
+
+              const secondaryBtn = resolveCustomButtonClasses(
+                {
+                  bgColor: section.secondaryButtonBgColor,
+                  textColor: section.secondaryButtonTextColor,
+                  fontFamily: section.secondaryButtonFontFamily,
+                  fontWeight: section.secondaryButtonFontWeight,
+                  textTransform: section.secondaryButtonTextTransform,
+                  icon: section.secondaryButtonIcon,
+                  iconPosition: section.secondaryButtonIconPosition,
+                  radius: section.secondaryButtonRadius,
+                  size: section.secondaryButtonSize,
+                },
+                "outline",
+                "md",
+                isDark
+              );
+
+              return (
+                <div className="flex flex-wrap gap-4 pt-2">
+                  {section.buttonText && (
+                    <EditableElementWrapper
+                      isEditor={isEditor}
+                      isSelected={isEditor && selectedElementKey === "button"}
+                      label="Primary CTA"
+                      onClick={() => onSelectElement?.("button")}
+                      inline
+                    >
+                      <div className={isEditor ? "pointer-events-none" : ""}>
+                        <Button
+                          href={section.buttonLink}
+                          className={primaryBtn.className}
+                          style={primaryBtn.style}
+                        >
+                          {primaryBtn.icon && primaryBtn.iconPosition === "left" && (
+                            <Icon name={primaryBtn.icon} size={16} />
+                          )}
+                          <span>{section.buttonText}</span>
+                          {primaryBtn.icon && primaryBtn.iconPosition === "right" && (
+                            <Icon name={primaryBtn.icon} size={16} />
+                          )}
+                        </Button>
+                      </div>
+                    </EditableElementWrapper>
+                  )}
+                  {section.secondaryButtonText && (
+                    <EditableElementWrapper
+                      isEditor={isEditor}
+                      isSelected={isEditor && selectedElementKey === "secondaryButton"}
+                      label="Secondary CTA"
+                      onClick={() => onSelectElement?.("secondaryButton")}
+                      inline
+                    >
+                      <div className={isEditor ? "pointer-events-none" : ""}>
+                        <Button
+                          href={section.secondaryButtonLink}
+                          className={secondaryBtn.className}
+                          style={secondaryBtn.style}
+                        >
+                          {secondaryBtn.icon && secondaryBtn.iconPosition === "left" && (
+                            <Icon name={secondaryBtn.icon} size={16} />
+                          )}
+                          <span>{section.secondaryButtonText}</span>
+                          {secondaryBtn.icon && secondaryBtn.iconPosition === "right" && (
+                            <Icon name={secondaryBtn.icon} size={16} />
+                          )}
+                        </Button>
+                      </div>
+                    </EditableElementWrapper>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           {/* Video Player / Showcase Column */}
@@ -278,29 +357,20 @@ const VideoSpotlightBlock: React.FC<{
               isImageLeft ? "lg:order-1" : "lg:order-2"
             }`}
           >
-            <div
-              onClick={(e) => {
-                if (isEditor && onSelectElement) {
-                  e.stopPropagation();
-                  onSelectElement("video");
-                }
-              }}
-              className={`rounded-lg border p-5 transition-all ${
-                isDark
-                  ? "bg-white/5 border-white/10"
-                  : "bg-white border-line shadow-subtle"
-              } ${
-                isEditor
-                  ? "cursor-pointer group/vid relative hover:outline hover:outline-dashed hover:outline-2 hover:outline-gold-500"
-                  : ""
-              }`}
+            <EditableElementWrapper
+              isEditor={isEditor}
+              isSelected={isEditor && selectedElementKey === "video"}
+              label="Video Spotlight"
+              onClick={() => onSelectElement?.("video")}
+              className="rounded-lg"
             >
-              {isEditor && (
-                <span className="hidden group-hover/vid:inline-flex absolute -top-3.5 right-4 z-30 px-2 py-0.5 rounded-xs bg-navy-900 text-gold-300 text-[9px] font-bold shadow-md items-center gap-1">
-                  <Icon name="video" size={11} />
-                  <span>Video Settings ✎</span>
-                </span>
-              )}
+              <div
+                className={`rounded-lg border p-5 transition-all ${
+                  isDark
+                    ? "bg-white/5 border-white/10"
+                    : "bg-white border-line shadow-subtle"
+                }`}
+              >
 
               <div className="flex items-center justify-between mb-3">
                 <Tag variant={isDark ? "gold" : "navy"}>Spotlight Video</Tag>
@@ -411,7 +481,8 @@ const VideoSpotlightBlock: React.FC<{
                   </button>
                 </div>
               )}
-            </div>
+              </div>
+            </EditableElementWrapper>
           </div>
         </div>
       </Container>
@@ -422,6 +493,9 @@ const VideoSpotlightBlock: React.FC<{
 export const SectionRenderer: React.FC<Props> = ({
   section,
   isEditor = false,
+  courses,
+  selectedElementKey,
+  selectedElementItemIndex,
   onSelectElement,
 }) => {
   if (!section.enabled && !isEditor) return null;
@@ -433,16 +507,54 @@ export const SectionRenderer: React.FC<Props> = ({
           headline={section.headline}
           subheadline={section.subheadline}
           badgeText={section.badgeText}
+          tags={section.tags}
           buttonText={section.buttonText}
           buttonLink={section.buttonLink}
+          buttonBgColor={section.buttonBgColor}
+          buttonTextColor={section.buttonTextColor}
+          buttonFontFamily={section.buttonFontFamily}
+          buttonFontWeight={section.buttonFontWeight}
+          buttonTextTransform={section.buttonTextTransform}
+          buttonIcon={section.buttonIcon}
+          buttonIconPosition={section.buttonIconPosition}
+          buttonRadius={section.buttonRadius}
+          buttonSize={section.buttonSize}
           secondaryButtonText={section.secondaryButtonText}
           secondaryButtonLink={section.secondaryButtonLink}
+          secondaryButtonBgColor={section.secondaryButtonBgColor}
+          secondaryButtonTextColor={section.secondaryButtonTextColor}
+          secondaryButtonFontFamily={section.secondaryButtonFontFamily}
+          secondaryButtonFontWeight={section.secondaryButtonFontWeight}
+          secondaryButtonTextTransform={section.secondaryButtonTextTransform}
+          secondaryButtonIcon={section.secondaryButtonIcon}
+          secondaryButtonIconPosition={section.secondaryButtonIconPosition}
+          secondaryButtonRadius={section.secondaryButtonRadius}
+          secondaryButtonSize={section.secondaryButtonSize}
           image={section.image}
+          floatingBadgeTitle={section.floatingBadgeTitle}
+          floatingBadgeSubtitle={section.floatingBadgeSubtitle}
+          floatingBadgeIcon={section.floatingBadgeIcon}
+          floatingBadgeEnabled={section.floatingBadgeEnabled}
           mediaPosition={section.mediaPosition}
           columnRatio={section.columnRatio}
+          align={section.align}
+          alignMobile={section.alignMobile}
           paddingDensity={section.paddingDensity}
-          bgColor={section.bgColor}
+          paddingDensityMobile={section.paddingDensityMobile}
+          bgColor={section.bgColor as any}
+          headlineFontFamily={section.headlineFontFamily}
+          headlineFontSize={section.headlineFontSize}
+          headlineFontWeight={section.headlineFontWeight}
+          headlineFontStyle={section.headlineFontStyle}
+          headlineColor={section.headlineColor}
+          subheadlineFontFamily={section.subheadlineFontFamily}
+          subheadlineFontSize={section.subheadlineFontSize}
+          subheadlineFontWeight={section.subheadlineFontWeight}
+          subheadlineFontStyle={section.subheadlineFontStyle}
+          subheadlineColor={section.subheadlineColor}
           isEditor={isEditor}
+          selectedElementKey={selectedElementKey}
+          selectedElementItemIndex={selectedElementItemIndex}
           onSelectElement={onSelectElement}
         />
       );
@@ -453,10 +565,12 @@ export const SectionRenderer: React.FC<Props> = ({
           headline={section.headline}
           subheadline={section.subheadline}
           items={section.items}
-          bgColor={section.bgColor}
+          bgColor={section.bgColor as any}
           columnRatio={section.columnRatio}
           mediaPosition={section.mediaPosition}
           isEditor={isEditor}
+          selectedElementKey={selectedElementKey}
+          selectedElementItemIndex={selectedElementItemIndex}
           onSelectElement={onSelectElement}
         />
       );
@@ -466,8 +580,13 @@ export const SectionRenderer: React.FC<Props> = ({
         <ChooseYourPath
           headline={section.headline}
           subheadline={section.subheadline}
-          bgColor={section.bgColor}
+          bgColor={section.bgColor as any}
           columns={(section.columns === 1 ? 2 : section.columns) as 2 | 3 | 4 | undefined}
+          items={section.items}
+          isEditor={isEditor}
+          selectedElementKey={selectedElementKey}
+          selectedElementItemIndex={selectedElementItemIndex}
+          onSelectElement={onSelectElement}
         />
       );
 
@@ -476,8 +595,13 @@ export const SectionRenderer: React.FC<Props> = ({
         <HowItWorksTimeline
           headline={section.headline}
           subheadline={section.subheadline}
-          bgColor={section.bgColor}
+          bgColor={section.bgColor as any}
           columns={(section.columns === 1 ? 2 : section.columns) as 2 | 3 | 4 | undefined}
+          items={section.items}
+          isEditor={isEditor}
+          selectedElementKey={selectedElementKey}
+          selectedElementItemIndex={selectedElementItemIndex}
+          onSelectElement={onSelectElement}
         />
       );
 
@@ -521,19 +645,37 @@ export const SectionRenderer: React.FC<Props> = ({
             ? "py-24"
             : "py-16";
 
-        const bgClass =
-          section.bgColor === "white"
-            ? "bg-white"
-            : section.bgColor === "navy"
-            ? "bg-navy-900 text-white"
-            : section.bgColor === "cream"
-            ? "bg-gold-50/70"
-            : "bg-paper";
+        const { bgClass, isDark, style } = resolveSectionBg(section.bgColor, "paper");
 
-        const isDark = section.bgColor === "navy";
+        const { className: hlClass, style: hlStyle } = resolveTypography({
+          fontFamily: section.headlineFontFamily,
+          fontSize: section.headlineFontSize,
+          fontWeight: section.headlineFontWeight,
+          fontStyle: section.headlineFontStyle,
+          color: section.headlineColor,
+          isDark,
+          defaultFamily: "heading",
+          defaultSize: "lg",
+          defaultWeight: "bold",
+        });
+
+        const { className: subClass, style: subStyle } = resolveSubheadlineTypography({
+          fontFamily: section.subheadlineFontFamily,
+          fontSize: section.subheadlineFontSize,
+          fontWeight: section.subheadlineFontWeight,
+          fontStyle: section.subheadlineFontStyle,
+          color: section.subheadlineColor,
+          isDark,
+          defaultFamily: "body",
+          defaultSize: "md",
+          defaultWeight: "normal",
+        });
 
         return (
-          <section className={`${bgClass} ${paddingClass} border-b border-line`}>
+          <section
+            style={style}
+            className={`${bgClass} ${paddingClass} border-b border-line`}
+          >
             <Container>
               <div
                 className={`max-w-3xl mb-12 ${
@@ -580,7 +722,8 @@ export const SectionRenderer: React.FC<Props> = ({
                 >
                   <Heading
                     level="h2"
-                    className={`mb-3 ${isDark ? "text-white" : "text-navy-900"}`}
+                    style={hlStyle}
+                    className={`mb-3 ${hlClass}`}
                   >
                     {section.headline}
                   </Heading>
@@ -605,9 +748,8 @@ export const SectionRenderer: React.FC<Props> = ({
                   }
                 >
                   <p
-                    className={`text-base sm:text-lg leading-relaxed ${
-                      isDark ? "text-paper/85" : "text-ink-soft"
-                    }`}
+                    style={subStyle}
+                    className={`leading-relaxed ${subClass}`}
                   >
                     {section.subheadline}
                   </p>
@@ -832,8 +974,13 @@ export const SectionRenderer: React.FC<Props> = ({
         <PricingFlexibility
           headline={section.headline}
           subheadline={section.subheadline}
-          bgColor={section.bgColor}
+          bgColor={section.bgColor as any}
           columns={(section.columns === 1 ? 2 : section.columns) as 2 | 3 | 4 | undefined}
+          items={section.items}
+          isEditor={isEditor}
+          selectedElementKey={selectedElementKey}
+          selectedElementItemIndex={selectedElementItemIndex}
+          onSelectElement={onSelectElement}
         />
       );
 
@@ -844,8 +991,9 @@ export const SectionRenderer: React.FC<Props> = ({
           subheadline={section.subheadline}
           buttonText={section.buttonText}
           buttonLink={section.buttonLink}
-          bgColor={section.bgColor}
+          bgColor={section.bgColor as any}
           columns={(section.columns === 1 ? 2 : section.columns) as 2 | 3 | 4 | undefined}
+          courses={courses}
         />
       );
 
@@ -859,9 +1007,12 @@ export const SectionRenderer: React.FC<Props> = ({
           videoThumbnail={section.videoThumbnail}
           videoUrl={section.videoUrl}
           columnRatio={section.columnRatio}
-          bgColor={section.bgColor}
+          bgColor={section.bgColor as any}
           mediaPosition={section.mediaPosition}
+          items={section.items}
           isEditor={isEditor}
+          selectedElementKey={selectedElementKey}
+          selectedElementItemIndex={selectedElementItemIndex}
           onSelectElement={onSelectElement}
         />
       );
@@ -871,6 +1022,8 @@ export const SectionRenderer: React.FC<Props> = ({
         <VideoSpotlightBlock
           section={section}
           isEditor={isEditor}
+          selectedElementKey={selectedElementKey}
+          selectedElementItemIndex={selectedElementItemIndex}
           onSelectElement={onSelectElement}
         />
       );
@@ -881,9 +1034,11 @@ export const SectionRenderer: React.FC<Props> = ({
           headline={section.headline}
           subheadline={section.subheadline}
           items={section.items}
-          bgColor={section.bgColor}
+          bgColor={section.bgColor as any}
           columns={(section.columns === 1 ? 2 : section.columns) as 2 | 3 | 4 | undefined}
           isEditor={isEditor}
+          selectedElementKey={selectedElementKey}
+          selectedElementItemIndex={selectedElementItemIndex}
           onSelectElement={onSelectElement}
         />
       );
@@ -896,25 +1051,50 @@ export const SectionRenderer: React.FC<Props> = ({
           badgeText={section.badgeText}
           buttonText={section.buttonText}
           buttonLink={section.buttonLink}
+          buttonBgColor={section.buttonBgColor}
+          buttonTextColor={section.buttonTextColor}
+          buttonFontFamily={section.buttonFontFamily}
+          buttonFontWeight={section.buttonFontWeight}
+          buttonTextTransform={section.buttonTextTransform}
+          buttonIcon={section.buttonIcon}
+          buttonIconPosition={section.buttonIconPosition}
+          buttonRadius={section.buttonRadius}
+          buttonSize={section.buttonSize}
           secondaryButtonText={section.secondaryButtonText}
           secondaryButtonLink={section.secondaryButtonLink}
-          bgColor={section.bgColor}
+          secondaryButtonBgColor={section.secondaryButtonBgColor}
+          secondaryButtonTextColor={section.secondaryButtonTextColor}
+          secondaryButtonFontFamily={section.secondaryButtonFontFamily}
+          secondaryButtonFontWeight={section.secondaryButtonFontWeight}
+          secondaryButtonTextTransform={section.secondaryButtonTextTransform}
+          secondaryButtonIcon={section.secondaryButtonIcon}
+          secondaryButtonIconPosition={section.secondaryButtonIconPosition}
+          secondaryButtonRadius={section.secondaryButtonRadius}
+          secondaryButtonSize={section.secondaryButtonSize}
+          bgColor={section.bgColor as any}
           align={section.align}
+          headlineFontFamily={section.headlineFontFamily}
+          headlineFontSize={section.headlineFontSize}
+          headlineFontWeight={section.headlineFontWeight}
+          headlineFontStyle={section.headlineFontStyle}
+          headlineColor={section.headlineColor}
+          subheadlineFontFamily={section.subheadlineFontFamily}
+          subheadlineFontSize={section.subheadlineFontSize}
+          subheadlineFontWeight={section.subheadlineFontWeight}
+          subheadlineFontStyle={section.subheadlineFontStyle}
+          subheadlineColor={section.subheadlineColor}
+          isEditor={isEditor}
+          selectedElementKey={selectedElementKey}
+          selectedElementItemIndex={selectedElementItemIndex}
+          onSelectElement={onSelectElement}
         />
       );
 
     case "announcement": {
-      const annBg =
-        section.bgColor === "paper"
-          ? "bg-paper text-ink border-y border-line"
-          : section.bgColor === "white"
-          ? "bg-white text-ink border-y border-line"
-          : section.bgColor === "cream"
-          ? "bg-gold-50/70 text-ink border-y border-gold-200"
-          : "bg-navy-900 text-white border-y border-gold-500/30";
+      const { bgClass: annBg, style: annStyle } = resolveSectionBg(section.bgColor, "navy");
 
       return (
-        <div className={`${annBg} py-3 px-4 sm:px-6`}>
+        <div style={annStyle} className={`${annBg} py-3 px-4 sm:px-6`}>
           <Container>
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
               <div className="flex items-center gap-2">
@@ -947,21 +1127,10 @@ export const SectionRenderer: React.FC<Props> = ({
           ? "grid-cols-1 sm:grid-cols-3"
           : "grid-cols-2 sm:grid-cols-4";
 
-      const isWhite = section.bgColor === "white";
-      const isPaper = section.bgColor === "paper";
-      const isCream = section.bgColor === "cream";
-      const isNavy = !isWhite && !isPaper && !isCream;
-
-      const bgClass = isWhite
-        ? "bg-white text-ink border-y border-line"
-        : isPaper
-        ? "bg-paper text-ink border-y border-line"
-        : isCream
-        ? "bg-gold-50/70 text-ink border-y border-gold-200"
-        : "bg-navy-900 text-white border-y border-navy-800";
+      const { bgClass, isNavy, style } = resolveSectionBg(section.bgColor, "paper");
 
       return (
-        <div className={`${bgClass} py-12`}>
+        <div style={style} className={`${bgClass} py-12`}>
           <Container>
             <div className="text-center max-w-2xl mx-auto mb-8">
               <h2
@@ -1053,17 +1222,10 @@ export const SectionRenderer: React.FC<Props> = ({
     }
 
     case "contact_block": {
-      const contactBg =
-        section.bgColor === "white"
-          ? "bg-white py-14 border-y border-line"
-          : section.bgColor === "navy"
-          ? "bg-navy-900 text-white py-14 border-y border-navy-800"
-          : section.bgColor === "cream"
-          ? "bg-gold-50/70 py-14 border-y border-gold-200 text-ink"
-          : "bg-paper py-14 border-y border-line";
+      const { bgClass: contactBg, style: contactStyle } = resolveSectionBg(section.bgColor, "paper");
 
       return (
-        <div className={contactBg}>
+        <div style={contactStyle} className={`${contactBg} py-14 border-y border-line`}>
           <Container>
             <div className="max-w-2xl mx-auto bg-white p-6 sm:p-8 rounded-lg border border-line shadow-subtle space-y-4">
               <div>

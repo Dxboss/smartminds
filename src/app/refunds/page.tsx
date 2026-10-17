@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import { siteConfig } from "@/content/siteConfig";
-import { collegePagesData } from "@/lib/repositories/seedData";
+import { getPublishedCmsPageSections } from "@/lib/persistedData";
 import { SectionRenderer } from "@/components/cms/SectionRenderer";
 import { Container } from "@/components/ui/Container";
 import { Heading } from "@/components/ui/Heading";
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 };
 
 export default function RefundsPage() {
-  const sections = collegePagesData["/refunds"];
+  const sections = getPublishedCmsPageSections("/refunds");
 
   if (sections && sections.length > 0) {
     return (

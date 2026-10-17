@@ -176,14 +176,31 @@ export default function StudentPortalPage() {
         <div className="bg-navy-900 text-white rounded-md p-6 sm:p-8 shadow-card relative overflow-hidden">
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded bg-gold-500/20 text-gold-300 text-xs font-bold uppercase tracking-wider">
-                <Icon name="check-circle" size={13} className="text-gold-300" />
-                <span>Verified Learner • ID: SM-9281</span>
+              <div className="inline-flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-gold-500/20 text-gold-300 text-xs font-bold uppercase tracking-wider">
+                  <Icon name="check-circle" size={13} className="text-gold-300" />
+                  <span>
+                    {user?.accountType === "parent_guardian"
+                      ? "Verified Parent Account • ID: SM-9281"
+                      : "Verified Learner • ID: SM-9281"}
+                  </span>
+                </span>
+                {user?.trainingLocation && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-white/10 text-white text-xs font-semibold">
+                    <Icon name="map-pin" size={13} className="text-gold-300" />
+                    <span>{user.trainingLocation} Campus</span>
+                  </span>
+                )}
               </div>
               <h1 className="font-heading text-3xl sm:text-4xl font-bold uppercase tracking-tight text-white">
-                Welcome back, {user?.name}
+                {user?.accountType === "parent_guardian"
+                  ? `Parent Console: ${user?.name}`
+                  : `Welcome back, ${user?.name}`}
               </h1>
               <p className="text-sm text-paper/80 max-w-2xl">
+                {user?.accountType === "parent_guardian"
+                  ? `Managing tuition & progress for ${user?.childName || "Your Child"} • `
+                  : ""}
                 {user?.enrolledCourse || "Level 3 Diploma in Adult Care (RQF)"} •{" "}
                 <span className="text-gold-300">{user?.cohort || "Cohort March 2026"}</span> • TQUK Regulated
               </p>

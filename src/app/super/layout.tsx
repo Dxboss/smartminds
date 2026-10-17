@@ -8,6 +8,16 @@ import { DemoModeBanner } from "@/components/layout/DemoModeBanner";
 export const metadata: Metadata = {
   title: "Super Admin Console | Smartminds Training College",
   description: "Developer engineering tools, feature entitlements, audit logs, and demo controls.",
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: {
+      index: false,
+      follow: false,
+      noimageindex: true,
+    },
+  },
 };
 
 export const instant = false;

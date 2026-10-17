@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Course } from "@/content/types";
 import { Container } from "@/components/ui/Container";
 import { CourseHeader } from "./CourseHeader";
+import { CourseMediaShowcase } from "./CourseMediaShowcase";
 import { VideoSlotPlaceholder } from "./VideoSlotPlaceholder";
 import { LevelSelector } from "./LevelSelector";
 import { CourseOverview } from "./CourseOverview";
@@ -39,8 +40,8 @@ export const CourseDetailClient: React.FC<CourseDetailClientProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
           {/* Left Column (Content) */}
           <div className="lg:col-span-8 space-y-10">
-            {/* 1. Intro Video Slot per PRD 10.3 */}
-            <VideoSlotPlaceholder courseTitle={course.title} />
+            {/* 1. Interactive Video, Photographic Tour & Delivery Model Showcase */}
+            <CourseMediaShowcase course={course} />
 
             {/* 2. Level Selector (Tabs / Segmented Control) */}
             <div className="bg-white rounded-lg border border-line p-5 shadow-subtle">

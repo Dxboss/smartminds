@@ -1,6 +1,7 @@
 export { CoursesListingView } from "./CoursesListingView";
 export { CourseDetailClient } from "./CourseDetailClient";
 export { CourseHeader } from "./CourseHeader";
+export { CourseMediaShowcase } from "./CourseMediaShowcase";
 export { VideoSlotPlaceholder } from "./VideoSlotPlaceholder";
 export { LevelSelector } from "./LevelSelector";
 export { CourseOverview } from "./CourseOverview";

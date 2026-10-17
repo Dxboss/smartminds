@@ -49,11 +49,31 @@ const STEPS: Step[] = [
   },
 ];
 
+import { BuilderSectionItem } from "@/lib/repositories/seedData";
+import { EditableElementWrapper } from "@/components/admin/EditableElementWrapper";
+
 export interface HowItWorksTimelineProps {
   headline?: string;
   subheadline?: string;
   bgColor?: "white" | "paper" | "navy" | "cream";
   columns?: 2 | 3 | 4;
+  items?: BuilderSectionItem[];
+  isEditor?: boolean;
+  selectedElementKey?: string | null;
+  selectedElementItemIndex?: number | null;
+  onSelectElement?: (
+    elementKey:
+      | "headline"
+      | "subheadline"
+      | "badge"
+      | "button"
+      | "secondaryButton"
+      | "image"
+      | "item"
+      | "bg"
+      | "video",
+    itemIndex?: number
+  ) => void;
 }
 
 export const HowItWorksTimeline: React.FC<HowItWorksTimelineProps> = ({
@@ -61,6 +81,11 @@ export const HowItWorksTimeline: React.FC<HowItWorksTimelineProps> = ({
   subheadline = "Our structured route gives you personal tutor support from day one, fitting around your working week with both live classes and 24/7 access to recordings.",
   bgColor = "white",
   columns = 4,
+  items,
+  isEditor = false,
+  selectedElementKey,
+  selectedElementItemIndex,
+  onSelectElement,
 }) => {
   const isDark = bgColor === "navy";
 
@@ -70,6 +95,18 @@ export const HowItWorksTimeline: React.FC<HowItWorksTimelineProps> = ({
       : columns === 3
       ? "grid-cols-1 md:grid-cols-3"
       : "grid-cols-1 md:grid-cols-2 lg:grid-cols-4";
+
+  // Use dynamic editable items if configured; fallback to default steps
+  const renderedSteps: Step[] =
+    items && items.length > 0
+      ? items.map((it, idx) => ({
+          number: it.number || (idx < 9 ? `0${idx + 1}` : `${idx + 1}`),
+          title: it.title,
+          subtitle: it.subtitle || it.tag || "",
+          description: it.desc || "",
+          badge: it.badge || it.tag,
+        }))
+      : STEPS;
 
   return (
     <Section variant={bgColor} className="border-b border-line">
@@ -88,48 +125,58 @@ export const HowItWorksTimeline: React.FC<HowItWorksTimelineProps> = ({
 
         {/* Dynamic Timeline Grid */}
         <div className={`grid ${colClass} gap-6 relative`}>
-          {STEPS.map((step, index) => (
-            <div
-              key={step.number}
-              className={`relative rounded-lg border p-6 flex flex-col justify-between transition-colors ${
-                isDark
-                  ? "bg-white/5 border-white/10 hover:border-gold-500/50 text-white"
-                  : "bg-paper border-line shadow-subtle hover:border-navy-900/30 text-ink"
-              }`}
+          {renderedSteps.map((step, index) => (
+            <EditableElementWrapper
+              key={step.number + index}
+              isEditor={isEditor}
+              isSelected={isEditor && selectedElementKey === "item" && selectedElementItemIndex === index}
+              label={`Step #${index + 1}`}
+              onClick={() => onSelectElement?.("item", index)}
+              className="h-full rounded-lg"
             >
-              <div>
-                {/* Step header */}
-                <div className="flex items-center justify-between gap-2 mb-4">
-                  <span className={`font-heading font-bold text-3xl tracking-tight ${isDark ? "text-gold-300" : "text-navy-900"}`}>
-                    {step.number}
-                  </span>
-                  {step.badge && (
-                    <Tag variant={isDark ? "gold" : "default"} className="text-xs">
-                      {step.badge}
-                    </Tag>
+              <div
+                className={`relative rounded-lg border p-6 flex flex-col justify-between transition-colors h-full ${
+                  isDark
+                    ? "bg-white/5 border-white/10 hover:border-gold-500/50 text-white"
+                    : "bg-paper border-line shadow-subtle hover:border-navy-900/30 text-ink"
+                }`}
+              >
+                <div>
+                  {/* Step header */}
+                  <div className="flex items-center justify-between gap-2 mb-4">
+                    <span className={`font-heading font-bold text-3xl tracking-tight ${isDark ? "text-gold-300" : "text-navy-900"}`}>
+                      {step.number}
+                    </span>
+                    {step.badge && (
+                      <Tag variant={isDark ? "gold" : "default"} className="text-xs">
+                        {step.badge}
+                      </Tag>
+                    )}
+                  </div>
+
+                  <h3 className={`font-heading text-xl font-bold mb-1 ${isDark ? "text-white" : "text-navy-900"}`}>
+                    {step.title}
+                  </h3>
+                  {step.subtitle && (
+                    <span className={`text-xs font-semibold block mb-3 ${isDark ? "text-gold-300" : "text-navy-700"}`}>
+                      {step.subtitle}
+                    </span>
                   )}
+
+                  <p className={`text-sm leading-relaxed ${isDark ? "text-paper/80" : "text-ink-soft"}`}>
+                    {step.description}
+                  </p>
                 </div>
 
-                <h3 className={`font-heading text-xl font-bold mb-1 ${isDark ? "text-white" : "text-navy-900"}`}>
-                  {step.title}
-                </h3>
-                <span className={`text-xs font-semibold block mb-3 ${isDark ? "text-gold-300" : "text-navy-700"}`}>
-                  {step.subtitle}
-                </span>
-
-                <p className={`text-sm leading-relaxed ${isDark ? "text-paper/80" : "text-ink-soft"}`}>
-                  {step.description}
-                </p>
+                {/* Progress connector indicator */}
+                <div className={`mt-6 pt-4 border-t flex items-center justify-between text-xs ${isDark ? "border-white/10 text-paper/60" : "border-line text-ink-soft"}`}>
+                  <span className="font-mono">Step {index + 1} of {renderedSteps.length}</span>
+                  <span className={`font-bold ${isDark ? "text-gold-300" : "text-navy-900"}`}>
+                    {index < renderedSteps.length - 1 ? "\u2192" : "\u2713"}
+                  </span>
+                </div>
               </div>
-
-              {/* Progress connector indicator */}
-              <div className={`mt-6 pt-4 border-t flex items-center justify-between text-xs ${isDark ? "border-white/10 text-paper/60" : "border-line text-ink-soft"}`}>
-                <span className="font-mono">Step {index + 1} of 4</span>
-                <span className={`font-bold ${isDark ? "text-gold-300" : "text-navy-900"}`}>
-                  {index < 3 ? "\u2192" : "\u2713"}
-                </span>
-              </div>
-            </div>
+            </EditableElementWrapper>
           ))}
         </div>
 

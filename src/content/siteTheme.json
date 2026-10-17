@@ -1,13 +1,22 @@
 {
   "headerNav": {
     "logoType": "vector",
-    "logoImageUrl": "",
+    "logoImageUrl": "/images/logo-color.png",
     "logoHeight": 44,
     "siteName": "Smartminds",
     "tagline": "Training College",
     "announcementActive": true,
     "announcementText": "Autumn & Winter 2026 Cohorts Enrolling Now — Spread Fees over 12 Months with 0% Interest",
-    "announcementLink": "/courses",
+    "announcementLink": "/funding",
+    "announcements": [
+      {
+        "id": "ann-1",
+        "text": "Autumn & Winter 2026 Cohorts Enrolling Now — Spread Fees over 12 Months with 0% Interest",
+        "link": "/funding",
+        "badge": "",
+        "active": true
+      }
+    ],
     "supportPhone": "01452 225 225",
     "whatsappNumber": "07932 034 548",
     "ctaButtonText": "Get free advice",
@@ -49,6 +58,16 @@
         "id": "nav-3",
         "label": "Private Tutoring",
         "href": "/private-tutoring"
+      },
+      {
+        "id": "nav-blog",
+        "label": "Guides",
+        "href": "/blog"
+      },
+      {
+        "id": "nav-4",
+        "label": "Funding",
+        "href": "/funding"
       },
       {
         "id": "nav-5",
@@ -105,6 +124,11 @@
         "id": "f-4",
         "label": "Funded Options",
         "href": "/funding"
+      },
+      {
+        "id": "f-blog",
+        "label": "Career Guides & Advice",
+        "href": "/blog"
       }
     ],
     "collegeLinks": [

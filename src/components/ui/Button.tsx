@@ -36,14 +36,17 @@ export const Button = React.forwardRef<
     const baseClasses =
       "inline-flex items-center justify-center font-semibold text-center transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none";
 
+    const hasCustomRadius = /\b(!?rounded(-\w+)?)\b/.test(className);
+    const radiusClass = hasCustomRadius ? "" : "rounded-sm";
+
     const sizeClasses =
       variant === "text-link"
         ? "p-0 min-h-[44px] inline-flex items-center"
         : size === "sm"
-          ? "min-h-[44px] px-4 py-2 text-sm rounded-sm"
+          ? `min-h-[44px] px-4 py-2 text-sm ${radiusClass}`
           : size === "lg"
-            ? "min-h-[52px] px-8 py-3.5 text-lg rounded-sm"
-            : "min-h-[44px] px-6 py-2.5 text-base rounded-sm";
+            ? `min-h-[52px] px-8 py-3.5 text-lg ${radiusClass}`
+            : `min-h-[44px] px-6 py-2.5 text-base ${radiusClass}`;
 
     const variantClasses = {
       primary:
@@ -69,6 +72,7 @@ export const Button = React.forwardRef<
             target="_blank"
             rel="noopener noreferrer"
             className={combinedClasses}
+            style={props.style}
           >
             {children}
           </a>
@@ -80,6 +84,7 @@ export const Button = React.forwardRef<
           ref={ref as React.Ref<HTMLAnchorElement>}
           href={href}
           className={combinedClasses}
+          style={props.style}
         >
           {children}
         </Link>

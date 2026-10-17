@@ -29,13 +29,31 @@ export default async function AdminCmsPage() {
     redirect("/login");
   }
 
+  const {
+    loadPersistedRecords,
+    syncPersistedRecords,
+    getAllPublishedCmsPages,
+    getPublishedCmsPageSections,
+    getLiveCourses,
+  } = await import("@/lib/persistedData");
+  const { getPersistentSiteTheme } = await import("@/lib/siteTheme");
+  syncPersistedRecords(true);
+  const store = loadPersistedRecords();
+  const initialDrafts = store.cmsPagesDraftData || {};
+  const allPublishedPages = getAllPublishedCmsPages();
+  const publishedHome = getPublishedCmsPageSections("/");
+  const liveCourses = getLiveCourses();
+  const persistentTheme = getPersistentSiteTheme();
+
   return (
     <SiteCmsEditorView
-      initialSections={collegePageBuilderSections}
-      initialPagesData={collegePagesData}
-      initialHeaderNav={defaultHeaderNavConfig}
-      initialFooterConfig={defaultFooterConfig}
+      initialSections={publishedHome}
+      initialPagesData={allPublishedPages}
+      initialHeaderNav={persistentTheme.headerNav as any}
+      initialFooterConfig={persistentTheme.footer as any}
       initialContent={collegeCmsContent}
+      initialDrafts={initialDrafts}
+      liveCourses={liveCourses}
       userRole={session.role}
     />
   );

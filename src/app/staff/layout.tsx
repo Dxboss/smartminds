@@ -17,6 +17,16 @@ export const instant = false;
 export const metadata: Metadata = {
   title: "Tutor Console | Smartminds Training College",
   description: "Tutor teaching portal, cohort sessions, assignment grading, and student submissions.",
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: {
+      index: false,
+      follow: false,
+      noimageindex: true,
+    },
+  },
 };
 
 const TUTOR_NAV = [

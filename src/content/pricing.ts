@@ -8,6 +8,11 @@ export interface PricingResult {
   monthly: number;
   finalPayment: number;
   total: number;
+  regularPrice: number;
+  sellingPrice: number;
+  hasPriceSlash: boolean;
+  regularSaving: number;
+  regularDiscountPercent: number;
 }
 
 /**
@@ -19,13 +24,26 @@ export interface PricingResult {
  * 3. Deposit: fixed amount or percentage of the full price.
  * 4. Monthly payment: (price - deposit) / months, rounded to pence.
  * 5. Final payment: absorbs any rounding remainder so that total strictly equals price_gbp.
+ * 6. Regular vs Selling: if regular_price_gbp > price_gbp, compute strikethrough savings.
  */
 export function calculatePricing(
-  level: Pick<CourseLevel, "price_gbp" | "full_pay_discount_percent">,
+  level: Pick<CourseLevel, "price_gbp" | "full_pay_discount_percent"> & {
+    regular_price_gbp?: number | null;
+  },
   plan: Pick<PaymentPlanTemplate, "months" | "deposit_type" | "deposit_value">,
   globals: Pick<GlobalSettings, "default_full_pay_discount_percent">
 ): PricingResult {
   const price = Math.max(0, level.price_gbp);
+  const regularPrice =
+    typeof level.regular_price_gbp === "number" && level.regular_price_gbp > price
+      ? level.regular_price_gbp
+      : price;
+  const hasPriceSlash = regularPrice > price;
+  const regularSaving = roundPence(regularPrice - price);
+  const regularDiscountPercent =
+    hasPriceSlash && regularPrice > 0
+      ? Math.round((regularSaving / regularPrice) * 100)
+      : 0;
 
   // 1. Full-pay discount calculation
   const discountPercent =
@@ -60,6 +78,11 @@ export function calculatePricing(
       monthly: remaining,
       finalPayment: remaining,
       total: roundPence(deposit + remaining),
+      regularPrice,
+      sellingPrice: price,
+      hasPriceSlash,
+      regularSaving,
+      regularDiscountPercent,
     };
   }
 
@@ -84,6 +107,11 @@ export function calculatePricing(
     monthly,
     finalPayment,
     total,
+    regularPrice,
+    sellingPrice: price,
+    hasPriceSlash,
+    regularSaving,
+    regularDiscountPercent,
   };
 }
 

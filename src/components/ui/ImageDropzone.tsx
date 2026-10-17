@@ -6,7 +6,7 @@ import { Icon } from "@/components/ui/Icon";
 
 export interface ImageDropzoneProps {
   value?: string;
-  onChange: (url: string) => void;
+  onChange: (url: string, fileName?: string) => void;
   label?: string;
   helperText?: string;
   accept?: string;
@@ -32,7 +32,75 @@ export const ImageDropzone: React.FC<ImageDropzoneProps> = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFile = (file: File) => {
+  const compressImageFile = (
+    file: File,
+    maxWidth = 1600,
+    maxHeight = 1600,
+    quality = 0.82
+  ): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      // SVGs are vector text; don't rasterize to canvas
+      if (file.type === "image/svg+xml") {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target?.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+        return;
+      }
+
+      if (typeof window === "undefined" || !window.createImageBitmap && !window.Image) {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target?.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+        return;
+      }
+
+      const img = new window.Image();
+      const objectUrl = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        let { width, height } = img;
+        if (width > maxWidth || height > maxHeight) {
+          if (width / maxWidth > height / maxHeight) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          } else {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target?.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        // Convert to WebP for 80% smaller payload size while preserving quality
+        const mimeType = file.type === "image/png" ? "image/webp" : "image/jpeg";
+        const compressedDataUrl = canvas.toDataURL(mimeType, quality);
+        resolve(compressedDataUrl);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target?.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      };
+      img.src = objectUrl;
+    });
+  };
+
+  const handleFile = async (file: File) => {
     setErrorMsg(null);
 
     // Validate size
@@ -41,18 +109,14 @@ export const ImageDropzone: React.FC<ImageDropzoneProps> = ({
       return;
     }
 
-    // Convert file to base64 data URL for instant client-side preview
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const dataUrl = e.target?.result as string;
+    try {
+      const dataUrl = await compressImageFile(file);
       if (dataUrl) {
-        onChange(dataUrl);
+        onChange(dataUrl, file.name);
       }
-    };
-    reader.onerror = () => {
+    } catch {
       setErrorMsg("Failed to read image file. Please try another image.");
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {

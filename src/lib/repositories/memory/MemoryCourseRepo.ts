@@ -3,13 +3,13 @@ import { Course } from "@/content/types";
 import { CourseRepo } from "../interfaces";
 import { PermissionDeniedError, SessionUser } from "../types";
 import {
-  loadPersistedRecords,
+  getLiveCourses,
   savePersistedCourse,
   deletePersistedCourse,
 } from "@/lib/persistedData";
 
 export class MemoryCourseRepo implements CourseRepo {
-  private courseList: Course[] = [...courses];
+  private courseList: Course[] = [];
 
   constructor() {
     this.hydrateFromStore();
@@ -17,18 +17,10 @@ export class MemoryCourseRepo implements CourseRepo {
 
   private hydrateFromStore() {
     try {
-      const store = loadPersistedRecords();
-      if (store.courseOverrides) {
-        Object.values(store.courseOverrides).forEach((persisted) => {
-          const idx = this.courseList.findIndex((c) => c.id === persisted.id);
-          if (idx >= 0) {
-            this.courseList[idx] = { ...this.courseList[idx], ...persisted };
-          } else {
-            this.courseList.push(persisted);
-          }
-        });
-      }
-    } catch {}
+      this.courseList = getLiveCourses();
+    } catch {
+      this.courseList = [...courses];
+    }
   }
 
   async listCourses(): Promise<Course[]> {

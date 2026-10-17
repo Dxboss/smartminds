@@ -161,7 +161,18 @@ export const CourseUnitsList: React.FC<CourseUnitsListProps> = ({
       {/* Accordion Units List */}
       <div className="space-y-3">
         {selectedLevel.units.map((unit, idx) => {
-          const details = getUnitDetails(unit.code, unit.title);
+          const fallbackDetails = getUnitDetails(unit.code, unit.title);
+          const details = {
+            mandatory: unit.mandatory !== undefined ? unit.mandatory : fallbackDetails.mandatory,
+            glh: unit.guided_learning_hours || fallbackDetails.glh,
+            outcomes:
+              unit.outcomes && unit.outcomes.length > 0
+                ? unit.outcomes
+                : unit.learningOutcomes && unit.learningOutcomes.length > 0
+                ? unit.learningOutcomes
+                : fallbackDetails.outcomes,
+            evidence: unit.evidence || fallbackDetails.evidence,
+          };
           const isExpanded = expandedUnitCode === unit.code;
 
           return (

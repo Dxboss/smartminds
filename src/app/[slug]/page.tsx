@@ -1,8 +1,12 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
-import { collegePagesData } from "@/lib/repositories/seedData";
 import { SectionRenderer } from "@/components/cms/SectionRenderer";
+import {
+  getAllPublishedCmsPages,
+  getPublishedCmsPageSections,
+  getLiveCourses,
+} from "@/lib/persistedData";
 
 // Satisfy Next.js 16 Partial Prefetching / Instant Navigation for dynamic route params
 export const instant = false;
@@ -21,7 +25,8 @@ const RESERVED_SLUGS = [
 ];
 
 export async function generateStaticParams() {
-  return Object.keys(collegePagesData || {})
+  const allPages = getAllPublishedCmsPages();
+  return Object.keys(allPages || {})
     .filter(
       (path) =>
         path.startsWith("/") &&
@@ -47,7 +52,7 @@ export async function generateMetadata({
   }
 
   const path = "/" + slug;
-  const sections = collegePagesData[path];
+  const sections = getPublishedCmsPageSections(path);
 
   if (!sections || sections.length === 0) {
     return {
@@ -92,17 +97,19 @@ async function CmsPageContent({
   }
 
   const path = "/" + slug;
-  const sections = collegePagesData[path];
+  const sections = getPublishedCmsPageSections(path);
 
   if (!sections || sections.length === 0) {
     notFound();
   }
 
+  const liveCourses = getLiveCourses();
+
   return (
     <div className="bg-white min-h-screen">
       {sections.map((sec) => {
         if (!sec.enabled) return null;
-        return <SectionRenderer key={sec.id} section={sec} />;
+        return <SectionRenderer key={sec.id} section={sec} courses={liveCourses} />;
       })}
     </div>
   );
