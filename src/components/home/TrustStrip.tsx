@@ -49,119 +49,171 @@ export const TrustStrip: React.FC<TrustStripProps> = ({
   const isImageLeft = mediaPosition === "left";
   const { bgClass, isDark, style: bgStyle } = resolveSectionBg(bgColor, "white");
 
-  const getColSpans = (ratio?: string) => {
+  // Determine width balance based on columnRatio
+  const getRatioClasses = (ratio?: string) => {
     switch (ratio) {
       case "50-50":
-        return { reviews: "md:col-span-5", badges: "md:col-span-6" };
+        return {
+          reviewsClass: "md:w-1/2 md:max-w-md",
+          badgesClass: "md:w-1/2",
+        };
       case "70-30":
-        return { reviews: "md:col-span-7", badges: "md:col-span-4" };
+        return {
+          reviewsClass: "md:w-7/12 md:max-w-lg",
+          badgesClass: "md:w-5/12",
+        };
       case "40-60":
-        return { reviews: "md:col-span-4", badges: "md:col-span-7" };
+        return {
+          reviewsClass: "md:w-4/12 md:max-w-sm",
+          badgesClass: "md:w-8/12",
+        };
       case "33-67":
-        return { reviews: "md:col-span-3", badges: "md:col-span-8" };
+        return {
+          reviewsClass: "md:w-1/3 md:max-w-xs",
+          badgesClass: "md:w-2/3",
+        };
       case "60-40":
       default:
-        return { reviews: "md:col-span-5", badges: "md:col-span-6" };
+        return {
+          reviewsClass: "md:w-auto md:max-w-md flex-shrink-0",
+          badgesClass: "md:flex-1",
+        };
     }
   };
 
-  const { reviews: reviewsColSpan, badges: badgesColSpan } = getColSpans(columnRatio);
+  const { reviewsClass, badgesClass } = getRatioClasses(columnRatio);
 
   return (
     <section
       aria-label="Accreditations and Learner Reviews"
       style={bgStyle}
-      className={`${bgClass} py-8 shadow-subtle relative z-20 border-b border-line`}
+      className={`${bgClass} py-6 sm:py-8 shadow-subtle relative z-20 border-b border-line overflow-hidden`}
     >
       <Container>
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
-          {/* Reviews Rating & Real Learner Photos */}
-          <div className={`${reviewsColSpan} ${isImageLeft ? "md:order-2" : "md:order-1"}`}>
+        <div
+          className={`flex flex-col ${
+            isImageLeft ? "md:flex-row-reverse" : "md:flex-row"
+          } items-center justify-between gap-6 md:gap-8 lg:gap-10`}
+        >
+          {/* Reviews Rating & Real Learner Photos (Guaranteed max-width so writeup never touches logos) */}
+          <div className={`${reviewsClass} min-w-0 w-full`}>
             <EditableElementWrapper
               isEditor={isEditor}
               isSelected={isEditor && selectedElementKey === "badge"}
               label="Reviews & Rating"
               onClick={() => onSelectElement?.("badge")}
-              className="flex items-center gap-4 p-2 -m-2 rounded-sm"
+              className="flex items-center gap-3.5 sm:gap-4 p-2 -m-2 rounded-sm"
             >
-            {/* 3 overlapping real student/tutor circular photos */}
-            <div className="flex -space-x-3 flex-shrink-0" aria-hidden="true">
-              <div className="relative w-11 h-11 rounded-full overflow-hidden border-2 border-white shadow-sm bg-line">
-                <Image
-                  src="/images/certificate-moment.jpg"
-                  alt="Certified healthcare graduate"
-                  fill
-                  sizes="44px"
-                  loading="eager"
-                  priority
-                  className="object-cover"
-                />
-              </div>
-              <div className="relative w-11 h-11 rounded-full overflow-hidden border-2 border-white shadow-sm bg-line">
-                <Image
-                  src="/images/tutor-teaching.jpg"
-                  alt="Subject-specialist tutor"
-                  fill
-                  sizes="44px"
-                  loading="eager"
-                  className="object-cover"
-                />
-              </div>
-              <div className="relative w-11 h-11 rounded-full overflow-hidden border-2 border-white shadow-sm bg-line">
-                <Image
-                  src="/images/hero-learner.jpg"
-                  alt="Adult online learner"
-                  fill
-                  sizes="44px"
-                  loading="eager"
-                  className="object-cover"
-                />
-              </div>
-            </div>
-
-            {/* Rating info from content config */}
-            <div>
-              <div className="flex items-center gap-1 text-gold-500 mb-0.5">
-                {[...Array(5)].map((_, i) => (
-                  <Icon
-                    key={i}
-                    name="star"
-                    size={14}
-                    className="fill-gold-500 stroke-gold-700"
+              {/* 3 overlapping real student/tutor circular photos */}
+              <div className="flex -space-x-3 flex-shrink-0" aria-hidden="true">
+                <div className="relative w-10 h-10 sm:w-11 sm:h-11 rounded-full overflow-hidden border-2 border-white shadow-xs bg-line flex-shrink-0">
+                  <Image
+                    src="/images/certificate-moment.jpg"
+                    alt="Certified healthcare graduate"
+                    fill
+                    sizes="44px"
+                    loading="eager"
+                    priority
+                    className="object-cover"
                   />
-                ))}
-                <span className={`font-heading font-bold text-sm ml-1 ${isDark ? "text-white" : "text-navy-900"}`}>
-                  {siteConfig.reviews.ratingValue}
-                </span>
+                </div>
+                <div className="relative w-10 h-10 sm:w-11 sm:h-11 rounded-full overflow-hidden border-2 border-white shadow-xs bg-line flex-shrink-0">
+                  <Image
+                    src="/images/tutor-teaching.jpg"
+                    alt="Subject-specialist tutor"
+                    fill
+                    sizes="44px"
+                    loading="eager"
+                    className="object-cover"
+                  />
+                </div>
+                <div className="relative w-10 h-10 sm:w-11 sm:h-11 rounded-full overflow-hidden border-2 border-white shadow-xs bg-line flex-shrink-0">
+                  <Image
+                    src="/images/hero-learner.jpg"
+                    alt="Adult online learner"
+                    fill
+                    sizes="44px"
+                    loading="eager"
+                    className="object-cover"
+                  />
+                </div>
               </div>
-              <p className={`text-xs leading-tight ${isDark ? "text-paper/80" : "text-ink-soft"}`}>
-                {subheadline || siteConfig.reviews.ratingCountText}
-              </p>
-            </div>
 
+              {/* Rating info & Writeup: strict max-w and text wrapping to prevent any overflow */}
+              <div className="min-w-0 max-w-[230px] sm:max-w-[260px] lg:max-w-[290px]">
+                <div className="flex items-center gap-1 text-gold-500 mb-0.5">
+                  {[...Array(5)].map((_, i) => (
+                    <Icon
+                      key={i}
+                      name="star"
+                      size={14}
+                      className="fill-gold-500 stroke-gold-700 flex-shrink-0"
+                    />
+                  ))}
+                  <span
+                    className={`font-heading font-bold text-sm ml-1 flex-shrink-0 ${
+                      isDark ? "text-white" : "text-navy-900"
+                    }`}
+                  >
+                    {siteConfig.reviews.ratingValue}
+                  </span>
+                </div>
+                <p
+                  className={`text-xs leading-snug whitespace-normal break-words line-clamp-2 ${
+                    isDark ? "text-paper/80" : "text-ink-soft"
+                  }`}
+                  title={subheadline || siteConfig.reviews.ratingCountText}
+                >
+                  {subheadline || siteConfig.reviews.ratingCountText}
+                </p>
+              </div>
             </EditableElementWrapper>
           </div>
 
-          {/* Vertical Divider on Desktop */}
-          <div className={`hidden md:block md:col-span-1 border-l h-10 mx-auto ${isDark ? "border-navy-800" : "border-line"}`} />
+          {/* Vertical Divider Strictly in the Center on Desktop */}
+          <div
+            className={`hidden md:block w-px h-10 flex-shrink-0 ${
+              isDark ? "bg-navy-800" : "bg-line"
+            }`}
+            aria-hidden="true"
+          />
 
-          {/* Right: Verified UK Accreditation Logo Badges (Equal Heights) */}
-          <div className={`${badgesColSpan} ${isImageLeft ? "md:order-1" : "md:order-2"} flex flex-col items-start md:items-end gap-2`}>
-            <span className={`text-[11px] font-semibold uppercase tracking-wider ${isDark ? "text-paper/70" : "text-ink-soft"}`}>
-              {headline || "Official Awarding & Regulated Bodies"}
-            </span>
-            <AccreditationBadgeRow
-              items={items}
-              variant={isDark ? "dark" : "light"}
-              className="justify-start md:justify-end"
+          {/* Right: Verified UK Accreditation Logo Badges (Equal Heights, Right-aligned with Breathing Room) */}
+          <div
+            className={`${badgesClass} min-w-0 w-full flex flex-col items-start md:items-end gap-2`}
+          >
+            <EditableElementWrapper
               isEditor={isEditor}
-              selectedIndex={selectedElementKey === "item" ? selectedElementItemIndex : null}
-              onSelectBadge={(idx) => {
-                if (isEditor && onSelectElement) {
-                  onSelectElement("item", idx);
+              isSelected={isEditor && selectedElementKey === "headline"}
+              label="Accreditation Headline"
+              onClick={() => onSelectElement?.("headline")}
+              className="p-1 -m-1 rounded-sm"
+            >
+              <span
+                className={`text-[11px] font-semibold uppercase tracking-wider block ${
+                  isDark ? "text-paper/70" : "text-ink-soft"
+                }`}
+              >
+                {headline || "Official Awarding & Regulated Bodies"}
+              </span>
+            </EditableElementWrapper>
+
+            <div className="w-full overflow-x-auto scrollbar-none py-1 flex items-center justify-start md:justify-end">
+              <AccreditationBadgeRow
+                items={items}
+                variant={isDark ? "dark" : "light"}
+                className="justify-start md:justify-end flex-nowrap"
+                isEditor={isEditor}
+                selectedIndex={
+                  selectedElementKey === "item" ? selectedElementItemIndex : null
                 }
-              }}
-            />
+                onSelectBadge={(idx) => {
+                  if (isEditor && onSelectElement) {
+                    onSelectElement("item", idx);
+                  }
+                }}
+              />
+            </div>
           </div>
         </div>
       </Container>
