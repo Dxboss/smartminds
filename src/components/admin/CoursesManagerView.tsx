@@ -70,6 +70,8 @@ export function CoursesManagerView({
   const [editTrainingLocations, setEditTrainingLocations] = useState<string[]>([]);
   const [editLocationInput, setEditLocationInput] = useState("");
   const [editAttendanceType, setEditAttendanceType] = useState<"online_only" | "blended_practical" | "physical_venue">("online_only");
+  const [editTargetAudience, setEditTargetAudience] = useState<"adult" | "minor_tutoring" | "all">("adult");
+  const [editPublished, setEditPublished] = useState<boolean>(true);
 
   // Career Opportunities & Progression
   const [editJobProspects, setEditJobProspects] = useState<string[]>([]);
@@ -121,6 +123,7 @@ export function CoursesManagerView({
   const [newAwardingRef, setNewAwardingRef] = useState("");
   const [newDelivery, setNewDelivery] = useState<DeliveryMode>("live_online");
   const [newAttendanceType, setNewAttendanceType] = useState<"online_only" | "blended_practical" | "physical_venue">("online_only");
+  const [newTargetAudience, setNewTargetAudience] = useState<"adult" | "minor_tutoring" | "all">("adult");
   const [newTrainingLocations, setNewTrainingLocations] = useState<string[]>([]);
   const [newLocationInput, setNewLocationInput] = useState("");
   const [newCustomDeliveryText, setNewCustomDeliveryText] = useState("");
@@ -257,6 +260,11 @@ export function CoursesManagerView({
           ? "blended_practical"
           : "online_only")
     );
+    setEditTargetAudience(
+      course.target_audience ||
+      (course.is_private_tutoring ? "minor_tutoring" : "adult")
+    );
+    setEditPublished(course.published !== false);
     setEditFaqs(course.faqs ? course.faqs.map((f) => ({ ...f })) : []);
 
     const loadedLevels: CourseLevel[] =
@@ -501,6 +509,28 @@ export function CoursesManagerView({
     setTimeout(() => setToastMessage(null), 4000);
   };
 
+  const handleTogglePublish = (course: Course) => {
+    const updatedStatus = course.published === false ? true : false;
+    startTransition(async () => {
+      try {
+        const res = await updateCourseDetailsAction(course.id, {
+          published: updatedStatus,
+        });
+        if (res.success && res.course) {
+          setCourses((prev) =>
+            prev.map((c) => (c.id === course.id ? { ...c, published: updatedStatus } : c))
+          );
+          setToastMessage(
+            `"${course.title}" is now ${updatedStatus ? "Active on Website" : "Archived (Hidden from Website)"}.`
+          );
+          setTimeout(() => setToastMessage(null), 4000);
+        }
+      } catch (err: unknown) {
+        alert(err instanceof Error ? err.message : "Failed to toggle status.");
+      }
+    });
+  };
+
   const handleSaveCourse = () => {
     if (!selectedCourse) return;
     setModalError("");
@@ -541,6 +571,8 @@ export function CoursesManagerView({
           category: finalCategory,
           type: editType,
           is_private_tutoring: editIsPrivateTutoring,
+          target_audience: editTargetAudience,
+          published: editPublished,
           awarding_body: editAwardingBody.trim() || null,
           awarding_reference: editAwardingRef.trim() || null,
           delivery: editDelivery,
@@ -625,6 +657,7 @@ export function CoursesManagerView({
       category: finalNewCategory,
       type: newType,
       is_private_tutoring: newIsPrivateTutoring,
+      target_audience: newTargetAudience,
       delivery: newDelivery,
       attendance_type: newAttendanceType,
       training_locations: (newAttendanceType === "blended_practical" || newAttendanceType === "physical_venue") ? newTrainingLocations : undefined,
@@ -911,30 +944,41 @@ export function CoursesManagerView({
                   <tr key={c.id} className="hover:bg-paper/50 transition-colors">
                     <td className="py-4 px-4 font-semibold text-navy-900 max-w-xs">
                       <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                        {c.is_private_tutoring ? (
-                          <span className="px-1.5 py-0.5 rounded-sm bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold">
-                            🎒 Kids Tutoring (KS3/GCSE)
+                        {c.target_audience === "minor_tutoring" || c.is_private_tutoring ? (
+                          <span className="px-1.5 py-0.5 rounded-xs bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold flex items-center gap-1">
+                            <Icon name="users" size={11} className="text-amber-800" />
+                            <span>Minors / Tutoring</span>
+                          </span>
+                        ) : c.target_audience === "all" ? (
+                          <span className="px-1.5 py-0.5 rounded-xs bg-purple-100 text-purple-900 border border-purple-300 text-[10px] font-bold flex items-center gap-1">
+                            <Icon name="check-circle" size={11} className="text-purple-800" />
+                            <span>All Audiences</span>
                           </span>
                         ) : c.type === "cpd" ? (
-                          <span className="px-1.5 py-0.5 rounded-sm bg-blue-100 text-blue-900 border border-blue-300 text-[10px] font-bold">
-                            ⚡ CPD Short Course
+                          <span className="px-1.5 py-0.5 rounded-xs bg-blue-100 text-blue-900 border border-blue-300 text-[10px] font-bold flex items-center gap-1">
+                            <Icon name="clock" size={11} className="text-blue-800" />
+                            <span>CPD Short Course</span>
                           </span>
                         ) : (
-                          <span className="px-1.5 py-0.5 rounded-sm bg-navy-100 text-navy-900 border border-navy-200 text-[10px] font-bold">
-                            🎓 Adult RQF Qualification
+                          <span className="px-1.5 py-0.5 rounded-xs bg-navy-100 text-navy-900 border border-navy-200 text-[10px] font-bold flex items-center gap-1">
+                            <Icon name="graduation-cap" size={11} className="text-navy-800" />
+                            <span>Adult Qualification (18+)</span>
                           </span>
                         )}
                         {c.attendance_type === "physical_venue" || c.delivery === "classroom" ? (
-                          <span className="px-1.5 py-0.5 rounded-sm bg-amber-100 text-amber-950 border border-amber-300 text-[10px] font-bold">
-                            🏢 Physical Venue {c.training_locations?.length ? `(${c.training_locations.length})` : ""}
+                          <span className="px-1.5 py-0.5 rounded-xs bg-amber-100 text-amber-950 border border-amber-300 text-[10px] font-bold flex items-center gap-1">
+                            <Icon name="map-pin" size={11} className="text-amber-800" />
+                            <span>Campus Venue {c.training_locations?.length ? `(${c.training_locations.length})` : ""}</span>
                           </span>
                         ) : c.attendance_type === "blended_practical" || c.delivery === "blended" || (c.training_locations && c.training_locations.length > 0) ? (
-                          <span className="px-1.5 py-0.5 rounded-sm bg-purple-100 text-purple-900 border border-purple-300 text-[10px] font-bold">
-                            🔄 Blended Practical {c.training_locations?.length ? `(${c.training_locations.length})` : ""}
+                          <span className="px-1.5 py-0.5 rounded-xs bg-purple-100 text-purple-900 border border-purple-300 text-[10px] font-bold flex items-center gap-1">
+                            <Icon name="layers" size={11} className="text-purple-800" />
+                            <span>Blended Practical {c.training_locations?.length ? `(${c.training_locations.length})` : ""}</span>
                           </span>
                         ) : (
-                          <span className="px-1.5 py-0.5 rounded-sm bg-slate-100 text-slate-800 border border-slate-300 text-[10px] font-bold">
-                            💻 100% Online
+                          <span className="px-1.5 py-0.5 rounded-xs bg-slate-100 text-slate-800 border border-slate-300 text-[10px] font-bold flex items-center gap-1">
+                            <Icon name="video" size={11} className="text-slate-700" />
+                            <span>100% Online</span>
                           </span>
                         )}
                       </div>
@@ -1003,7 +1047,8 @@ export function CoursesManagerView({
                       )}
                       {c.training_locations && c.training_locations.length > 0 && (
                         <span className="block text-[10px] font-semibold text-emerald-700 mt-0.5">
-                          📍 {c.training_locations.length} {c.attendance_type === "physical_venue" ? "Campus" : "Practical"} Venues
+                          <Icon name="map-pin" size={10} className="inline mr-1" />
+                          {c.training_locations.length} {c.attendance_type === "physical_venue" ? "Campus" : "Practical"} Venues
                         </span>
                       )}
                       <span className="block text-xs text-ink-soft mt-0.5">
@@ -1012,10 +1057,42 @@ export function CoursesManagerView({
                           : "Fixed Cohorts"}
                       </span>
                     </td>
-                    <td className="py-4 px-4 text-center">
-                      <span className="px-2.5 py-0.5 rounded-sm text-xs font-semibold bg-emerald-50 text-emerald-700">
-                        Enrolling Now
-                      </span>
+                    <td className="py-4 px-4 text-center whitespace-nowrap">
+                      {c.published !== false ? (
+                        <div className="inline-flex flex-col items-center gap-1">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-sm text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                            <span>Active / Live</span>
+                          </span>
+                          {isOwner && (
+                            <button
+                              type="button"
+                              onClick={() => handleTogglePublish(c)}
+                              className="text-[10px] text-ink-soft hover:text-navy-900 underline font-medium cursor-pointer"
+                              title="Hide this course from public website and enrolment"
+                            >
+                              Archive (Hide)
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="inline-flex flex-col items-center gap-1">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-sm text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-300">
+                            <span className="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+                            <span>Archived (Hidden)</span>
+                          </span>
+                          {isOwner && (
+                            <button
+                              type="button"
+                              onClick={() => handleTogglePublish(c)}
+                              className="text-[10px] text-emerald-700 hover:text-emerald-900 underline font-bold cursor-pointer"
+                              title="Publish this course live on the website"
+                            >
+                              Publish Live
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </td>
                     <td className="py-4 px-4 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-2">
@@ -1173,6 +1250,44 @@ export function CoursesManagerView({
               {/* TAB 1: GENERAL & OVERVIEW */}
               {editTab === "general" && (
                 <div className="space-y-4">
+                  {/* 1. WEBSITE PUBLICATION STATUS */}
+                  <div className="p-3.5 bg-paper rounded-sm border border-line flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <span className="block text-xs font-bold text-navy-900 uppercase tracking-wider">
+                        Website Publication Status
+                      </span>
+                      <p className="text-[11px] text-ink-soft">
+                        Control whether this qualification is publicly browsable and accepts enrolments.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditPublished(true)}
+                        className={`px-3 py-1.5 rounded-xs text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                          editPublished
+                            ? "bg-emerald-700 text-white shadow-xs"
+                            : "bg-white text-ink-soft border border-line hover:text-navy-900"
+                        }`}
+                      >
+                        <Icon name="check" size={13} />
+                        <span>Active on Website</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditPublished(false)}
+                        className={`px-3 py-1.5 rounded-xs text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                          !editPublished
+                            ? "bg-slate-700 text-white shadow-xs"
+                            : "bg-white text-ink-soft border border-line hover:text-navy-900"
+                        }`}
+                      >
+                        <Icon name="eye-off" size={13} />
+                        <span>Archived (Hidden)</span>
+                      </button>
+                    </div>
+                  </div>
+
                   <div>
                     <label className="block text-xs font-semibold text-navy-900 uppercase tracking-wider mb-1">
                       Qualification Title
@@ -1186,14 +1301,92 @@ export function CoursesManagerView({
                     />
                   </div>
 
-                  {/* TARGET AUDIENCE & QUALIFICATION TYPE */}
+                  {/* 2. TARGET AUDIENCE & PARENT SIGNUP CONSENT CONTROLS */}
+                  <div className="p-3.5 bg-paper rounded-sm border border-line space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-bold text-navy-900 uppercase tracking-wider">
+                        Target Audience &amp; Parent Consent Rules
+                      </label>
+                      <span className="text-[10px] text-ink-soft">
+                        Controls whether parent/guardian details appear on /enrol
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditTargetAudience("adult");
+                          setEditIsPrivateTutoring(false);
+                          if (editType === "tutoring") setEditType("regulated");
+                        }}
+                        className={`p-3 rounded-sm border text-left transition-all cursor-pointer ${
+                          editTargetAudience === "adult"
+                            ? "bg-navy-900 text-white border-navy-900 shadow-xs"
+                            : "bg-white text-ink border-line hover:border-navy-700"
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 font-bold text-xs mb-1">
+                          <Icon name="user" size={14} className={editTargetAudience === "adult" ? "text-gold-300" : "text-navy-900"} />
+                          <span>Adults Only (18+)</span>
+                        </div>
+                        <p className={`text-[10px] leading-snug ${editTargetAudience === "adult" ? "text-navy-100" : "text-ink-soft"}`}>
+                          Adult vocational diplomas. Hides all parent signup questions on the enrolment page.
+                        </p>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditTargetAudience("minor_tutoring");
+                          setEditIsPrivateTutoring(true);
+                          setEditType("tutoring");
+                        }}
+                        className={`p-3 rounded-sm border text-left transition-all cursor-pointer ${
+                          editTargetAudience === "minor_tutoring"
+                            ? "bg-navy-900 text-white border-navy-900 shadow-xs"
+                            : "bg-white text-ink border-line hover:border-navy-700"
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 font-bold text-xs mb-1">
+                          <Icon name="users" size={14} className={editTargetAudience === "minor_tutoring" ? "text-gold-300" : "text-navy-900"} />
+                          <span>Minors / Tutoring (&lt;18)</span>
+                        </div>
+                        <p className={`text-[10px] leading-snug ${editTargetAudience === "minor_tutoring" ? "text-navy-100" : "text-ink-soft"}`}>
+                          School tuition &amp; GCSEs. Enrolment strictly requires parent/guardian consent and billing.
+                        </p>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditTargetAudience("all");
+                        }}
+                        className={`p-3 rounded-sm border text-left transition-all cursor-pointer ${
+                          editTargetAudience === "all"
+                            ? "bg-navy-900 text-white border-navy-900 shadow-xs"
+                            : "bg-white text-ink border-line hover:border-navy-700"
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 font-bold text-xs mb-1">
+                          <Icon name="check-circle" size={14} className={editTargetAudience === "all" ? "text-gold-300" : "text-navy-900"} />
+                          <span>All Ages / Flexible</span>
+                        </div>
+                        <p className={`text-[10px] leading-snug ${editTargetAudience === "all" ? "text-navy-100" : "text-ink-soft"}`}>
+                          Open to both adults and school pupils. Enrolment gives the learner a choice between myself or child.
+                        </p>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 3. QUALIFICATION TYPE */}
                   <div className="p-3 bg-paper rounded-sm border border-line space-y-2">
                     <div className="flex items-center justify-between">
                       <label className="block text-xs font-bold text-navy-900 uppercase tracking-wider">
-                        Target Audience & Qualification Category
+                        Qualification Category & Accreditation Style
                       </label>
                       <span className="text-[10px] text-ink-soft">
-                        Configures student portal mode, DBS requirements & compliance
+                        Regulated diploma vs workplace CPD
                       </span>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -1201,18 +1394,18 @@ export function CoursesManagerView({
                         type="button"
                         onClick={() => {
                           setEditType("regulated");
-                          setEditIsPrivateTutoring(false);
                         }}
                         className={`p-2.5 rounded-sm border text-left transition-all cursor-pointer ${
-                          editType === "regulated" && !editIsPrivateTutoring
+                          editType === "regulated"
                             ? "bg-navy-900 text-white border-navy-900 shadow-xs"
                             : "bg-white text-ink border-line hover:border-navy-700"
                         }`}
                       >
                         <div className="flex items-center gap-1.5 font-bold text-xs">
-                          <span>🎓 Adult RQF Qualification</span>
+                          <Icon name="graduation-cap" size={13} className={editType === "regulated" ? "text-gold-300" : "text-navy-900"} />
+                          <span>Adult RQF Qualification</span>
                         </div>
-                        <p className={`text-[10px] mt-1 leading-snug ${editType === "regulated" && !editIsPrivateTutoring ? "text-navy-100" : "text-ink-soft"}`}>
+                        <p className={`text-[10px] mt-1 leading-snug ${editType === "regulated" ? "text-navy-100" : "text-ink-soft"}`}>
                           Regulated British diplomas for adult vocational careers.
                         </p>
                       </button>
@@ -1221,18 +1414,18 @@ export function CoursesManagerView({
                         type="button"
                         onClick={() => {
                           setEditType("cpd");
-                          setEditIsPrivateTutoring(false);
                         }}
                         className={`p-2.5 rounded-sm border text-left transition-all cursor-pointer ${
-                          editType === "cpd" && !editIsPrivateTutoring
+                          editType === "cpd"
                             ? "bg-navy-900 text-white border-navy-900 shadow-xs"
                             : "bg-white text-ink border-line hover:border-navy-700"
                         }`}
                       >
                         <div className="flex items-center gap-1.5 font-bold text-xs">
-                          <span>⚡ Mandatory CPD Course</span>
+                          <Icon name="clock" size={13} className={editType === "cpd" ? "text-gold-300" : "text-navy-900"} />
+                          <span>Mandatory CPD Course</span>
                         </div>
-                        <p className={`text-[10px] mt-1 leading-snug ${editType === "cpd" && !editIsPrivateTutoring ? "text-navy-100" : "text-ink-soft"}`}>
+                        <p className={`text-[10px] mt-1 leading-snug ${editType === "cpd" ? "text-navy-100" : "text-ink-soft"}`}>
                           1-day or short workplace compliance certificates.
                         </p>
                       </button>
@@ -1241,19 +1434,19 @@ export function CoursesManagerView({
                         type="button"
                         onClick={() => {
                           setEditType("tutoring");
-                          setEditIsPrivateTutoring(true);
                         }}
                         className={`p-2.5 rounded-sm border text-left transition-all cursor-pointer ${
-                          editIsPrivateTutoring
+                          editType === "tutoring"
                             ? "bg-navy-900 text-white border-navy-900 shadow-xs"
                             : "bg-white text-ink border-line hover:border-navy-700"
                         }`}
                       >
                         <div className="flex items-center gap-1.5 font-bold text-xs">
-                          <span>🎒 Kids & GCSE Tutoring</span>
+                          <Icon name="book-open" size={13} className={editType === "tutoring" ? "text-gold-300" : "text-navy-900"} />
+                          <span>Tutoring & Exam Prep</span>
                         </div>
-                        <p className={`text-[10px] mt-1 leading-snug ${editIsPrivateTutoring ? "text-navy-100" : "text-ink-soft"}`}>
-                          1-on-1 tutoring for secondary pupils (English, Maths, Science - DBS Checked).
+                        <p className={`text-[10px] mt-1 leading-snug ${editType === "tutoring" ? "text-navy-100" : "text-ink-soft"}`}>
+                          1-on-1 tuition for primary or secondary pupils (DBS Checked).
                         </p>
                       </button>
                     </div>
@@ -1536,13 +1729,15 @@ export function CoursesManagerView({
                                 key={idx}
                                 className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-medium"
                               >
-                                <span>📍 {loc}</span>
+                                <Icon name="map-pin" size={11} className="text-emerald-700 shrink-0" />
+                                <span>{loc}</span>
                                 <button
                                   type="button"
                                   onClick={() =>
                                     setEditTrainingLocations(editTrainingLocations.filter((_, i) => i !== idx))
                                   }
-                                  className="text-emerald-700 hover:text-emerald-950 font-bold leading-none"
+                                  className="text-emerald-700 hover:text-emerald-950 font-bold leading-none cursor-pointer"
+                                  title="Remove venue"
                                 >
                                   ✕
                                 </button>
@@ -1558,6 +1753,7 @@ export function CoursesManagerView({
                           </span>
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                             {[
+                              "Aveley Campus (Essex / East London)",
                               "London Stratford",
                               "Birmingham Central",
                               "Manchester Piccadilly",
@@ -1565,7 +1761,6 @@ export function CoursesManagerView({
                               "Bristol Harbourside",
                               "Milton Keynes",
                               "Southampton",
-                              "Portsmouth",
                             ].map((loc) => {
                               const isChecked = editTrainingLocations.includes(loc);
                               return (
@@ -2649,14 +2844,93 @@ export function CoursesManagerView({
                 />
               </div>
 
-              {/* 1. TARGET AUDIENCE & COURSE TYPE */}
+              {/* 1. TARGET AUDIENCE & PARENT SIGNUP CONSENT RULES */}
+              <div className="p-3.5 bg-paper rounded-sm border border-line space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-navy-900 uppercase tracking-wider">
+                    Target Audience &amp; Parent Consent Rules
+                  </label>
+                  <span className="text-[10px] text-ink-soft">
+                    Controls whether parent fields appear on /enrol
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewTargetAudience("adult");
+                      setNewIsPrivateTutoring(false);
+                      if (newType === "tutoring") setNewType("regulated");
+                      if (newCategory === "Academic Tutoring (Kids & GCSE)") setNewCategory("Health & Social Care");
+                    }}
+                    className={`p-3 rounded-sm border text-left transition-all cursor-pointer ${
+                      newTargetAudience === "adult"
+                        ? "bg-navy-900 text-white border-navy-900 shadow-xs"
+                        : "bg-white text-ink border-line hover:border-navy-700"
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 font-bold text-xs mb-1">
+                      <Icon name="user" size={14} className={newTargetAudience === "adult" ? "text-gold-300" : "text-navy-900"} />
+                      <span>Adults Only (18+)</span>
+                    </div>
+                    <p className={`text-[10px] leading-snug ${newTargetAudience === "adult" ? "text-navy-100" : "text-ink-soft"}`}>
+                      Adult vocational diplomas. Hides parent signup fields on /enrol.
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewTargetAudience("minor_tutoring");
+                      setNewIsPrivateTutoring(true);
+                      setNewType("tutoring");
+                      setNewCategory("Academic Tutoring (Kids & GCSE)");
+                    }}
+                    className={`p-3 rounded-sm border text-left transition-all cursor-pointer ${
+                      newTargetAudience === "minor_tutoring"
+                        ? "bg-navy-900 text-white border-navy-900 shadow-xs"
+                        : "bg-white text-ink border-line hover:border-navy-700"
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 font-bold text-xs mb-1">
+                      <Icon name="users" size={14} className={newTargetAudience === "minor_tutoring" ? "text-gold-300" : "text-navy-900"} />
+                      <span>Minors / Tutoring (&lt;18)</span>
+                    </div>
+                    <p className={`text-[10px] leading-snug ${newTargetAudience === "minor_tutoring" ? "text-navy-100" : "text-ink-soft"}`}>
+                      School tuition &amp; GCSEs. Requires parent/guardian consent.
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewTargetAudience("all");
+                    }}
+                    className={`p-3 rounded-sm border text-left transition-all cursor-pointer ${
+                      newTargetAudience === "all"
+                        ? "bg-navy-900 text-white border-navy-900 shadow-xs"
+                        : "bg-white text-ink border-line hover:border-navy-700"
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 font-bold text-xs mb-1">
+                      <Icon name="check-circle" size={14} className={newTargetAudience === "all" ? "text-gold-300" : "text-navy-900"} />
+                      <span>All Ages / Flexible</span>
+                    </div>
+                    <p className={`text-[10px] leading-snug ${newTargetAudience === "all" ? "text-navy-100" : "text-ink-soft"}`}>
+                      Open to both. Gives learner choice on /enrol.
+                    </p>
+                  </button>
+                </div>
+              </div>
+
+              {/* 2. QUALIFICATION CATEGORY STYLE */}
               <div className="p-3 bg-paper rounded-sm border border-line space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="block text-xs font-bold text-navy-900 uppercase tracking-wider">
-                    Target Audience & Qualification Category
+                    Qualification Style
                   </label>
                   <span className="text-[10px] text-ink-soft">
-                    Determines pricing model, portal experience & regulatory compliance
+                    Regulated vs CPD compliance
                   </span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -2664,63 +2938,51 @@ export function CoursesManagerView({
                     type="button"
                     onClick={() => {
                       setNewType("regulated");
-                      setNewIsPrivateTutoring(false);
-                      if (newCategory === "Private Tutoring") setNewCategory("Health & Social Care");
                     }}
                     className={`p-2.5 rounded-sm border text-left transition-all cursor-pointer ${
-                      newType === "regulated" && !newIsPrivateTutoring
+                      newType === "regulated"
                         ? "bg-navy-900 text-white border-navy-900 shadow-xs"
-                        : "bg-white text-ink border-line hover:border-navy-700 hover:bg-white"
+                        : "bg-white text-ink border-line hover:border-navy-700"
                     }`}
                   >
                     <div className="flex items-center gap-1.5 font-bold text-xs">
-                      <span>🎓 Adult RQF Qualification</span>
+                      <Icon name="graduation-cap" size={13} className={newType === "regulated" ? "text-gold-300" : "text-navy-900"} />
+                      <span>Adult RQF Diploma</span>
                     </div>
-                    <p className={`text-[10px] mt-1 leading-snug ${newType === "regulated" && !newIsPrivateTutoring ? "text-navy-100" : "text-ink-soft"}`}>
-                      Regulated British diplomas (Levels 2–5) for adult career advancement.
-                    </p>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => {
                       setNewType("cpd");
-                      setNewIsPrivateTutoring(false);
-                      if (newCategory === "Private Tutoring") setNewCategory("Health & Social Care");
                     }}
                     className={`p-2.5 rounded-sm border text-left transition-all cursor-pointer ${
-                      newType === "cpd" && !newIsPrivateTutoring
+                      newType === "cpd"
                         ? "bg-navy-900 text-white border-navy-900 shadow-xs"
-                        : "bg-white text-ink border-line hover:border-navy-700 hover:bg-white"
+                        : "bg-white text-ink border-line hover:border-navy-700"
                     }`}
                   >
                     <div className="flex items-center gap-1.5 font-bold text-xs">
-                      <span>⚡ Mandatory CPD Course</span>
+                      <Icon name="clock" size={13} className={newType === "cpd" ? "text-gold-300" : "text-navy-900"} />
+                      <span>CPD Short Course</span>
                     </div>
-                    <p className={`text-[10px] mt-1 leading-snug ${newType === "cpd" && !newIsPrivateTutoring ? "text-navy-100" : "text-ink-soft"}`}>
-                      1-day or short compliance certificate (Safeguarding, First Aid, CQC).
-                    </p>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => {
                       setNewType("tutoring");
-                      setNewIsPrivateTutoring(true);
-                      setNewCategory("Academic Tutoring (Kids & GCSE)");
                     }}
                     className={`p-2.5 rounded-sm border text-left transition-all cursor-pointer ${
-                      newIsPrivateTutoring
+                      newType === "tutoring"
                         ? "bg-navy-900 text-white border-navy-900 shadow-xs"
-                        : "bg-white text-ink border-line hover:border-navy-700 hover:bg-white"
+                        : "bg-white text-ink border-line hover:border-navy-700"
                     }`}
                   >
                     <div className="flex items-center gap-1.5 font-bold text-xs">
-                      <span>🎒 Kids & GCSE Tutoring</span>
+                      <Icon name="book-open" size={13} className={newType === "tutoring" ? "text-gold-300" : "text-navy-900"} />
+                      <span>Tutoring / GCSE</span>
                     </div>
-                    <p className={`text-[10px] mt-1 leading-snug ${newIsPrivateTutoring ? "text-navy-100" : "text-ink-soft"}`}>
-                      1-on-1 tutoring for secondary pupils (English, Maths, Science - DBS Checked).
-                    </p>
                   </button>
                 </div>
               </div>

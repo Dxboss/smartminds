@@ -689,6 +689,7 @@ export interface BuilderSection {
   columns?: 1 | 2 | 3 | 4;
   rows?: 1 | 2 | 3 | 4 | "all";
   courseLimit?: number;
+  courseCategoryFilter?: string;
   columnRatio?: "50-50" | "60-40" | "70-30" | "40-60" | "33-67";
   paddingDensity?: "compact" | "normal" | "spacious";
   paddingDensityMobile?: "compact" | "normal" | "spacious";

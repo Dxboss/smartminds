@@ -1479,9 +1479,11 @@ export const FocusedElementInspector: React.FC<FocusedElementInspectorProps> = (
               columns={section.columns || 4}
               rows={section.rows || 2}
               courseLimit={section.courseLimit}
+              courseCategoryFilter={section.courseCategoryFilter || "all"}
               onColumnsChange={(cols) => updateField("columns", cols)}
               onRowsChange={(rows) => updateField("rows", rows)}
               onCourseLimitChange={(limit) => updateField("courseLimit", limit)}
+              onCourseCategoryFilterChange={(cat) => updateField("courseCategoryFilter", cat)}
             />
           )}
 
@@ -2152,9 +2154,11 @@ export const FocusedElementInspector: React.FC<FocusedElementInspectorProps> = (
               columns={section.columns || 4}
               rows={section.rows || 2}
               courseLimit={section.courseLimit}
+              courseCategoryFilter={section.courseCategoryFilter || "all"}
               onColumnsChange={(cols) => updateField("columns", cols)}
               onRowsChange={(rows) => updateField("rows", rows)}
               onCourseLimitChange={(limit) => updateField("courseLimit", limit)}
+              onCourseCategoryFilterChange={(cat) => updateField("courseCategoryFilter", cat)}
             />
           )}
 

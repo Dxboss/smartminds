@@ -158,6 +158,83 @@ export function loadPersistedRecords(): PersistedRecordsStore {
   }
 }
 
+/**
+ * Asynchronously synchronizes the full state snapshot into Neon PostgreSQL system_store.
+ * Acts as an immutable cloud backup whenever changes occur.
+ */
+export function syncStoreSnapshotToNeon(store: PersistedRecordsStore): void {
+  if (typeof window !== "undefined" || !process.env.DATABASE_URL) return;
+
+  import("@/lib/db")
+    .then(({ sql, ensureDbTablesExist }) => {
+      ensureDbTablesExist()
+        .then(() => {
+          sql`
+            INSERT INTO system_store (key, value, updated_at)
+            VALUES ('master_records_store', ${JSON.stringify(store)}, now())
+            ON CONFLICT (key) DO UPDATE SET
+              value = EXCLUDED.value,
+              updated_at = now();
+          `.catch((err) => console.warn("[Neon DB] Notice: system_store sync:", err));
+        })
+        .catch(() => {});
+    })
+    .catch(() => {});
+}
+
+/**
+ * Pulls master snapshot from Neon PostgreSQL if local file is missing/empty.
+ * Guarantees that Hostinger deployments and local environments can restore instantly.
+ */
+export async function pullLatestFromNeon(): Promise<boolean> {
+  if (!process.env.DATABASE_URL) return false;
+
+  try {
+    const { sql, ensureDbTablesExist } = await import("@/lib/db");
+    await ensureDbTablesExist();
+
+    const rows: any = await sql`
+      SELECT value FROM system_store WHERE key = 'master_records_store' LIMIT 1
+    `;
+
+    if (rows && rows.length > 0 && rows[0]?.value) {
+      const dbStore = rows[0].value as PersistedRecordsStore;
+      const store = loadPersistedRecords();
+
+      if (dbStore.courseOverrides && Object.keys(dbStore.courseOverrides).length > 0) {
+        store.courseOverrides = { ...(store.courseOverrides || {}), ...dbStore.courseOverrides };
+      }
+      if (dbStore.cmsPagesData && Object.keys(dbStore.cmsPagesData).length > 0) {
+        store.cmsPagesData = { ...(store.cmsPagesData || {}), ...dbStore.cmsPagesData };
+      }
+      if (Array.isArray(dbStore.learners) && dbStore.learners.length > 0) {
+        for (const l of dbStore.learners) {
+          if (!store.learners.some((ex) => ex.id === l.id)) {
+            store.learners.push(l);
+          }
+        }
+      }
+      if (Array.isArray(dbStore.subscribers) && dbStore.subscribers.length > 0) {
+        if (!store.subscribers) store.subscribers = [];
+        for (const s of dbStore.subscribers) {
+          if (!store.subscribers.some((ex) => ex.id === s.id || ex.email === s.email)) {
+            store.subscribers.push(s);
+          }
+        }
+      }
+
+      const filePath = getStoreFilePath();
+      fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+      syncPersistedRecords(true);
+      return true;
+    }
+    return false;
+  } catch (err) {
+    console.warn("[Neon DB] Notice: pullLatestFromNeon:", err);
+    return false;
+  }
+}
+
 export function savePersistedRecord(data: {
   learner?: Learner;
   enrolment?: Enrolment;
@@ -240,6 +317,72 @@ export function savePersistedRecord(data: {
 
     // Force memory sync immediately
     syncPersistedRecords(true);
+
+    // Continuous Neon Cloud synchronization
+    syncStoreSnapshotToNeon(store);
+
+    if (process.env.DATABASE_URL) {
+      import("@/lib/db")
+        .then(({ sql }) => {
+          if (data.learner) {
+            sql`
+              INSERT INTO learners (id, email, name, data, created_at, updated_at)
+              VALUES (
+                ${data.learner.id},
+                ${data.learner.email},
+                ${data.learner.firstName + ' ' + data.learner.lastName},
+                ${JSON.stringify(data.learner)},
+                now(),
+                now()
+              )
+              ON CONFLICT (id) DO UPDATE SET
+                email = EXCLUDED.email,
+                name = EXCLUDED.name,
+                data = EXCLUDED.data,
+                updated_at = now();
+            `.catch((err) => console.warn("[Neon DB] learners sync error:", err));
+          }
+
+          if (data.enrolment) {
+            sql`
+              INSERT INTO enrolments (id, learner_id, course_id, data, created_at, updated_at)
+              VALUES (
+                ${data.enrolment.id},
+                ${data.enrolment.learnerId},
+                ${data.enrolment.courseId},
+                ${JSON.stringify(data.enrolment)},
+                now(),
+                now()
+              )
+              ON CONFLICT (id) DO UPDATE SET
+                learner_id = EXCLUDED.learner_id,
+                course_id = EXCLUDED.course_id,
+                data = EXCLUDED.data,
+                updated_at = now();
+            `.catch((err) => console.warn("[Neon DB] enrolments sync error:", err));
+          }
+
+          if (data.paymentRecord) {
+            sql`
+              INSERT INTO payments (id, enrolment_id, learner_id, amount, status, data, created_at)
+              VALUES (
+                ${data.paymentRecord.id},
+                ${data.paymentRecord.enrolmentId || null},
+                ${data.paymentRecord.learnerId || null},
+                ${data.paymentRecord.amountGbp || 0},
+                ${data.paymentRecord.status || "paid"},
+                ${JSON.stringify(data.paymentRecord)},
+                now()
+              )
+              ON CONFLICT (id) DO UPDATE SET
+                amount = EXCLUDED.amount,
+                status = EXCLUDED.status,
+                data = EXCLUDED.data;
+            `.catch((err) => console.warn("[Neon DB] payments sync error:", err));
+          }
+        })
+        .catch(() => {});
+    }
   } catch (err) {
     console.error("[persistedData] Failed to save store:", err);
   }
@@ -325,6 +468,24 @@ export function savePersistedCmsPage(pagePath: string, sections: any[]): void {
     const filePath = getStoreFilePath();
     fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
     syncPersistedRecords(true);
+
+    // Continuous Neon Cloud synchronization
+    syncStoreSnapshotToNeon(store);
+
+    if (process.env.DATABASE_URL) {
+      import("@/lib/db")
+        .then(({ sql }) => {
+          sql`
+            INSERT INTO cms_pages (path, sections, draft_sections, updated_at)
+            VALUES (${pagePath}, ${JSON.stringify(sections)}, null, now())
+            ON CONFLICT (path) DO UPDATE SET
+              sections = EXCLUDED.sections,
+              draft_sections = null,
+              updated_at = now();
+          `.catch((err) => console.warn("[Neon DB] cms_pages sync error:", err));
+        })
+        .catch(() => {});
+    }
   } catch (err) {
     console.error("[persistedData] Failed to save CMS page:", err);
   }
@@ -383,8 +544,20 @@ export function deletePersistedCmsPage(pagePath: string): boolean {
       const filePath = getStoreFilePath();
       fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
       syncPersistedRecords(true);
+      syncStoreSnapshotToNeon(store);
+
+      if (process.env.DATABASE_URL) {
+        import("@/lib/db")
+          .then(({ sql }) => {
+            sql`DELETE FROM cms_pages WHERE path = ${pagePath}`.catch((err) =>
+              console.warn("[Neon DB] cms_pages delete error:", err)
+            );
+          })
+          .catch(() => {});
+      }
+      return true;
     }
-    return true;
+    return false;
   } catch (err) {
     console.error("[persistedData] Failed to delete CMS page:", err);
     return false;
@@ -555,6 +728,29 @@ export function savePersistedCourse(course: any): void {
     const filePath = getStoreFilePath();
     fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
     syncPersistedRecords(true);
+
+    // Continuous Neon Cloud synchronization
+    syncStoreSnapshotToNeon(store);
+
+    if (process.env.DATABASE_URL) {
+      import("@/lib/db")
+        .then(({ sql }) => {
+          sql`
+            INSERT INTO course_catalog (id, title, data, updated_at)
+            VALUES (
+              ${course.id},
+              ${course.title || course.id},
+              ${JSON.stringify(course)},
+              now()
+            )
+            ON CONFLICT (id) DO UPDATE SET
+              title = EXCLUDED.title,
+              data = EXCLUDED.data,
+              updated_at = now();
+          `.catch((err) => console.warn("[Neon DB] course_catalog sync error:", err));
+        })
+        .catch(() => {});
+    }
   } catch (err) {
     console.error("[persistedData] Failed to save course override:", err);
   }
@@ -568,6 +764,19 @@ export function deletePersistedCourse(courseId: string): void {
       const filePath = getStoreFilePath();
       fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
       syncPersistedRecords(true);
+
+      // Continuous Neon Cloud synchronization
+      syncStoreSnapshotToNeon(store);
+
+      if (process.env.DATABASE_URL) {
+        import("@/lib/db")
+          .then(({ sql }) => {
+            sql`DELETE FROM course_catalog WHERE id = ${courseId}`.catch((err) =>
+              console.warn("[Neon DB] course_catalog delete error:", err)
+            );
+          })
+          .catch(() => {});
+      }
     }
   } catch (err) {
     console.error("[persistedData] Failed to delete course override:", err);
@@ -1436,6 +1645,30 @@ export function saveNewsletterSubscriber(
     store.subscribers.push(newSub);
     const filePath = getStoreFilePath();
     fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+
+    // Continuous Neon Cloud synchronization
+    syncStoreSnapshotToNeon(store);
+
+    if (process.env.DATABASE_URL) {
+      import("@/lib/db")
+        .then(({ sql }) => {
+          sql`
+            INSERT INTO subscribers (id, email, status, data, created_at)
+            VALUES (
+              ${newSub.id},
+              ${newSub.email},
+              ${newSub.status},
+              ${JSON.stringify(newSub)},
+              now()
+            )
+            ON CONFLICT (id) DO UPDATE SET
+              status = EXCLUDED.status,
+              data = EXCLUDED.data;
+          `.catch((err) => console.warn("[Neon DB] subscribers sync error:", err));
+        })
+        .catch(() => {});
+    }
+
     return { success: true, isNew: true, subscriber: newSub };
   } catch (err) {
     console.error("[persistedData] Failed to save newsletter subscriber:", err);
@@ -1457,6 +1690,17 @@ export function deleteNewsletterSubscriber(idOrEmail: string): boolean {
     if (store.subscribers.length !== initialLen) {
       const filePath = getStoreFilePath();
       fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+      syncStoreSnapshotToNeon(store);
+
+      if (process.env.DATABASE_URL) {
+        import("@/lib/db")
+          .then(({ sql }) => {
+            sql`DELETE FROM subscribers WHERE id = ${idOrEmail} OR email = ${clean}`.catch((err) =>
+              console.warn("[Neon DB] subscribers delete error:", err)
+            );
+          })
+          .catch(() => {});
+      }
       return true;
     }
     return false;
@@ -1483,11 +1727,34 @@ export function toggleNewsletterSubscriberStatus(
     sub.status = sub.status === "active" ? "unsubscribed" : "active";
     const filePath = getStoreFilePath();
     fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+    syncStoreSnapshotToNeon(store);
+
+    if (process.env.DATABASE_URL) {
+      import("@/lib/db")
+        .then(({ sql }) => {
+          sql`
+            UPDATE subscribers SET status = ${sub.status}, data = ${JSON.stringify(sub)}
+            WHERE id = ${sub.id} OR email = ${sub.email};
+          `.catch((err) => console.warn("[Neon DB] subscribers toggle error:", err));
+        })
+        .catch(() => {});
+    }
+
     return { success: true, newStatus: sub.status };
   } catch (err) {
     console.error("[persistedData] Failed to toggle subscriber status:", err);
     return { success: false };
   }
 }
+
+/**
+ * Returns a full JSON backup of the current database state
+ * for 1-click admin download.
+ */
+export function exportFullDatabaseBackup(): string {
+  const store = loadPersistedRecords();
+  return JSON.stringify(store, null, 2);
+}
+
 
 

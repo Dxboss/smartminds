@@ -126,9 +126,16 @@ export const EnrolmentClient: React.FC<Props> = ({
   );
   const [preferredSession, setPreferredSession] = useState<"evening" | "afternoon">("evening");
 
+  // Course audience checks: Adult vocational (18+) vs Minor/Child Tutoring vs All
+  const isMinorCourse =
+    currentCourse?.target_audience === "minor_tutoring" ||
+    (Boolean(currentCourse?.is_private_tutoring) && currentCourse?.target_audience !== "adult");
+  const isAllAudience = currentCourse?.target_audience === "all";
+  const isAdultOnly = !isMinorCourse && !isAllAudience;
+
   // Learner profile type: Independent Adult (19+) vs Parent/Guardian registering Child
   const [learnerType, setLearnerType] = useState<"myself" | "child">(
-    currentCourse?.is_private_tutoring ? "child" : "myself"
+    isMinorCourse ? "child" : "myself"
   );
   const [childName, setChildName] = useState("");
   const [childYearGroup, setChildYearGroup] = useState("Year 7 - 9 (KS3)");
@@ -142,8 +149,10 @@ export const EnrolmentClient: React.FC<Props> = ({
 
   // Synchronize when currentCourse changes
   useEffect(() => {
-    if (currentCourse?.is_private_tutoring) {
+    if (isMinorCourse) {
       setLearnerType("child");
+    } else if (isAdultOnly) {
+      setLearnerType("myself");
     }
     if (currentCourse?.training_locations && currentCourse.training_locations.length > 0) {
       if (!selectedLocation || !currentCourse.training_locations.includes(selectedLocation)) {
@@ -152,7 +161,7 @@ export const EnrolmentClient: React.FC<Props> = ({
     } else {
       setSelectedLocation("");
     }
-  }, [currentCourse, selectedLocation]);
+  }, [currentCourse, isMinorCourse, isAdultOnly, selectedLocation]);
 
   // Form Fields
   const [fullName, setFullName] = useState(currentUser?.name || "");
@@ -797,57 +806,81 @@ export const EnrolmentClient: React.FC<Props> = ({
                 </h2>
               </div>
 
-              {/* Who is this enrolment for? Independent Adult (19+) vs Parent/Guardian registering Child */}
-              <div className="space-y-2">
-                <label className="block text-xs font-bold text-navy-900">
-                  Who is this enrolment for? *
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setLearnerType("myself")}
-                    className={`p-3.5 rounded-sm border text-left transition-all relative cursor-pointer ${
-                      learnerType === "myself"
-                        ? "border-navy-900 bg-navy-50/60 ring-2 ring-navy-900"
-                        : "border-line bg-white hover:bg-paper"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-navy-900">
-                        Adult Learner (19+) — Myself
-                      </span>
-                      <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-xs bg-paper border border-line text-navy-900">
-                        Independent
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-ink-soft mt-1">
-                      Enrolling on my own behalf; I will study, submit coursework, and manage tuition independently.
-                    </p>
-                  </button>
+              {/* Who is this enrolment for? Rendered ONLY if the course is marked for all audiences (both Adult & Child) */}
+              {isAllAudience && (
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold text-navy-900">
+                    Who is this enrolment for? *
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setLearnerType("myself")}
+                      className={`p-3.5 rounded-sm border text-left transition-all relative cursor-pointer ${
+                        learnerType === "myself"
+                          ? "border-navy-900 bg-navy-50/60 ring-2 ring-navy-900"
+                          : "border-line bg-white hover:bg-paper"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-navy-900">
+                          Adult Learner (19+) — Myself
+                        </span>
+                        <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-xs bg-paper border border-line text-navy-900">
+                          Independent
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-ink-soft mt-1">
+                        Enrolling on my own behalf; I will study, submit coursework, and manage tuition independently.
+                      </p>
+                    </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setLearnerType("child")}
-                    className={`p-3.5 rounded-sm border text-left transition-all relative cursor-pointer ${
-                      learnerType === "child"
-                        ? "border-navy-900 bg-navy-50/60 ring-2 ring-navy-900"
-                        : "border-line bg-white hover:bg-paper"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-navy-900">
-                        Parent / Guardian — My Child
-                      </span>
-                      <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-xs bg-gold-300 text-navy-900">
-                        Parent Account
+                    <button
+                      type="button"
+                      onClick={() => setLearnerType("child")}
+                      className={`p-3.5 rounded-sm border text-left transition-all relative cursor-pointer ${
+                        learnerType === "child"
+                          ? "border-navy-900 bg-navy-50/60 ring-2 ring-navy-900"
+                          : "border-line bg-white hover:bg-paper"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-navy-900">
+                          Parent / Guardian — My Child
+                        </span>
+                        <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-xs bg-gold-300 text-navy-900">
+                          Parent Account
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-ink-soft mt-1">
+                        Registering a child or student under 19 for tuition, private tutoring, or extra GCSE/A-Level classes.
+                      </p>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Informational notice when course is strictly for minors/tutoring */}
+              {isMinorCourse && (
+                <div className="p-3.5 rounded-sm bg-navy-50 border border-navy-900/15 flex items-start gap-3">
+                  <div className="w-8 h-8 rounded bg-navy-900 text-gold-300 flex items-center justify-center shrink-0 mt-0.5">
+                    <Icon name="users" size={16} />
+                  </div>
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <strong className="text-xs font-bold text-navy-900">
+                        Parent / Legal Guardian Registration Required
+                      </strong>
+                      <span className="text-[10px] font-bold uppercase tracking-wider bg-gold-300/40 text-navy-900 px-2 py-0.5 rounded-xs border border-gold-500/30">
+                        Under 18 Tutoring
                       </span>
                     </div>
-                    <p className="text-[11px] text-ink-soft mt-1">
-                      Registering a child or student under 19 for tuition, private tutoring, or extra GCSE/A-Level classes.
+                    <p className="text-[11px] text-ink-soft">
+                      This programme is designed for primary, secondary or GCSE students. A parent or legal guardian must complete registration and provide emergency contact details.
                     </p>
-                  </button>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Practical Training Campus Venue (Only for Blended Practical Courses like Phlebotomy and L4 CET) */}
               {currentCourse?.training_locations && currentCourse.training_locations.length > 0 ? (

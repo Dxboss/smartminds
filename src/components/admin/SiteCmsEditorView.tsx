@@ -4632,10 +4632,12 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                           columns={selectedSection.columns || 4}
                           rows={selectedSection.rows || 2}
                           courseLimit={selectedSection.courseLimit}
+                          courseCategoryFilter={selectedSection.courseCategoryFilter || "all"}
                           currentViewport={viewport}
                           onColumnsChange={(cols) => updateSelectedField("columns", cols)}
                           onRowsChange={(rows) => updateSelectedField("rows", rows)}
                           onCourseLimitChange={(limit) => updateSelectedField("courseLimit", limit)}
+                          onCourseCategoryFilterChange={(cat) => updateSelectedField("courseCategoryFilter", cat)}
                         />
                       )}
 
@@ -5795,10 +5797,12 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                           columns={selectedSection.columns || 4}
                           rows={selectedSection.rows || 2}
                           courseLimit={selectedSection.courseLimit}
+                          courseCategoryFilter={selectedSection.courseCategoryFilter || "all"}
                           currentViewport={viewport}
                           onColumnsChange={(cols) => updateSelectedField("columns", cols)}
                           onRowsChange={(rows) => updateSelectedField("rows", rows)}
                           onCourseLimitChange={(limit) => updateSelectedField("courseLimit", limit)}
+                          onCourseCategoryFilterChange={(cat) => updateSelectedField("courseCategoryFilter", cat)}
                         />
                       ) : (
                         <div>

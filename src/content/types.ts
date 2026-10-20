@@ -89,6 +89,7 @@ export interface Course {
   seo_title: string;
   seo_description: string;
   published: boolean;
+  target_audience?: "adult" | "minor_tutoring" | "all";
   levels: CourseLevel[];
 }
 

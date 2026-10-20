@@ -740,6 +740,7 @@ export const SectionRenderer: React.FC<Props> = ({
           columns={(section.columns === 1 ? 2 : section.columns) as 2 | 3 | 4 | undefined}
           rows={section.rows}
           courseLimit={section.courseLimit}
+          categoryFilter={section.courseCategoryFilter}
           courses={courses}
         />
       );

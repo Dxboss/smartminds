@@ -7,9 +7,11 @@ export interface CourseGridCmsControlsProps {
   columns?: 1 | 2 | 3 | 4;
   rows?: 1 | 2 | 3 | 4 | "all";
   courseLimit?: number;
+  courseCategoryFilter?: string;
   onColumnsChange: (columns: 2 | 3 | 4) => void;
   onRowsChange: (rows: 1 | 2 | 3 | 4 | "all") => void;
   onCourseLimitChange?: (limit: number | undefined) => void;
+  onCourseCategoryFilterChange?: (category: string) => void;
   currentViewport?: "desktop" | "tablet" | "mobile";
   className?: string;
 }
@@ -18,9 +20,11 @@ export const CourseGridCmsControls: React.FC<CourseGridCmsControlsProps> = ({
   columns = 4,
   rows = 2,
   courseLimit,
+  courseCategoryFilter = "all",
   onColumnsChange,
   onRowsChange,
   onCourseLimitChange,
+  onCourseCategoryFilterChange,
   currentViewport = "desktop",
   className = "",
 }) => {
@@ -52,6 +56,38 @@ export const CourseGridCmsControls: React.FC<CourseGridCmsControlsProps> = ({
           {effectiveRows === "all" ? "All Courses" : `${totalCalculated} Cards Total`}
         </span>
       </div>
+
+      {/* 0. Course Category Filter */}
+      {onCourseCategoryFilterChange && (
+        <div className="space-y-1.5 pb-2 border-b border-line">
+          <div className="flex items-center justify-between">
+            <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider">
+              Filter by Subject Category
+            </label>
+            <span className="text-[10px] text-ink-soft font-mono">
+              {courseCategoryFilter && courseCategoryFilter !== "all"
+                ? courseCategoryFilter
+                : "All Disciplines"}
+            </span>
+          </div>
+
+          <select
+            value={courseCategoryFilter || "all"}
+            onChange={(e) => onCourseCategoryFilterChange(e.target.value)}
+            className="w-full px-2.5 py-1.5 rounded-xs border border-line text-xs font-semibold bg-white text-navy-900 focus:outline-none focus:border-navy-900"
+          >
+            <option value="all">All Qualifications (Full Catalogue)</option>
+            <option value="Health & Social Care">Health & Social Care</option>
+            <option value="Childcare & Early Years">Childcare & Early Years</option>
+            <option value="Teacher Training & Education">Teacher Training & Education</option>
+            <option value="CPD Short Courses">CPD Short Courses</option>
+            <option value="Private Tutoring & Exam Prep">Private Tutoring & Exam Prep</option>
+          </select>
+          <p className="text-[9.5px] text-ink-soft leading-tight">
+            Restricts this grid to a specific department or faculty (ideal for dedicated CPD or Tutoring pages).
+          </p>
+        </div>
+      )}
 
       {/* 1. Desktop Columns Selector (2, 3, 4) */}
       <div className="space-y-1.5">

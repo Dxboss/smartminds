@@ -26,6 +26,7 @@ export interface FeaturedCoursesProps {
   columns?: 2 | 3 | 4;
   rows?: 1 | 2 | 3 | 4 | "all";
   courseLimit?: number;
+  categoryFilter?: string;
   courses?: Course[];
 }
 
@@ -46,6 +47,7 @@ export const FeaturedCourses: React.FC<FeaturedCoursesProps> = ({
   columns = 4,
   rows = 2,
   courseLimit,
+  categoryFilter,
   courses: propCourses,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -69,7 +71,31 @@ export const FeaturedCourses: React.FC<FeaturedCoursesProps> = ({
   const filteredCourses = useMemo(() => {
     const published = effectiveCourses.filter((c) => c.published);
     let matched = published;
-    if (selectedCategory !== "all") {
+
+    // 1. If explicit categoryFilter is set from CMS and not "all"
+    if (categoryFilter && categoryFilter !== "all") {
+      matched = matched.filter((c) => {
+        const cat = c.category.toLowerCase();
+        const target = categoryFilter.toLowerCase();
+        if (target.includes("care") || target.includes("health")) {
+          return cat.includes("health") || cat.includes("care");
+        }
+        if (target.includes("teach") || target.includes("educat")) {
+          return cat.includes("teach") || cat.includes("educat") || c.title.toLowerCase().includes("aet");
+        }
+        if (target.includes("child") || target.includes("early")) {
+          return cat.includes("child") || cat.includes("early");
+        }
+        if (target.includes("cpd")) {
+          return c.type === "cpd" || cat.includes("cpd");
+        }
+        if (target.includes("tutor") || target.includes("exam")) {
+          return Boolean(c.is_private_tutoring) || c.type === "tutoring" || cat.includes("tutor");
+        }
+        return cat.includes(target) || target.includes(cat);
+      });
+    } else if (selectedCategory !== "all") {
+      // 2. Otherwise use the client tab selector if categoryFilter is "all"
       matched = published.filter((c) => {
         const cat = c.category.toLowerCase();
         const title = c.title.toLowerCase();
@@ -93,7 +119,7 @@ export const FeaturedCourses: React.FC<FeaturedCoursesProps> = ({
       return matched.slice(0, effectiveLimit);
     }
     return matched;
-  }, [selectedCategory, effectiveCourses, effectiveLimit]);
+  }, [categoryFilter, selectedCategory, effectiveCourses, effectiveLimit]);
 
   const gridColsClass = useMemo(() => {
     switch (columns) {
@@ -106,6 +132,8 @@ export const FeaturedCourses: React.FC<FeaturedCoursesProps> = ({
         return "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6";
     }
   }, [columns]);
+
+  const isSpecificCategory = Boolean(categoryFilter && categoryFilter !== "all");
 
   return (
     <Section variant={bgColor} id="popular-courses" className="pt-24 pb-20 border-b border-line scroll-mt-20">
@@ -132,11 +160,12 @@ export const FeaturedCourses: React.FC<FeaturedCoursesProps> = ({
           </p>
         </div>
 
-        {/* Category Filter Tabs: Responsive horizontal pills (centered when fitting, scrollable from first tab without clipping on tablet/mobile) */}
-        <div className="w-full overflow-x-auto pb-4 mb-10 scrollbar-none">
-          <div className="flex items-center gap-2.5 min-w-max mx-auto px-4 justify-start sm:justify-center text-xs sm:text-sm">
-            {CATEGORY_TABS.map((tab) => {
-              const isActive = selectedCategory === tab.id;
+        {/* Category Filter Tabs: Responsive horizontal pills (hidden if already filtered to a specific discipline by CMS) */}
+        {!isSpecificCategory && (
+          <div className="w-full overflow-x-auto pb-4 mb-10 scrollbar-none">
+            <div className="flex items-center gap-2.5 min-w-max mx-auto px-4 justify-start sm:justify-center text-xs sm:text-sm">
+              {CATEGORY_TABS.map((tab) => {
+                const isActive = selectedCategory === tab.id;
               return (
                 <button
                   key={tab.id}
@@ -154,6 +183,7 @@ export const FeaturedCourses: React.FC<FeaturedCoursesProps> = ({
             })}
           </div>
         </div>
+      )}
 
         {/* Visual Course Cards Grid: Responsive Columns (2, 3, 4 on desktop, 2 on tablet, 1 on mobile) */}
         <div className={gridColsClass}>
