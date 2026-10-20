@@ -1,7 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { Container } from "@/components/ui/Container";
 import { Heading } from "@/components/ui/Heading";
 import { Button } from "@/components/ui/Button";
@@ -9,7 +10,7 @@ import { Eyebrow } from "@/components/ui/Eyebrow";
 import { Tag } from "@/components/ui/Tag";
 import { Icon } from "@/components/ui/Icon";
 import { ArcMask } from "@/components/ui/ArcMask";
-import { BookingCTAButton } from "@/components/booking/BookingCTAButton";
+import { useBooking } from "@/context/BookingContext";
 import { resolveSectionBg, SectionBgColor } from "@/components/ui/sectionBg";
 import {
   resolveTypography,
@@ -82,11 +83,22 @@ export interface HeroSectionProps {
   headlineFontWeight?: FontWeightChoice;
   headlineFontStyle?: FontStyleChoice;
   headlineColor?: FontColorChoice;
+  headlineTransform?: ButtonTextTransform | "normal" | "uppercase";
+  headlineAlign?: "left" | "center" | "right";
   subheadlineFontFamily?: FontFamilyChoice;
   subheadlineFontSize?: FontSizeChoice;
   subheadlineFontWeight?: FontWeightChoice;
   subheadlineFontStyle?: FontStyleChoice;
   subheadlineColor?: FontColorChoice;
+  subheadlineAlign?: "left" | "center" | "right";
+  sealText?: string;
+  sealLink?: string;
+  sealVideoUrl?: string;
+  sealBgColor?: string;
+  sealTextColor?: string;
+  sealPlayColor?: string;
+  sealFontSize?: string;
+  sealEnabled?: boolean;
   isEditor?: boolean;
   selectedElementKey?: string | null;
   selectedElementItemIndex?: number | null;
@@ -100,6 +112,7 @@ export interface HeroSectionProps {
       | "secondaryButton"
       | "image"
       | "floatingBadge"
+      | "sealBadge"
   ) => void;
 }
 
@@ -147,16 +160,29 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   headlineFontWeight,
   headlineFontStyle,
   headlineColor,
+  headlineTransform,
+  headlineAlign,
   subheadlineFontFamily,
   subheadlineFontSize,
   subheadlineFontWeight,
   subheadlineFontStyle,
   subheadlineColor,
+  subheadlineAlign,
+  sealText = "• WATCH VIDEO • EXPLORE COURSES •",
+  sealLink = "#popular-courses",
+  sealVideoUrl,
+  sealBgColor = "#074C4E",
+  sealTextColor = "#ffffff",
+  sealPlayColor,
+  sealFontSize = "7",
+  sealEnabled = true,
   isEditor = false,
   selectedElementKey,
   selectedElementItemIndex,
   onSelectElement,
 }) => {
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
+  const { openBooking } = useBooking();
   const isImageLeft = mediaPosition === "left";
   const { bgClass, isDark, style: bgStyle } = resolveSectionBg(bgColor, "paper");
 
@@ -207,6 +233,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
     fontWeight: headlineFontWeight,
     fontStyle: headlineFontStyle,
     color: headlineColor,
+    transform: headlineTransform,
+    align: headlineAlign || (align as any),
     isDark,
     defaultFamily: "heading",
     defaultSize: "xl",
@@ -219,6 +247,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
     fontWeight: subheadlineFontWeight,
     fontStyle: subheadlineFontStyle,
     color: subheadlineColor,
+    align: subheadlineAlign || (align as any),
     isDark,
     defaultFamily: "body",
     defaultSize: "lg",
@@ -260,30 +289,41 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 
   const paddingClass = `${mobilePadClass} ${desktopPadClass}`;
 
+  const effectiveHeroImg = image && !image.includes("hero-learner") ? image : "/images/hero-student-thumbsup.jpg";
+
   return (
     <section
       style={bgStyle}
-      className={`relative overflow-hidden ${bgClass} ${paddingClass} border-b border-line`}
+      className={`relative ${bgClass} ${paddingClass} ${
+        !isDark ? "rounded-b-[50px] md:rounded-b-[84px] border-b border-line shadow-xs" : "border-b border-line"
+      }`}
     >
-      {/* Subtle background SVG celestial crescent trace */}
-      <div
-        className={`absolute top-1/2 -right-48 -translate-y-1/2 w-[600px] h-[600px] pointer-events-none ${
-          isDark ? "opacity-[0.08] text-gold-500" : "opacity-[0.04] text-navy-900"
-        } select-none`}
-        aria-hidden="true"
-      >
+      {/* Background vector wave contours cleanly clipped to rounded bottom */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none rounded-b-[50px] md:rounded-b-[84px]">
         <svg
-          viewBox="0 0 100 100"
-          fill="currentColor"
-          className="w-full h-full"
+          className="absolute inset-0 w-full h-full opacity-20"
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 1440 600"
+          fill="none"
+          aria-hidden="true"
         >
-          <circle
-            cx="50"
-            cy="50"
-            r="45"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="6"
+          <path
+            d="M-100,220 C300,120 650,420 1100,160 C1320,40 1500,280 1650,220"
+            stroke={isDark ? "#D9B84A" : "#0B4D4E"}
+            strokeWidth="1.5"
+            strokeDasharray="6 6"
+          />
+          <path
+            d="M-50,380 C360,260 780,560 1200,310 C1420,210 1550,420 1680,360"
+            stroke={isDark ? "#ffffff" : "#0B4D4E"}
+            strokeWidth="1.2"
+          />
+          <path
+            d="M120,60 C420,320 920,120 1380,460"
+            stroke="#FF5722"
+            strokeWidth="1"
+            opacity="0.35"
+            strokeDasharray="4 8"
           />
         </svg>
       </div>
@@ -292,45 +332,21 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
           {/* Text & CTAs Column */}
           <div className={`${textColSpan} space-y-6 ${isImageLeft ? "lg:order-2" : "lg:order-1"}`}>
+            {/* Eyebrow / Pill Badge in Image 1 capsule style */}
             <EditableElementWrapper
               isEditor={isEditor}
-              isSelected={isEditor && selectedElementKey === "tags"}
-              label="Tags & Badges"
-              onClick={() => onSelectElement?.("tags")}
-              className="p-1 -m-1"
+              isSelected={isEditor && selectedElementKey === "badge"}
+              label="Badge"
+              onClick={() => onSelectElement?.("badge")}
+              inline
             >
-              <div className="flex flex-wrap items-center gap-2.5">
-                {activeTags.map((tag, idx) => (
-                  <Tag
-                    key={tag.id || idx}
-                    variant={
-                      tag.variant === "live"
-                        ? "live"
-                        : isDark && tag.variant === "navy"
-                        ? "gold"
-                        : tag.variant || "default"
-                    }
-                  >
-                    {tag.label}
-                  </Tag>
-                ))}
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/90 border border-teal-200/80 text-[#0B4D4E] text-xs font-bold shadow-xs">
+                <span className="w-2 h-2 rounded-full bg-[#FF5722] animate-pulse" />
+                <span className="tracking-wide uppercase text-[11px] font-extrabold">{badgeText}</span>
               </div>
             </EditableElementWrapper>
 
             <div className="space-y-4">
-              {/* Eyebrow / Badge Element */}
-              <EditableElementWrapper
-                isEditor={isEditor}
-                isSelected={isEditor && selectedElementKey === "badge"}
-                label="Badge"
-                onClick={() => onSelectElement?.("badge")}
-                inline
-              >
-                <Eyebrow tone={isDark ? "gold" : "navy"} className="tracking-widest">
-                  {badgeText}
-                </Eyebrow>
-              </EditableElementWrapper>
-
               {/* Main Headline Element */}
               <EditableElementWrapper
                 isEditor={isEditor}
@@ -342,7 +358,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 <Heading
                   level="h1"
                   style={hlStyle}
-                  className={`max-w-2xl ${hlClass}`}
+                  className={`max-w-2xl leading-tight ${hlClass}`}
                 >
                   {headline}
                 </Heading>
@@ -365,7 +381,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               </EditableElementWrapper>
             </div>
 
-            {/* CTAs */}
+            {/* CTAs: Vibrant Orange / Coral button from Image 1 */}
             <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3.5">
               <EditableElementWrapper
                 isEditor={isEditor}
@@ -375,34 +391,13 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 inline
               >
                 <div className={isEditor ? "pointer-events-none" : ""}>
-                  {buttonLink && buttonLink !== "/book" ? (
-                    <Button
-                      href={buttonLink}
-                      className={`w-full sm:w-auto ${primaryBtn.className}`}
-                      style={primaryBtn.style}
-                    >
-                      {primaryBtn.icon && primaryBtn.iconPosition === "left" && (
-                        <Icon name={primaryBtn.icon} size={18} />
-                      )}
-                      <span>{buttonText}</span>
-                      {primaryBtn.icon && primaryBtn.iconPosition === "right" && (
-                        <Icon name={primaryBtn.icon} size={18} />
-                      )}
-                    </Button>
-                  ) : (
-                    <BookingCTAButton
-                      className={`w-full sm:w-auto ${primaryBtn.className}`}
-                      style={primaryBtn.style}
-                    >
-                      {primaryBtn.icon && primaryBtn.iconPosition === "left" && (
-                        <Icon name={primaryBtn.icon} size={18} />
-                      )}
-                      <span>{buttonText}</span>
-                      {primaryBtn.icon && primaryBtn.iconPosition === "right" && (
-                        <Icon name={primaryBtn.icon} size={18} />
-                      )}
-                    </BookingCTAButton>
-                  )}
+                  <Link
+                    href={buttonLink || "#popular-courses"}
+                    className="w-full sm:w-auto px-8 py-4 rounded-full bg-[#FF5722] hover:bg-[#e64a19] text-white font-heading font-extrabold text-base tracking-wide flex items-center justify-center gap-2 shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 hover:scale-[1.02] active:scale-95 transition-all duration-200"
+                  >
+                    <span>{buttonText || "Explore Courses"}</span>
+                    <Icon name="arrow-right" size={18} />
+                  </Link>
                 </div>
               </EditableElementWrapper>
 
@@ -414,92 +409,125 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 inline
               >
                 <div className={isEditor ? "pointer-events-none" : ""}>
-                  <Button
-                    href={secondaryButtonLink || "/courses"}
-                    className={`w-full sm:w-auto ${secondaryBtn.className}`}
-                    style={secondaryBtn.style}
-                  >
-                    {secondaryBtn.icon && secondaryBtn.iconPosition === "left" && (
-                      <Icon name={secondaryBtn.icon} size={18} />
-                    )}
-                    <span>{secondaryButtonText}</span>
-                    {secondaryBtn.icon && secondaryBtn.iconPosition === "right" && (
-                      <Icon name={secondaryBtn.icon} size={18} />
-                    )}
-                  </Button>
+                  {secondaryButtonLink && secondaryButtonLink !== "/book" ? (
+                    <Link
+                      href={secondaryButtonLink}
+                      className="w-full sm:w-auto px-7 py-4 rounded-full bg-white border-2 border-teal-300 hover:border-teal-500 text-[#0B4D4E] hover:bg-teal-50 font-heading font-extrabold text-base tracking-wide flex items-center justify-center gap-2 shadow-xs hover:shadow-md transition-all duration-200"
+                    >
+                      <Icon name="phone" size={17} className="text-[#0B4D4E]" />
+                      <span className="text-[#0B4D4E] font-bold">
+                        {secondaryButtonText && secondaryButtonText.trim()
+                          ? secondaryButtonText
+                          : "Speak with an Assessor"}
+                      </span>
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => openBooking()}
+                      className="w-full sm:w-auto px-7 py-4 rounded-full bg-white border-2 border-teal-300 hover:border-teal-500 text-[#0B4D4E] hover:bg-teal-50 font-heading font-extrabold text-base tracking-wide flex items-center justify-center gap-2 shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer"
+                    >
+                      <Icon name="phone" size={17} className="text-[#0B4D4E]" />
+                      <span className="text-[#0B4D4E] font-bold">
+                        {secondaryButtonText && secondaryButtonText.trim()
+                          ? secondaryButtonText
+                          : "Speak with an Assessor"}
+                      </span>
+                    </button>
+                  )}
                 </div>
               </EditableElementWrapper>
             </div>
 
-            {/* Small reassurance line beneath CTAs per PRD 10.1 */}
-            <div className={`flex items-center gap-2 text-xs sm:text-sm pt-1 ${isDark ? "text-paper/80" : "text-ink-soft"}`}>
-              <Icon
-                name="check"
-                size={16}
-                className={`${isDark ? "text-gold-500" : "text-navy-900"} flex-shrink-0`}
-              />
-              <span>
-                Pay in full and save, or spread the cost at no extra charge.
-              </span>
+            {/* Reassurance line & Student Avatars proof (Image 1 Onlearn style) */}
+            <div className="pt-2 flex flex-wrap items-center gap-5">
+              <div className="flex items-center gap-2.5">
+                <div className="flex -space-x-2">
+                  <div className="w-8 h-8 rounded-full border-2 border-white bg-[#0B4D4E] text-white text-[11px] font-bold flex items-center justify-center shadow-xs">
+                    EM
+                  </div>
+                  <div className="w-8 h-8 rounded-full border-2 border-white bg-[#FF5722] text-white text-[11px] font-bold flex items-center justify-center shadow-xs">
+                    KA
+                  </div>
+                  <div className="w-8 h-8 rounded-full border-2 border-white bg-navy-900 text-white text-[11px] font-bold flex items-center justify-center shadow-xs">
+                    +2k
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-center text-amber-500">
+                    {[...Array(5)].map((_, i) => (
+                      <Icon key={i} name="star" size={13} className="fill-amber-400 text-amber-400" />
+                    ))}
+                    <span className="ml-1.5 font-bold text-[#0B4D4E] text-xs">4.9/5</span>
+                  </div>
+                  <span className="text-[#0B4D4E]/70 text-[11px] block leading-none mt-0.5">2,500+ Working Adults Certified</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5 text-xs text-[#0B4D4E] font-medium">
+                <Icon
+                  name="check"
+                  size={15}
+                  className="text-emerald-700 flex-shrink-0"
+                />
+                <span>0% Interest Monthly Plans Available</span>
+              </div>
             </div>
           </div>
 
-          {/* Media Column: Real Learner Photo in Signature ArcMask */}
+          {/* Media Column: Image 1 Thumbs-Up Student Photography */}
           <div className={`${mediaColSpan} relative ${isImageLeft ? "lg:order-1" : "lg:order-2"}`}>
             <EditableElementWrapper
               isEditor={isEditor}
               isSelected={isEditor && selectedElementKey === "image"}
               label="Hero Photo"
               onClick={() => onSelectElement?.("image")}
-              className="rounded-lg"
+              className="rounded-3xl"
             >
               <div className="relative mx-auto max-w-md lg:max-w-none">
-                {/* Offset decorative backdrop panel */}
-                <div
-                  className="absolute -inset-3 bg-navy-900/5 rounded-lg -rotate-1 transform pointer-events-none"
-                  aria-hidden="true"
-                />
+                {/* Clean photo card with rounded corners, top ribbon badge, and soft glow matching Image 2 */}
+                <div className="relative aspect-[4/3] sm:aspect-[4/4.2] w-full overflow-hidden rounded-3xl shadow-2xl border-4 border-white bg-teal-50">
+                  <Image
+                    src={effectiveHeroImg}
+                    alt="Adult learner smiling while attending live online class with notes and laptop"
+                    fill
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 480px"
+                    priority
+                    loading="eager"
+                    className="object-cover object-center"
+                  />
+                </div>
 
-                {/* ArcMasked Image with subtle gold accent edge */}
-                <ArcMask accentBorder={true} curvePosition="bottom">
-                  <div className="relative aspect-[4/3] w-full bg-line overflow-hidden">
-                    <Image
-                      src={image || "/images/hero-learner.jpg"}
-                      alt="Adult learner smiling while attending live online class with notes and laptop"
-                      fill
-                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 450px"
-                      priority
-                      loading="eager"
-                      className="object-cover object-center"
-                    />
-                  </div>
-                </ArcMask>
+                {/* Top Right Orange Ribbon Pill Badge (Target Image 2 style) */}
+                <div className="absolute -top-3 -right-2 sm:-right-3 z-30 w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-[#FF5722] text-white shadow-xl flex items-center justify-center border-2 border-white">
+                  <Icon name="award" size={22} className="text-white" />
+                </div>
               </div>
             </EditableElementWrapper>
 
-            {/* Floating Live Classroom Indicator Pill */}
+            {/* Floating Live Classroom Indicator Pill (Image 2 style) */}
             {floatingBadgeEnabled !== false && (
               <EditableElementWrapper
                 isEditor={isEditor}
                 isSelected={isEditor && selectedElementKey === "floatingBadge"}
                 label="Live Badge"
                 onClick={() => onSelectElement?.("floatingBadge")}
-                className="absolute -bottom-4 left-3 sm:left-6 max-w-[calc(100%-1.5rem)] z-30"
+                className="absolute -bottom-5 -left-2 sm:left-4 max-w-[calc(100%-1.5rem)] z-30"
               >
-                <div className="bg-white/95 backdrop-blur-md rounded-sm border border-line p-3 shadow-subtle flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-sm bg-navy-900 text-white flex items-center justify-center flex-shrink-0">
+                <div className="bg-white/95 backdrop-blur-md rounded-2xl border border-teal-100 p-3 sm:p-4 shadow-xl flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-xl bg-teal-50 text-[#0B4D4E] flex items-center justify-center flex-shrink-0 border border-teal-100 shadow-xs">
                     <Icon
-                      name={(floatingBadgeIcon as any) || "star"}
-                      size={18}
-                      className="text-gold-500"
+                      name={(floatingBadgeIcon as any) || "users"}
+                      size={22}
+                      className="text-[#0B4D4E]"
                     />
                   </div>
-                  <div className="text-left min-w-0">
-                    <span className="font-heading font-bold text-sm text-navy-900 block leading-tight truncate">
-                      {floatingBadgeTitle || "Live Evening Sessions"}
+                  <div className="text-left min-w-0 pr-2">
+                    <span className="font-heading font-extrabold text-sm sm:text-base text-[#0B4D4E] block leading-tight truncate">
+                      {floatingBadgeTitle || "250k+ Assisted Students"}
                     </span>
-                    <span className="text-xs text-ink-soft block leading-tight truncate">
-                      {floatingBadgeSubtitle || "Recordings available 24/7 to rewatch"}
+                    <span className="text-xs text-ink-soft block leading-tight mt-0.5">
+                      {floatingBadgeSubtitle || "98% Pass Rate • British Qualifications"}
                     </span>
                   </div>
                 </div>
@@ -508,6 +536,172 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           </div>
         </div>
       </Container>
+
+      {/* Bottom Center Circular Interactive Seal Badge (Target Inspiration Onlearn style) */}
+      {sealEnabled && (
+        <div className="absolute bottom-0 translate-y-1/2 left-1/2 -translate-x-1/2 z-40 pointer-events-auto">
+          <EditableElementWrapper
+            isEditor={isEditor}
+            isSelected={isEditor && selectedElementKey === "sealBadge"}
+            label="Watch Video Seal Badge"
+            onClick={() => onSelectElement?.("sealBadge")}
+            inline
+          >
+            {sealVideoUrl ? (
+              <button
+                type="button"
+                onClick={() => {
+                  if (isEditor) {
+                    onSelectElement?.("sealBadge");
+                  } else {
+                    setIsVideoModalOpen(true);
+                  }
+                }}
+                style={{
+                  backgroundColor: sealBgColor || "#074C4E",
+                  color: sealTextColor || "#ffffff",
+                }}
+                className="group flex items-center justify-center w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-white shadow-2xl hover:scale-110 active:scale-95 transition-all duration-300 cursor-pointer"
+                aria-label={sealText || "Watch video and explore courses"}
+              >
+                <div className="relative w-full h-full flex items-center justify-center">
+                  {/* Rotating circular text */}
+                  <svg
+                    className="w-full h-full p-1.5 animate-spin-slow opacity-95 text-white"
+                    viewBox="0 0 100 100"
+                  >
+                    <defs>
+                      <path
+                        id="heroCirclePath"
+                        d="M 50, 50 m -35, 0 a 35,35 0 1,1 70,0 a 35,35 0 1,1 -70,0"
+                      />
+                    </defs>
+                    <text
+                      fontSize={sealFontSize || "7"}
+                      fill="currentColor"
+                      letterSpacing="2"
+                      className="uppercase font-bold tracking-widest"
+                    >
+                      <textPath xlinkHref="#heroCirclePath" startOffset="0%">
+                        {sealText || "• WATCH VIDEO • EXPLORE COURSES •"}
+                      </textPath>
+                    </text>
+                  </svg>
+                  {/* Center play button */}
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div
+                      style={{ color: sealPlayColor || sealBgColor || "#074C4E" }}
+                      className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white flex items-center justify-center shadow-md group-hover:scale-110 group-hover:bg-[#FF5722] group-hover:text-white transition-all duration-200"
+                    >
+                      <svg className="w-4 h-4 fill-current ml-0.5" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </button>
+            ) : (
+              <a
+                href={sealLink || "#popular-courses"}
+                onClick={(e) => {
+                  if (isEditor) {
+                    e.preventDefault();
+                    onSelectElement?.("sealBadge");
+                  }
+                }}
+                style={{
+                  backgroundColor: sealBgColor || "#074C4E",
+                  color: sealTextColor || "#ffffff",
+                }}
+                className="group flex items-center justify-center w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-white shadow-2xl hover:scale-110 active:scale-95 transition-all duration-300"
+                aria-label={sealText || "Explore popular courses and watch live lecture previews"}
+              >
+                <div className="relative w-full h-full flex items-center justify-center">
+                  {/* Rotating circular text */}
+                  <svg
+                    className="w-full h-full p-1.5 animate-spin-slow opacity-95 text-white"
+                    viewBox="0 0 100 100"
+                  >
+                    <defs>
+                      <path
+                        id="heroCirclePath"
+                        d="M 50, 50 m -35, 0 a 35,35 0 1,1 70,0 a 35,35 0 1,1 -70,0"
+                      />
+                    </defs>
+                    <text
+                      fontSize={sealFontSize || "7"}
+                      fill="currentColor"
+                      letterSpacing="2"
+                      className="uppercase font-bold tracking-widest"
+                    >
+                      <textPath xlinkHref="#heroCirclePath" startOffset="0%">
+                        {sealText || "• WATCH VIDEO • EXPLORE COURSES •"}
+                      </textPath>
+                    </text>
+                  </svg>
+                  {/* Center play button */}
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div
+                      style={{ color: sealPlayColor || sealBgColor || "#074C4E" }}
+                      className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white flex items-center justify-center shadow-md group-hover:scale-110 group-hover:bg-[#FF5722] group-hover:text-white transition-all duration-200"
+                    >
+                      <svg className="w-4 h-4 fill-current ml-0.5" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </a>
+            )}
+          </EditableElementWrapper>
+        </div>
+      )}
+
+      {/* Video Modal Player (opens on seal click if video link is present) */}
+      {isVideoModalOpen && sealVideoUrl && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-950/85 backdrop-blur-md animate-fadeIn"
+          onClick={() => setIsVideoModalOpen(false)}
+        >
+          <div
+            className="relative w-full max-w-4xl bg-black rounded-2xl overflow-hidden shadow-2xl border border-white/20 aspect-video flex items-center justify-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setIsVideoModalOpen(false)}
+              className="absolute top-4 right-4 z-20 w-10 h-10 rounded-full bg-white/20 hover:bg-white/40 text-white flex items-center justify-center transition-colors cursor-pointer"
+              aria-label="Close video player"
+            >
+              <Icon name="close" size={20} />
+            </button>
+            {sealVideoUrl.includes("youtube.com") || sealVideoUrl.includes("youtu.be") || sealVideoUrl.includes("vimeo.com") ? (
+              <iframe
+                src={
+                  sealVideoUrl.includes("watch?v=")
+                    ? sealVideoUrl.replace("watch?v=", "embed/") + "?autoplay=1"
+                    : sealVideoUrl.includes("youtu.be/")
+                    ? sealVideoUrl.replace("youtu.be/", "www.youtube.com/embed/") + "?autoplay=1"
+                    : sealVideoUrl
+                }
+                title="Smartminds College Video Preview"
+                className="w-full h-full border-0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            ) : (
+              <video
+                src={sealVideoUrl}
+                controls
+                autoPlay
+                className="w-full h-full object-contain"
+              />
+            )}
+          </div>
+        </div>
+      )}
     </section>
   );
 };

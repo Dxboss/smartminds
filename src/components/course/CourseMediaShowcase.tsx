@@ -81,7 +81,14 @@ export const CourseMediaShowcase: React.FC<CourseMediaShowcaseProps> = ({
         {/* Live Status indicator */}
         <div className="hidden sm:flex items-center gap-2 text-xs font-mono text-ink-soft">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span>Interactive Preview • 100% Online Distance</span>
+          <span>
+            Interactive Preview •{" "}
+            {course.attendance_type === "physical_venue" || course.delivery === "classroom"
+              ? "Physical Venue / Campus"
+              : course.delivery === "blended"
+              ? "Blended Practical"
+              : "100% Online Distance"}
+          </span>
         </div>
       </div>
 
@@ -274,7 +281,11 @@ export const CourseMediaShowcase: React.FC<CourseMediaShowcaseProps> = ({
               <div className="flex items-center justify-center sm:justify-start gap-2">
                 <span className="w-2 h-2 rounded-full bg-emerald-400" />
                 <span className="text-xs font-mono uppercase tracking-wider text-gold-300 font-bold">
-                  British Distance Learning Architecture
+                  {course.attendance_type === "physical_venue" || course.delivery === "classroom"
+                    ? "British Campus & Practical Training Architecture"
+                    : course.delivery === "blended"
+                    ? "Blended Theory & Practical Healthcare Architecture"
+                    : "British Distance Learning Architecture"}
                 </span>
               </div>
 
@@ -292,13 +303,28 @@ export const CourseMediaShowcase: React.FC<CourseMediaShowcaseProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-left">
                 <div className="p-3.5 rounded-md bg-white/5 border border-white/10 space-y-1">
                   <div className="w-8 h-8 rounded-xs bg-gold-500/20 text-gold-300 flex items-center justify-center mb-2">
-                    <Icon name="video" size={16} />
+                    <Icon
+                      name={
+                        course.attendance_type === "physical_venue" || course.delivery === "classroom"
+                          ? "map-pin"
+                          : "video"
+                      }
+                      size={16}
+                    />
                   </div>
                   <strong className="text-xs font-bold text-white block">
-                    1. Live Evening Lectures
+                    {course.attendance_type === "physical_venue" || course.delivery === "classroom"
+                      ? "1. Campus & Clinical Labs"
+                      : course.delivery === "blended"
+                      ? "1. Blended Live & Practical"
+                      : "1. Live Evening Lectures"}
                   </strong>
                   <p className="text-[11px] text-paper/80 leading-normal">
-                    Interactive weekly evening Zoom sessions with certified assessors. Session replays saved for revision.
+                    {course.attendance_type === "physical_venue" || course.delivery === "classroom"
+                      ? "Direct hands-on training with expert tutors at accredited UK campus venues."
+                      : course.delivery === "blended"
+                      ? "Interactive online theory combined with practical campus training and simulation."
+                      : "Interactive weekly evening Zoom sessions with certified assessors. Session replays saved for revision."}
                   </p>
                 </div>
 

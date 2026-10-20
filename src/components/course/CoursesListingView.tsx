@@ -5,28 +5,42 @@ import Link from "next/link";
 import { Course } from "@/content/types";
 import { CourseCard } from "@/components/course/CourseCard";
 import { Container } from "@/components/ui/Container";
-import { Heading } from "@/components/ui/Heading";
 import { Icon } from "@/components/ui/Icon";
 import { Button } from "@/components/ui/Button";
 
+import type { FacultyRecord } from "@/content/faculties";
+
 interface CoursesListingViewProps {
   initialCourses: Course[];
+  initialFaculties?: FacultyRecord[];
+  customHeadline?: string;
+  customSubheadline?: string;
+  isEditor?: boolean;
+  onSelectElement?: (elementKey: "headline" | "subheadline") => void;
 }
 
 export const CoursesListingView: React.FC<CoursesListingViewProps> = ({
   initialCourses,
+  initialFaculties,
+  customHeadline,
+  customSubheadline,
+  isEditor,
+  onSelectElement,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [selectedType, setSelectedType] = useState<string>("All");
   const [selectedLevel, setSelectedLevel] = useState<string>("All");
   const [searchQuery, setSearchQuery] = useState<string>("");
 
-  // Categories list
+  // Categories list (merges configured faculties with active courses)
   const categories = useMemo(() => {
     const set = new Set<string>();
+    if (initialFaculties && initialFaculties.length > 0) {
+      initialFaculties.forEach((f) => set.add(f.name));
+    }
     initialCourses.forEach((c) => set.add(c.category));
     return ["All", ...Array.from(set)];
-  }, [initialCourses]);
+  }, [initialCourses, initialFaculties]);
 
   const levels = ["All", "Level 2", "Level 3", "Level 4", "Level 5"];
 
@@ -83,316 +97,301 @@ export const CoursesListingView: React.FC<CoursesListingViewProps> = ({
     selectedLevel !== "All" ||
     searchQuery.trim().length > 0;
 
-  // Flagship featured course (e.g. Diploma in Adult Care)
-  const flagshipCourse = initialCourses.find(
-    (c) => c.id === "course-adult-care"
-  );
-
   return (
     <div className="bg-paper py-10 md:py-16">
       <Container>
-        {/* Editorial Prospectus Hero Section with Authentic Photography */}
-        <div className="mb-14 rounded-md border border-line bg-white shadow-sm overflow-hidden">
-          <div className="grid grid-cols-1 lg:grid-cols-12 items-stretch">
-            {/* Left Narrative Column */}
-            <div className="lg:col-span-7 p-7 sm:p-10 lg:p-12 flex flex-col justify-between space-y-6">
-              <div className="space-y-4">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-sm bg-navy-900 text-white text-xs font-semibold">
-                  <Icon name="shield-check" size={14} className="text-gold-300" />
-                  <span>Ofqual Regulated British Frameworks • Centre Accreditation</span>
-                </div>
+        {/* Breadcrumb & Topic Pills Header */}
+        <div className="mb-8 space-y-4">
+          <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs text-ink-soft">
+            <Link href="/" className="hover:text-navy-900 transition-colors">Home</Link>
+            <span>/</span>
+            <span className="text-navy-900 font-medium">Courses</span>
+            <span>/</span>
+            <span className="text-gold-500 font-semibold">{selectedCategory === "All" ? "All Programmes" : selectedCategory}</span>
+          </nav>
 
-                <Heading level="h1" className="text-navy-900 text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight leading-tight">
-                  British Accredited Qualifications & Professional Diplomas
-                </Heading>
-
-                <p className="text-ink-soft text-base sm:text-lg leading-relaxed">
-                  Smartminds Training College delivers recognised RQF vocational diplomas and healthcare CPD accredited by NCFE, TQUK, and Pearson. Every programme features live weekly interactive evening seminars led by practicing healthcare specialists, zero written exams, and 0% interest instalment plans.
-                </p>
-              </div>
-
-              {/* Quality Indicators Strip */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-6 border-t border-line text-xs">
-                <div className="p-3 bg-paper rounded-sm border border-line">
-                  <strong className="text-navy-900 block font-heading text-sm font-bold">NCFE & TQUK</strong>
-                  <span className="text-ink-soft text-[11px]">Approved Awarding Bodies</span>
-                </div>
-                <div className="p-3 bg-paper rounded-sm border border-line">
-                  <strong className="text-navy-900 block font-heading text-sm font-bold">100% Coursework</strong>
-                  <span className="text-ink-soft text-[11px]">Portfolio Based (No Exams)</span>
-                </div>
-                <div className="p-3 bg-paper rounded-sm border border-line">
-                  <strong className="text-navy-900 block font-heading text-sm font-bold">Live Zoom Seminars</strong>
-                  <span className="text-ink-soft text-[11px]">Evenings + Portal Replays</span>
-                </div>
-                <div className="p-3 bg-paper rounded-sm border border-line">
-                  <strong className="text-emerald-700 block font-heading text-sm font-bold">0% Interest Spread</strong>
-                  <span className="text-ink-soft text-[11px]">3, 6, 10 & 12 Month Plans</span>
-                </div>
-              </div>
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <div>
+              <h1
+                onClick={(e) => {
+                  if (isEditor && onSelectElement) {
+                    e.stopPropagation();
+                    onSelectElement("headline");
+                  }
+                }}
+                className={`font-heading text-3xl sm:text-4xl font-extrabold text-navy-900 tracking-tight ${
+                  isEditor ? "cursor-pointer hover:outline hover:outline-dashed hover:outline-1 hover:outline-gold-500 rounded-xs" : ""
+                }`}
+              >
+                {customHeadline || "British Regulated Qualifications & Diplomas"}
+              </h1>
+              <p
+                onClick={(e) => {
+                  if (isEditor && onSelectElement) {
+                    e.stopPropagation();
+                    onSelectElement("subheadline");
+                  }
+                }}
+                className={`text-ink-soft text-sm sm:text-base max-w-2xl mt-1 ${
+                  isEditor ? "cursor-pointer hover:outline hover:outline-dashed hover:outline-1 hover:outline-gold-500 rounded-xs" : ""
+                }`}
+              >
+                {customSubheadline ||
+                  "Explore Ofqual-regulated frameworks with live tutor seminars, coursework assessments, and 0% interest monthly payment plans."}
+              </p>
             </div>
 
-            {/* Right Educational Photography Column */}
-            <div className="lg:col-span-5 relative min-h-[320px] lg:min-h-full bg-navy-900 border-t lg:border-t-0 lg:border-l border-line overflow-hidden">
-              <img
-                src="/images/adult-care-training.jpg"
-                alt="Adult social care learners during clinical skills seminar at Smartminds Training College"
-                className="w-full h-full object-cover object-center"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-navy-950/85 via-navy-950/20 to-transparent pointer-events-none" />
-
-              <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-sm border border-white/20 shadow-sm flex items-center gap-2 text-xs font-bold text-navy-900">
-                <Icon name="graduation-cap" size={15} className="text-navy-900" />
-                <span>UKPRN Verified Centre</span>
-              </div>
-
-              <div className="absolute bottom-4 inset-x-4 text-white">
-                <span className="text-[11px] font-mono text-gold-300 uppercase tracking-wider block">
-                  Autumn & Winter 2026 Cohorts
-                </span>
-                <p className="font-heading font-bold text-base text-white leading-snug">
-                  Rolling weekly intake with 1-to-1 personal assessor support
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* EDITORIAL SHOWCASE ROW: Flagship Adult Care Pathway (shown when no specific search is active) */}
-        {!isFiltered && flagshipCourse && (
-          <div className="mb-14 rounded-md border border-navy-900/20 bg-white shadow-sm overflow-hidden">
-            <div className="grid grid-cols-1 lg:grid-cols-12">
-              {/* Left Column: Visual & Badge Panel */}
-              <div className="lg:col-span-5 bg-navy-900 text-white p-7 sm:p-9 flex flex-col justify-between relative overflow-hidden">
-                <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-gold-500 via-gold-300 to-gold-500" />
-                <div>
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm text-[10px] font-bold uppercase tracking-wider bg-white/10 text-gold-300 border border-white/15 mb-4">
-                    <Icon name="star" size={12} className="text-gold-300" />
-                    Featured Qualification Pathway
-                  </span>
-
-                  <h2 className="font-heading text-2xl sm:text-3xl font-bold text-white tracking-tight leading-snug mb-3">
-                    Diploma in Adult Care (RQF Levels 2, 3 & 5)
-                  </h2>
-
-                  <p className="text-white/80 text-xs sm:text-sm leading-relaxed mb-6">
-                    Mandatory regulated qualifications required by the Care Quality Commission (CQC) for adult care workers, senior carers, team leaders, and registered service managers in England.
-                  </p>
-                </div>
-
-                <div className="space-y-3 pt-6 border-t border-white/15 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-white/70">Awarding Organisation:</span>
-                    <strong className="text-white">TQUK & NCFE</strong>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-white/70">Class Delivery:</span>
-                    <strong className="text-gold-300">Live Zoom (Evening, Afternoon & Weekend Cohorts)</strong>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-white/70">Study Pack:</span>
-                    <strong className="text-white">Printed Physical Textbook Included</strong>
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Column: Level Options, Tuition & Direct Action */}
-              <div className="lg:col-span-7 p-7 sm:p-9 flex flex-col justify-between bg-white space-y-6">
-                <div>
-                  <h3 className="font-heading text-lg font-bold text-navy-900 mb-3">
-                    Choose Your Target Qualification Level:
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {flagshipCourse.levels.map((lvl) => (
-                      <div
-                        key={lvl.level_label}
-                        className="p-3.5 rounded-sm border border-line bg-paper flex flex-col justify-between space-y-2 hover:border-navy-900/40 transition-colors"
-                      >
-                        <div>
-                          <span className="font-heading font-bold text-navy-900 text-base block">
-                            {lvl.level_label}
-                          </span>
-                          <span className="text-[11px] text-ink-soft block">
-                            {lvl.duration_text} ({lvl.guided_learning_hours} GLH)
-                          </span>
-                        </div>
-                        <div className="pt-2 border-t border-line/60">
-                          <span className="text-xs font-bold text-navy-900 block font-mono">
-                            £{lvl.price_gbp.toFixed(2)}
-                          </span>
-                          <span className="text-[10px] text-gold-700 font-semibold block">
-                            or spread across 12 months
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="pt-4 border-t border-line flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-                  <div className="text-xs text-ink-soft">
-                    <span className="block font-medium text-navy-900">
-                      Admissions Open: Rolling Monthly Enrolments
-                    </span>
-                    <span>1-to-1 Assessor Assigned within 48 Hours</span>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <Link
-                      href={`/courses/${flagshipCourse.slug}`}
-                      className="px-4 py-2.5 rounded-sm bg-navy-900 hover:bg-navy-700 text-white text-xs font-bold transition-colors text-center shadow-xs"
-                    >
-                      View Syllabus & Units
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Prospectus Filter & Search Strip */}
-        <div className="bg-white rounded-md border border-line p-5 mb-8 shadow-xs space-y-4">
-          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-            {/* Search Input */}
-            <div className="relative flex-1 max-w-md">
+            {/* Quick Search Bar */}
+            <div className="relative w-full md:w-72 flex-shrink-0">
               <span className="absolute inset-y-0 left-3 flex items-center text-ink-soft pointer-events-none">
                 <Icon name="search" size={16} />
               </span>
               <input
                 type="text"
-                placeholder="Search qualifications, units, or subjects..."
+                placeholder="Search courses..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 rounded-sm border border-line bg-paper text-ink text-xs sm:text-sm placeholder:text-ink-soft focus:outline-none focus:ring-1 focus:ring-navy-900"
+                className="w-full pl-9 pr-8 py-2 rounded-xl border border-line bg-white text-ink text-xs sm:text-sm placeholder:text-ink-soft focus:outline-none focus:ring-2 focus:ring-navy-700 shadow-xs"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery("")}
-                  className="absolute inset-y-0 right-3 flex items-center text-ink-soft hover:text-navy-900"
+                  className="absolute inset-y-0 right-2.5 flex items-center text-ink-soft hover:text-navy-900"
                   aria-label="Clear search"
                 >
                   <Icon name="close" size={14} />
                 </button>
               )}
             </div>
-
-            {/* Clear filters shortcut */}
-            {isFiltered && (
-              <button
-                type="button"
-                onClick={resetFilters}
-                className="text-xs font-semibold text-navy-900 hover:text-navy-700 underline underline-offset-4 self-start md:self-auto min-h-[40px] flex items-center"
-              >
-                Reset filters ({filteredCourses.length} results)
-              </button>
-            )}
           </div>
 
-          {/* Category Filter Pills */}
-          <div className="pt-3 border-t border-line flex flex-wrap items-center gap-2 text-xs">
-            <span className="text-ink-soft font-semibold mr-1">Subject Area:</span>
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                type="button"
-                onClick={() => setSelectedCategory(cat)}
-                className={`px-3 py-1.5 rounded-sm font-semibold transition-colors ${
-                  selectedCategory === cat
-                    ? "bg-navy-900 text-white shadow-xs"
-                    : "bg-paper text-ink-soft hover:text-ink border border-line"
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-
-          {/* Level Filter Pills */}
-          <div className="pt-2 flex flex-wrap items-center gap-2 text-xs">
-            <span className="text-ink-soft font-semibold mr-1">Qualification Level:</span>
-            {levels.map((lvl) => (
-              <button
-                key={lvl}
-                type="button"
-                onClick={() => setSelectedLevel(lvl)}
-                className={`px-2.5 py-1 rounded-sm text-[11px] font-semibold transition-colors ${
-                  selectedLevel === lvl
-                    ? "bg-navy-700 text-white"
-                    : "bg-paper text-ink-soft hover:text-ink border border-line"
-                }`}
-              >
-                {lvl}
-              </button>
-            ))}
-
-            {/* Type selector */}
-            <div className="ml-auto flex items-center gap-2">
-              <span className="text-ink-soft font-semibold text-[11px]">Type:</span>
-              {[
-                { id: "All", label: "All" },
-                { id: "regulated", label: "Regulated (RQF)" },
-                { id: "cpd", label: "CPD Certificates" },
-              ].map((t) => (
+          {/* Horizontal Topic Pills (Image 2 Style) */}
+          <div className="pt-2 flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+            <span className="text-xs text-ink-soft font-semibold mr-1 flex-shrink-0">Topics:</span>
+            {categories.map((cat) => {
+              const active = selectedCategory === cat;
+              return (
                 <button
-                  key={t.id}
+                  key={cat}
                   type="button"
-                  onClick={() => setSelectedType(t.id)}
-                  className={`px-2.5 py-1 rounded-sm text-[11px] font-semibold transition-colors ${
-                    selectedType === t.id
-                      ? "bg-navy-900 text-white"
-                      : "bg-paper text-ink-soft hover:text-ink border border-line"
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
+                    active
+                      ? "bg-navy-900 text-white shadow-xs font-bold"
+                      : "bg-white text-ink-soft border border-line hover:border-navy-700 hover:text-navy-900"
                   }`}
                 >
-                  {t.label}
+                  {cat}
                 </button>
-              ))}
-            </div>
+              );
+            })}
           </div>
         </div>
 
-        {/* Results Counter Bar */}
-        <div className="flex items-center justify-between mb-6 text-xs text-ink-soft">
-          <span>
-            Showing <strong className="text-navy-900 font-semibold">{filteredCourses.length}</strong> qualifications
-          </span>
-          {isFiltered && (
-            <span className="font-mono text-gold-700 font-semibold">Active filter view</span>
-          )}
-        </div>
+        {/* 2-Column Catalogue Layout (Image 2: Left Multi-facet Sidebar + Right 3-Col Grid) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          {/* Left Multi-Facet Filter Sidebar */}
+          <aside className="lg:col-span-3 bg-white rounded-2xl border border-line p-5 shadow-subtle space-y-6 sticky top-24">
+            <div className="flex items-center justify-between pb-3 border-b border-line">
+              <span className="font-heading font-bold text-base text-navy-900">Filters</span>
+              {isFiltered && (
+                <button
+                  type="button"
+                  onClick={resetFilters}
+                  className="text-[11px] font-semibold text-gold-500 hover:underline"
+                >
+                  Reset all
+                </button>
+              )}
+            </div>
 
-        {/* Course Cards Grid */}
-        {filteredCourses.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredCourses.map((course, index) => (
-              <CourseCard
-                key={course.id}
-                course={course}
-                headingLevel="h2"
-                priority={index < 3}
-              />
-            ))}
-          </div>
-        ) : (
-          /* Empty State */
-          <div className="bg-white rounded-md border border-line p-12 text-center max-w-lg mx-auto space-y-4 shadow-xs">
-            <div className="w-12 h-12 rounded-sm bg-paper text-navy-900 mx-auto flex items-center justify-center border border-line">
-              <Icon name="info" size={24} />
+            {/* Category Filter */}
+            <div className="space-y-3">
+              <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-navy-900">
+                Categories
+              </h3>
+              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                {categories.map((cat) => {
+                  const count = cat === "All"
+                    ? initialCourses.length
+                    : initialCourses.filter((c) => c.category === cat).length;
+                  const isChecked = selectedCategory === cat;
+                  return (
+                    <label
+                      key={cat}
+                      className="flex items-center justify-between text-xs text-ink-soft hover:text-navy-900 cursor-pointer select-none"
+                    >
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => setSelectedCategory(cat)}
+                          className="rounded text-navy-900 focus:ring-navy-700 w-3.5 h-3.5 cursor-pointer accent-navy-900"
+                        />
+                        <span className={isChecked ? "font-semibold text-navy-900" : ""}>{cat}</span>
+                      </div>
+                      <span className="text-[11px] text-ink-soft/70">({count})</span>
+                    </label>
+                  );
+                })}
+              </div>
             </div>
-            <h3 className="font-heading text-xl font-bold text-navy-900">
-              No matching qualifications found
-            </h3>
-            <p className="text-xs text-ink-soft leading-relaxed">
-              We couldn&apos;t find any qualifications matching your selected criteria. Try resetting your filters to explore all British regulated programmes.
-            </p>
-            <div className="pt-2">
-              <Button variant="primary" size="md" onClick={resetFilters}>
-                Reset all filters
-              </Button>
+
+            {/* Qualification Level */}
+            <div className="space-y-3 pt-4 border-t border-line/70">
+              <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-navy-900">
+                Level
+              </h3>
+              <div className="space-y-2">
+                {levels.map((lvl) => {
+                  const isChecked = selectedLevel === lvl;
+                  const count = lvl === "All"
+                    ? initialCourses.length
+                    : initialCourses.filter((c) =>
+                        c.levels.some((l) => l.level_label.toLowerCase().includes(lvl.toLowerCase()))
+                      ).length;
+                  return (
+                    <label
+                      key={lvl}
+                      className="flex items-center justify-between text-xs text-ink-soft hover:text-navy-900 cursor-pointer select-none"
+                    >
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => setSelectedLevel(lvl)}
+                          className="rounded text-navy-900 focus:ring-navy-700 w-3.5 h-3.5 cursor-pointer accent-navy-900"
+                        />
+                        <span className={isChecked ? "font-semibold text-navy-900" : ""}>{lvl}</span>
+                      </div>
+                      <span className="text-[11px] text-ink-soft/70">({count})</span>
+                    </label>
+                  );
+                })}
+              </div>
             </div>
+
+            {/* Framework Type */}
+            <div className="space-y-3 pt-4 border-t border-line/70">
+              <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-navy-900">
+                Framework Type
+              </h3>
+              <div className="space-y-2">
+                {[
+                  { id: "All", label: "All Frameworks" },
+                  { id: "regulated", label: "Regulated (Ofqual RQF)" },
+                  { id: "cpd", label: "CPD Professional" },
+                ].map((t) => {
+                  const isChecked = selectedType === t.id;
+                  return (
+                    <label
+                      key={t.id}
+                      className="flex items-center gap-2 text-xs text-ink-soft hover:text-navy-900 cursor-pointer select-none"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => setSelectedType(t.id)}
+                        className="rounded text-navy-900 focus:ring-navy-700 w-3.5 h-3.5 cursor-pointer accent-navy-900"
+                      />
+                      <span className={isChecked ? "font-semibold text-navy-900" : ""}>{t.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Clear Filter CTA */}
+            {isFiltered && (
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={resetFilters}
+                  className="w-full py-2.5 rounded-xl bg-navy-900 hover:bg-navy-700 text-white font-heading font-bold text-xs transition-colors shadow-xs"
+                >
+                  Clear Filters ({filteredCourses.length})
+                </button>
+              </div>
+            )}
+          </aside>
+
+          {/* Right Courses Grid */}
+          <div className="lg:col-span-9 space-y-6">
+            {/* Results Bar */}
+            <div className="flex items-center justify-between pb-2 text-xs text-ink-soft">
+              <span>
+                Showing <strong className="text-navy-900 font-bold">{filteredCourses.length}</strong> of {initialCourses.length} Courses
+              </span>
+              <div className="flex items-center gap-1.5 text-xs">
+                <span>Sorted by:</span>
+                <span className="font-bold text-navy-900">Most Popular</span>
+              </div>
+            </div>
+
+            {/* Course Cards Grid */}
+            {filteredCourses.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredCourses.map((course, index) => (
+                  <CourseCard
+                    key={course.id}
+                    course={course}
+                    headingLevel="h2"
+                    priority={index < 3}
+                  />
+                ))}
+              </div>
+            ) : selectedCategory !== "All" && initialCourses.filter((c) => c.category === selectedCategory).length === 0 ? (
+              /* Dedicated Faculty Opening Soon Empty State */
+              <div className="bg-white rounded-2xl border border-line p-10 md:p-14 text-center max-w-lg mx-auto space-y-4 shadow-xs">
+                <div className="w-14 h-14 rounded-full bg-gold-50 text-gold-700 mx-auto flex items-center justify-center border border-gold-200 shadow-2xs">
+                  <Icon name="graduation-cap" size={26} />
+                </div>
+                <div>
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-gold-700 bg-gold-100/60 px-2.5 py-0.5 rounded-full inline-block mb-1.5">
+                    Faculty Enrolments Opening Soon
+                  </span>
+                  <h3 className="font-heading text-xl md:text-2xl font-bold text-navy-900">
+                    {selectedCategory}
+                  </h3>
+                </div>
+                <p className="text-xs text-ink-soft leading-relaxed max-w-md mx-auto">
+                  New accredited British qualifications and specialist cohorts for this academic department are currently being finalized. You can pre-register your interest or speak with an admissions advisor today.
+                </p>
+                <div className="pt-3 flex flex-col sm:flex-row items-center justify-center gap-3">
+                  <Link
+                    href="/book"
+                    className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-navy-900 hover:bg-navy-800 text-gold-300 font-heading font-bold text-xs transition-all shadow-xs flex items-center justify-center gap-1.5"
+                  >
+                    <Icon name="phone" size={14} className="text-gold-500" />
+                    <span>Speak with an Advisor</span>
+                  </Link>
+                  <Button variant="outline" size="md" onClick={resetFilters}>
+                    View All Programmes
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              /* General Empty State */
+              <div className="bg-white rounded-2xl border border-line p-12 text-center max-w-lg mx-auto space-y-4 shadow-xs">
+                <div className="w-12 h-12 rounded-xl bg-teal-50 text-navy-900 mx-auto flex items-center justify-center border border-teal-100">
+                  <Icon name="info" size={24} />
+                </div>
+                <h3 className="font-heading text-xl font-bold text-navy-900">
+                  No matching qualifications found
+                </h3>
+                <p className="text-xs text-ink-soft leading-relaxed">
+                  We couldn&apos;t find any qualifications matching your selected criteria. Try resetting your filters to explore all British regulated programmes.
+                </p>
+                <div className="pt-2">
+                  <Button variant="primary" size="md" onClick={resetFilters}>
+                    Reset All Filters
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </Container>
     </div>
   );

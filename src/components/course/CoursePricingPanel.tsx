@@ -358,9 +358,9 @@ export const CoursePricingPanel: React.FC<CoursePricingPanelProps> = ({
               <>
                 <Link
                   href={enrolHref}
-                  className="w-full inline-flex items-center justify-center min-h-[44px] px-5 rounded-sm bg-navy-900 text-white hover:bg-navy-700 font-heading font-bold text-sm transition-colors text-center shadow-sm"
+                  className="w-full inline-flex items-center justify-center min-h-[46px] px-5 rounded-xl bg-gold-500 hover:bg-gold-700 text-white font-heading font-extrabold text-base tracking-wide transition-all text-center shadow-subtle hover:shadow-card"
                 >
-                  Enrol & Secure Your Place &rarr;
+                  Enrol &amp; Secure Your Place &rarr;
                 </Link>
 
                 <BookingCTAButton variant="outline" size="md" className="w-full">

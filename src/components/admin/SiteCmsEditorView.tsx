@@ -39,7 +39,9 @@ import {
 } from "@/app/admin/actions";
 import type { Course } from "@/content/types";
 import { ButtonCustomizerFields } from "./ButtonCustomizerFields";
-import { FocusedElementInspector } from "./FocusedElementInspector";
+import { FocusedElementInspector, getDefaultItemsForSection } from "./FocusedElementInspector";
+import { MediaLibraryModal } from "./MediaLibraryModal";
+import { CourseGridCmsControls } from "./CourseGridCmsControls";
 
 interface Props {
   initialSections: BuilderSection[];
@@ -63,9 +65,9 @@ export interface PageItem {
 const DEFAULT_PAGES: PageItem[] = [
   { id: "home", path: "/", name: "Homepage", iconName: "home", isSystem: true },
   { id: "courses", path: "/courses", name: "Qualifications Catalogue", iconName: "graduation-cap", isSystem: true },
-  { id: "funding", path: "/funding", name: "0% Tuition & Payment Plans", iconName: "credit-card", isSystem: true },
+  { id: "funding", path: "/funding", name: "Government Funded Routes", iconName: "credit-card", isSystem: true },
   { id: "about", path: "/about", name: "About Smartminds College", iconName: "building", isSystem: true },
-  { id: "contact", path: "/contact", name: "Contact & Consultation", iconName: "message-square", isSystem: true },
+  { id: "contact", path: "/contact", name: "Contact & Admissions", iconName: "message-square", isSystem: true },
   { id: "privacy", path: "/privacy", name: "Privacy Policy", iconName: "shield-check", isSystem: true },
   { id: "terms", path: "/terms", name: "Terms & Conditions", iconName: "file-text", isSystem: true },
   { id: "cookies", path: "/cookies", name: "Cookie Policy", iconName: "cookie", isSystem: true },
@@ -221,6 +223,55 @@ const WIDGET_DEFINITIONS: {
     category: "Custom Builder",
     desc: "Modular micro-widget block: combine icon boxes, images, text, CTA buttons, and forms in custom columns.",
     iconName: "layers",
+  },
+  {
+    type: "choose_path",
+    title: "Sector Pathways Grid",
+    category: "Courses & Curricula",
+    desc: "Interactive category cards guiding learners to Health & Social Care, Early Years, Education, and Business.",
+    iconName: "compass",
+  },
+  {
+    type: "exclusive_bundles",
+    title: "Exclusive Bundles Carousel",
+    category: "Courses & Curricula",
+    desc: "Multi-qualification package offers with instant discounts, dual certifications, and fast-track completion.",
+    iconName: "award",
+  },
+  {
+    type: "staff_training",
+    title: "Corporate & Staff Training",
+    category: "Features & Benefits",
+    desc: "Employer-focused workforce development showcase with volume pricing and custom cohort delivery.",
+    iconName: "users",
+  },
+  {
+    type: "coral_promo",
+    title: "Promotional Highlight Banner",
+    category: "Conversion",
+    desc: "Coral-accented promotional block highlighting special tuition discounts, fast-track intakes, and bonus units.",
+    iconName: "sparkles",
+  },
+  {
+    type: "student_benefits",
+    title: "Student Advantage Cards",
+    category: "Features & Benefits",
+    desc: "Highlight learner perks: 1-to-1 assessor support, interest-free payment, zero exams, and 24/7 portal access.",
+    iconName: "check-circle",
+  },
+  {
+    type: "pricing",
+    title: "Tuition & Payment Plans",
+    category: "Conversion",
+    desc: "Transparent tuition fee comparison cards with upfront discounts and 0% interest monthly instalment options.",
+    iconName: "credit-card",
+  },
+  {
+    type: "how_it_works",
+    title: "4-Step Study Process",
+    category: "Information",
+    desc: "Step-by-step learner journey: enrolment, evidence submission, live evening Zoom classes, and certification.",
+    iconName: "clock",
   },
 ];
 
@@ -517,6 +568,14 @@ export const SiteCmsEditorView: React.FC<Props> = ({
     activeSections[0]?.id || ""
   );
 
+  // College Media Library Modal State
+  const [mediaModalOpen, setMediaModalOpen] = useState<boolean>(false);
+  const [mediaTargetField, setMediaTargetField] = useState<{
+    type: "section" | "item" | "logo" | "videoThumbnail" | "accreditationBadge";
+    itemIdx?: number;
+    badgeIdx?: number;
+  } | null>(null);
+
   // Collapsible Left Panel state (Elementor full-screen toggle)
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
 
@@ -569,7 +628,6 @@ export const SiteCmsEditorView: React.FC<Props> = ({
   );
   const [hoveredSectionId, setHoveredSectionId] = useState<string | null>(null);
 
-  // Contextual Element Focus State (Targeted Inspector Mode)
   const [selectedElementKey, setSelectedElementKey] = useState<
     | "headline"
     | "subheadline"
@@ -582,6 +640,7 @@ export const SiteCmsEditorView: React.FC<Props> = ({
     | "bg"
     | "video"
     | "floatingBadge"
+    | "sealBadge"
     | null
   >(null);
   const [selectedElementItemIndex, setSelectedElementItemIndex] = useState<number | null>(null);
@@ -612,7 +671,8 @@ export const SiteCmsEditorView: React.FC<Props> = ({
         | "item"
         | "bg"
         | "video"
-        | "floatingBadge";
+        | "floatingBadge"
+        | "sealBadge";
       label: string;
       sublabel?: string;
       icon: IconName;
@@ -691,6 +751,33 @@ export const SiteCmsEditorView: React.FC<Props> = ({
       });
     }
 
+    if (sec.type === "hero" && sec.sealEnabled !== false) {
+      list.push({
+        key: "sealBadge",
+        label: "Watch Video Seal Badge",
+        sublabel: sec.sealText || "• WATCH VIDEO • EXPLORE COURSES •",
+        icon: "video",
+      });
+    }
+
+    if (sec.type === "staff_training") {
+      list.push({
+        key: "floatingBadge",
+        label: "Corporate Partners Metrics Banner",
+        sublabel: sec.metricsBannerTitle || "50+ UK Providers",
+        icon: "award",
+      });
+    }
+
+    if (sec.type === "why_smartminds") {
+      list.push({
+        key: "floatingBadge",
+        label: "Experience Stat Card & Trust Line",
+        sublabel: `${sec.floatingBadgeTitle || "26+"} • ${sec.trustNote || "24/7 Support"}`,
+        icon: "star",
+      });
+    }
+
     if (sec.videoUrl) {
       list.push({
         key: "video",
@@ -700,15 +787,52 @@ export const SiteCmsEditorView: React.FC<Props> = ({
       });
     }
 
-    if (sec.items && sec.items.length > 0) {
-      sec.items.forEach((item, idx) => {
+    const currentItems =
+      sec.items && sec.items.length > 0
+        ? sec.items
+        : getDefaultItemsForSection(sec.type);
+
+    if (currentItems && currentItems.length > 0) {
+      currentItems.forEach((item, idx) => {
+        const itemLabel =
+          sec.type === "staff_training"
+            ? item.title
+              ? `Benefit: ${item.title.slice(0, 20)}`
+              : `Benefit Point #${idx + 1}`
+            : sec.type === "coral_promo"
+            ? item.title
+              ? `Bullet: ${item.title.slice(0, 20)}`
+              : `Bullet #${idx + 1}`
+            : sec.type === "why_smartminds"
+            ? item.title
+              ? `Feature: ${item.title.slice(0, 22)}`
+              : `Feature Pill #${idx + 1}`
+            : sec.type === "exclusive_bundles"
+            ? item.title
+              ? `Bundle: ${item.title.slice(0, 22)}`
+              : `Bundle Card #${idx + 1}`
+            : item.title
+            ? item.title.slice(0, 24)
+            : `Card #${idx + 1}`;
+
         list.push({
           key: "item",
-          label: item.title ? item.title.slice(0, 24) : `Card #${idx + 1}`,
+          label: itemLabel,
           sublabel: item.tag || item.desc?.slice(0, 24),
           icon: (item.icon as IconName) || "check-circle",
           index: idx,
         });
+      });
+    }
+
+    if (sec.type === "featured_courses") {
+      const cols = sec.columns || 4;
+      const r = sec.rows || 2;
+      list.push({
+        key: "item",
+        label: "Course Grid Columns & Rows",
+        sublabel: `${cols} cols × ${r === "all" ? "All" : `${r} rows`}`,
+        icon: "layers",
       });
     }
 
@@ -736,7 +860,8 @@ export const SiteCmsEditorView: React.FC<Props> = ({
       | "item"
       | "bg"
       | "video"
-      | "floatingBadge",
+      | "floatingBadge"
+      | "sealBadge",
     itemIndex?: number
   ) => {
     setSelectedSectionId(sectionId);
@@ -756,8 +881,12 @@ export const SiteCmsEditorView: React.FC<Props> = ({
 
     const targetSec = activeSections.find((s) => s.id === sectionId);
     const label =
-      elementKey === "floatingBadge"
-        ? "Live Evening Sessions Badge"
+      elementKey === "sealBadge"
+        ? "Watch Video Seal Badge"
+        : elementKey === "floatingBadge"
+        ? targetSec?.type === "staff_training"
+          ? "Corporate Partners Metrics Banner"
+          : "Live Evening Sessions Badge"
         : elementKey === "video"
         ? "Video Spotlight Settings"
         : elementKey === "headline"
@@ -777,7 +906,11 @@ export const SiteCmsEditorView: React.FC<Props> = ({
         : elementKey === "image"
         ? "Photograph"
         : elementKey === "item"
-        ? targetSec?.type === "faq_accordion"
+        ? targetSec?.type === "staff_training"
+          ? `Benefit Point #${(itemIndex ?? 0) + 1}`
+          : targetSec?.type === "coral_promo"
+          ? `Bullet #${(itemIndex ?? 0) + 1}`
+          : targetSec?.type === "faq_accordion"
           ? `FAQ Question #${(itemIndex ?? 0) + 1}`
           : targetSec?.type === "trust_strip"
           ? `Accreditation Body #${(itemIndex ?? 0) + 1}`
@@ -1405,6 +1538,20 @@ export const SiteCmsEditorView: React.FC<Props> = ({
           ? "Autumn / Winter 2026 Admissions Open Across All Diplomas"
           : type === "video_spotlight"
           ? "Graduate Stories & Video Assessor Mentorship"
+          : type === "choose_path"
+          ? "Choose Your Accredited Career Pathway"
+          : type === "exclusive_bundles"
+          ? "Exclusive Qualification Bundles"
+          : type === "staff_training"
+          ? "Upskill Your Care & Education Team"
+          : type === "coral_promo"
+          ? "Unlock Dual Certification at an Exclusive Rate"
+          : type === "student_benefits"
+          ? "Everything You Need to Succeed"
+          : type === "pricing"
+          ? "Affordable Tuition & 0% Payment Plans"
+          : type === "how_it_works"
+          ? "How You Will Study & Qualify"
           : `New ${def?.title || "Section"}`,
       subheadline:
         type === "composite_block"
@@ -1417,24 +1564,48 @@ export const SiteCmsEditorView: React.FC<Props> = ({
           ? "Reserve your place today with 0% interest monthly instalment financing."
           : type === "video_spotlight"
           ? "Watch practicing healthcare and education graduates describe real assessor support and study balance."
+          : type === "choose_path"
+          ? "Explore recognized diplomas designed for working practitioners with 100% coursework and zero exam stress."
+          : type === "exclusive_bundles"
+          ? "Save up to 30% when combining complementary vocational awards into a single structured programme."
+          : type === "staff_training"
+          ? "Bespoke workforce development for healthcare providers, care homes, and early years nurseries."
+          : type === "coral_promo"
+          ? "Fast-track your career with industry-recognized diplomas and dedicated one-to-one assessor mentorship."
+          : type === "student_benefits"
+          ? "We remove every barrier between you and your career progression with flexible, compassionate training."
+          : type === "pricing"
+          ? "Transparent fees with zero hidden charges. Spread your tuition across interest-free monthly instalments."
+          : type === "how_it_works"
+          ? "Our proven 4-step framework allows you to complete your qualification around work and family commitments."
           : "Customise this section copy directly in the Elementor inspector.",
       badgeText:
         type === "composite_block"
           ? "Modular Layout"
           : type === "video_spotlight"
           ? "Video Showcase"
+          : type === "exclusive_bundles"
+          ? "Limited Package Offers"
+          : type === "staff_training"
+          ? "Corporate Workforce"
+          : type === "choose_path"
+          ? "Explore Diplomas"
           : "Ofqual Regulated",
       buttonText:
         type === "contact_block"
           ? "Request Call Back"
           : type === "video_spotlight"
           ? "Browse Qualifications"
+          : type === "staff_training"
+          ? "Book Workforce Consultation"
           : "Explore Syllabus",
       buttonLink:
         type === "contact_block"
           ? "/book"
           : type === "video_spotlight"
           ? "/courses"
+          : type === "staff_training"
+          ? "/book"
           : "/courses",
       secondaryButtonText: "Book Free Consultation",
       secondaryButtonLink: "/book",
@@ -1445,9 +1616,16 @@ export const SiteCmsEditorView: React.FC<Props> = ({
           ? "navy"
           : type === "video_spotlight"
           ? "paper"
+          : type === "staff_training"
+          ? "paper"
           : "white",
       align: "left",
-      image: "/images/adult-care-training.jpg",
+      image:
+        type === "staff_training"
+          ? "/images/tutor-teaching.jpg"
+          : type === "coral_promo"
+          ? "/images/hero-learner.jpg"
+          : "/images/adult-care-training.jpg",
       columns: type === "composite_block" ? 2 : 3,
       columnRatio: "60-40",
       videoTitle: "Practitioner Qualification Journey",
@@ -1462,6 +1640,160 @@ export const SiteCmsEditorView: React.FC<Props> = ({
               { title: "0%", desc: "Interest Financing on Monthly Plans", tag: "Affordable" },
               { title: "48h", desc: "Average Assignment Feedback Window", tag: "Dedicated Tutors" },
               { title: "500+", desc: "Healthcare & Care Workers Qualified", tag: "UK Registered" },
+            ]
+          : type === "choose_path"
+          ? [
+              {
+                title: "Health & Social Care",
+                desc: "Level 2 to Level 5 diplomas for carers, senior practitioners, and registered care home managers.",
+                icon: "heart",
+                tag: "Most Popular",
+                link: "/courses?category=adult-care",
+                image: "/images/adult-care-training.jpg",
+              },
+              {
+                title: "Early Years & Childcare",
+                desc: "Recognised early years educator pathways from nursery practitioners to room leaders and setting managers.",
+                icon: "smile",
+                tag: "High Demand",
+                link: "/courses?category=early-years",
+                image: "/images/early-years-training.jpg",
+              },
+              {
+                title: "Teaching & Assessing (AET/TAQA)",
+                desc: "Become a qualified vocational tutor, mentor, or workplace assessor with flexible evening classes.",
+                icon: "book-open",
+                tag: "Fast-Track",
+                link: "/courses?category=teaching",
+                image: "/images/teacher-training.jpg",
+              },
+              {
+                title: "Leadership & Management",
+                desc: "Strategic management qualifications for care directors, operational leads, and aspiring executives.",
+                icon: "briefcase",
+                tag: "Advanced",
+                link: "/courses?category=leadership",
+                image: "/images/certificate-moment.jpg",
+              },
+            ]
+          : type === "exclusive_bundles"
+          ? [
+              {
+                title: "Care Team Leadership Dual Award",
+                desc: "Combine Level 3 Adult Care with Level 3 Award in Education & Training for complete clinical and mentoring mastery.",
+                tag: "Save £400",
+                price: "£1,450",
+                originalPrice: "£1,850",
+                link: "/book",
+                image: "/images/adult-care-training.jpg",
+              },
+              {
+                title: "Early Years Management Bundle",
+                desc: "Early Years Educator Level 3 plus Designated Safeguarding Lead certification in one integrated pathway.",
+                tag: "Save £350",
+                price: "£1,650",
+                originalPrice: "£2,000",
+                link: "/book",
+                image: "/images/early-years-training.jpg",
+              },
+              {
+                title: "Educator & Workplace Assessor Pack",
+                desc: "AET Level 3 combined with TAQA CAVA Level 3 Assessor qualification for vocational trainers.",
+                tag: "Save £300",
+                price: "£1,200",
+                originalPrice: "£1,500",
+                link: "/book",
+                image: "/images/teacher-training.jpg",
+              },
+            ]
+          : type === "staff_training"
+          ? [
+              {
+                title: "Group Booking Discounts",
+                desc: "Save up to 25% when enrolling 3 or more staff members onto matching or complementary diploma tracks.",
+                icon: "users",
+                tag: "Employers",
+              },
+              {
+                title: "Flexible Cohort Timetables",
+                desc: "Evening Zoom seminars and rolling admissions ensure training never disrupts active care shift rotas.",
+                icon: "clock",
+                tag: "Shift-Friendly",
+              },
+              {
+                title: "Dedicated Assessor Liaison",
+                desc: "A single senior assessor coordinates directly with your registered manager for evidence observation.",
+                icon: "shield-check",
+                tag: "Compliance",
+              },
+            ]
+          : type === "coral_promo"
+          ? [
+              {
+                title: "Fast-Track Registration",
+                desc: "Complete induction within 24 hours and begin submitting coursework portfolios immediately.",
+                icon: "zap",
+              },
+              {
+                title: "Zero Exam Pressure",
+                desc: "Demonstrate your competency through real-world work evidence, witness testimonies, and reflections.",
+                icon: "check-circle",
+              },
+              {
+                title: "0% Interest Instalments",
+                desc: "Spread your investment over 3, 6, or 10 monthly payments with zero credit checks.",
+                icon: "credit-card",
+              },
+            ]
+          : type === "student_benefits"
+          ? [
+              {
+                title: "Personal Tutor Mentorship",
+                desc: "Unlimited 1-on-1 Zoom sessions with an experienced UK practitioner dedicated to your progress.",
+                icon: "users",
+                tag: "Mentorship",
+              },
+              {
+                title: "100% Coursework Assessment",
+                desc: "No high-stress written exams. Pass through structured modular portfolios of practical workplace evidence.",
+                icon: "check-circle",
+                tag: "Exam-Free",
+              },
+              {
+                title: "0% Interest Payment Plans",
+                desc: "Flexible monthly tuition split with zero finance charges, making accredited education genuinely accessible.",
+                icon: "credit-card",
+                tag: "Financing",
+              },
+              {
+                title: "Live Evening Classes + Replays",
+                desc: "Join interactive weekly workshops or catch up anytime through our high-definition recording library.",
+                icon: "video",
+                tag: "Flexible",
+              },
+            ]
+          : type === "how_it_works"
+          ? [
+              {
+                title: "1. Choose Your Pathway",
+                desc: "Select your accredited qualification and consult with an advisor to verify career entry eligibility.",
+                tag: "Step 1",
+              },
+              {
+                title: "2. Submit Experience Evidence",
+                desc: "Work with your personal assessor to map existing care or teaching experience into modular units.",
+                tag: "Step 2",
+              },
+              {
+                title: "3. Attend Evening Seminars",
+                desc: "Participate in weekly tutor-led Zoom masterclasses with recordings available 24/7.",
+                tag: "Step 3",
+              },
+              {
+                title: "4. Receive Regulated Diploma",
+                desc: "Graduate with an Ofqual-regulated certificate recognized across the UK healthcare and education sectors.",
+                tag: "Step 4",
+              },
             ]
           : [
               {
@@ -1760,10 +2092,23 @@ export const SiteCmsEditorView: React.FC<Props> = ({
     field: keyof BuilderSectionItem,
     value: any
   ) => {
-    if (!selectedSectionId || !selectedSection?.items) return;
-    const newItems = [...selectedSection.items];
-    newItems[index] = { ...newItems[index], [field]: value };
-    updateSelectedField("items", newItems);
+    if (!selectedSectionId || !selectedSection) return;
+    const baseItems =
+      selectedSection.items && selectedSection.items.length > 0
+        ? [...selectedSection.items]
+        : [...getDefaultItemsForSection(selectedSection.type)];
+    while (baseItems.length <= index) {
+      baseItems.push({
+        title:
+          selectedSection.type === "staff_training"
+            ? `Corporate Benefit #${baseItems.length + 1}`
+            : selectedSection.type === "coral_promo"
+            ? `Bullet #${baseItems.length + 1}`
+            : `Card #${baseItems.length + 1}`,
+      });
+    }
+    baseItems[index] = { ...baseItems[index], [field]: value };
+    updateSelectedField("items", baseItems);
   };
 
   const addItemToSelected = () => {
@@ -1844,6 +2189,67 @@ export const SiteCmsEditorView: React.FC<Props> = ({
         desc: "Authentic student review describing their live evening teaching experience, tutor support, and career outcome.",
         image: "/images/hero-learner.jpg",
         rating: 5,
+      };
+      updateSelectedField("items", [...currentItems, newItem]);
+      return;
+    }
+
+    if (selectedSection?.type === "exclusive_bundles") {
+      const newItem: BuilderSectionItem = {
+        title: "New Qualification Bundle",
+        desc: "Combine dual certifications with instant package savings and accelerated tutor feedback.",
+        tag: "Special Offer",
+        price: "£1,250",
+        originalPrice: "£1,600",
+        link: "/book",
+        image: "/images/adult-care-training.jpg",
+      };
+      updateSelectedField("items", [...currentItems, newItem]);
+      return;
+    }
+
+    if (selectedSection?.type === "staff_training") {
+      const newItem: BuilderSectionItem = {
+        title: "New Corporate Benefit",
+        desc: "Bespoke cohort timetables and dedicated assessor liaison for registered managers.",
+        tag: "Workforce",
+        icon: "shield-check",
+      };
+      updateSelectedField("items", [...currentItems, newItem]);
+      return;
+    }
+
+    if (selectedSection?.type === "coral_promo") {
+      const newItem: BuilderSectionItem = {
+        title: "New Promotional Highlight",
+        desc: "Instant enrolment and 0% interest flexible payment options.",
+        icon: "check-circle",
+      };
+      updateSelectedField("items", [...currentItems, newItem]);
+      return;
+    }
+
+    if (selectedSection?.type === "student_benefits") {
+      const newItem: BuilderSectionItem = {
+        title: "New Student Perk",
+        desc: "Official British college credentials and around-the-clock recorded lecture access.",
+        icon: "credit-card",
+      };
+      updateSelectedField("items", [...currentItems, newItem]);
+      return;
+    }
+
+    if (selectedSection?.type === "why_smartminds") {
+      const pillColors = ["mint", "peach", "lavender", "sky"] as const;
+      const iconColors = ["emerald", "amber", "purple", "cyan"] as const;
+      const nextIndex = currentItems.length % 4;
+      const newItem: BuilderSectionItem = {
+        title: "New Learning Approach Feature",
+        desc: "Structured qualification modules and comprehensive British curricula tailored for career progression.",
+        icon: "check-circle",
+        cardBg: pillColors[nextIndex],
+        iconColor: iconColors[nextIndex],
+        titleColor: "navy",
       };
       updateSelectedField("items", [...currentItems, newItem]);
       return;
@@ -2102,6 +2508,61 @@ export const SiteCmsEditorView: React.FC<Props> = ({
       const newLinks = footerConfig.collegeLinks.filter((_, i) => i !== index);
       setFooterConfig({ ...footerConfig, collegeLinks: newLinks });
     }
+  };
+
+  // Accreditation Badges helpers
+  const addAccreditationBadge = () => {
+    const current = footerConfig.accreditations || [];
+    const newBadge = {
+      id: `acc-${Date.now().toString().slice(-4)}`,
+      title: "New Body",
+      desc: "Accredited",
+      icon: "award",
+      link: "",
+    };
+    setFooterConfig({
+      ...footerConfig,
+      accreditations: [...current, newBadge],
+    });
+  };
+
+  const updateAccreditationBadge = (
+    index: number,
+    field: string,
+    val: string
+  ) => {
+    const current = [...(footerConfig.accreditations || [])];
+    current[index] = { ...current[index], [field]: val };
+    setFooterConfig({ ...footerConfig, accreditations: current });
+  };
+
+  const removeAccreditationBadge = (index: number) => {
+    const current = (footerConfig.accreditations || []).filter((_, i) => i !== index);
+    setFooterConfig({ ...footerConfig, accreditations: current });
+  };
+
+  const moveAccreditationBadge = (index: number, direction: "up" | "down") => {
+    const current = [...(footerConfig.accreditations || [])];
+    const target = direction === "up" ? index - 1 : index + 1;
+    if (target < 0 || target >= current.length) return;
+    const [moved] = current.splice(index, 1);
+    current.splice(target, 0, moved);
+    setFooterConfig({ ...footerConfig, accreditations: current });
+  };
+
+  const resetAccreditationBadges = () => {
+    setFooterConfig({
+      ...footerConfig,
+      accreditations: [
+        { id: "acc-1", title: "ofqual", desc: "Regulated", icon: "ofqual" },
+        { id: "acc-2", title: "TQUK", desc: "Approved Centre", icon: "tquk" },
+        { id: "acc-3", title: "THE CPD GROUP", desc: "Accredited Provider", icon: "cpd" },
+        { id: "acc-4", title: "Skills for Health", desc: "NOS Aligned", icon: "health" },
+        { id: "acc-5", title: "UKRLP", desc: "Registered Provider", icon: "ukrlp" },
+      ],
+    });
+    setToastNotice("Reset to 5 official UK accreditation badges.");
+    setTimeout(() => setToastNotice(null), 3000);
   };
 
   return (
@@ -3006,8 +3467,12 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                         </span>
                       </div>
                       <strong className="text-xs font-bold text-navy-900 block truncate">
-                        {selectedElementKey === "floatingBadge"
-                          ? "Hero Live Sessions Badge"
+                        {selectedElementKey === "sealBadge"
+                          ? "Watch Video Seal Badge"
+                          : selectedElementKey === "floatingBadge"
+                          ? selectedSection.type === "staff_training"
+                            ? "Corporate Partners Metrics Banner"
+                            : "Hero Live Sessions Badge"
                           : selectedElementKey === "button"
                           ? "Primary CTA Button"
                           : selectedElementKey === "secondaryButton"
@@ -3027,7 +3492,11 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                           : selectedElementKey === "bg"
                           ? "Layout & Section Background"
                           : selectedElementKey === "item"
-                          ? `Card #${(selectedElementItemIndex ?? 0) + 1}`
+                          ? selectedSection.type === "staff_training"
+                            ? `Benefit Point #${(selectedElementItemIndex ?? 0) + 1}`
+                            : selectedSection.type === "coral_promo"
+                            ? `Bullet #${(selectedElementItemIndex ?? 0) + 1}`
+                            : `Card #${(selectedElementItemIndex ?? 0) + 1}`
                           : selectedSection.name}
                       </strong>
                     </div>
@@ -4157,6 +4626,19 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                         </div>
                       )}
 
+                      {/* Course Grid Columns (2, 3, 4) & Rows / Limit Display Controls */}
+                      {selectedSection.type === "featured_courses" && (
+                        <CourseGridCmsControls
+                          columns={selectedSection.columns || 4}
+                          rows={selectedSection.rows || 2}
+                          courseLimit={selectedSection.courseLimit}
+                          currentViewport={viewport}
+                          onColumnsChange={(cols) => updateSelectedField("columns", cols)}
+                          onRowsChange={(rows) => updateSelectedField("rows", rows)}
+                          onCourseLimitChange={(limit) => updateSelectedField("courseLimit", limit)}
+                        />
+                      )}
+
                       {/* Hero Top Tags & Micro-Badges Repeater */}
                       {selectedSection.type === "hero" && (
                         <div className="p-3 bg-paper rounded-sm border border-line space-y-2.5">
@@ -4900,6 +5382,66 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                             )}
                           </div>
                         </div>
+
+                        {/* Text Alignment */}
+                        <div>
+                          <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-1">
+                            Text Alignment
+                          </label>
+                          <div className="grid grid-cols-3 gap-1">
+                            {[
+                              { key: "left", label: "Left Align", icon: "align-left" as IconName },
+                              { key: "center", label: "Center Align", icon: "align-center" as IconName },
+                              { key: "right", label: "Right Align", icon: "align-right" as IconName },
+                            ].map((a) => {
+                              const isSelected = (selectedSection.headlineAlign || "left") === a.key;
+                              return (
+                                <button
+                                  key={a.key}
+                                  type="button"
+                                  onClick={() => updateSelectedField("headlineAlign", a.key)}
+                                  className={`py-1 px-2 rounded-xs border text-xs text-center flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                                    isSelected
+                                      ? "bg-navy-900 text-white border-navy-900 shadow-xs font-semibold"
+                                      : "bg-white border-line text-ink hover:border-navy-900/40"
+                                  }`}
+                                >
+                                  <Icon name={a.icon} size={11} />
+                                  <span>{a.label}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Letter Casing / Text Transform */}
+                        <div>
+                          <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-1">
+                            Letter Casing
+                          </label>
+                          <div className="grid grid-cols-2 gap-1.5">
+                            {[
+                              { key: "normal", label: "Sentence case (Normal)" },
+                              { key: "uppercase", label: "ALL CAPS (UPPERCASE)" },
+                            ].map((t) => {
+                              const isSelected = (selectedSection.headlineTransform || "normal") === t.key;
+                              return (
+                                <button
+                                  key={t.key}
+                                  type="button"
+                                  onClick={() => updateSelectedField("headlineTransform", t.key)}
+                                  className={`py-1 px-2 rounded-xs border text-xs text-center transition-all cursor-pointer ${
+                                    isSelected
+                                      ? "bg-navy-900 text-white border-navy-900 shadow-xs font-semibold"
+                                      : "bg-white border-line text-ink hover:border-navy-900/40"
+                                  }`}
+                                >
+                                  {t.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
                       </div>
 
                       {/* 2. Subheadline / Body Typography Card */}
@@ -5126,6 +5668,37 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                             )}
                           </div>
                         </div>
+
+                        {/* Subheadline Alignment */}
+                        <div>
+                          <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-1">
+                            Subheadline Alignment
+                          </label>
+                          <div className="grid grid-cols-3 gap-1">
+                            {[
+                              { key: "left", label: "Left Align", icon: "align-left" as IconName },
+                              { key: "center", label: "Center Align", icon: "align-center" as IconName },
+                              { key: "right", label: "Right Align", icon: "align-right" as IconName },
+                            ].map((a) => {
+                              const isSelected = (selectedSection.subheadlineAlign || "left") === a.key;
+                              return (
+                                <button
+                                  key={a.key}
+                                  type="button"
+                                  onClick={() => updateSelectedField("subheadlineAlign", a.key)}
+                                  className={`py-1 px-2 rounded-xs border text-xs text-center flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                                    isSelected
+                                      ? "bg-navy-900 text-white border-navy-900 shadow-xs font-semibold"
+                                      : "bg-white border-line text-ink hover:border-navy-900/40"
+                                  }`}
+                                >
+                                  <Icon name={a.icon} size={11} />
+                                  <span>{a.label}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
                       </div>
                     </div>
 
@@ -5217,44 +5790,56 @@ export const SiteCmsEditorView: React.FC<Props> = ({
 
                     {/* Grid Layout Section Options */}
                     {isGridLayout && (
-                      <div>
-                        <div className="flex items-center justify-between mb-1.5">
-                          <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider">
-                            Grid Columns
-                          </label>
-                          <span className="text-[10px] text-navy-900 font-bold bg-gold-100 px-1.5 py-0.5 rounded-xs">
-                            Card Grid
+                      selectedSection.type === "featured_courses" ? (
+                        <CourseGridCmsControls
+                          columns={selectedSection.columns || 4}
+                          rows={selectedSection.rows || 2}
+                          courseLimit={selectedSection.courseLimit}
+                          currentViewport={viewport}
+                          onColumnsChange={(cols) => updateSelectedField("columns", cols)}
+                          onRowsChange={(rows) => updateSelectedField("rows", rows)}
+                          onCourseLimitChange={(limit) => updateSelectedField("courseLimit", limit)}
+                        />
+                      ) : (
+                        <div>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider">
+                              Grid Columns
+                            </label>
+                            <span className="text-[10px] text-navy-900 font-bold bg-gold-100 px-1.5 py-0.5 rounded-xs">
+                              Card Grid
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2">
+                            {[2, 3, 4].map((col) => {
+                              const current =
+                                selectedSection.columns ||
+                                (selectedSection.type === "stats_counter" ||
+                                selectedSection.type === "why_smartminds"
+                                  ? 4
+                                  : 3);
+                              const isSelected = current === col;
+                              return (
+                                <button
+                                  key={col}
+                                  type="button"
+                                  onClick={() => updateSelectedField("columns", col)}
+                                  className={`py-1.5 rounded-sm border text-xs font-semibold text-center transition-all cursor-pointer ${
+                                    isSelected
+                                      ? "bg-navy-900 text-white border-navy-900 shadow-xs"
+                                      : "bg-white border-line text-ink hover:border-navy-900/40"
+                                  }`}
+                                >
+                                  {col} Columns
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <span className="text-[10px] text-ink-soft block mt-1 leading-tight">
+                            Select 2, 3, or 4 columns across desktop screens.
                           </span>
                         </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          {[2, 3, 4].map((col) => {
-                            const current =
-                              selectedSection.columns ||
-                              (selectedSection.type === "stats_counter" ||
-                              selectedSection.type === "why_smartminds"
-                                ? 4
-                                : 3);
-                            const isSelected = current === col;
-                            return (
-                              <button
-                                key={col}
-                                type="button"
-                                onClick={() => updateSelectedField("columns", col)}
-                                className={`py-1.5 rounded-sm border text-xs font-semibold text-center transition-all cursor-pointer ${
-                                  isSelected
-                                    ? "bg-navy-900 text-white border-navy-900 shadow-xs"
-                                    : "bg-white border-line text-ink hover:border-navy-900/40"
-                                }`}
-                              >
-                                {col} Columns
-                              </button>
-                            );
-                          })}
-                        </div>
-                        <span className="text-[10px] text-ink-soft block mt-1 leading-tight">
-                          Select 2, 3, or 4 columns across desktop screens.
-                        </span>
-                      </div>
+                      )
                     )}
 
                     {/* Mobile Overrides Visual Banner */}
@@ -5491,6 +6076,17 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                           placeholder="/images/custom-thumbnail.jpg"
                           className="w-full px-2.5 py-1 border border-line rounded-sm text-[11px] bg-white font-mono text-ink-soft mt-1"
                         />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMediaTargetField({ type: "videoThumbnail" });
+                            setMediaModalOpen(true);
+                          }}
+                          className="w-full mt-2 flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-xs bg-paper border border-line hover:border-navy-900 text-navy-900 text-[11px] font-bold transition-colors cursor-pointer"
+                        >
+                          <Icon name="image" size={13} className="text-navy-900" />
+                          <span>Choose Poster from Media Library</span>
+                        </button>
                       </div>
                     </div>
                   )}
@@ -5515,6 +6111,18 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                         helperText="PNG, JPG, or WebP. Replaces image immediately in live preview."
                         previewHeight={130}
                       />
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMediaTargetField({ type: "section" });
+                          setMediaModalOpen(true);
+                        }}
+                        className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xs bg-navy-900 hover:bg-navy-800 text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+                      >
+                        <Icon name="image" size={14} className="text-gold-400" />
+                        <span>Open College Media Library & Uploads</span>
+                      </button>
 
                       <div className="space-y-1.5 pt-1">
                         <label className="block text-[10px] font-semibold text-ink-soft uppercase tracking-wider">
@@ -5673,47 +6281,81 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                     </div>
                   )}
 
-                  <div className="space-y-3 pt-3 border-t border-line">
-                    <div className="flex items-center justify-between">
-                      <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider">
-                        {selectedSection.type === "faq_accordion"
-                          ? `Questions & Answers (${selectedSection.items?.length || 0})`
-                          : selectedSection.type === "trust_strip"
-                          ? `Accreditation Bodies (${selectedSection.items?.length || 0})`
-                          : `Modular Cards (${selectedSection.items?.length || 0})`}
-                      </label>
-                      <button
-                        type="button"
-                        onClick={addItemToSelected}
-                        className="text-xs font-bold text-navy-900 hover:text-gold-700 underline"
-                      >
-                        {selectedSection.type === "faq_accordion"
-                          ? "+ Add FAQ Question"
-                          : selectedSection.type === "trust_strip"
-                          ? "+ Add Awarding Body"
-                          : "+ Add Card / Item"}
-                      </button>
-                    </div>
+                  {(() => {
+                    const displayedItems =
+                      selectedSection.items && selectedSection.items.length > 0
+                        ? selectedSection.items
+                        : getDefaultItemsForSection(selectedSection.type);
 
-                    {selectedSection.items && selectedSection.items.length > 0 ? (
-                      <div className="space-y-3">
-                        {selectedSection.items.map((item, i) => (
-                          <div
-                            key={i}
-                            className="p-3 bg-paper rounded-sm border border-line space-y-2.5 relative group shadow-2xs"
+                    return (
+                      <div className="space-y-3 pt-3 border-t border-line">
+                        <div className="flex items-center justify-between">
+                          <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider">
+                            {selectedSection.type === "staff_training"
+                              ? `Corporate Benefit Points (${displayedItems.length})`
+                              : selectedSection.type === "coral_promo"
+                              ? `Promotional Bullets (${displayedItems.length})`
+                              : selectedSection.type === "why_smartminds"
+                              ? `Why Choose Us Features (${displayedItems.length})`
+                              : selectedSection.type === "exclusive_bundles"
+                              ? `Course Bundles (${displayedItems.length})`
+                              : selectedSection.type === "faq_accordion"
+                              ? `Questions & Answers (${displayedItems.length})`
+                              : selectedSection.type === "trust_strip"
+                              ? `Accreditation Bodies (${displayedItems.length})`
+                              : `Modular Cards (${displayedItems.length})`}
+                          </label>
+                          <button
+                            type="button"
+                            onClick={addItemToSelected}
+                            className="text-xs font-bold text-navy-900 hover:text-gold-700 underline"
                           >
-                            {/* Card Item Header with Reordering and Delete */}
-                            <div className="flex items-center justify-between gap-1 pb-1.5 border-b border-line/60">
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-mono text-[10px] text-ink-soft uppercase font-bold">
-                                  #{i + 1}
-                                </span>
-                                {item.tag && (
-                                  <span className="px-1.5 py-0.5 rounded-xs bg-navy-900/10 text-navy-900 text-[9px] font-bold">
-                                    {item.tag}
-                                  </span>
-                                )}
-                              </div>
+                            {selectedSection.type === "staff_training"
+                              ? "+ Add Benefit Point"
+                              : selectedSection.type === "coral_promo"
+                              ? "+ Add Bullet"
+                              : selectedSection.type === "why_smartminds"
+                              ? "+ Add Feature Pill"
+                              : selectedSection.type === "exclusive_bundles"
+                              ? "+ Add Course Bundle"
+                              : selectedSection.type === "faq_accordion"
+                              ? "+ Add FAQ Question"
+                              : selectedSection.type === "trust_strip"
+                              ? "+ Add Awarding Body"
+                              : "+ Add Card / Item"}
+                          </button>
+                        </div>
+
+                        {displayedItems && displayedItems.length > 0 ? (
+                          <div className="space-y-3">
+                            {displayedItems.map((item, i) => (
+                              <div
+                                key={i}
+                                className="p-3 bg-paper rounded-sm border border-line space-y-2.5 relative group shadow-2xs"
+                              >
+                                {/* Card Item Header with Reordering and Delete */}
+                                <div className="flex items-center justify-between gap-1 pb-1.5 border-b border-line/60">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-mono text-[10px] text-ink-soft uppercase font-bold">
+                                      #{i + 1}
+                                    </span>
+                                    <span className="text-[11px] font-bold text-navy-900">
+                                      {selectedSection.type === "staff_training"
+                                        ? `Benefit Point #${i + 1}`
+                                        : selectedSection.type === "coral_promo"
+                                        ? `Bullet #${i + 1}`
+                                        : selectedSection.type === "why_smartminds"
+                                        ? `Feature Pill #${i + 1}`
+                                        : selectedSection.type === "exclusive_bundles"
+                                        ? `Bundle Card #${i + 1}`
+                                        : `Item #${i + 1}`}
+                                    </span>
+                                    {item.tag && (
+                                      <span className="px-1.5 py-0.5 rounded-xs bg-navy-900/10 text-navy-900 text-[9px] font-bold">
+                                        {item.tag}
+                                      </span>
+                                    )}
+                                  </div>
                               <div className="flex items-center gap-1">
                                 <button
                                   type="button"
@@ -5957,6 +6599,201 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                                       className="w-full px-2 py-1 text-[11px] font-mono border border-line rounded-sm bg-white"
                                     />
                                   </div>
+
+                                  {/* Card Photograph / Logo (Optional) */}
+                                  <div>
+                                    <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-0.5">
+                                      Card Photograph / Logo (Optional)
+                                    </label>
+                                    <input
+                                      type="text"
+                                      placeholder="/images/... or /uploads/..."
+                                      value={item.image || ""}
+                                      onChange={(e) => updateItemField(i, "image", e.target.value)}
+                                      className="w-full px-2 py-1 text-[11px] font-mono border border-line rounded-sm bg-white"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setMediaTargetField({ type: "item", itemIdx: i });
+                                        setMediaModalOpen(true);
+                                      }}
+                                      className="w-full mt-1.5 flex items-center justify-center gap-1.5 py-1 px-2 rounded-xs bg-white border border-line hover:border-navy-900 text-navy-900 text-[10px] font-bold transition-colors cursor-pointer"
+                                    >
+                                      <Icon name="image" size={12} className="text-navy-900" />
+                                      <span>Choose from Media Library</span>
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* Bundle Pricing Fields */}
+                                {(selectedSection.type === "exclusive_bundles" || item.price !== undefined) && (
+                                  <div className="p-2.5 bg-paper rounded-xs border border-line space-y-1.5 mt-2">
+                                    <span className="text-[10px] font-bold text-navy-900 block uppercase tracking-wider">
+                                      Bundle Pricing &amp; Savings
+                                    </span>
+                                    <div className="grid grid-cols-2 gap-1.5">
+                                      <div>
+                                        <label className="block text-[9px] font-semibold text-ink-soft uppercase mb-0.5">
+                                          Sale Price
+                                        </label>
+                                        <input
+                                          type="text"
+                                          placeholder="e.g. £1,890.00"
+                                          value={item.price || ""}
+                                          onChange={(e) => updateItemField(i, "price", e.target.value)}
+                                          className="w-full px-2 py-1 text-xs font-bold text-emerald-800 border border-line rounded-sm bg-white"
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="block text-[9px] font-semibold text-ink-soft uppercase mb-0.5">
+                                          Original Price
+                                        </label>
+                                        <input
+                                          type="text"
+                                          placeholder="e.g. £2,450.00"
+                                          value={item.originalPrice || ""}
+                                          onChange={(e) => updateItemField(i, "originalPrice", e.target.value)}
+                                          className="w-full px-2 py-1 text-xs border border-line rounded-sm bg-white font-mono text-ink-soft"
+                                        />
+                                      </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-1.5">
+                                      <div>
+                                        <label className="block text-[9px] font-semibold text-ink-soft uppercase mb-0.5">
+                                          Savings Tag
+                                        </label>
+                                        <input
+                                          type="text"
+                                          placeholder="e.g. Save £560"
+                                          value={item.saveAmount || ""}
+                                          onChange={(e) => updateItemField(i, "saveAmount", e.target.value)}
+                                          className="w-full px-2 py-1 text-xs font-bold text-[#FF5722] border border-line rounded-sm bg-white"
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="block text-[9px] font-semibold text-ink-soft uppercase mb-0.5">
+                                          Monthly Rate
+                                        </label>
+                                        <input
+                                          type="text"
+                                          placeholder="e.g. £157.50/mo"
+                                          value={item.monthly || ""}
+                                          onChange={(e) => updateItemField(i, "monthly", e.target.value)}
+                                          className="w-full px-2 py-1 text-xs border border-line rounded-sm bg-white font-mono"
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Item Styling & Brand Colors */}
+                                <div className="p-2.5 bg-paper rounded-xs border border-line space-y-2 mt-2">
+                                  <span className="text-[10px] font-bold text-navy-900 block uppercase tracking-wider flex items-center gap-1">
+                                    <Icon name="sparkles" size={11} className="text-gold-500" />
+                                    <span>Item Styling & Brand Colors</span>
+                                  </span>
+                                  <div className="grid grid-cols-2 gap-1.5">
+                                    <div>
+                                      <label className="block text-[9px] font-semibold text-ink-soft uppercase mb-0.5">
+                                        Title Color
+                                      </label>
+                                      <select
+                                        value={item.titleColor || "auto"}
+                                        onChange={(e) => updateItemField(i, "titleColor", e.target.value)}
+                                        className="w-full px-1.5 py-1 text-[11px] border border-line rounded-xs bg-white"
+                                      >
+                                        <option value="auto">Adaptive Auto</option>
+                                        <option value="navy">Royal Navy 900</option>
+                                        <option value="gold">Gold 500</option>
+                                        <option value="white">Pure White</option>
+                                        <option value="ink_soft">Soft Charcoal</option>
+                                      </select>
+                                    </div>
+                                    <div>
+                                      <label className="block text-[9px] font-semibold text-ink-soft uppercase mb-0.5">
+                                        Description Color
+                                      </label>
+                                      <select
+                                        value={item.descColor || "auto"}
+                                        onChange={(e) => updateItemField(i, "descColor", e.target.value)}
+                                        className="w-full px-1.5 py-1 text-[11px] border border-line rounded-xs bg-white"
+                                      >
+                                        <option value="auto">Adaptive Auto</option>
+                                        <option value="ink_soft">Soft Charcoal</option>
+                                        <option value="navy">Royal Navy</option>
+                                        <option value="white">Pure White</option>
+                                        <option value="gold">Gold Accent</option>
+                                      </select>
+                                    </div>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-1.5">
+                                    <div>
+                                      <label className="block text-[9px] font-semibold text-ink-soft uppercase mb-0.5">
+                                        Card Surface
+                                      </label>
+                                      <select
+                                        value={item.cardBg || "white"}
+                                        onChange={(e) => updateItemField(i, "cardBg", e.target.value)}
+                                        className="w-full px-1.5 py-1 text-[11px] border border-line rounded-xs bg-white"
+                                      >
+                                        <option value="white">Crisp White</option>
+                                        <option value="paper">Parchment Paper</option>
+                                        <option value="navy">Royal Navy (Dark)</option>
+                                        <option value="gold_subtle">Subtle Gold</option>
+                                        <option value="transparent">Transparent</option>
+                                        <option value="mint">Soft Mint (Why Choose Us)</option>
+                                        <option value="peach">Warm Peach (Why Choose Us)</option>
+                                        <option value="lavender">Soft Lavender (Why Choose Us)</option>
+                                        <option value="sky">Soft Sky Blue (Why Choose Us)</option>
+                                      </select>
+                                    </div>
+                                    <div>
+                                      <label className="block text-[9px] font-semibold text-ink-soft uppercase mb-0.5">
+                                        Card Border
+                                      </label>
+                                      <select
+                                        value={item.cardBorder || "line"}
+                                        onChange={(e) => updateItemField(i, "cardBorder", e.target.value)}
+                                        className="w-full px-1.5 py-1 text-[11px] border border-line rounded-xs bg-white"
+                                      >
+                                        <option value="line">Subtle Line</option>
+                                        <option value="gold">Gold Accent</option>
+                                        <option value="navy">Navy Border</option>
+                                        <option value="none">Borderless</option>
+                                      </select>
+                                    </div>
+                                  </div>
+                                  {selectedSection.type === "why_smartminds" && (
+                                    <div className="mt-1.5">
+                                      <label className="block text-[9px] font-semibold text-ink-soft uppercase mb-0.5">
+                                        Icon Tone
+                                      </label>
+                                      <select
+                                        value={item.iconColor || "emerald"}
+                                        onChange={(e) => updateItemField(i, "iconColor", e.target.value)}
+                                        className="w-full px-1.5 py-1 text-[11px] border border-line rounded-xs bg-white"
+                                      >
+                                        <option value="emerald">Emerald (Mint)</option>
+                                        <option value="amber">Warm Amber (Peach)</option>
+                                        <option value="purple">Lavender Purple</option>
+                                        <option value="cyan">Sky Cyan</option>
+                                        <option value="gold">Gold</option>
+                                        <option value="navy">Navy</option>
+                                      </select>
+                                    </div>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedElementKey("item");
+                                      setSelectedElementItemIndex(i);
+                                    }}
+                                    className="w-full py-1.5 px-2 mt-1 text-[10px] font-bold text-navy-900 bg-white hover:bg-gold-50 border border-line rounded-xs flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                                  >
+                                    <Icon name="sparkles" size={11} className="text-gold-500" />
+                                    <span>Focus & Style {selectedSection.type === "staff_training" ? "Benefit Point" : selectedSection.type === "coral_promo" ? "Bullet" : "Card"}</span>
+                                  </button>
                                 </div>
                               </div>
                             )}
@@ -5973,7 +6810,9 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                       </p>
                     )}
                   </div>
-                </div>
+                );
+              })()}
+            </div>
               )}
             </>
           )}
@@ -6311,6 +7150,18 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                       helperText="PNG, SVG, or WebP with transparent background (equal optical height)"
                       previewHeight={headerNav.logoHeight || 44}
                     />
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMediaTargetField({ type: "logo" });
+                        setMediaModalOpen(true);
+                      }}
+                      className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xs bg-navy-900 hover:bg-navy-800 text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+                    >
+                      <Icon name="image" size={14} className="text-gold-400" />
+                      <span>Choose Logo from Media Library</span>
+                    </button>
 
                     {/* Quick Logo Asset Presets */}
                     <div>
@@ -6930,6 +7781,132 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                 </button>
               </div>
 
+              {/* Footer Background & Palette Theme */}
+              <div className="p-3.5 bg-paper rounded-sm border border-line space-y-3">
+                <div className="flex items-center justify-between">
+                  <strong className="text-xs font-bold text-navy-900 flex items-center gap-1.5">
+                    <Icon name="sparkles" size={14} className="text-teal-700" />
+                    <span>Footer Color & Palette</span>
+                  </strong>
+                  <span className="text-[10px] text-teal-800 font-semibold px-2 py-0.5 rounded-full bg-teal-100/80">
+                    Matches All Pages
+                  </span>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-[10px] text-ink-soft">
+                    Footer Palette Preset:
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFooterConfig({
+                          ...footerConfig,
+                          footerTheme: "light",
+                          footerBgColor: "#E8F4F1",
+                        })
+                      }
+                      className={`p-2 rounded-sm border text-left flex flex-col gap-1 transition-all ${
+                        (footerConfig.footerBgColor || "#E8F4F1").toLowerCase() === "#e8f4f1" &&
+                        footerConfig.footerTheme !== "dark"
+                          ? "border-[#0B4D4E] bg-teal-50 ring-1 ring-[#0B4D4E]"
+                          : "border-line bg-white hover:bg-slate-50"
+                      }`}
+                    >
+                      <div className="w-full h-4 rounded-xs bg-[#E8F4F1] border border-teal-200" />
+                      <span className="text-[10px] font-bold text-navy-900">Mint Green</span>
+                      <span className="text-[8px] text-ink-soft">Homepage Match</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFooterConfig({
+                          ...footerConfig,
+                          footerTheme: "light",
+                          footerBgColor: "#FFFFFF",
+                        })
+                      }
+                      className={`p-2 rounded-sm border text-left flex flex-col gap-1 transition-all ${
+                        (footerConfig.footerBgColor || "").toLowerCase() === "#ffffff" &&
+                        footerConfig.footerTheme !== "dark"
+                          ? "border-[#0B4D4E] bg-teal-50 ring-1 ring-[#0B4D4E]"
+                          : "border-line bg-white hover:bg-slate-50"
+                      }`}
+                    >
+                      <div className="w-full h-4 rounded-xs bg-white border border-slate-300" />
+                      <span className="text-[10px] font-bold text-navy-900">Pure White</span>
+                      <span className="text-[8px] text-ink-soft">Clean Light</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFooterConfig({
+                          ...footerConfig,
+                          footerTheme: "dark",
+                          footerBgColor: "#23216B",
+                        })
+                      }
+                      className={`p-2 rounded-sm border text-left flex flex-col gap-1 transition-all ${
+                        footerConfig.footerTheme === "dark"
+                          ? "border-gold-500 bg-navy-900 text-white ring-1 ring-gold-500"
+                          : "border-line bg-white hover:bg-slate-50"
+                      }`}
+                    >
+                      <div className="w-full h-4 rounded-xs bg-[#23216B] border border-navy-700" />
+                      <span
+                        className={`text-[10px] font-bold ${
+                          footerConfig.footerTheme === "dark"
+                            ? "text-gold-300"
+                            : "text-navy-900"
+                        }`}
+                      >
+                        Deep Navy
+                      </span>
+                      <span
+                        className={`text-[8px] ${
+                          footerConfig.footerTheme === "dark"
+                            ? "text-white/60"
+                            : "text-ink-soft"
+                        }`}
+                      >
+                        Dark Theme
+                      </span>
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-1">
+                    <label className="text-[10px] text-ink-soft whitespace-nowrap">
+                      Custom Color:
+                    </label>
+                    <input
+                      type="color"
+                      value={footerConfig.footerBgColor || "#E8F4F1"}
+                      onChange={(e) =>
+                        setFooterConfig({
+                          ...footerConfig,
+                          footerBgColor: e.target.value,
+                        })
+                      }
+                      className="w-8 h-7 p-0.5 border border-line rounded-xs cursor-pointer bg-white"
+                    />
+                    <input
+                      type="text"
+                      value={footerConfig.footerBgColor || "#E8F4F1"}
+                      onChange={(e) =>
+                        setFooterConfig({
+                          ...footerConfig,
+                          footerBgColor: e.target.value,
+                        })
+                      }
+                      className="w-24 px-2 py-1 text-xs font-mono border border-line rounded-sm bg-white"
+                    />
+                  </div>
+                </div>
+              </div>
+
               {/* Footer Logo & Brand Identity */}
               <div className="p-3.5 bg-paper rounded-sm border border-line space-y-3">
                 <div className="flex items-center justify-between">
@@ -7287,24 +8264,338 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                 </div>
               </div>
 
+              {/* Accredited Area - Editable & Stylable Section */}
+              <div className="p-3.5 bg-paper rounded-sm border border-line space-y-3">
+                <div className="flex items-center justify-between">
+                  <strong className="text-xs font-bold text-navy-900 flex items-center gap-1.5">
+                    <Icon name="award" size={14} className="text-emerald-700" />
+                    <span>Accredited Area Styling & Copy</span>
+                  </strong>
+                  <span className="text-[10px] text-emerald-800 font-semibold px-2 py-0.5 rounded-full bg-emerald-100">
+                    One-Line Badges
+                  </span>
+                </div>
+
+                <div className="space-y-2">
+                  <div>
+                    <label className="block text-[10px] text-ink-soft mb-0.5">
+                      Headline:
+                    </label>
+                    <input
+                      type="text"
+                      value={footerConfig.accreditationHeadline}
+                      onChange={(e) =>
+                        setFooterConfig({
+                          ...footerConfig,
+                          accreditationHeadline: e.target.value,
+                        })
+                      }
+                      className="w-full px-2 py-1 text-xs font-bold border border-line rounded-sm bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] text-ink-soft mb-0.5">
+                      Subheadline / Supporting Description:
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={footerConfig.accreditationSubtext}
+                      onChange={(e) =>
+                        setFooterConfig({
+                          ...footerConfig,
+                          accreditationSubtext: e.target.value,
+                        })
+                      }
+                      className="w-full px-2 py-1 text-xs border border-line rounded-sm bg-white leading-normal"
+                    />
+                  </div>
+
+                  {/* Surface Background Style */}
+                  <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+                    <div>
+                      <label className="block text-[10px] text-ink-soft mb-1">
+                        Container Background:
+                      </label>
+                      <select
+                        value={footerConfig.accreditationBgStyle || "transparent"}
+                        onChange={(e) =>
+                          setFooterConfig({
+                            ...footerConfig,
+                            accreditationBgStyle: e.target.value as any,
+                          })
+                        }
+                        className="w-full px-2 py-1 text-xs border border-line rounded-sm bg-white"
+                      >
+                        <option value="transparent">Transparent / Blended</option>
+                        <option value="white">White Box Card</option>
+                        <option value="subtle">Subtle Mint Tint</option>
+                        <option value="dark">Dark Navy Luxury Card</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] text-ink-soft mb-1">
+                        Badge Card Shape & Style:
+                      </label>
+                      <select
+                        value={footerConfig.accreditationBadgeStyle || "solid-white"}
+                        onChange={(e) =>
+                          setFooterConfig({
+                            ...footerConfig,
+                            accreditationBadgeStyle: e.target.value as any,
+                          })
+                        }
+                        className="w-full px-2 py-1 text-xs border border-line rounded-sm bg-white"
+                      >
+                        <option value="solid-white">Solid White Card (Default)</option>
+                        <option value="flat">Flat Outlined</option>
+                        <option value="pill">Rounded Pills</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Alignment / Layout */}
+                  <div>
+                    <label className="block text-[10px] text-ink-soft mb-1">
+                      Layout Alignment:
+                    </label>
+                    <div className="grid grid-cols-2 gap-1.5 p-1 bg-white rounded-sm border border-line">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFooterConfig({
+                            ...footerConfig,
+                            accreditationLayout: "row",
+                          })
+                        }
+                        className={`py-1 px-2 text-xs rounded-xs flex items-center justify-center gap-1 ${
+                          (footerConfig.accreditationLayout || "row") === "row"
+                            ? "bg-navy-900 text-white font-bold"
+                            : "text-ink-soft hover:bg-slate-100"
+                        }`}
+                      >
+                        <span>Side-by-Side (One Line)</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFooterConfig({
+                            ...footerConfig,
+                            accreditationLayout: "stacked",
+                          })
+                        }
+                        className={`py-1 px-2 text-xs rounded-xs flex items-center justify-center gap-1 ${
+                          footerConfig.accreditationLayout === "stacked"
+                            ? "bg-navy-900 text-white font-bold"
+                            : "text-ink-soft hover:bg-slate-100"
+                        }`}
+                      >
+                        <span>Stacked Centered</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Badges List Manager */}
+                <div className="pt-2 border-t border-line space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-semibold text-navy-900 uppercase tracking-wider">
+                      Awarding Body Logos ({(footerConfig.accreditations || []).length})
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={resetAccreditationBadges}
+                        className="text-[10px] text-ink-soft hover:text-navy-900 underline"
+                        title="Reset to 5 default UK regulated bodies"
+                      >
+                        Reset Defaults
+                      </button>
+                      <button
+                        type="button"
+                        onClick={addAccreditationBadge}
+                        className="text-xs font-bold text-navy-900 hover:text-gold-700 underline flex items-center gap-1"
+                      >
+                        <Icon name="plus" size={12} />
+                        <span>Add Badge</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    {(footerConfig.accreditations || []).map((badge, idx) => (
+                      <div
+                        key={badge.id || idx}
+                        className="p-2.5 bg-white rounded-sm border border-line shadow-xs space-y-2"
+                      >
+                        <div className="flex items-center justify-between gap-1 border-b border-line/60 pb-1.5">
+                          <span className="text-[10px] font-bold text-navy-900 flex items-center gap-1">
+                            <span className="w-4 h-4 rounded-full bg-navy-100 text-navy-900 flex items-center justify-center text-[9px]">
+                              {idx + 1}
+                            </span>
+                            <span>{badge.title || `Badge #${idx + 1}`}</span>
+                          </span>
+
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => moveAccreditationBadge(idx, "up")}
+                              disabled={idx === 0}
+                              className="p-1 text-slate-500 hover:text-navy-900 disabled:opacity-30"
+                              title="Move left/up"
+                            >
+                              <Icon name="chevron-up" size={12} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => moveAccreditationBadge(idx, "down")}
+                              disabled={
+                                idx ===
+                                (footerConfig.accreditations?.length || 0) - 1
+                              }
+                              className="p-1 text-slate-500 hover:text-navy-900 disabled:opacity-30"
+                              title="Move right/down"
+                            >
+                              <Icon name="chevron-down" size={12} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removeAccreditationBadge(idx)}
+                              className="p-1 text-rose-600 hover:bg-rose-50 rounded-xs"
+                              title="Remove badge"
+                            >
+                              <Icon name="close" size={12} />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <label className="block text-[9px] text-ink-soft mb-0.5">
+                              Main Title:
+                            </label>
+                            <input
+                              type="text"
+                              value={badge.title}
+                              onChange={(e) =>
+                                updateAccreditationBadge(
+                                  idx,
+                                  "title",
+                                  e.target.value
+                                )
+                              }
+                              className="w-full px-1.5 py-0.5 text-xs font-bold border border-line rounded-sm bg-white"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[9px] text-ink-soft mb-0.5">
+                              Subtitle / Tag:
+                            </label>
+                            <input
+                              type="text"
+                              value={badge.desc || ""}
+                              onChange={(e) =>
+                                updateAccreditationBadge(
+                                  idx,
+                                  "desc",
+                                  e.target.value
+                                )
+                              }
+                              className="w-full px-1.5 py-0.5 text-xs border border-line rounded-sm bg-white"
+                              placeholder="e.g. Regulated"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <label className="block text-[9px] text-ink-soft mb-0.5">
+                              Logo Vector Preset:
+                            </label>
+                            <select
+                              value={badge.icon || "award"}
+                              onChange={(e) =>
+                                updateAccreditationBadge(
+                                  idx,
+                                  "icon",
+                                  e.target.value
+                                )
+                              }
+                              className="w-full px-1.5 py-0.5 text-xs border border-line rounded-sm bg-white"
+                            >
+                              <option value="ofqual">Ofqual (Crown)</option>
+                              <option value="tquk">TQUK (Diamond)</option>
+                              <option value="cpd">The CPD Group (Shield)</option>
+                              <option value="health">Skills for Health (Cross)</option>
+                              <option value="ukrlp">UKRLP (Checkbox Stamp)</option>
+                              <option value="award">Standard Award / Star</option>
+                              <option value="custom">Custom Uploaded Logo</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-[9px] text-ink-soft mb-0.5">
+                              Verification Link (Optional):
+                            </label>
+                            <input
+                              type="text"
+                              value={badge.link || ""}
+                              onChange={(e) =>
+                                updateAccreditationBadge(
+                                  idx,
+                                  "link",
+                                  e.target.value
+                                )
+                              }
+                              className="w-full px-1.5 py-0.5 text-[11px] font-mono border border-line rounded-sm bg-white"
+                              placeholder="https://..."
+                            />
+                          </div>
+                        </div>
+
+                        {badge.icon === "custom" && (
+                          <div className="pt-1 flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={badge.image || ""}
+                              onChange={(e) =>
+                                updateAccreditationBadge(
+                                  idx,
+                                  "image",
+                                  e.target.value
+                                )
+                              }
+                              placeholder="Image URL (/images/...)"
+                              className="flex-1 px-1.5 py-0.5 text-[11px] border border-line rounded-sm bg-white"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setMediaTargetField({
+                                  type: "accreditationBadge",
+                                  badgeIdx: idx,
+                                });
+                                setMediaModalOpen(true);
+                              }}
+                              className="px-2 py-0.5 bg-navy-900 text-white rounded-sm text-[10px] font-bold whitespace-nowrap"
+                            >
+                              Choose Media
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
               {/* Legal Line & Copyright */}
               <div className="p-3 bg-paper rounded-sm border border-line space-y-2">
                 <strong className="text-xs font-bold text-navy-900 block">
-                  Legal & Accreditation Row
+                  Legal Line & Copyright Notice
                 </strong>
-                <div>
-                  <label className="block text-[10px] text-ink-soft mb-0.5">
-                    Accreditation Headline:
-                  </label>
-                  <input
-                    type="text"
-                    value={footerConfig.accreditationHeadline}
-                    onChange={(e) =>
-                      setFooterConfig({ ...footerConfig, accreditationHeadline: e.target.value })
-                    }
-                    className="w-full px-2 py-1 text-xs border border-line rounded-sm bg-white"
-                  />
-                </div>
                 <div>
                   <label className="block text-[10px] text-ink-soft mb-0.5">
                     Company Registered Legal Line:
@@ -7315,7 +8606,7 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                     onChange={(e) =>
                       setFooterConfig({ ...footerConfig, legalLine: e.target.value })
                     }
-                    className="w-full px-2 py-1 text-xs border border-line rounded-sm bg-white"
+                    className="w-full px-2 py-1 text-xs border border-line rounded-sm bg-white leading-normal"
                   />
                 </div>
                 <div>
@@ -7644,6 +8935,45 @@ export const SiteCmsEditorView: React.FC<Props> = ({
           </div>
         </ResponsiveCanvasFrame>
       </div>
+
+      {/* College Media Library & Upload Modal */}
+      <MediaLibraryModal
+        isOpen={mediaModalOpen}
+        onClose={() => setMediaModalOpen(false)}
+        currentValue={
+          mediaTargetField?.type === "section"
+            ? selectedSection?.image
+            : mediaTargetField?.type === "logo"
+            ? headerNav.logoImageUrl
+            : mediaTargetField?.type === "videoThumbnail"
+            ? selectedSection?.videoThumbnail
+            : mediaTargetField?.type === "item" && typeof mediaTargetField.itemIdx === "number"
+            ? selectedSection?.items?.[mediaTargetField.itemIdx]?.image
+            : mediaTargetField?.type === "accreditationBadge" && typeof mediaTargetField.badgeIdx === "number"
+            ? footerConfig.accreditations?.[mediaTargetField.badgeIdx]?.image
+            : ""
+        }
+        onSelect={(url) => {
+          if (mediaTargetField?.type === "section") {
+            updateSelectedField("image", url);
+            setToastNotice("Updated block image from Media Library.");
+          } else if (mediaTargetField?.type === "logo") {
+            setHeaderNav((prev) => ({ ...prev, logoImageUrl: url, logoType: "image" }));
+            setToastNotice("Updated college logo from Media Library.");
+          } else if (mediaTargetField?.type === "videoThumbnail") {
+            updateSelectedField("videoThumbnail", url);
+            setToastNotice("Updated video poster thumbnail from Media Library.");
+          } else if (mediaTargetField?.type === "item" && typeof mediaTargetField.itemIdx === "number") {
+            updateItemField(mediaTargetField.itemIdx, "image", url);
+            setToastNotice("Updated card photo from Media Library.");
+          } else if (mediaTargetField?.type === "accreditationBadge" && typeof mediaTargetField.badgeIdx === "number") {
+            updateAccreditationBadge(mediaTargetField.badgeIdx, "image", url);
+            setToastNotice("Updated awarding body logo from Media Library.");
+          }
+          setTimeout(() => setToastNotice(null), 3000);
+          setMediaModalOpen(false);
+        }}
+      />
     </div>
   );
 };

@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/Button";
 import { formatEmbedUrl, isDirectVideo } from "@/components/cms/SectionRenderer";
 import { resolveSectionBg, SectionBgColor } from "@/components/ui/sectionBg";
 import { EditableElementWrapper } from "@/components/admin/EditableElementWrapper";
+import { resolveCardContainerStyles } from "@/components/ui/typographyUtils";
 
 export interface ReviewsAndTestimonialsProps {
   headline?: string;
@@ -190,49 +191,52 @@ export const ReviewsAndTestimonials: React.FC<ReviewsAndTestimonialsProps> = ({
                   image: it.image || "",
                 }))
               : siteConfig.testimonials
-            ).map((t, idx) => (
-              <EditableElementWrapper
-                key={t.name + idx}
-                isEditor={isEditor}
-                isSelected={isEditor && selectedElementKey === "item" && selectedElementItemIndex === idx}
-                label={`Review #${idx + 1}`}
-                onClick={() => onSelectElement?.("item", idx)}
-                className="rounded-lg"
-              >
-                <div
-                  className="bg-white rounded-lg border border-line p-6 shadow-subtle hover:border-navy-900/30 transition-colors"
+            ).map((t, idx) => {
+              const rawItem = items?.[idx];
+              const { containerClass, titleClass, descClass } = resolveCardContainerStyles(rawItem, isDark);
+
+              return (
+                <EditableElementWrapper
+                  key={t.name + idx}
+                  isEditor={isEditor}
+                  isSelected={isEditor && selectedElementKey === "item" && selectedElementItemIndex === idx}
+                  label={`Review #${idx + 1}`}
+                  onClick={() => onSelectElement?.("item", idx)}
+                  className="rounded-lg"
                 >
-                  {/* Header with photo, name, course */}
-                  <div className="flex items-center justify-between gap-4 mb-4">
-                    <div className="flex items-center gap-3.5">
-                      {t.image ? (
-                        <div className="relative w-12 h-12 rounded-full overflow-hidden border border-line bg-line flex-shrink-0">
-                          <Image
-                            src={t.image}
-                            alt={t.name}
-                            fill
-                            sizes="48px"
-                            className="object-cover"
-                          />
+                  <div className={`p-6 ${containerClass}`}>
+                    {/* Header with photo, name, course */}
+                    <div className="flex items-center justify-between gap-4 mb-4">
+                      <div className="flex items-center gap-3.5">
+                        {t.image ? (
+                          <div className="relative w-12 h-12 rounded-full overflow-hidden border border-line bg-line flex-shrink-0">
+                            <Image
+                              src={t.image}
+                              alt={t.name}
+                              fill
+                              sizes="48px"
+                              className="object-cover"
+                            />
+                          </div>
+                        ) : null}
+                        <div>
+                          <strong className={`block leading-tight ${titleClass}`}>
+                            {t.name}
+                          </strong>
+                          <span className={`text-xs block font-medium ${isDark || rawItem?.cardBg === "navy" ? "text-paper/70" : "text-ink-soft"}`}>
+                            {t.roleOrCourse}
+                          </span>
                         </div>
-                      ) : null}
-                      <div>
-                        <strong className="font-heading font-bold text-lg text-navy-900 block leading-tight">
-                          {t.name}
-                        </strong>
-                        <span className="text-xs text-ink-soft block font-medium">
-                          {t.roleOrCourse}
-                        </span>
                       </div>
                     </div>
-                  </div>
 
-                  <p className="text-sm text-ink-soft leading-relaxed italic">
-                    &ldquo;{t.quote}&rdquo;
-                  </p>
-                </div>
-              </EditableElementWrapper>
-            ))}
+                    <p className={`italic ${descClass}`}>
+                      &ldquo;{t.quote}&rdquo;
+                    </p>
+                  </div>
+                </EditableElementWrapper>
+              );
+            })}
           </div>
 
           {/* Column 2: Click-to-Load Video / TikTok Learner Spotlight (Fully Editable) */}

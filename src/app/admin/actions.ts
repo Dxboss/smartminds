@@ -2235,3 +2235,59 @@ export async function deleteBlogPostAction(postId: string) {
 
   return { success: true };
 }
+
+export async function saveFacultyAction(faculty: {
+  id?: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  color?: string;
+  status?: "active" | "enrolments_opening_soon";
+}) {
+  const session = await getServerSession();
+  assertAdminAuthorized(session);
+
+  const { saveFacultyToStore } = await import("@/lib/persistedData");
+  const id = faculty.id || faculty.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  const updatedFaculties = saveFacultyToStore({
+    id,
+    name: faculty.name.trim(),
+    description: faculty.description?.trim(),
+    icon: faculty.icon || "shield-check",
+    color: faculty.color || "navy",
+    status: faculty.status || "active",
+  });
+
+  try {
+    revalidatePath("/admin/courses");
+    revalidatePath("/courses");
+    revalidatePath("/enrol");
+    revalidatePath("/");
+  } catch {}
+
+  return { success: true, faculties: updatedFaculties };
+}
+
+export async function deleteFacultyAction(facultyId: string) {
+  const session = await getServerSession();
+  assertAdminAuthorized(session);
+
+  const { deleteFacultyFromStore } = await import("@/lib/persistedData");
+  const updatedFaculties = deleteFacultyFromStore(facultyId);
+
+  try {
+    revalidatePath("/admin/courses");
+    revalidatePath("/courses");
+    revalidatePath("/enrol");
+    revalidatePath("/");
+  } catch {}
+
+  return { success: true, faculties: updatedFaculties };
+}
+
+export async function getFacultiesAction() {
+  const { getPersistedFaculties } = await import("@/lib/persistedData");
+  const faculties = getPersistedFaculties();
+  return { success: true, faculties };
+}
+

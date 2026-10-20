@@ -19,6 +19,10 @@ export type IconName =
   | "chevron-left"
   | "menu"
   | "close"
+  | "x"
+  | "image"
+  | "upload"
+  | "compass"
   | "user"
   | "info"
   | "sparkles"
@@ -53,6 +57,7 @@ export type IconName =
   | "play"
   | "pause"
   | "map-pin"
+  | "award"
   | "globe";
 
 export interface IconProps extends React.SVGAttributes<SVGElement> {
@@ -258,12 +263,72 @@ export const Icon: React.FC<IconProps> = ({
         );
 
       case "close":
+      case "x":
         return (
           <path
             d="M6 6l12 12M6 18L18 6"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
+        );
+
+      case "image":
+        return (
+          <>
+            <rect
+              x="3"
+              y="3"
+              width="18"
+              height="18"
+              rx="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <circle cx="8.5" cy="8.5" r="1.5" />
+            <path
+              d="M21 15l-5-5L5 21"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </>
+        );
+
+      case "upload":
+        return (
+          <>
+            <path
+              d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <polyline
+              points="17 8 12 3 7 8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <line
+              x1="12"
+              y1="3"
+              x2="12"
+              y2="15"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </>
+        );
+
+      case "compass":
+        return (
+          <>
+            <circle
+              cx="12"
+              cy="12"
+              r="10"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
+          </>
         );
 
       case "user":
@@ -905,6 +970,18 @@ export const Icon: React.FC<IconProps> = ({
               cx="12"
               cy="10"
               r="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </>
+        );
+
+      case "award":
+        return (
+          <>
+            <circle cx="12" cy="8" r="6" strokeLinecap="round" strokeLinejoin="round" />
+            <path
+              d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"
               strokeLinecap="round"
               strokeLinejoin="round"
             />

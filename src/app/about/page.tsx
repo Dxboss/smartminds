@@ -9,6 +9,7 @@ import { Icon } from "@/components/ui/Icon";
 import { Button } from "@/components/ui/Button";
 import { getPublishedCmsPageSections } from "@/lib/persistedData";
 import { SectionRenderer } from "@/components/cms/SectionRenderer";
+import { WhyChooseUsSection } from "@/components/home";
 
 export const metadata: Metadata = {
   title: "About Us | Smartminds Training College",
@@ -97,6 +98,11 @@ export default function AboutPage() {
               />
             </div>
           </div>
+        </div>
+
+        {/* Why Choose Us Feature Showcase */}
+        <div className="mb-16 -mx-4 sm:-mx-6 lg:-mx-8 rounded-xl overflow-hidden border border-line shadow-subtle">
+          <WhyChooseUsSection />
         </div>
 
         {/* Accredited UK Awarding Bodies */}

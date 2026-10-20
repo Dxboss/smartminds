@@ -856,15 +856,21 @@ export const EnrolmentClient: React.FC<Props> = ({
                     <div className="flex items-center gap-2">
                       <Icon name="map-pin" size={16} className="text-navy-900" />
                       <label className="text-xs font-bold text-navy-900">
-                        Practical Assessment & Clinical Training Hub *
+                        {currentCourse.attendance_type === "physical_venue"
+                          ? "Campus Venue & Training Centre *"
+                          : "Practical Assessment & Clinical Training Hub *"}
                       </label>
                     </div>
                     <span className="text-[10px] font-bold uppercase tracking-wider bg-gold-300/30 text-navy-900 px-2 py-0.5 rounded-xs border border-gold-500/30">
-                      Mandatory Practical Sessions
+                      {currentCourse.attendance_type === "physical_venue"
+                        ? "Campus Venue Attendance"
+                        : "Mandatory Practical Sessions"}
                     </span>
                   </div>
                   <p className="text-[11px] text-ink-soft">
-                    This accredited qualification includes hands-on clinical and practical assessments. Please choose your preferred training centre:
+                    {currentCourse.attendance_type === "physical_venue"
+                      ? "This qualification is delivered at our approved UK training campuses. Please choose your preferred campus location:"
+                      : "This accredited qualification includes hands-on clinical and practical assessments. Please choose your preferred training centre:"}
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
                     {currentCourse.training_locations.map((loc) => (

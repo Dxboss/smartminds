@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getServerSession } from "@/lib/session";
 import { getCourseRepo } from "@/lib/repositories";
+import { getPersistedFaculties } from "@/lib/persistedData";
 import { CoursesManagerView } from "@/components/admin/CoursesManagerView";
 
 export const instant = false;
@@ -29,6 +30,7 @@ export default async function AdminCoursesPage() {
 
   const courseRepo = getCourseRepo();
   const courses = await courseRepo.listCourses();
+  const faculties = getPersistedFaculties();
 
-  return <CoursesManagerView courses={courses} userRole={session.role} />;
+  return <CoursesManagerView courses={courses} userRole={session.role} initialFaculties={faculties} />;
 }

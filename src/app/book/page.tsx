@@ -4,7 +4,8 @@ import { Heading } from "@/components/ui/Heading";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 import { Tag } from "@/components/ui/Tag";
 import { NativeScheduler } from "@/components/booking/NativeScheduler";
-import { getLiveCourses } from "@/lib/persistedData";
+import { getLiveCourses, getPublishedCmsPageSections } from "@/lib/persistedData";
+import { SectionRenderer } from "@/components/cms/SectionRenderer";
 
 export const metadata: Metadata = {
   title: "Book Free Course Advice Call | Smartminds Training College",
@@ -19,7 +20,21 @@ export const metadata: Metadata = {
 };
 
 export default function BookPage() {
-  const liveCourses = getLiveCourses().map((c) => ({
+  const liveCourses = getLiveCourses();
+  const customSections = getPublishedCmsPageSections("/book");
+  if (customSections && customSections.length > 0) {
+    return (
+      <main className="bg-paper text-ink min-h-screen">
+        {customSections
+          .filter((sec) => sec.enabled)
+          .map((sec) => (
+            <SectionRenderer key={sec.id} section={sec} courses={liveCourses} />
+          ))}
+      </main>
+    );
+  }
+
+  const courseOptions = liveCourses.map((c) => ({
     id: c.id,
     title: c.title,
     published: c.published,
@@ -53,7 +68,7 @@ export default function BookPage() {
 
           {/* College Consultation Scheduler Card */}
           <div className="bg-white rounded-lg border border-line p-6 sm:p-8 shadow-subtle">
-            <NativeScheduler coursesList={liveCourses} />
+            <NativeScheduler coursesList={courseOptions} />
           </div>
 
           {/* Consultation Reassurance */}

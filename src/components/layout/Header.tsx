@@ -145,12 +145,16 @@ export const Header: React.FC<HeaderProps> = ({
   }
 
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-line shadow-subtle transition-all">
+    <header
+      className={`sticky top-0 z-40 backdrop-blur-md border-b border-line shadow-subtle transition-all ${
+        pathname === "/" ? "bg-[#E8F4F1]/95" : "bg-white/95"
+      }`}
+    >
       {/* 1. Dynamic Top Announcement Ticker */}
       {effectiveConfig.announcementActive && activeAnnouncements.length > 0 && (
         <aside
           aria-label="College Announcements"
-          className="bg-gold-500 text-navy-900 py-2 text-xs font-bold tracking-wide border-b border-gold-600/20 overflow-hidden relative cursor-default select-none"
+          className="bg-gold-500 text-white py-2 text-xs font-bold tracking-wide border-b border-black/10 overflow-hidden relative cursor-default select-none"
         >
           <div className="flex animate-marquee hover:[animation-play-state:paused] whitespace-nowrap will-change-transform">
             {[0, 1, 2, 3].map((cycleIdx: number) => (
@@ -161,30 +165,30 @@ export const Header: React.FC<HeaderProps> = ({
                     className="flex items-center gap-2 px-5 shrink-0"
                   >
                     {item.badge ? (
-                      <span className="bg-navy-900 text-gold-300 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-xs shrink-0 shadow-xs">
+                      <span className="bg-white text-[#FF5722] text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-xs shrink-0 shadow-xs">
                         {item.badge}
                       </span>
                     ) : (
-                      <Icon name="sparkles" size={13} className="text-navy-900 shrink-0" />
+                      <Icon name="sparkles" size={13} className="text-white shrink-0" />
                     )}
                     <span>{item.text}</span>
                     {item.link && (
                       !isEditor ? (
                         <Link
                           href={item.link}
-                          className="underline hover:text-navy-950 font-black ml-1.5 inline-flex items-center gap-0.5 cursor-pointer"
+                          className="underline hover:text-white/80 font-black ml-1.5 inline-flex items-center gap-0.5 cursor-pointer text-white"
                         >
                           <span>Learn more</span>
-                          <Icon name="arrow-right" size={11} />
+                          <Icon name="arrow-right" size={11} className="text-white" />
                         </Link>
                       ) : (
-                        <span className="underline font-black ml-1.5 inline-flex items-center gap-0.5 opacity-90 cursor-default">
+                        <span className="underline font-black ml-1.5 inline-flex items-center gap-0.5 opacity-90 cursor-default text-white">
                           <span>Learn more</span>
-                          <Icon name="arrow-right" size={11} />
+                          <Icon name="arrow-right" size={11} className="text-white" />
                         </span>
                       )
                     )}
-                    <span className="text-navy-900/40 text-[10px] mx-3 font-black">•</span>
+                    <span className="text-white/50 text-[10px] mx-3 font-black">•</span>
                   </div>
                 ))}
               </div>

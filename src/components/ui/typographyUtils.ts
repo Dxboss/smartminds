@@ -17,6 +17,8 @@ export interface TypographyOptions {
   defaultWeight?: FontWeightChoice;
   defaultFamily?: FontFamilyChoice;
   isDark?: boolean;
+  align?: "left" | "center" | "right";
+  transform?: "normal" | "uppercase";
 }
 
 export interface ResolvedTypography {
@@ -55,7 +57,15 @@ export function resolveTypography(options: TypographyOptions): ResolvedTypograph
   // 4. Font Style class
   const italicClass = styleChoice === "italic" ? "italic" : "not-italic";
 
-  // 5. Color class and inline style
+  // 5. Alignment and Transform
+  let alignClass = "";
+  if (options.align === "center") alignClass = "text-center";
+  else if (options.align === "right") alignClass = "text-right";
+  else if (options.align === "left") alignClass = "text-left";
+
+  const transformClass = options.transform === "uppercase" ? "uppercase tracking-wider" : "normal-case";
+
+  // 6. Color class and inline style
   let colorClass = "";
   let inlineStyle: React.CSSProperties | undefined = undefined;
 
@@ -83,7 +93,7 @@ export function resolveTypography(options: TypographyOptions): ResolvedTypograph
     colorClass = options.isDark ? "text-white" : "text-navy-900";
   }
 
-  const className = `${familyClass} ${sizeClass} ${weightClass} ${italicClass} ${colorClass}`.trim();
+  const className = `${familyClass} ${sizeClass} ${weightClass} ${italicClass} ${alignClass} ${transformClass} ${colorClass}`.trim();
 
   return {
     className,
@@ -136,10 +146,100 @@ export function resolveSubheadlineTypography(options: TypographyOptions): Resolv
     colorClass = "";
   }
 
-  const className = `${familyClass} ${sizeClass} ${weightClass} ${italicClass} ${colorClass}`.trim();
+  let alignClass = "";
+  if (options.align === "center") alignClass = "text-center";
+  else if (options.align === "right") alignClass = "text-right";
+  else if (options.align === "left") alignClass = "text-left";
+
+  const className = `${familyClass} ${sizeClass} ${weightClass} ${italicClass} ${alignClass} ${colorClass}`.trim();
 
   return {
     className,
     style: inlineStyle,
   };
 }
+
+export interface ResolvedCardStyles {
+  containerClass: string;
+  titleClass: string;
+  descClass: string;
+}
+
+export function resolveCardContainerStyles(
+  item?: {
+    cardBg?: string;
+    cardBorder?: string;
+    cardRadius?: string;
+    cardPadding?: string;
+    titleColor?: string;
+    titleSize?: string;
+    titleWeight?: string;
+    descColor?: string;
+    textAlign?: string;
+  },
+  isDark = false
+): ResolvedCardStyles {
+  // Surface fill
+  let bgClass = isDark ? "bg-white/5 text-white" : "bg-white text-ink";
+  if (item?.cardBg === "white") bgClass = "bg-white text-ink";
+  else if (item?.cardBg === "paper") bgClass = "bg-paper text-ink";
+  else if (item?.cardBg === "navy") bgClass = "bg-navy-900 text-white";
+  else if (item?.cardBg === "gold_subtle") bgClass = "bg-gold-500/10 text-navy-900";
+  else if (item?.cardBg === "transparent") bgClass = "bg-transparent text-inherit";
+
+  // Border style
+  let borderClass = isDark ? "border border-white/10" : "border border-line";
+  if (item?.cardBorder === "line") borderClass = "border border-line";
+  else if (item?.cardBorder === "gold") borderClass = "border-2 border-gold-500 shadow-sm";
+  else if (item?.cardBorder === "navy") borderClass = "border-2 border-navy-900";
+  else if (item?.cardBorder === "none") borderClass = "border-0";
+
+  // Radius (strictly PRD 2 radii rule: 6px vs 16px)
+  let radiusClass = "rounded-lg"; // default signature 16px
+  if (item?.cardRadius === "sm") radiusClass = "rounded-sm"; // 6px
+  else if (item?.cardRadius === "xl") radiusClass = "rounded-xl"; // 16px
+  else if (item?.cardRadius === "none") radiusClass = "rounded-none";
+
+  // Padding
+  let paddingClass = "p-6";
+  if (item?.cardPadding === "compact") paddingClass = "p-4";
+  else if (item?.cardPadding === "spacious") paddingClass = "p-8";
+
+  // Alignment
+  let alignClass = "text-left";
+  if (item?.textAlign === "center") alignClass = "text-center";
+  else if (item?.textAlign === "right") alignClass = "text-right";
+
+  // Title styling
+  let titleColor = isDark || item?.cardBg === "navy" ? "text-white" : "text-navy-900";
+  if (item?.titleColor === "navy") titleColor = "text-navy-900";
+  else if (item?.titleColor === "gold") titleColor = "text-gold-500";
+  else if (item?.titleColor === "white") titleColor = "text-white";
+  else if (item?.titleColor === "ink_soft") titleColor = "text-ink-soft";
+
+  let titleSize = "text-xl";
+  if (item?.titleSize === "sm") titleSize = "text-base sm:text-lg";
+  else if (item?.titleSize === "md") titleSize = "text-lg sm:text-xl";
+  else if (item?.titleSize === "lg") titleSize = "text-xl sm:text-2xl";
+  else if (item?.titleSize === "xl") titleSize = "text-2xl sm:text-3xl";
+
+  let titleWeight = "font-bold";
+  if (item?.titleWeight === "normal") titleWeight = "font-normal";
+  else if (item?.titleWeight === "medium") titleWeight = "font-medium";
+  else if (item?.titleWeight === "semibold") titleWeight = "font-semibold";
+  else if (item?.titleWeight === "bold") titleWeight = "font-bold";
+
+  // Description styling
+  let descColor = isDark || item?.cardBg === "navy" ? "text-paper/80" : "text-ink-soft";
+  if (item?.descColor === "navy") descColor = "text-navy-900";
+  else if (item?.descColor === "gold") descColor = "text-gold-500";
+  else if (item?.descColor === "white") descColor = "text-white/80";
+  else if (item?.descColor === "ink_soft") descColor = "text-ink-soft";
+
+  const containerClass = `${bgClass} ${borderClass} ${radiusClass} ${paddingClass} ${alignClass} shadow-subtle transition-all`.trim();
+  const titleClass = `font-heading ${titleSize} ${titleWeight} ${titleColor}`.trim();
+  const descClass = `text-sm leading-relaxed ${descColor}`.trim();
+
+  return { containerClass, titleClass, descClass };
+}
+

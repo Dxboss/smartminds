@@ -7,6 +7,7 @@ import {
   getBookingRepo,
   getTaskRepo,
 } from "@/lib/repositories";
+import { listNewsletterSubscribers } from "@/lib/persistedData";
 import { formatCurrency } from "@/content/pricing";
 import { Icon } from "@/components/ui/Icon";
 
@@ -26,6 +27,7 @@ export default async function AdminDashboardPage() {
   const learners = await learnerRepo.listLearners(session);
   const bookings = await bookingRepo.listBookings(session);
   const tasks = await taskRepo.listTasks(session);
+  const subscribers = listNewsletterSubscribers();
 
   // Financial data is strictly accessed ONLY if role is owner_admin or super_admin
   let ledgerSummary = null;
@@ -56,7 +58,14 @@ export default async function AdminDashboardPage() {
         </div>
 
         {isOwnerOrSuper && (
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              href="/admin/subscribers"
+              className="px-4 py-2 rounded-sm bg-white border border-line text-navy-900 text-sm font-semibold hover:bg-paper transition-colors inline-flex items-center gap-1.5 shadow-xs"
+            >
+              <Icon name="mail" size={15} className="text-gold-600" />
+              <span>Subscribers ({subscribers.length})</span>
+            </Link>
             <Link
               href="/admin/payments"
               className="px-4 py-2 rounded-sm bg-navy-900 text-white text-sm font-semibold hover:bg-navy-700 transition-colors inline-flex items-center gap-1.5 shadow-sm"
@@ -189,7 +198,7 @@ export default async function AdminDashboardPage() {
         <div className="space-y-6">
 
           {/* Operational Metrics */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
             <Link
               href="/admin/pipeline"
               className="p-5 rounded-md bg-white border border-line shadow-sm hover:border-navy-900/50 transition-colors space-y-1 block"
@@ -202,6 +211,21 @@ export default async function AdminDashboardPage() {
               </span>
               <span className="text-[11px] text-navy-700 font-medium inline-flex items-center gap-1">
                 View pipeline &rarr;
+              </span>
+            </Link>
+
+            <Link
+              href="/admin/subscribers"
+              className="p-5 rounded-md bg-white border border-line shadow-sm hover:border-navy-900/50 transition-colors space-y-1 block"
+            >
+              <span className="text-xs font-semibold text-ink-soft uppercase tracking-wider block">
+                Subscribers
+              </span>
+              <span className="font-heading text-3xl font-bold text-navy-900 block">
+                {subscribers.length}
+              </span>
+              <span className="text-[11px] text-navy-700 font-medium inline-flex items-center gap-1">
+                Mailing registry &rarr;
               </span>
             </Link>
 

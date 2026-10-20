@@ -7,3 +7,8 @@ export { FeaturedCourses, type FeaturedCoursesProps } from "./FeaturedCourses";
 export { ReviewsAndTestimonials, type ReviewsAndTestimonialsProps } from "./ReviewsAndTestimonials";
 export { HomeFAQ, type HomeFAQProps } from "./HomeFAQ";
 export { FinalCTABand, type FinalCTABandProps } from "./FinalCTABand";
+export { StudentIDBenefitsSection, type StudentIDBenefitsSectionProps } from "./StudentIDBenefitsSection";
+export { StaffTrainingSection, type StaffTrainingSectionProps } from "./StaffTrainingSection";
+export { CoralPromoBanner, type CoralPromoBannerProps } from "./CoralPromoBanner";
+export { ExclusiveBundlesSection, type ExclusiveBundlesSectionProps } from "./ExclusiveBundlesSection";
+export { WhyChooseUsSection, type WhyChooseUsProps } from "./WhyChooseUsSection";

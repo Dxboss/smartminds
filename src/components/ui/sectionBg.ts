@@ -7,6 +7,8 @@ export type SectionBgPreset =
   | "cream"
   | "slate"
   | "sage"
+  | "mint"
+  | "coral"
   | "sand"
   | "navy_gradient";
 
@@ -38,7 +40,7 @@ export interface ResolvedSectionBg {
 
 export function resolveSectionBg(
   bgColor?: string,
-  fallback: "paper" | "white" | "navy" = "paper"
+  fallback: SectionBgPreset = "paper"
 ): ResolvedSectionBg {
   const effective = (bgColor || fallback).trim();
   const isCustomHex = Boolean(effective.startsWith("#"));
@@ -46,7 +48,9 @@ export function resolveSectionBg(
   const isSage = effective === "sage";
   const isSand = effective === "sand";
   const isNavyGradient = effective === "navy_gradient";
-  const isNavy = effective === "navy" || isSlate || isNavyGradient;
+  const isMint = effective === "mint";
+  const isCoral = effective === "coral";
+  const isNavy = effective === "navy" || isSlate || isNavyGradient || isCoral;
   const isCream = effective === "cream";
   const isPaper = effective === "paper";
   const isWhite = effective === "white";
@@ -63,10 +67,14 @@ export function resolveSectionBg(
     bgClass = "bg-[#0B132B] text-white";
   } else if (effective === "navy") {
     bgClass = "bg-navy-900 text-white";
+  } else if (isCoral) {
+    bgClass = "bg-[#E53935] text-white";
   } else if (isCream) {
     bgClass = "bg-gold-50/70 text-ink border-y border-gold-200";
   } else if (isSage) {
     bgClass = "bg-[#EFF5F2] text-ink";
+  } else if (isMint) {
+    bgClass = "bg-[#E8F4F1] text-ink";
   } else if (isSand) {
     bgClass = "bg-[#F7F4EE] text-ink";
   } else if (isWhite) {

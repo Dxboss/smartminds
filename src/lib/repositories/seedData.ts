@@ -65,35 +65,8 @@ export const seedUsers: UserProfile[] = [
 ];
 
 // ============================================================================
-// 2. 24 Fictional Learners
+// 2. Learners
 // ============================================================================
-
-const learnerNames = [
-  { first: "Maya", last: "Lin", status: "active" as const },
-  { first: "Jordan", last: "Lee", status: "active" as const },
-  { first: "Priya", last: "Sharma", status: "active" as const },
-  { first: "Sam", last: "Taylor", status: "active" as const },
-  { first: "Aisha", last: "Bello", status: "paused" as const }, // Overdue instalment
-  { first: "Marcus", last: "O'Connor", status: "active" as const },
-  { first: "Zoe", last: "Campbell", status: "active" as const },
-  { first: "Liam", last: "Walker", status: "active" as const },
-  { first: "Chloe", last: "Bennett", status: "completed" as const }, // Completed
-  { first: "Daniel", last: "Hughes", status: "active" as const },
-  { first: "Fatima", last: "Zahra", status: "paused" as const }, // Paused
-  { first: "Ethan", last: "Brooks", status: "active" as const },
-  { first: "Nadia", last: "Hussain", status: "active" as const },
-  { first: "Oliver", last: "Wright", status: "active" as const },
-  { first: "Grace", last: "Okafor", status: "active" as const },
-  { first: "Benjamin", last: "Scott", status: "active" as const },
-  { first: "Hannah", last: "Kelly", status: "paused" as const }, // Paused
-  { first: "Lucas", last: "Evans", status: "active" as const },
-  { first: "Leila", last: "Moradi", status: "active" as const },
-  { first: "Noah", last: "Phillips", status: "active" as const },
-  { first: "Ella", last: "Murphy", status: "completed" as const }, // Completed
-  { first: "Callum", last: "Murray", status: "active" as const },
-  { first: "Rhea", last: "Chopra", status: "paused" as const }, // Paused
-  { first: "Tariq", last: "Al-Sayed", status: "active" as const },
-];
 
 export const seedLearners: Learner[] = [];
 
@@ -239,138 +212,9 @@ export const seedEnrolments: Enrolment[] = seedLearners.map((learner, idx) => {
 // 5. Payment Records & Schedules (Paid, Due, Overdue)
 // ============================================================================
 
-export const seedPaymentRecords: PaymentRecord[] = isDemoModeActive
-  ? [
-  {
-    id: "pay-rec-001",
-    enrolmentId: "enrolment-001",
-    learnerId: "learner-001",
-    learnerName: "Maya Lin",
-    courseTitle: "Diploma in Adult Care L3",
-    amountGbp: 150.0,
-    method: "stripe",
-    reference: "ch_demo_lin_deposit_001",
-    status: "paid",
-    paidAt: "2026-09-15T09:30:00Z",
-    notes: "Deposit paid at enrolment",
-  },
-  {
-    id: "pay-rec-002",
-    enrolmentId: "enrolment-002",
-    learnerId: "learner-002",
-    learnerName: "Jordan Lee",
-    courseTitle: "Diploma in Adult Care L3",
-    amountGbp: 1174.5,
-    method: "bank_transfer",
-    reference: "BT-2026-09-LEE",
-    status: "paid",
-    paidAt: "2026-09-16T11:00:00Z",
-    notes: "Paid in full via BACS transfer (verified by College Finance)",
-  },
-  {
-    id: "pay-rec-003",
-    enrolmentId: "enrolment-003",
-    learnerId: "learner-003",
-    learnerName: "Priya Sharma",
-    courseTitle: "Diploma in Adult Care L3",
-    amountGbp: 150.0,
-    method: "stripe",
-    reference: "ch_demo_sharma_001",
-    status: "paid",
-    paidAt: "2026-09-15T14:20:00Z",
-  },
-  {
-    id: "pay-rec-004",
-    enrolmentId: "enrolment-005",
-    learnerId: "learner-005",
-    learnerName: "Aisha Bello",
-    courseTitle: "Diploma in Adult Care L3",
-    amountGbp: 150.0,
-    method: "stripe",
-    reference: "ch_demo_bello_001",
-    status: "paid",
-    paidAt: "2026-08-10T10:00:00Z",
-  },
-  {
-    id: "pay-rec-005",
-    enrolmentId: "enrolment-009",
-    learnerId: "learner-009",
-    learnerName: "Chloe Bennett",
-    courseTitle: "Leadership in Adult Care L5",
-    amountGbp: 1620.0,
-    method: "stripe",
-    reference: "ch_demo_bennett_full",
-    status: "paid",
-    paidAt: "2026-05-01T10:00:00Z",
-    notes: "Course completed and full balance settled",
-  },
-]
-  : [];
+export const seedPaymentRecords: PaymentRecord[] = [];
 
-export const seedPaymentSchedules: PaymentScheduleItem[] = isDemoModeActive
-  ? [
-  // Maya Lin (Active, next instalment due soon)
-  {
-    id: "sched-001-1",
-    enrolmentId: "enrolment-001",
-    learnerId: "learner-001",
-    instalmentNumber: 1,
-    totalInstalments: 6,
-    amountGbp: 150.0,
-    dueDate: "2026-09-15",
-    status: "paid",
-    paidAt: "2026-09-15T09:30:00Z",
-    graceExpiryDate: "2026-09-29",
-  },
-  {
-    id: "sched-001-2",
-    enrolmentId: "enrolment-001",
-    learnerId: "learner-001",
-    instalmentNumber: 2,
-    totalInstalments: 6,
-    amountGbp: 192.5,
-    dueDate: "2026-10-15",
-    status: "due",
-    graceExpiryDate: "2026-10-29",
-  },
-  {
-    id: "sched-001-3",
-    enrolmentId: "enrolment-001",
-    learnerId: "learner-001",
-    instalmentNumber: 3,
-    totalInstalments: 6,
-    amountGbp: 192.5,
-    dueDate: "2026-11-15",
-    status: "due",
-    graceExpiryDate: "2026-11-29",
-  },
-
-  // Aisha Bello (Paused due to overdue instalment past grace period)
-  {
-    id: "sched-005-1",
-    enrolmentId: "enrolment-005",
-    learnerId: "learner-005",
-    instalmentNumber: 1,
-    totalInstalments: 6,
-    amountGbp: 150.0,
-    dueDate: "2026-08-10",
-    status: "paid",
-    paidAt: "2026-08-10T10:00:00Z",
-    graceExpiryDate: "2026-08-24",
-  },
-  {
-    id: "sched-005-2",
-    enrolmentId: "enrolment-005",
-    learnerId: "learner-005",
-    instalmentNumber: 2,
-    totalInstalments: 6,
-    amountGbp: 192.5,
-    dueDate: "2026-09-10",
-    status: "overdue",
-    graceExpiryDate: "2026-09-24",
-  },
-]
-  : [];
+export const seedPaymentSchedules: PaymentScheduleItem[] = [];
 
 // ============================================================================
 // 6. Assignments, Submissions & Unit Results
@@ -412,92 +256,13 @@ export const seedAssignments: Assignment[] = [
   },
 ];
 
-export const seedSubmissions: Submission[] = isDemoModeActive
-  ? [
-  {
-    id: "sub-001",
-    assignmentId: "assign-care-301",
-    learnerId: "learner-001",
-    learnerName: "Maya Lin",
-    unitCode: "UNIT-301",
-    fileName: "Maya_Lin_Unit301_Reflective_Account.pdf",
-    fileSizeBytes: 421000,
-    submittedAt: "2026-10-02T16:45:00Z",
-    status: "marked",
-    outcome: "achieved",
-    feedback:
-      "Comprehensive demonstration of person-centred planning. Clear workplace evidence linking duty of care with learner empowerment.",
-    markedByTutorId: "tutor-001",
-    markedAt: "2026-10-04T11:15:00Z",
-  },
-  {
-    id: "sub-002",
-    assignmentId: "assign-care-301",
-    learnerId: "learner-002",
-    learnerName: "Jordan Lee",
-    unitCode: "UNIT-301",
-    fileName: "Jordan_Lee_Unit301_Submission.docx",
-    fileSizeBytes: 285000,
-    submittedAt: "2026-10-03T18:20:00Z",
-    status: "submitted",
-    outcome: "pending",
-  },
-  {
-    id: "sub-003",
-    assignmentId: "assign-care-301",
-    learnerId: "learner-003",
-    learnerName: "Priya Sharma",
-    unitCode: "UNIT-301",
-    status: "not_submitted",
-  },
-]
-  : [];
+export const seedSubmissions: Submission[] = [];
 
 // ============================================================================
 // 7. Tasks Assigned by Owner
 // ============================================================================
 
-export const seedTasks: Task[] = isDemoModeActive
-  ? [
-  {
-    id: "task-001",
-    title: "Verify BACS bank transfer for Jordan Lee",
-    description: "Confirm £1,174.50 payment against bank statement and check enrolment status.",
-    assignedToId: "user-admin-01",
-    assignedToName: "Sarah Jenkins",
-    assignedByRole: "owner_admin",
-    deadline: "2026-10-10T17:00:00Z",
-    status: "completed",
-    isOverdue: false,
-    createdAt: "2026-10-01T09:00:00Z",
-    completedAt: "2026-10-02T11:00:00Z",
-  },
-  {
-    id: "task-002",
-    title: "Contact Aisha Bello regarding paused payment instalment",
-    description: "Follow up via telephone and approved template email regarding second payment instalment.",
-    assignedToId: "user-admin-02",
-    assignedToName: "Brian Miller",
-    assignedByRole: "owner_admin",
-    deadline: "2026-10-05T17:00:00Z",
-    status: "pending",
-    isOverdue: true,
-    createdAt: "2026-09-28T09:00:00Z",
-  },
-  {
-    id: "task-003",
-    title: "Mark Unit 301 draft submissions for Adult Care Class",
-    description: "Provide developmental criteria feedback on submitted reflective accounts.",
-    assignedToId: "user-tutor-01",
-    assignedToName: "Dr. Eleanor Vance",
-    assignedByRole: "owner_admin",
-    deadline: "2026-10-14T17:00:00Z",
-    status: "in_progress",
-    isOverdue: false,
-    createdAt: "2026-10-04T08:30:00Z",
-  },
-]
-  : [];
+export const seedTasks: Task[] = [];
 
 // ============================================================================
 // 8. Approved Message Templates
@@ -550,78 +315,7 @@ export const seedTemplates: MessageTemplate[] = [
 // 9. Bookings & Availability
 // ============================================================================
 
-export const seedBookings: Booking[] = isDemoModeActive
-  ? [
-  {
-    id: "book-001",
-    fullName: "Claire Jenkins",
-    email: "claire.jenkins@example.com",
-    phone: "+44 7911 123456",
-    courseInterest: "Diploma in Adult Care (Level 3)",
-    scheduledAt: "2026-10-14T14:00:00Z",
-    status: "confirmed",
-    timeZone: "Europe/London",
-    notes: "Wants to know if workplace funding is available.",
-    createdAt: "2026-10-05T10:00:00Z",
-    assignedStaffId: "user-admin-01",
-    assignedStaffName: "Sarah Jenkins",
-  },
-  {
-    id: "book-002",
-    fullName: "Adebayo Ogun",
-    email: "adebayo.ogun@example.com",
-    phone: "+44 7922 654321",
-    courseInterest: "Leadership in Adult Care (Level 5)",
-    scheduledAt: "2026-10-15T11:00:00Z",
-    status: "confirmed",
-    timeZone: "Europe/London",
-    notes: "Deputy manager preparing for registered manager promotion.",
-    createdAt: "2026-10-06T14:30:00Z",
-    assignedStaffId: "user-admin-02",
-    assignedStaffName: "Brian Miller",
-  },
-  {
-    id: "book-003",
-    fullName: "Miriam O'Connor",
-    email: "miriam.oconnor@example.com",
-    phone: "+44 7700 900112",
-    courseInterest: "Award in Education and Training (Level 3 AET)",
-    scheduledAt: "2026-10-16T15:30:00Z",
-    status: "confirmed",
-    timeZone: "Europe/London",
-    notes: "Care home trainer transitioning into accredited vocational teaching.",
-    createdAt: "2026-10-07T09:15:00Z",
-    assignedStaffId: "user-admin-01",
-    assignedStaffName: "Sarah Jenkins",
-  },
-  {
-    id: "book-004",
-    fullName: "Tariq Mahmood",
-    email: "tariq.mahmood@example.com",
-    phone: "+44 7700 900334",
-    courseInterest: "Diploma in Adult Care (Level 4)",
-    scheduledAt: "2026-10-12T10:00:00Z",
-    status: "completed",
-    timeZone: "Europe/London",
-    notes: "Assessment completed. Candidate eligible for instalment plan.",
-    createdAt: "2026-10-04T11:00:00Z",
-    assignedStaffId: "user-admin-03",
-    assignedStaffName: "Fatima Al-Mansoor",
-  },
-  {
-    id: "book-005",
-    fullName: "Hannah Ross",
-    email: "hannah.ross@example.com",
-    phone: "+44 7700 900556",
-    courseInterest: "Understanding Autism (Level 3 CPD)",
-    scheduledAt: "2026-10-17T13:00:00Z",
-    status: "confirmed",
-    timeZone: "Europe/London",
-    notes: "Direct booking via course detail page.",
-    createdAt: "2026-10-08T16:20:00Z",
-  },
-]
-  : [];
+export const seedBookings: Booking[] = [];
 
 export const seedAvailabilityRules: AvailabilityRule[] = [
   { dayOfWeek: 1, startTime: "09:00", endTime: "17:00", slotDurationMinutes: 30 },
@@ -732,19 +426,7 @@ export const seedEntitlements: FeatureEntitlement[] = [
   },
 ];
 
-export const seedAuditLog: AuditLogEntry[] = isDemoModeActive
-  ? [
-  {
-    id: "audit-001",
-    actorUserId: "user-super-01",
-    actorEmail: "super.admin@smartmindstraining.co.uk",
-    actorRole: "super_admin",
-    action: "SEED_INIT",
-    details: "Demo prototype initialized with initial sample dataset and entitlements",
-    timestamp: "2026-09-01T00:00:00Z",
-  },
-]
-  : [];
+export const seedAuditLog: AuditLogEntry[] = [];
 
 export const seedFeedback: FeedbackItem[] = [];
 
@@ -759,39 +441,11 @@ export interface OutboxMessage {
   triggerEvent: string;
 }
 
-export const demoOutbox: OutboxMessage[] = isDemoModeActive
-  ? [
-  {
-    id: "outbox-init-01",
-    recipientEmail: "maya.lin@example.com",
-    recipientName: "Maya Lin",
-    subject: "Welcome to Smartminds Training College — Diploma in Adult Care (Level 3)",
-    renderedBody:
-      "Dear Maya,\n\nWelcome to Smartminds Training College. Your enrolment on Diploma in Adult Care (Level 3) starting Autumn 2026 is now active. Your induction materials and study timetable are available on your student portal.",
-    templateKey: "welcome_induction",
-    sentAt: "2026-09-15T09:05:00Z",
-    triggerEvent: "Course Enrolment Induction",
-  },
-]
-  : [];
+export const demoOutbox: OutboxMessage[] = [];
 
 export const seedEnquiries: EnquiryLead[] = [];
 
-export const seedMessageLogs: MessageLogEntry[] = isDemoModeActive
-  ? [
-  {
-    id: "msg-log-001",
-    templateId: "tmpl-welcome",
-    sentByUserId: "user-admin-01",
-    sentByRole: "admin_staff",
-    recipientEmail: "maya.lin@example.com",
-    subject: "Welcome to Smartminds Training College — Diploma in Adult Care (Level 3)",
-    renderedBody:
-      "Dear Maya,\n\nWelcome to Smartminds Training College. Your enrolment on Diploma in Adult Care (Level 3) starting Autumn 2026 is now active. Your induction materials and study timetable are available on your student portal.",
-    sentAt: "2026-09-15T09:05:00Z",
-  },
-]
-  : [];
+export const seedMessageLogs: MessageLogEntry[] = [];
 
 // ============================================================================
 // 12. College Payment Gateway & Banking Configuration
@@ -872,7 +526,22 @@ export type BuilderSectionType =
   | "contact_block"
   | "announcement"
   | "video_spotlight"
-  | "composite_block";
+  | "composite_block"
+  | "student_benefits"
+  | "staff_training"
+  | "coral_promo"
+  | "exclusive_bundles"
+  | "courses_listing"
+  | "page_header"
+  | "about_story"
+  | "accreditations_block"
+  | "team_grid"
+  | "legal_notice"
+  | "contact_split"
+  | "funding_split"
+  | "cpd_listing"
+  | "tutoring_split"
+  | "scheduler_block";
 
 export type CompositeWidgetType =
   | "text"
@@ -959,6 +628,7 @@ export interface BuilderTagItem {
 }
 
 export interface BuilderSectionItem {
+  id?: string;
   title: string;
   desc?: string;
   icon?: string;
@@ -970,6 +640,21 @@ export interface BuilderSectionItem {
   subtitle?: string;
   bullets?: string[];
   number?: string;
+  price?: string;
+  originalPrice?: string;
+  monthly?: string;
+  saveAmount?: string;
+  cardBg?: "white" | "paper" | "navy" | "gold_subtle" | "transparent" | "mint" | "peach" | "lavender" | "sky" | (string & {});
+  cardBorder?: "line" | "gold" | "navy" | "none";
+  cardRadius?: "sm" | "xl" | "none";
+  cardPadding?: "compact" | "normal" | "spacious";
+  titleColor?: "auto" | "navy" | "gold" | "white" | "ink_soft" | (string & {});
+  titleSize?: "sm" | "md" | "lg" | "xl";
+  titleWeight?: "normal" | "medium" | "semibold" | "bold";
+  descColor?: "auto" | "navy" | "ink_soft" | "white" | "gold" | (string & {});
+  iconColor?: string;
+  textAlign?: "left" | "center" | "right";
+  badgeVariant?: "live" | "navy" | "gold" | "default";
 }
 
 export interface BuilderSection {
@@ -979,18 +664,31 @@ export interface BuilderSection {
   enabled: boolean;
   headline: string;
   subheadline: string;
+  eyebrow?: string;
   badgeText?: string;
+  badgeVariant?: "live" | "navy" | "gold" | "default";
+  badgeIcon?: string;
+  badgeWeight?: "normal" | "medium" | "semibold" | "bold";
+  headlineAlign?: "left" | "center" | "right";
+  headlineTransform?: "normal" | "uppercase";
+  subheadlineAlign?: "left" | "center" | "right";
   tags?: BuilderTagItem[];
   buttonText?: string;
   buttonLink?: string;
   secondaryButtonText?: string;
   secondaryButtonLink?: string;
   image?: string;
-  bgColor?: "white" | "paper" | "navy" | "cream" | "slate" | "sage" | "sand" | "navy_gradient" | (string & {});
+  image2?: string;
+  image3?: string;
+  trustNote?: string;
+  trustNoteIcon?: string;
+  bgColor?: "white" | "paper" | "navy" | "cream" | "slate" | "sage" | "sand" | "mint" | "navy_gradient" | (string & {});
   align?: "left" | "center";
   alignMobile?: "left" | "center";
   mediaPosition?: "left" | "right";
   columns?: 1 | 2 | 3 | 4;
+  rows?: 1 | 2 | 3 | 4 | "all";
+  courseLimit?: number;
   columnRatio?: "50-50" | "60-40" | "70-30" | "40-60" | "33-67";
   paddingDensity?: "compact" | "normal" | "spacious";
   paddingDensityMobile?: "compact" | "normal" | "spacious";
@@ -1034,6 +732,17 @@ export interface BuilderSection {
   floatingBadgeSubtitle?: string;
   floatingBadgeIcon?: string;
   floatingBadgeEnabled?: boolean;
+  sealText?: string;
+  sealLink?: string;
+  sealVideoUrl?: string;
+  sealBgColor?: string;
+  sealTextColor?: string;
+  sealPlayColor?: string;
+  sealFontSize?: string;
+  sealEnabled?: boolean;
+  metricsBannerTitle?: string;
+  metricsBannerSubtitle?: string;
+  metricsBannerIcon?: string;
 }
 
 export const defaultPageBuilderSections: BuilderSection[] = [
@@ -1165,6 +874,59 @@ export const defaultPageBuilderSections: BuilderSection[] = [
     ],
   },
   {
+    id: "sec-why-choose-us",
+    type: "why_smartminds",
+    name: "Why Choose Us (Innovative Learning)",
+    enabled: true,
+    badgeText: "WHY CHOOSE US?",
+    headline: "Innovative and effective learning approaches",
+    subheadline:
+      "Educate the ultimate destination for knowledge seekers and educators alike. We are committed to transforming special education impact global channels without standards compliant systems",
+    trustNote: "24/7 Hrs Ready to our support team",
+    trustNoteIcon: "asterisk",
+    buttonText: "GET STARTED",
+    buttonLink: "/courses",
+    buttonBgColor: "emerald",
+    bgColor: "mint",
+    image: "/images/hero-learner.jpg",
+    image2: "/images/tutor-sarah.jpg",
+    image3: "/images/classroom.jpg",
+    floatingBadgeTitle: "26+",
+    floatingBadgeSubtitle: "Years of Experiences",
+    floatingBadgeIcon: "star",
+    floatingBadgeEnabled: true,
+    items: [
+      {
+        title: "Course Management",
+        desc: "",
+        icon: "check-circle",
+        cardBg: "mint",
+        iconColor: "emerald",
+      },
+      {
+        title: "Students Progress Tracking",
+        desc: "",
+        icon: "check-circle",
+        cardBg: "peach",
+        iconColor: "amber",
+      },
+      {
+        title: "Interactive Live Class",
+        desc: "",
+        icon: "check-circle",
+        cardBg: "lavender",
+        iconColor: "purple",
+      },
+      {
+        title: "Quiz and Assignments",
+        desc: "",
+        icon: "check-circle",
+        cardBg: "sky",
+        iconColor: "cyan",
+      },
+    ],
+  },
+  {
     id: "sec-journey-04",
     type: "how_it_works",
     name: "How It Works 4-Step Journey",
@@ -1263,6 +1025,8 @@ export const defaultPageBuilderSections: BuilderSection[] = [
       "Explore our most requested British diplomas. Every programme features live tutor-led sessions, continuous mentor support, and flexible instalment schedules.",
     buttonText: "View all courses",
     buttonLink: "/courses",
+    columns: 4,
+    rows: 2,
   },
   {
     id: "sec-testimonials-07",
@@ -1699,6 +1463,16 @@ export const defaultHeaderNavConfig: HeaderNavConfig = {
   ],
 };
 
+export interface AccreditationBadgeItemConfig {
+  id?: string;
+  title: string;
+  desc?: string;
+  icon?: string;
+  tag?: string;
+  image?: string;
+  link?: string;
+}
+
 export interface FooterConfig {
   logoType?: "vector" | "crest" | "image";
   logoImageUrl?: string;
@@ -1717,13 +1491,29 @@ export interface FooterConfig {
   headOfficeAddress: string;
   accreditationHeadline: string;
   accreditationSubtext: string;
+  accreditations?: AccreditationBadgeItemConfig[];
+  accreditationBgStyle?: "transparent" | "white" | "subtle" | "dark";
+  accreditationBgColor?: string;
+  accreditationTextColor?: string;
+  accreditationBadgeStyle?: "solid-white" | "flat" | "pill";
+  accreditationLayout?: "row" | "stacked";
+  footerTheme?: "light" | "dark";
+  footerBgColor?: string;
   legalLine: string;
   copyrightText: string;
 }
 
+export const DEFAULT_ACCREDITATION_BADGES: AccreditationBadgeItemConfig[] = [
+  { id: "acc-1", title: "ofqual", desc: "Regulated", icon: "ofqual" },
+  { id: "acc-2", title: "TQUK", desc: "Approved Centre", icon: "tquk" },
+  { id: "acc-3", title: "THE CPD GROUP", desc: "Accredited Provider", icon: "cpd" },
+  { id: "acc-4", title: "Skills for Health", desc: "NOS Aligned", icon: "health" },
+  { id: "acc-5", title: "UKRLP", desc: "Registered Provider", icon: "ukrlp" },
+];
+
 export const defaultFooterConfig: FooterConfig = {
   logoType: "crest",
-  logoImageUrl: "",
+  logoImageUrl: "/images/logo-color.png",
   logoHeight: 44,
   siteName: "Smartminds",
   tagline: "Training College",
@@ -1754,6 +1544,12 @@ export const defaultFooterConfig: FooterConfig = {
   accreditationHeadline: "Accreditations & Awarding Organisations",
   accreditationSubtext:
     "Recognised British qualifications delivered through regulated frameworks.",
+  accreditations: [...DEFAULT_ACCREDITATION_BADGES],
+  accreditationBgStyle: "transparent",
+  accreditationBadgeStyle: "solid-white",
+  accreditationLayout: "row",
+  footerTheme: "light",
+  footerBgColor: "#E8F4F1",
   legalLine:
     "Smartminds Training College is a trading name of Smartminds Empire Ltd, Company No. 13492661",
   copyrightText: "© 2026 Smartminds Training College. All rights reserved.",
@@ -1763,295 +1559,203 @@ export const collegePagesData: Record<string, BuilderSection[]> = {
   "/": [...defaultPageBuilderSections],
   "/courses": [
     {
-      id: "sec-courses-hero",
-      type: "hero",
-      name: "Qualifications Hero",
+      id: "sec-courses-listing",
+      type: "courses_listing",
+      name: "Qualifications & Courses Catalogue",
       enabled: true,
-      badgeText: "UK Registered Learning Provider • UKPRN: 10094821",
-      headline: "Accredited Vocational Qualifications & Healthcare Diplomas",
+      badgeText: "British Regulated Qualifications",
+      headline: "British Regulated Qualifications & Diplomas",
       subheadline:
-        "Regulated RQF diplomas in Adult Care, Early Years, and Teacher Education with live weekly evening classes, zero exams, and dedicated 1-to-1 assessor allocation.",
-      buttonText: "Browse Qualifications",
-      buttonLink: "#courses-grid",
-      secondaryButtonText: "Book Free Consultation",
-      secondaryButtonLink: "/book",
-      image: "/images/adult-care-training.jpg",
-    },
-    {
-      id: "sec-courses-trust",
-      type: "trust_strip",
-      name: "Accreditation Strip",
-      enabled: true,
-      headline: "Ofqual Regulated Standards",
-      subheadline: "NCFE & TQUK approved centre with 100% coursework assessment",
-      items: [
-        { title: "NCFE & TQUK Approved", desc: "Regulated Frameworks" },
-        { title: "100% Coursework", desc: "No Written Exams" },
-        { title: "Live Evening Classes", desc: "Weekly Interactive Zoom" },
-        { title: "0% Interest Plans", desc: "Spread over 3–12 Months" },
-      ],
-    },
-    {
-      id: "sec-courses-grid",
-      type: "featured_courses",
-      name: "All Regulated Qualifications",
-      enabled: true,
-      headline: "Choose Your Accredited Career Pathway",
-      subheadline:
-        "Every diploma includes all learning materials, weekly interactive seminars, and dedicated 1-to-1 tutor support.",
-      buttonText: "View Course Details",
-      buttonLink: "/courses",
-    },
-    {
-      id: "sec-courses-why",
-      type: "why_smartminds",
-      name: "Why Study with Smartminds",
-      enabled: true,
-      headline: "The Smarter Way to Gain Your British Diploma",
-      subheadline:
-        "Designed specifically for working healthcare and education practitioners.",
-      items: [
-        {
-          title: "100% Coursework & Evidence Portfolio",
-          desc: "Demonstrate competency via real workplace evidence without exam stress.",
-          tag: "Assessment",
-        },
-        {
-          title: "Flexible Evening Zoom Seminars",
-          desc: "Attend live classes from home with recorded replays available 24/7.",
-          tag: "Flexibility",
-        },
-      ],
-    },
-    {
-      id: "sec-courses-faq",
-      type: "faq_accordion",
-      name: "Qualifications FAQ",
-      enabled: true,
-      headline: "Common Questions About Enrolment",
-      subheadline:
-        "Everything you need to know about eligibility, evidence, and certificates.",
-      items: [
-        {
-          title: "Do I need prior qualifications to enrol?",
-          desc: "For Level 2 and Level 3 diplomas, no formal prior qualifications are required. A basic standard of English and employment/volunteering in care or education is sufficient.",
-        },
-        {
-          title: "When can I begin my course?",
-          desc: "We offer rolling weekly intakes so you can start your induction immediately upon completing enrolment.",
-        },
-      ],
-    },
-    {
-      id: "sec-courses-cta",
-      type: "cta_banner",
-      name: "Course Consultation Call",
-      enabled: true,
-      badgeText: "Speak with an Assessor",
-      headline: "Unsure Which Level Is Right for Your Career?",
-      subheadline:
-        "Our senior training advisors provide free 15-minute consultations to review your experience and recommend the best qualification.",
-      buttonText: "Book Free 1-to-1 Advice",
-      buttonLink: "/book",
-    },
-  ],
-  "/funding": [
-    {
-      id: "sec-funding-hero",
-      type: "hero",
-      name: "Funding & Instalments Hero",
-      enabled: true,
-      badgeText: "0% Interest Guaranteed • No Credit Checks",
-      headline: "Affordable Tuition with Flexible 0% Interest Monthly Plans",
-      subheadline:
-        "We believe financial barriers should never stop you advancing your career. Spread your course fees over 3 to 12 months with zero interest.",
-      buttonText: "See Monthly Plans",
-      buttonLink: "/courses",
-      secondaryButtonText: "Speak with Finance Team",
-      secondaryButtonLink: "/contact",
-      image: "/images/teacher-training.jpg",
-    },
-    {
-      id: "sec-funding-trust",
-      type: "trust_strip",
-      name: "Funding Guarantees",
-      enabled: true,
-      headline: "Transparent Tuition Standards",
-      subheadline:
-        "No hidden registration fees, no interest charges, and no third-party loans",
-      items: [
-        { title: "0% Fixed Interest", desc: "Zero APR on all instalment plans" },
-        { title: "No Credit Checks", desc: "Simple direct college agreement" },
-        { title: "14-Day Refund Guarantee", desc: "Full peace of mind" },
-        { title: "10% Upfront Discount", desc: "When paying tuition in full" },
-      ],
-    },
-    {
-      id: "sec-funding-why",
-      type: "why_smartminds",
-      name: "How Payment Works",
-      enabled: true,
-      headline: "Three Flexible Ways to Fund Your Diploma",
-      subheadline:
-        "Choose the payment option that matches your monthly budget.",
-      items: [
-        {
-          title: "Option 1: Pay in Full (10% Discount)",
-          desc: "Pay upfront via card or BACS bank transfer and receive an immediate 10% discount on your full tuition fee.",
-          tag: "Best Value",
-        },
-        {
-          title: "Option 2: 0% Interest Monthly Instalments",
-          desc: "Pay a low deposit (from £150) and spread the balance equally across 3 to 12 monthly payments with zero interest.",
-          tag: "Most Popular",
-        },
-        {
-          title: "Option 3: Employer or Workplace Sponsorship",
-          desc: "Many care homes and nurseries fund employee qualifications directly. We issue official VAT invoices.",
-          tag: "Sponsored",
-        },
-        {
-          title: "Option 4: Government Grant Assistance",
-          desc: "Our team can advise if you qualify for local authority training bursaries or workforce development funding.",
-          tag: "Bursaries",
-        },
-      ],
-    },
-    {
-      id: "sec-funding-faq",
-      type: "faq_accordion",
-      name: "Funding FAQ",
-      enabled: true,
-      headline: "Frequently Asked Questions About Fees",
-      subheadline:
-        "Transparent answers to all payment plan and instalment questions.",
-      items: [
-        {
-          title: "Will my credit score be checked?",
-          desc: "No. Our 0% instalment plans are an internal college arrangement. We do not run credit checks.",
-        },
-        {
-          title: "What happens if my circumstances change?",
-          desc: "You can pause your course or adjust your payment schedule by speaking with our student accounts advisor.",
-        },
-      ],
-    },
-    {
-      id: "sec-funding-cta",
-      type: "cta_banner",
-      name: "Finance Consultation",
-      enabled: true,
-      headline: "Need a Custom Payment Schedule?",
-      subheadline:
-        "Our accounts team can tailor an instalment schedule that aligns with your monthly pay date.",
-      buttonText: "Discuss Payment Options",
-      buttonLink: "/contact",
+        "Explore Ofqual-regulated frameworks with live tutor seminars, coursework assessments, and 0% interest monthly payment plans.",
     },
   ],
   "/about": [
     {
-      id: "sec-about-hero",
-      type: "hero",
-      name: "About College Hero",
+      id: "sec-about-header",
+      type: "page_header",
+      name: "About Purpose Header",
       enabled: true,
-      badgeText: "UK Registered Learning Provider: 10094821",
-      headline: "Empowering Healthcare and Education Professionals Across Britain",
+      badgeText: "Our Purpose & Heritage",
+      headline: "About Smartminds Training College",
       subheadline:
-        "Smartminds Training College is dedicated to delivering accessible, rigorous, and career-defining vocational qualifications led by practicing specialists.",
-      buttonText: "Explore Our Diplomas",
+        "We provide recognised British vocational qualifications and professional development through interactive live evening classes led by expert tutors — making career advancement accessible, flexible, and supportive for working adults.",
+    },
+    {
+      id: "sec-about-ethos",
+      type: "about_story",
+      name: "Our Ethos & Story",
+      enabled: true,
+      badgeText: "Our Ethos",
+      headline: "Real Tutors, Not Automated Slide Decks",
+      subheadline:
+        "Smartminds was founded to solve a major problem in distance learning: isolation. Too many learners enrol in online courses only to receive automated slides and no teacher interaction.\n\nAt Smartminds, our classes are delivered live by experienced UK tutors. You can ask questions, debate real workplace scenarios with classmates, and receive structured mentor guidance throughout your portfolio submission.",
+      buttonText: "Browse our qualifications",
       buttonLink: "/courses",
-      image: "/images/early-years-training.jpg",
+      image: "/images/tutor-teaching.jpg",
     },
     {
-      id: "sec-about-stats",
-      type: "stats_counter",
-      name: "College Impact Metrics",
-      enabled: true,
-      headline: "Our Track Record in Further Education",
-      subheadline:
-        "Real achievements supporting learners into promotions and senior practitioner roles.",
-      items: [
-        { title: "98%", desc: "Student Completion Rate", tag: "Excellence" },
-        { title: "500+", desc: "Graduates Practicing in UK Care", tag: "Community" },
-        { title: "48h", desc: "Average Assignment Feedback Window", tag: "Support" },
-        { title: "100%", desc: "Coursework & Portfolio Based", tag: "No Exams" },
-      ],
-    },
-    {
-      id: "sec-about-why",
+      id: "sec-about-why-choose-us",
       type: "why_smartminds",
-      name: "Our Core Teaching Standards",
+      name: "Why Choose Us Showcase",
       enabled: true,
-      headline: "What Sets Smartminds Training College Apart",
+      badgeText: "WHY CHOOSE US?",
+      headline: "Innovative and effective learning approaches",
       subheadline:
-        "We combine academic quality with the practical flexibility that working professionals require.",
+        "The premier destination for healthcare, adult care, and education professionals seeking accredited British qualifications with dedicated mentor support.",
+      trustNote: "24/7 Dedicated Support Team",
+      trustNoteIcon: "asterisk",
+      buttonText: "GET STARTED",
+      buttonLink: "/courses",
+      buttonBgColor: "emerald",
+      bgColor: "mint",
+      image: "/images/hero-learner.jpg",
+      image2: "/images/tutor-sarah.jpg",
+      image3: "/images/classroom.jpg",
+      floatingBadgeTitle: "26+",
+      floatingBadgeSubtitle: "Years of Combined Experience",
+      floatingBadgeIcon: "star",
+      floatingBadgeEnabled: true,
       items: [
         {
-          title: "Practicing Assessors & Mentors",
-          desc: "Every tutor is an active or senior practitioner with direct clinical and educational experience.",
-          tag: "Expertise",
+          title: "Course Management",
+          desc: "Structured modules with 100% coursework",
+          icon: "check-circle",
+          cardBg: "mint",
+          iconColor: "emerald",
         },
         {
-          title: "Inclusive & Flexible Learning",
-          desc: "Evening seminars, recorded replays, and remote portfolio submission allow you to balance work and study.",
-          tag: "Accessibility",
+          title: "Student Progress Tracking",
+          desc: "Real-time portfolio grading and assessor feedback",
+          icon: "check-circle",
+          cardBg: "peach",
+          iconColor: "amber",
+        },
+        {
+          title: "Interactive Live Classes",
+          desc: "Weekly evening Zoom seminars with expert teachers",
+          icon: "check-circle",
+          cardBg: "lavender",
+          iconColor: "purple",
+        },
+        {
+          title: "Portfolio Assessments",
+          desc: "Zero stressful exams, authentic workplace evidence",
+          icon: "check-circle",
+          cardBg: "sky",
+          iconColor: "cyan",
         },
       ],
     },
     {
-      id: "sec-about-cta",
-      type: "cta_banner",
-      name: "Admissions Call",
+      id: "sec-about-accreditations",
+      type: "accreditations_block",
+      name: "Recognised Standards & Accreditations",
       enabled: true,
-      headline: "Ready to Advance Your Healthcare Career?",
+      badgeText: "Recognised Standards",
+      headline: "Accredited by Leading Awarding Organisations",
       subheadline:
-        "Join our next intake cohort and study with experienced British tutors.",
-      buttonText: "Explore Qualifications",
-      buttonLink: "/courses",
+        "Our qualifications are recognised across the NHS, private healthcare providers, care homes, and education authorities.",
+      items: [
+        {
+          title: "NCFE CACHE",
+          tag: "Northern Council for Further Education",
+          desc: "UK regulated awarding body for Health, Social Care, and Early Years qualifications on the Ofqual Register.",
+          icon: "shield-check",
+        },
+        {
+          title: "TQUK",
+          tag: "Training Qualifications UK",
+          desc: "Ofqual-regulated awarding organisation offering modern, flexible vocational qualifications with national recognition.",
+          icon: "shield-check",
+        },
+        {
+          title: "The CPD Group",
+          tag: "Continuing Professional Development",
+          desc: "Accreditation standard for healthcare mandatory training, clinical compliance, and professional refresher certificates.",
+          icon: "shield-check",
+        },
+      ],
+    },
+    {
+      id: "sec-about-team",
+      type: "team_grid",
+      name: "Academic Leadership & Teaching Team",
+      enabled: true,
+      badgeText: "Leadership & Teaching",
+      headline: "Meet Our Academic Team",
+      subheadline:
+        "Experienced healthcare professionals, qualified teachers, and dedicated learner support coordinators.",
+      items: [
+        {
+          title: "Sarah Jenkins",
+          tag: "Head of Health & Social Care",
+          desc: "RGN, BSc Nursing, PGCert Medical Education, QTLS",
+          image: "/images/tutor-sarah.jpg",
+        },
+        {
+          title: "David Okonjo",
+          tag: "Lead Tutor — Early Years & Education",
+          desc: "BA (Hons) Early Childhood Studies, PGCE Primary, NPQEL",
+          image: "/images/tutor-david.jpg",
+        },
+        {
+          title: "Priya Sharma",
+          tag: "Quality Assurance & Student Welfare Lead",
+          desc: "Level 4 Lead IQA, BSc Healthcare Management, Chartered MCIPD",
+          image: "/images/tutor-priya.jpg",
+        },
+      ],
+    },
+    {
+      id: "sec-about-legal",
+      type: "legal_notice",
+      name: "Company Legal Registration Line",
+      enabled: true,
+      headline: "Company Legal Registration",
+      subheadline:
+        "Smartminds Training College is a trading name of Smartminds Empire Ltd, Company No. 13492661",
     },
   ],
   "/contact": [
     {
-      id: "sec-contact-hero",
-      type: "hero",
-      name: "Contact Page Hero",
+      id: "sec-contact-header",
+      type: "page_header",
+      name: "Contact Header Block",
       enabled: true,
-      badgeText: "Admissions Office • London, UK",
-      headline: "Speak Directly with Our Admissions Advisory Team",
+      badgeText: "Admissions & Student Office • Response Within 24h",
+      headline: "Contact Smartminds College",
       subheadline:
-        "Whether you need guidance on qualification levels, instalment plans, or employer funding, our friendly advisors are here to help.",
-      buttonText: "Request Fast Callback",
-      buttonLink: "#callback-form",
-      image: "/images/tutor-teaching.jpg",
+        "Have questions about qualification entry requirements, funding opportunities, or course schedules? Our team is available by phone, email, WhatsApp, or through the contact form below.",
     },
     {
-      id: "sec-contact-form",
-      type: "contact_block",
-      name: "Consultation Request Form",
+      id: "sec-contact-split",
+      type: "contact_split",
+      name: "Direct Channels & General Enquiry Form",
       enabled: true,
-      headline: "Book a Free Phone Consultation",
+      headline: "Admissions & Student Support Office",
       subheadline:
-        "Leave your details and a course advisor will contact you within 2 business hours.",
-      buttonText: "Request Free Advice",
+        "Speak directly with our admissions advisors or send an enquiry below.",
+    },
+  ],
+  "/funding": [
+    {
+      id: "sec-funding-header",
+      type: "page_header",
+      name: "Government Funded Routes Header",
+      enabled: true,
+      badgeText: "Government Funded Routes • Adult Skills Funding",
+      headline: "Government-Funded Qualifications",
+      subheadline:
+        "Eligible adult learners living in England can access fully funded accredited training through government-backed initiatives, including the Adult Education Budget (AEB) and the Free Courses for Jobs scheme.",
     },
     {
-      id: "sec-contact-faq",
-      type: "faq_accordion",
-      name: "Admissions FAQ",
+      id: "sec-funding-split",
+      type: "funding_split",
+      name: "Funding Details & Eligibility Checker",
       enabled: true,
-      headline: "Quick Answers Before You Call",
+      headline: "How does government funding work?",
       subheadline:
-        "Common questions regarding office hours, enrolment, and response times.",
-      items: [
-        {
-          title: "What are your admissions office hours?",
-          desc: "Our advisory team is available Monday to Friday from 9:00 AM to 6:30 PM, and Saturdays from 10:00 AM to 2:00 PM.",
-        },
-        {
-          title: "Can I receive course specs via WhatsApp?",
-          desc: "Yes. Message our admissions WhatsApp number at +44 7123 456789 and an advisor will send the syllabus immediately.",
-        },
-      ],
+        "Check whether your course fees can be 100% covered by UK government funding.",
     },
   ],
   "/privacy": [
@@ -2391,278 +2095,105 @@ export const collegePagesData: Record<string, BuilderSection[]> = {
   ],
   "/cpd": [
     {
-      id: "sec-cpd-hero",
-      type: "hero",
-      name: "CPD Courses Hero",
+      id: "sec-cpd-header",
+      type: "page_header",
+      name: "CPD Courses Header",
       enabled: true,
-      badgeText: "Accredited by The CPD Group",
+      badgeText: "Accredited by The CPD Group • Fast Certification",
       headline: "Continuing Professional Development (CPD)",
       subheadline:
         "Essential mandatory compliance refresher and skills certificates for healthcare assistants, support workers, nurses, and nursery practitioners.",
-      buttonText: "Browse CPD Courses",
-      buttonLink: "#cpd-list",
-      secondaryButtonText: "Book Free Consultation",
-      secondaryButtonLink: "/book",
-      image: "/images/adult-care-training.jpg",
     },
     {
-      id: "sec-cpd-trust",
+      id: "sec-cpd-benefits",
       type: "trust_strip",
-      name: "CPD Accreditation Strip",
+      name: "CPD Benefits Strip",
       enabled: true,
       headline: "Certified Professional Standards",
-      subheadline: "Accredited courses with same-week verification and digital certification",
+      subheadline: "Accredited courses with fast UK certification",
       items: [
-        { title: "The CPD Group", desc: "Accredited Provider", icon: "cpd", tag: "Certified" },
-        { title: "Fast Certification", desc: "Digital CPD Certificate", icon: "shield-check", tag: "Same Week" },
-        { title: "100% Online", desc: "Self-Paced or Live Webinars", icon: "video", tag: "Flexible" },
-        { title: "Employer Verified", desc: "Meets CQC Compliance", icon: "award", tag: "Recognised" },
+        {
+          title: "1-Day Study Options",
+          desc: "Designed to fit easily around work rotas with evening or intensive weekend webinar sessions.",
+          icon: "clock",
+        },
+        {
+          title: "CQC & Care Compliant",
+          desc: "Mapped against the Care Certificate standards and regulatory inspection expectations.",
+          icon: "shield-check",
+        },
+        {
+          title: "Immediate Digital Diploma",
+          desc: "Download your verified certificate of completion immediately upon tutor sign-off.",
+          icon: "star",
+        },
       ],
     },
     {
-      id: "sec-cpd-why",
-      type: "why_smartminds",
-      name: "Why Choose Smartminds CPD",
+      id: "sec-cpd-grid",
+      type: "cpd_listing",
+      name: "Available CPD Programmes",
       enabled: true,
-      headline: "Why Complete Your Mandatory Training with Us",
+      headline: "Available CPD Programmes",
       subheadline:
-        "Fast, authoritative, and recognised certificates designed for busy care and education workers.",
-      columns: 2,
-      items: [
-        {
-          title: "Immediate Certificate Delivery",
-          desc: "Receive your accredited CPD certificate within 48 hours of completing course requirements.",
-          tag: "Fast Turnaround",
-        },
-        {
-          title: "CQC and Ofsted Aligned",
-          desc: "All CPD modules are written in strict alignment with mandatory workforce standards.",
-          tag: "Compliance",
-        },
-        {
-          title: "Practical, Up-to-Date Content",
-          desc: "Written by practicing healthcare managers and clinical educators with current industry guidance.",
-          tag: "Current Standards",
-        },
-        {
-          title: "Affordable Group Rates",
-          desc: "Discounts available for care agencies, residential homes, and nursery teams booking multiple staff.",
-          tag: "Group Booking",
-        },
-      ],
+        "Accredited short courses and certificates mapped against UK health and education standards.",
     },
     {
-      id: "sec-cpd-faq",
-      type: "faq_accordion",
-      name: "CPD Frequently Asked Questions",
-      enabled: true,
-      headline: "Everything You Need to Know About CPD",
-      subheadline: "Clear answers on certificate validity, study hours, and corporate team bookings.",
-      items: [
-        {
-          title: "How long is a CPD certificate valid for?",
-          desc: "Most UK healthcare compliance certificates (such as Safeguarding and Medication) are valid for 1 to 3 years depending on statutory employer requirements.",
-        },
-        {
-          title: "Can my employer verify my certificate?",
-          desc: "Yes. Every certificate includes an official verification reference that employers can check directly with our registry.",
-        },
-        {
-          title: "Do you offer group discounts for care homes?",
-          desc: "Yes, we provide bulk cohort discounts for care homes, domiciliary agencies, and schools.",
-        },
-      ],
-    },
-    {
-      id: "sec-cpd-cta",
+      id: "sec-cpd-group-cta",
       type: "cta_banner",
-      name: "CPD Advisory CTA",
+      name: "Corporate Group Training CTA",
       enabled: true,
       badgeText: "Team Training",
-      headline: "Need Mandatory Refresher Training for Your Team?",
+      headline: "Group Bookings for Care Homes & Schools",
       subheadline:
-        "Speak with an advisor to book tailored group sessions or request a customized corporate invoice.",
-      buttonText: "Request Group Quote",
+        "Do you have a team of staff who need mandatory refresher training? We offer custom in-house cohort deliveries with dedicated tutors and multi-seat billing.",
+      buttonText: "Enquire About Team Training",
       buttonLink: "/contact",
-      secondaryButtonText: "Prefer WhatsApp? Chat with us",
-      secondaryButtonLink: "https://wa.me/447123456789",
-    },
-  ],
-  "/book": [
-    {
-      id: "sec-book-hero",
-      type: "hero",
-      name: "Consultation Booking Hero",
-      enabled: true,
-      badgeText: "Free 15-Minute Advice Call",
-      headline: "Book a Free Consultation with an Academic Advisor",
-      subheadline:
-        "Speak directly with an experienced course advisor. We review your career objectives, prior experience, and confirm whether you are eligible for government funding or self-paced instalments.",
-      buttonText: "Select Time Slot",
-      buttonLink: "#booking-widget",
-      image: "/images/tutor-teaching.jpg",
-    },
-    {
-      id: "sec-book-how",
-      type: "how_it_works",
-      name: "How Your Consultation Works",
-      enabled: true,
-      headline: "Three Simple Steps to Plan Your Qualification",
-      subheadline: "Zero-pressure guidance tailored to your work rota and career milestones.",
-      items: [
-        {
-          number: "01",
-          title: "Choose Your Slot",
-          subtitle: "Select a date and time that fits your rota",
-          desc: "Pick any 15-minute window that suits your schedule. Evening and weekend slots are available.",
-          badge: "Step 1",
-        },
-        {
-          number: "02",
-          title: "1-on-1 Call",
-          subtitle: "Discuss courses, entry criteria, and funding",
-          desc: "An assessor will call you at your booked time to answer all questions and check funding eligibility.",
-          badge: "Step 2",
-        },
-        {
-          number: "03",
-          title: "Receive Enrolment Plan",
-          subtitle: "No obligation, clear breakdown",
-          desc: "We send you a summary of your course options, instalment schedule, and start dates.",
-          badge: "Step 3",
-        },
-      ],
-    },
-    {
-      id: "sec-book-faq",
-      type: "faq_accordion",
-      name: "Consultation FAQ",
-      enabled: true,
-      headline: "Frequently Asked Questions About the Call",
-      subheadline: "What to expect when speaking with our advisory team.",
-      items: [
-        {
-          title: "Is the consultation really free?",
-          desc: "Yes, 100% free with zero pressure or commitment to enrol.",
-        },
-        {
-          title: "Do I need to prepare anything?",
-          desc: "No preparation is required. It helps to have an idea of your current role and what career progression you are aiming for.",
-        },
-        {
-          title: "Can you check my funding eligibility on the call?",
-          desc: "Yes. Our advisor will ask a few standard residency and employment questions to see if you qualify for government funding.",
-        },
-      ],
-    },
-    {
-      id: "sec-book-cta",
-      type: "cta_banner",
-      name: "Immediate Assistance CTA",
-      enabled: true,
-      headline: "Need an Answer Right Now?",
-      subheadline:
-        "You don't have to wait for a scheduled slot. Chat with an advisor on WhatsApp or give us a quick call.",
-      buttonText: "Message on WhatsApp",
-      buttonLink: "https://wa.me/447123456789",
-      secondaryButtonText: "Call Admissions",
-      secondaryButtonLink: "tel:+447123456789",
+      secondaryButtonText: "Message on WhatsApp",
+      secondaryButtonLink:
+        "https://wa.me/447932034548?text=Hello%20Smartminds%2C%20I%20would%20like%20course%20advice",
     },
   ],
   "/private-tutoring": [
     {
-      id: "sec-tutoring-hero",
-      type: "hero",
-      name: "Private Tutoring Hero",
+      id: "sec-tutoring-header",
+      type: "page_header",
+      name: "Private Tutoring Header",
       enabled: true,
-      badgeText: "KS3 & GCSE Specialists",
-      headline: "1-on-1 Academic Tutoring in English & Mathematics",
+      badgeText: "KS3 & GCSE Support • 1-on-1 Live Sessions • Enhanced DBS Checked",
+      headline: "Dedicated 1-on-1 Private Tutoring",
       subheadline:
-        "Personalised online lessons with verified DBS-checked specialist educators designed to rebuild confidence, master curriculum topics, and boost GCSE exam grades.",
-      buttonText: "Book Free Assessment",
-      buttonLink: "/book",
-      image: "/images/teacher-training.jpg",
+        "Personalised weekly online tutoring in Mathematics and English Language & Literature, designed to boost confidence, master exam technique, and accelerate academic achievement.",
     },
     {
-      id: "sec-tutoring-trust",
-      type: "trust_strip",
-      name: "Tutoring Standards Strip",
+      id: "sec-tutoring-split",
+      type: "tutoring_split",
+      name: "Tutoring Subjects & Enquiry Form",
       enabled: true,
-      headline: "Rigorous Safeguarding & Academic Quality",
-      subheadline: "Verified British educators dedicated to student progress",
-      items: [
-        { title: "Enhanced DBS Checked", desc: "Complete Child Safeguarding", icon: "shield-check", tag: "Verified" },
-        { title: "Certified UK Tutors", desc: "Specialist Subject Teachers", icon: "graduation-cap", tag: "Qualified" },
-        { title: "1-on-1 Focus", desc: "Individualised Lesson Plans", icon: "users", tag: "Personal" },
-        { title: "Weekly Progress Reports", desc: "Clear Feedback for Parents", icon: "book-open", tag: "Transparent" },
-      ],
-    },
-    {
-      id: "sec-tutoring-why",
-      type: "why_smartminds",
-      name: "Why Parents Trust Smartminds Tutoring",
-      enabled: true,
-      headline: "How We Help Students Achieve Their Potential",
-      subheadline: "A structured, encouraging approach to mastering core subjects.",
-      columns: 2,
-      items: [
-        {
-          title: "Diagnostic Baseline Assessment",
-          desc: "Every learner begins with a gentle diagnostic to pinpoint specific knowledge gaps and misconceptions.",
-          tag: "Assessment",
-        },
-        {
-          title: "Customised Learning Pace",
-          desc: "No rushing through topics. We take the time needed until mathematical and literacy concepts click.",
-          tag: "Pace",
-        },
-        {
-          title: "GCSE Exam Technique",
-          desc: "Targeted practice on past paper questions, timing strategies, and mark scheme breakdown.",
-          tag: "Exam Prep",
-        },
-        {
-          title: "Regular Parent Updates",
-          desc: "Written feedback after each session so parents know exactly what progress has been made.",
-          tag: "Communication",
-        },
-      ],
-    },
-    {
-      id: "sec-tutoring-faq",
-      type: "faq_accordion",
-      name: "Tutoring Frequently Asked Questions",
-      enabled: true,
-      headline: "Frequently Asked Questions About Private Tutoring",
-      subheadline: "Everything you need to know about our tutoring programmes.",
-      items: [
-        {
-          title: "How are tutoring sessions delivered?",
-          desc: "Lessons are delivered live 1-on-1 via our secure interactive online classroom with video, digital whiteboard, and screen sharing.",
-        },
-        {
-          title: "What year groups do you cater for?",
-          desc: "We specialise in Key Stage 3 (Years 7–9) and GCSE preparation (Years 10–11) in English Language, English Literature, and Mathematics.",
-        },
-        {
-          title: "How often do sessions take place?",
-          desc: "Most students attend one or two 60-minute sessions per week, scheduled at a regular evening or weekend time slot.",
-        },
-      ],
-    },
-    {
-      id: "sec-tutoring-cta",
-      type: "cta_banner",
-      name: "Tutoring Assessment CTA",
-      enabled: true,
-      badgeText: "Get Started",
-      headline: "Give Your Child the Grade Advantage This Term",
+      headline: "What We Offer",
       subheadline:
-        "Book a free 15-minute consultation to discuss your child's academic goals and arrange a diagnostic session.",
-      buttonText: "Book Free Consultation",
-      buttonLink: "/book",
-      secondaryButtonText: "Ask on WhatsApp",
-      secondaryButtonLink: "https://wa.me/447123456789",
+        "Dedicated 1-to-1 tutoring with patient, Enhanced DBS-checked British educators.",
+    },
+  ],
+  "/book": [
+    {
+      id: "sec-book-header",
+      type: "page_header",
+      name: "Consultation Booking Header",
+      enabled: true,
+      badgeText: "15-Minute Consultation • Live With A Tutor",
+      headline: "Book Your Free Consultation",
+      subheadline:
+        "Choose a time that works for you. We will discuss your background, verify entry criteria, and check whether your qualification can be funded through government schemes.",
+    },
+    {
+      id: "sec-book-scheduler",
+      type: "scheduler_block",
+      name: "Native Consultation Scheduler",
+      enabled: true,
+      headline: "Schedule Your 15-Minute Consultation",
+      subheadline:
+        "Pick a date and time that fits your work rota. No sales pressure, no obligation.",
     },
   ],
 };

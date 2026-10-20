@@ -96,8 +96,8 @@
     ]
   },
   "footer": {
-    "logoType": "crest",
-    "logoImageUrl": "",
+    "logoType": "image",
+    "logoImageUrl": "/images/logo-color.png",
     "logoHeight": 44,
     "siteName": "Smartminds",
     "tagline": "Training College",
@@ -170,6 +170,37 @@
     "headOfficeAddress": "62 High Street, Aveley, South Ockendon, RM15 4BX",
     "accreditationHeadline": "Accreditations & Awarding Organisations",
     "accreditationSubtext": "Recognised British qualifications delivered through regulated frameworks.",
+    "accreditations": [
+      {
+        "id": "acc-1",
+        "title": "ofqual",
+        "desc": "Regulated",
+        "icon": "ofqual"
+      },
+      {
+        "id": "acc-2",
+        "title": "TQUK",
+        "desc": "Approved Centre",
+        "icon": "tquk"
+      },
+      {
+        "id": "acc-3",
+        "title": "THE CPD GROUP",
+        "desc": "Accredited Provider",
+        "icon": "cpd"
+      },
+      {
+        "id": "acc-5",
+        "title": "UKRLP",
+        "desc": "Registered Provider",
+        "icon": "ukrlp"
+      }
+    ],
+    "accreditationBgStyle": "transparent",
+    "accreditationBadgeStyle": "solid-white",
+    "accreditationLayout": "row",
+    "footerTheme": "light",
+    "footerBgColor": "#E8F4F1",
     "legalLine": "Smartminds Training College is a trading name of Smartminds Empire Ltd, Company No. 13492661",
     "copyrightText": "© 2026 Smartminds Training College. All rights reserved."
   }

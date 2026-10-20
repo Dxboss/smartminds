@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
@@ -10,9 +10,12 @@ import {
 } from "@/app/login/actions";
 import { useAuth } from "@/context/AuthContext";
 
-export const LoginForm: React.FC = () => {
+export interface LoginFormProps {
+  reason?: string;
+}
+
+export const LoginForm: React.FC<LoginFormProps> = ({ reason }) => {
   const router = useRouter();
-  const { loginAs } = useAuth();
 
   // Form fields
   const [email, setEmail] = useState("");
@@ -21,6 +24,16 @@ export const LoginForm: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+
+  // Ensure loading spinner is strictly disabled on mount, timeout signout, or back-forward page cache
+  useEffect(() => {
+    setIsLoading(false);
+    const handlePageShow = () => {
+      setIsLoading(false);
+    };
+    window.addEventListener("pageshow", handlePageShow);
+    return () => window.removeEventListener("pageshow", handlePageShow);
+  }, [reason]);
 
   // Forgot password view state
   const [isForgotPasswordView, setIsForgotPasswordView] = useState(false);
@@ -73,6 +86,12 @@ export const LoginForm: React.FC = () => {
     }
 
     setIsLoading(true);
+
+    // Safety timeout: restore button if navigation doesn't occur within 8 seconds
+    const safetyTimer = setTimeout(() => {
+      setIsLoading(false);
+    }, 8000);
+
     try {
       const result = await authenticateUser({
         email,
@@ -81,6 +100,7 @@ export const LoginForm: React.FC = () => {
       });
 
       if (!result.success || !result.redirectUrl) {
+        clearTimeout(safetyTimer);
         setErrorMessage(
           result.error ||
             "Invalid credentials. Please verify your email and password."
@@ -89,18 +109,32 @@ export const LoginForm: React.FC = () => {
         return;
       }
 
-      if (email.toLowerCase() === "thegeorgedigitals@gmail.com" || email.includes("super")) {
-        loginAs("super_admin", keepSignedIn);
-      } else if (result.redirectUrl.startsWith("/admin")) {
-        loginAs("owner_admin", keepSignedIn);
-      } else if (result.redirectUrl.startsWith("/staff")) {
-        loginAs("staff", keepSignedIn);
-      } else {
-        loginAs("student", keepSignedIn);
-      }
+      // Sync client session storage cleanly
+      const targetRole =
+        email.toLowerCase() === "thegeorgedigitals@gmail.com" || email.includes("super")
+          ? "super_admin"
+          : result.redirectUrl.startsWith("/admin")
+          ? "owner_admin"
+          : result.redirectUrl.startsWith("/staff")
+          ? "staff"
+          : "student";
 
-      router.push(result.redirectUrl);
+      try {
+        const demoUser = {
+          id: targetRole === "owner_admin" ? "user-owner-01" : `usr_${targetRole}`,
+          name: email.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()),
+          email,
+          role: targetRole,
+          keepSignedIn,
+        };
+        localStorage.setItem("smartminds_auth_session_v1", JSON.stringify(demoUser));
+        window.dispatchEvent(new Event("smartminds_auth_updated"));
+      } catch {}
+
+      // Authoritative page load with fresh server-side session cookie
+      window.location.href = result.redirectUrl;
     } catch {
+      clearTimeout(safetyTimer);
       setErrorMessage("A connection error occurred. Please try again.");
       setIsLoading(false);
     }
@@ -228,6 +262,25 @@ export const LoginForm: React.FC = () => {
           </div>
         ) : (
           <form onSubmit={handleCredentialsSubmit} className="space-y-5" noValidate>
+            {reason === "timeout" && !errorMessage && (
+              <div
+                role="status"
+                className="p-3.5 bg-amber-50 border border-amber-300 rounded-sm text-xs text-amber-950 flex items-start gap-2.5"
+              >
+                <Icon
+                  name="clock"
+                  size={18}
+                  className="text-amber-700 mt-0.5 flex-shrink-0"
+                />
+                <div className="space-y-0.5">
+                  <p className="font-bold text-amber-950">Signed out due to inactivity</p>
+                  <p className="text-amber-900 leading-relaxed">
+                    For college security, your previous session was signed out. Please enter your password to resume.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {errorMessage && (
               <div
                 role="alert"

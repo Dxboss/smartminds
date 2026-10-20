@@ -119,169 +119,133 @@ export const CourseCard: React.FC<CourseCardProps> = ({
       : levelLabels[0] || "Certificate";
 
   const HeadingTag = headingLevel;
+  const photoSrc = getCourseImage(course);
 
   return (
-    <article className="group bg-white rounded-md border border-line shadow-subtle hover:border-navy-900/50 hover:shadow-md transition-all duration-300 flex flex-col justify-between overflow-hidden">
-      {/* 1. Authentic Visual Header */}
-      <CourseCover course={course} priority={priority} />
+    <article className="group bg-white rounded-2xl border border-line shadow-[0_4px_20px_rgba(0,0,0,0.06)] hover:shadow-xl hover:border-teal-300/80 transition-all duration-300 flex flex-col justify-between overflow-hidden p-3.5 sm:p-4 h-full">
+      {/* 1. Framed Image Header matching Image 1 */}
+      <div>
+        <div className="relative aspect-[16/10] w-full rounded-xl overflow-hidden bg-navy-900/10 mb-3.5">
+          <Image
+            src={photoSrc}
+            alt={course.imageAlt || `${course.title} training at Smartminds Training College`}
+            fill
+            priority={priority}
+            loading={priority ? "eager" : undefined}
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 380px"
+            className="object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
+          />
 
-      {/* 2. Card Body */}
-      <div className="p-6 sm:p-7 flex flex-col flex-1 justify-between space-y-6">
-        <div className="space-y-3">
-          {/* Eyebrow: Category & Faculty */}
-          <div className="flex items-center justify-between gap-2 text-xs font-bold tracking-wider uppercase text-navy-900">
-            <span>{course.category}</span>
-            {course.awarding_body && (
-              <span className="text-ink-soft/70 font-mono text-[11px] lowercase tracking-normal">
-                Awarded by{" "}
-                <strong className="text-navy-900 uppercase font-bold">
-                  {course.awarding_body}
-                </strong>
-              </span>
-            )}
-          </div>
-
-          {/* Course Title: Wraps naturally with no truncation */}
-          <HeadingTag className="font-heading text-2xl font-bold text-navy-900 group-hover:text-navy-700 transition-colors leading-tight">
-            <Link
-              href={`/courses/${course.slug}`}
-              className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 rounded-sm"
-            >
-              {course.title}
-            </Link>
-          </HeadingTag>
-
-          {/* Outcome Summary */}
-          <p className="text-sm text-ink-soft leading-relaxed line-clamp-2">
-            {course.summary}
-          </p>
-
-          {/* Metadata Chips */}
-          <div className="flex flex-wrap items-center gap-2 pt-2">
-            <span className="inline-flex items-center gap-1.5 text-xs text-navy-900 font-semibold bg-paper px-2.5 py-1 rounded-sm border border-line">
-              <Icon
-                name="graduation-cap"
-                size={14}
-                className="text-navy-900 flex-shrink-0"
-              />
-              {levelRange}
+          {/* Top Pill Badges */}
+          <div className="absolute top-2.5 inset-x-2.5 flex items-center justify-between pointer-events-none">
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#0B4D4E]/90 text-white backdrop-blur-md shadow-xs">
+              <Icon name="shield-check" size={12} className="text-gold-300" />
+              {course.type === "regulated" ? "Ofqual RQF" : "Accredited"}
             </span>
-
-            {lowestLevel?.duration_text && (
-              <span className="inline-flex items-center gap-1.5 text-xs text-ink-soft bg-paper px-2.5 py-1 rounded-sm border border-line">
-                <Icon
-                  name="clock"
-                  size={13}
-                  className="text-ink-soft flex-shrink-0"
-                />
-                {lowestLevel.duration_text}
-              </span>
-            )}
-
-            {(course.funding === "funded" || course.funding === "both") && (
-              <span className="inline-flex items-center gap-1 text-xs text-navy-900 font-semibold bg-gold-500/15 px-2.5 py-1 rounded-sm border border-gold-500/40">
-                Funded Route Available
-              </span>
-            )}
-
-            {course.custom_delivery_text ? (
-              <span className="inline-flex items-center gap-1 text-xs text-navy-900 bg-indigo-50 border border-indigo-200 px-2.5 py-1 rounded-sm font-medium">
-                <Icon name="monitor" size={13} className="text-navy-900 flex-shrink-0" />
-                {course.custom_delivery_text}
-              </span>
-            ) : course.training_locations && course.training_locations.length > 0 ? (
-              <span className="inline-flex items-center gap-1 text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-sm font-medium">
-                <Icon name="map-pin" size={13} className="text-emerald-700 flex-shrink-0" />
-                Practical: {course.training_locations.length} UK Venues
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 text-xs text-navy-900 bg-paper px-2.5 py-1 rounded-sm border border-line font-medium">
-                <Icon name="monitor" size={13} className="text-ink-soft flex-shrink-0" />
-                100% Online Study
-              </span>
-            )}
-
-            {course.is_private_tutoring && (
-              <span className="inline-flex items-center gap-1 text-xs text-navy-900 bg-gold-300/30 border border-gold-500/40 px-2.5 py-1 rounded-sm font-semibold">
-                <Icon name="users" size={13} className="text-navy-900 flex-shrink-0" />
-                DBS Private Tutoring
-              </span>
-            )}
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white/95 text-navy-900 backdrop-blur-md shadow-xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              Live Online
+            </span>
           </div>
         </div>
 
-        {/* 3. Footer: Price on Left, Action on Right */}
-        <div className="pt-5 border-t border-line flex items-end justify-between gap-4">
-          {/* Price Block */}
-          {course.funding === "funded" ? (
-            <div>
-              <span className="text-[11px] uppercase tracking-wider text-ink-soft block font-mono">
-                Tuition Fee
-              </span>
-              <strong className="font-heading font-bold text-xl text-navy-900 block leading-tight">
-                100% Subsidised
-              </strong>
-              <span className="text-xs text-navy-900 font-semibold block mt-0.5">
-                Funding eligibility applies
-              </span>
-            </div>
-          ) : pricing ? (
-            <div>
-              <span className="text-[11px] uppercase tracking-wider text-ink-soft block font-mono">
-                From (Pay in Full)
-              </span>
-              <div className="flex items-baseline gap-2 flex-wrap">
-                <span className="font-heading font-bold text-2xl text-navy-900 leading-tight">
-                  {formatCurrency(pricing.fullPayPrice)}
-                </span>
-                {pricing.hasPriceSlash ? (
-                  <span className="text-xs line-through text-ink-soft">
-                    {formatCurrency(pricing.regularPrice)}
-                  </span>
-                ) : pricing.saving > 0 ? (
-                  <span className="text-xs line-through text-ink-soft">
-                    {formatCurrency(pricing.total)}
-                  </span>
-                ) : null}
+        {/* 2. Avatar Stack Proof (Image 1 Onlearn style) */}
+        <div className="flex items-center justify-between gap-2 mb-2.5">
+          <div className="flex items-center gap-2">
+            <div className="flex -space-x-1.5">
+              <div className="w-5 h-5 rounded-full border border-white bg-[#0B4D4E] text-white text-[8px] font-bold flex items-center justify-center">
+                SJ
               </div>
-              {pricing.months > 1 && (
-                <span className="text-xs text-ink-soft block mt-0.5 font-medium">
-                  {pricing.deposit > 0 ? (
-                    <>
-                      <strong className="text-navy-900 font-semibold">
-                        {formatCurrency(pricing.deposit)}
-                      </strong>{" "}
-                      dep +{" "}
-                      <strong className="text-navy-700 font-bold">
-                        {formatCurrency(pricing.monthly)}/mo
-                      </strong>
-                    </>
-                  ) : (
-                    <>
-                      Or spread{" "}
-                      <strong className="text-navy-700 font-bold">
-                        {formatCurrency(pricing.monthly)}/mo
-                      </strong>
-                    </>
-                  )}
+              <div className="w-5 h-5 rounded-full border border-white bg-[#FF5722] text-white text-[8px] font-bold flex items-center justify-center">
+                DK
+              </div>
+              <div className="w-5 h-5 rounded-full border border-white bg-navy-900 text-white text-[8px] font-bold flex items-center justify-center">
+                +
+              </div>
+            </div>
+            <span className="text-[11px] font-bold text-ink-soft">
+              {(course as any).enrolment_count || 180}+ Students
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1 text-[11px] font-bold text-amber-500">
+            <Icon name="star" size={12} className="fill-amber-400 text-amber-400" />
+            <span>4.9</span>
+            <span className="text-ink-soft font-normal">({(course as any).review_count || 48})</span>
+          </div>
+        </div>
+
+        {/* 3. Course Title & Description with Strict Equal Heights */}
+        <div className="space-y-1.5">
+          <div className="text-[10px] font-bold tracking-wider uppercase text-[#0B4D4E]">
+            <span>{course.category} • {levelRange}</span>
+          </div>
+
+          <div className="min-h-[3rem] sm:min-h-[3.25rem] flex items-start">
+            <HeadingTag className="font-heading text-lg sm:text-xl font-bold text-navy-900 group-hover:text-[#0B4D4E] transition-colors leading-snug line-clamp-2">
+              <Link
+                href={`/courses/${course.slug}`}
+                className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 rounded-sm"
+              >
+                {course.title}
+              </Link>
+            </HeadingTag>
+          </div>
+
+          <p className="text-xs text-ink-soft line-clamp-2 leading-relaxed min-h-[2.5rem]">
+            {course.summary || course.description || "Accredited British qualification with dedicated personal assessor mentoring and live Zoom workshops."}
+          </p>
+        </div>
+      </div>
+
+      {/* 4. Footer: Vibrant Orange Price on Left, Dark Teal Pill Button on Right */}
+      <div className="pt-3 mt-3.5 border-t border-line flex items-center justify-between gap-2 min-h-[3.75rem]">
+        {/* Price Block */}
+        {course.funding === "funded" ? (
+          <div className="min-w-0">
+            <span className="text-[9px] uppercase tracking-wider text-ink-soft block font-mono">
+              Tuition Fee
+            </span>
+            <strong className="font-heading font-extrabold text-base sm:text-lg text-emerald-700 block leading-tight">
+              100% Subsidised
+            </strong>
+          </div>
+        ) : pricing ? (
+          <div className="min-w-0 pr-1">
+            <span className="font-heading font-extrabold text-xl sm:text-2xl text-[#FF5722] leading-none block whitespace-nowrap">
+              {formatCurrency(pricing.fullPayPrice)}
+            </span>
+            <div className="flex items-center gap-1.5 mt-1 text-[11px] leading-tight">
+              {pricing.hasPriceSlash ? (
+                <span className="line-through text-ink-soft/70 font-medium whitespace-nowrap">
+                  {formatCurrency(pricing.regularPrice)}
+                </span>
+              ) : pricing.saving > 0 ? (
+                <span className="line-through text-ink-soft/70 font-medium whitespace-nowrap">
+                  {formatCurrency(pricing.total)}
+                </span>
+              ) : null}
+              {pricing.monthly > 0 && (
+                <span className="text-[10px] text-ink-soft/80 font-medium whitespace-nowrap">
+                  {(pricing.hasPriceSlash || pricing.saving > 0) ? "• " : ""}£{Math.round(pricing.monthly)}/mo
                 </span>
               )}
             </div>
-          ) : null}
+          </div>
+        ) : null}
 
-          {/* Action Button: Human Education Copy */}
-          <Link
-            href={`/courses/${course.slug}`}
-            className="inline-flex items-center justify-center min-h-[44px] px-4 sm:px-5 rounded-sm bg-navy-900 text-white hover:bg-navy-700 active:bg-navy-900 font-heading font-bold text-sm tracking-wide transition-all shadow-subtle group-hover:bg-navy-700 group-hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gold-500 flex-shrink-0"
-          >
-            <span>View Syllabus & Fees</span>
-            <Icon
-              name="arrow-right"
-              size={15}
-              className="ml-1.5 group-hover:translate-x-1 transition-transform"
-            />
-          </Link>
-        </div>
+        {/* Action Link: Dark teal rounded-full pill from Image 1 */}
+        <Link
+          href={`/courses/${course.slug}`}
+          className="inline-flex items-center justify-center h-9 px-3 sm:px-3.5 rounded-full bg-[#0B4D4E] hover:bg-[#073637] text-white font-heading font-bold text-xs tracking-wide transition-all shadow-xs group-hover:scale-105 flex-shrink-0 whitespace-nowrap"
+        >
+          <span>Enrol Now</span>
+          <Icon
+            name="arrow-right"
+            size={12}
+            className="ml-1 group-hover:translate-x-0.5 transition-transform"
+          />
+        </Link>
       </div>
     </article>
   );

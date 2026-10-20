@@ -127,8 +127,11 @@ export const PortalSidebarLayout: React.FC<PortalSidebarLayoutProps> = ({
     } catch {
       // ignore
     }
-    logout();
-    router.push("/login");
+    try {
+      localStorage.removeItem("smartminds_auth_session_v1");
+      window.dispatchEvent(new Event("smartminds_auth_updated"));
+    } catch {}
+    window.location.href = "/login";
   };
 
   const isDedicatedEditor =

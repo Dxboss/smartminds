@@ -13,6 +13,11 @@ import {
   ReviewsAndTestimonials,
   HomeFAQ,
   FinalCTABand,
+  StudentIDBenefitsSection,
+  StaffTrainingSection,
+  CoralPromoBanner,
+  ExclusiveBundlesSection,
+  WhyChooseUsSection,
 } from "@/components/home";
 import { BuilderSection } from "@/lib/repositories/seedData";
 import { Icon, IconName } from "@/components/ui/Icon";
@@ -27,6 +32,14 @@ import { CompositeBlockRenderer } from "@/components/cms/CompositeBlockRenderer"
 import { resolveCustomButtonClasses } from "@/components/ui/buttonCustomizer";
 import type { Course } from "@/content/types";
 import { EditableElementWrapper } from "@/components/admin/EditableElementWrapper";
+import { siteConfig } from "@/content/siteConfig";
+import { formatCurrency } from "@/content";
+import { DEFAULT_COLLEGE_FACULTIES } from "@/content/faculties";
+import { CoursesListingView } from "@/components/course/CoursesListingView";
+import { GeneralContactForm } from "@/components/forms/GeneralContactForm";
+import { FundedEligibilityForm } from "@/components/forms/FundedEligibilityForm";
+import { PrivateTutoringForm } from "@/components/forms/PrivateTutoringForm";
+import { NativeScheduler } from "@/components/booking/NativeScheduler";
 
 interface Props {
   section: BuilderSection;
@@ -44,6 +57,7 @@ interface Props {
     | "bg"
     | "video"
     | "floatingBadge"
+    | "sealBadge"
     | null;
   selectedElementItemIndex?: number | null;
   onSelectElement?: (
@@ -58,7 +72,8 @@ interface Props {
       | "item"
       | "bg"
       | "video"
-      | "floatingBadge",
+      | "floatingBadge"
+      | "sealBadge",
     itemIndex?: number
   ) => void;
 }
@@ -183,6 +198,8 @@ const VideoSpotlightBlock: React.FC<{
     fontWeight: section.headlineFontWeight,
     fontStyle: section.headlineFontStyle,
     color: section.headlineColor,
+    align: section.headlineAlign,
+    transform: section.headlineTransform,
     isDark,
     defaultFamily: "heading",
     defaultSize: "lg",
@@ -195,6 +212,7 @@ const VideoSpotlightBlock: React.FC<{
     fontWeight: section.subheadlineFontWeight,
     fontStyle: section.subheadlineFontStyle,
     color: section.subheadlineColor,
+    align: section.subheadlineAlign,
     isDark,
     defaultFamily: "body",
     defaultSize: "md",
@@ -547,15 +565,26 @@ export const SectionRenderer: React.FC<Props> = ({
           headlineFontWeight={section.headlineFontWeight}
           headlineFontStyle={section.headlineFontStyle}
           headlineColor={section.headlineColor}
+          headlineTransform={section.headlineTransform}
+          headlineAlign={section.headlineAlign}
           subheadlineFontFamily={section.subheadlineFontFamily}
           subheadlineFontSize={section.subheadlineFontSize}
           subheadlineFontWeight={section.subheadlineFontWeight}
           subheadlineFontStyle={section.subheadlineFontStyle}
           subheadlineColor={section.subheadlineColor}
+          subheadlineAlign={section.subheadlineAlign}
+          sealText={section.sealText}
+          sealLink={section.sealLink}
+          sealVideoUrl={section.sealVideoUrl}
+          sealBgColor={section.sealBgColor}
+          sealTextColor={section.sealTextColor}
+          sealPlayColor={section.sealPlayColor}
+          sealFontSize={section.sealFontSize}
+          sealEnabled={section.sealEnabled}
           isEditor={isEditor}
           selectedElementKey={selectedElementKey}
           selectedElementItemIndex={selectedElementItemIndex}
-          onSelectElement={onSelectElement}
+          onSelectElement={(el) => onSelectElement?.(el)}
         />
       );
 
@@ -583,6 +612,19 @@ export const SectionRenderer: React.FC<Props> = ({
           bgColor={section.bgColor as any}
           columns={(section.columns === 1 ? 2 : section.columns) as 2 | 3 | 4 | undefined}
           items={section.items}
+          headlineFontFamily={section.headlineFontFamily}
+          headlineFontSize={section.headlineFontSize}
+          headlineFontWeight={section.headlineFontWeight}
+          headlineFontStyle={section.headlineFontStyle}
+          headlineColor={section.headlineColor}
+          headlineTransform={section.headlineTransform}
+          headlineAlign={section.headlineAlign}
+          subheadlineFontFamily={section.subheadlineFontFamily}
+          subheadlineFontSize={section.subheadlineFontSize}
+          subheadlineFontWeight={section.subheadlineFontWeight}
+          subheadlineFontStyle={section.subheadlineFontStyle}
+          subheadlineColor={section.subheadlineColor}
+          subheadlineAlign={section.subheadlineAlign}
           isEditor={isEditor}
           selectedElementKey={selectedElementKey}
           selectedElementItemIndex={selectedElementItemIndex}
@@ -598,6 +640,19 @@ export const SectionRenderer: React.FC<Props> = ({
           bgColor={section.bgColor as any}
           columns={(section.columns === 1 ? 2 : section.columns) as 2 | 3 | 4 | undefined}
           items={section.items}
+          headlineFontFamily={section.headlineFontFamily}
+          headlineFontSize={section.headlineFontSize}
+          headlineFontWeight={section.headlineFontWeight}
+          headlineFontStyle={section.headlineFontStyle}
+          headlineColor={section.headlineColor}
+          headlineTransform={section.headlineTransform}
+          headlineAlign={section.headlineAlign}
+          subheadlineFontFamily={section.subheadlineFontFamily}
+          subheadlineFontSize={section.subheadlineFontSize}
+          subheadlineFontWeight={section.subheadlineFontWeight}
+          subheadlineFontStyle={section.subheadlineFontStyle}
+          subheadlineColor={section.subheadlineColor}
+          subheadlineAlign={section.subheadlineAlign}
           isEditor={isEditor}
           selectedElementKey={selectedElementKey}
           selectedElementItemIndex={selectedElementItemIndex}
@@ -605,369 +660,46 @@ export const SectionRenderer: React.FC<Props> = ({
         />
       );
 
-    case "why_smartminds": {
-      // Dynamic Smart Container with Modular Feature Cards + optional Split Image
-      if (section.items && section.items.length > 0) {
-        const isImageLeft = section.mediaPosition === "left";
-        const hasImage = Boolean(section.image);
-
-        const getSplitColSpans = (ratio?: string) => {
-          switch (ratio) {
-            case "50-50":
-              return { main: "lg:col-span-6", side: "lg:col-span-6" };
-            case "70-30":
-              return { main: "lg:col-span-8", side: "lg:col-span-4" };
-            case "40-60":
-              return { main: "lg:col-span-5", side: "lg:col-span-7" };
-            case "33-67":
-              return { main: "lg:col-span-4", side: "lg:col-span-8" };
-            case "60-40":
-            default:
-              return { main: "lg:col-span-7", side: "lg:col-span-5" };
-          }
-        };
-
-        const { main: cardsColSpan, side: mediaColSpan } = getSplitColSpans(
-          section.columnRatio
-        );
-
-        const colClass =
-          section.columns === 2
-            ? "grid-cols-1 sm:grid-cols-2"
-            : section.columns === 3
-            ? "grid-cols-1 sm:grid-cols-3"
-            : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4";
-
-        const paddingClass =
-          section.paddingDensity === "compact"
-            ? "py-10"
-            : section.paddingDensity === "spacious"
-            ? "py-24"
-            : "py-16";
-
-        const { bgClass, isDark, style } = resolveSectionBg(section.bgColor, "paper");
-
-        const { className: hlClass, style: hlStyle } = resolveTypography({
-          fontFamily: section.headlineFontFamily,
-          fontSize: section.headlineFontSize,
-          fontWeight: section.headlineFontWeight,
-          fontStyle: section.headlineFontStyle,
-          color: section.headlineColor,
-          isDark,
-          defaultFamily: "heading",
-          defaultSize: "lg",
-          defaultWeight: "bold",
-        });
-
-        const { className: subClass, style: subStyle } = resolveSubheadlineTypography({
-          fontFamily: section.subheadlineFontFamily,
-          fontSize: section.subheadlineFontSize,
-          fontWeight: section.subheadlineFontWeight,
-          fontStyle: section.subheadlineFontStyle,
-          color: section.subheadlineColor,
-          isDark,
-          defaultFamily: "body",
-          defaultSize: "md",
-          defaultWeight: "normal",
-        });
-
-        return (
-          <section
-            style={style}
-            className={`${bgClass} ${paddingClass} border-b border-line`}
-          >
-            <Container>
-              <div
-                className={`max-w-3xl mb-12 ${
-                  section.align === "center" ? "mx-auto text-center" : "text-left"
-                }`}
-              >
-                {section.badgeText && (
-                  <div
-                    onClick={(e) => {
-                      if (isEditor && onSelectElement) {
-                        e.stopPropagation();
-                        onSelectElement("badge");
-                      }
-                    }}
-                    className={
-                      isEditor
-                        ? "cursor-pointer group/badge relative inline-block rounded-xs hover:outline hover:outline-dashed hover:outline-2 hover:outline-gold-500"
-                        : ""
-                    }
-                  >
-                    <Eyebrow tone={isDark ? "gold" : "navy"} className="mb-2">
-                      {section.badgeText}
-                    </Eyebrow>
-                    {isEditor && (
-                      <span className="hidden group-hover/badge:inline-flex absolute -top-5 left-0 z-30 px-1.5 py-0.5 rounded-xs bg-navy-900 text-gold-300 text-[9px] font-bold shadow-xs whitespace-nowrap">
-                        Badge ✎
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                <div
-                  onClick={(e) => {
-                    if (isEditor && onSelectElement) {
-                      e.stopPropagation();
-                      onSelectElement("headline");
-                    }
-                  }}
-                  className={
-                    isEditor
-                      ? "cursor-pointer group/h2 relative rounded-xs hover:outline hover:outline-dashed hover:outline-2 hover:outline-gold-500 p-0.5 -m-0.5"
-                      : ""
-                  }
-                >
-                  <Heading
-                    level="h2"
-                    style={hlStyle}
-                    className={`mb-3 ${hlClass}`}
-                  >
-                    {section.headline}
-                  </Heading>
-                  {isEditor && (
-                    <span className="hidden group-hover/h2:inline-flex absolute -top-5 left-0 z-30 px-1.5 py-0.5 rounded-xs bg-navy-900 text-gold-300 text-[9px] font-bold shadow-xs whitespace-nowrap">
-                      Headline ✎
-                    </span>
-                  )}
-                </div>
-
-                <div
-                  onClick={(e) => {
-                    if (isEditor && onSelectElement) {
-                      e.stopPropagation();
-                      onSelectElement("subheadline");
-                    }
-                  }}
-                  className={
-                    isEditor
-                      ? "cursor-pointer group/sub relative rounded-xs hover:outline hover:outline-dashed hover:outline-2 hover:outline-gold-500 p-0.5 -m-0.5"
-                      : ""
-                  }
-                >
-                  <p
-                    style={subStyle}
-                    className={`leading-relaxed ${subClass}`}
-                  >
-                    {section.subheadline}
-                  </p>
-                  {isEditor && (
-                    <span className="hidden group-hover/sub:inline-flex absolute -top-5 left-0 z-30 px-1.5 py-0.5 rounded-xs bg-navy-900 text-gold-300 text-[9px] font-bold shadow-xs whitespace-nowrap">
-                      Subheadline ✎
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {hasImage ? (
-                /* Split Layout (Elementor Column Orientation) */
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-                  {/* Cards Column */}
-                  <div
-                    className={`${cardsColSpan} space-y-4 ${
-                      isImageLeft ? "lg:order-2" : "lg:order-1"
-                    }`}
-                  >
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {section.items.map((it, idx) => (
-                        <div
-                          key={idx}
-                          onClick={(e) => {
-                            if (isEditor && onSelectElement) {
-                              e.stopPropagation();
-                              onSelectElement("item", idx);
-                            }
-                          }}
-                          className={`p-5 rounded-lg border transition-all ${
-                            isDark
-                              ? "bg-white/5 border-white/10 hover:border-gold-500/40 text-white"
-                              : "bg-white border-line shadow-subtle hover:border-navy-900/30 text-ink"
-                          } ${
-                            isEditor
-                              ? "cursor-pointer group/card relative hover:outline hover:outline-dashed hover:outline-2 hover:outline-gold-500"
-                              : ""
-                          }`}
-                        >
-                          <div className="flex items-center justify-between gap-2 mb-3">
-                            <div
-                              className={`w-9 h-9 rounded-sm flex items-center justify-center ${
-                                isDark
-                                  ? "bg-gold-500/10 text-gold-300"
-                                  : "bg-navy-900 text-white"
-                              }`}
-                            >
-                              <Icon
-                                name={(it.icon as IconName) || "check-circle"}
-                                size={16}
-                                className={isDark ? "text-gold-300" : "text-gold-500"}
-                              />
-                            </div>
-                            {it.tag && (
-                              <Tag variant={isDark ? "gold" : "default"}>
-                                {it.tag}
-                              </Tag>
-                            )}
-                          </div>
-                          <h3
-                            className={`font-heading text-lg font-bold mb-1.5 ${
-                              isDark ? "text-white" : "text-navy-900"
-                            }`}
-                          >
-                            {it.title}
-                          </h3>
-                          <p
-                            className={`text-xs sm:text-sm leading-relaxed ${
-                              isDark ? "text-paper/80" : "text-ink-soft"
-                            }`}
-                          >
-                            {it.desc}
-                          </p>
-                          {it.link && (
-                            <Link
-                              href={it.link}
-                              className={`inline-flex items-center gap-1 text-xs font-bold mt-3 underline underline-offset-4 ${
-                                isDark ? "text-gold-300" : "text-navy-900 hover:text-gold-700"
-                              }`}
-                            >
-                              <span>Learn more</span>
-                              <Icon name="arrow-right" size={12} />
-                            </Link>
-                          )}
-                          {isEditor && (
-                            <span className="hidden group-hover/card:inline-flex absolute top-2 right-2 z-30 px-1.5 py-0.5 rounded-xs bg-navy-900 text-gold-300 text-[8px] font-bold shadow-xs whitespace-nowrap">
-                              Card #{idx + 1} ✎
-                            </span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Media Column */}
-                  <div
-                    onClick={(e) => {
-                      if (isEditor && onSelectElement) {
-                        e.stopPropagation();
-                        onSelectElement("image");
-                      }
-                    }}
-                    className={`${mediaColSpan} relative ${
-                      isImageLeft ? "lg:order-1" : "lg:order-2"
-                    } ${
-                      isEditor
-                        ? "cursor-pointer group/img rounded-lg hover:outline hover:outline-dashed hover:outline-2 hover:outline-gold-500"
-                        : ""
-                    }`}
-                  >
-                    <ArcMask accentBorder={true} curvePosition="bottom">
-                      <div className="relative aspect-[4/3] w-full bg-line overflow-hidden">
-                        <Image
-                          src={section.image || "/images/tutor-teaching.jpg"}
-                          alt={section.headline}
-                          fill
-                          sizes="(max-width: 1024px) 100vw, 450px"
-                          className="object-cover"
-                        />
-                      </div>
-                    </ArcMask>
-                    {isEditor && (
-                      <span className="hidden group-hover/img:inline-flex absolute top-3 right-3 z-30 px-2 py-1 rounded-sm bg-navy-900 text-gold-300 text-[10px] font-bold shadow-md items-center gap-1">
-                        <Icon name="layers" size={12} />
-                        <span>Change Photo ✎</span>
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                /* Pure Grid Layout */
-                <div className={`grid ${colClass} gap-6`}>
-                  {section.items.map((it, idx) => (
-                    <div
-                      key={idx}
-                      onClick={(e) => {
-                        if (isEditor && onSelectElement) {
-                          e.stopPropagation();
-                          onSelectElement("item", idx);
-                        }
-                      }}
-                      className={`p-6 rounded-lg border transition-all ${
-                        isDark
-                          ? "bg-white/5 border-white/10 hover:border-gold-500/40 text-white"
-                          : "bg-white border-line shadow-subtle hover:border-navy-900/30 text-ink"
-                      } ${
-                        isEditor
-                          ? "cursor-pointer group/card relative hover:outline hover:outline-dashed hover:outline-2 hover:outline-gold-500"
-                          : ""
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-2 mb-4">
-                        <div
-                          className={`w-10 h-10 rounded-sm flex items-center justify-center ${
-                            isDark
-                              ? "bg-gold-500/10 text-gold-300"
-                              : "bg-navy-900 text-white"
-                          }`}
-                        >
-                          <Icon
-                            name={(it.icon as IconName) || "check-circle"}
-                            size={18}
-                            className={isDark ? "text-gold-300" : "text-gold-500"}
-                          />
-                        </div>
-                        {it.tag && (
-                          <Tag variant={isDark ? "gold" : "default"}>
-                            {it.tag}
-                          </Tag>
-                        )}
-                      </div>
-                      <h3
-                        className={`font-heading text-xl font-bold mb-2 ${
-                          isDark ? "text-white" : "text-navy-900"
-                        }`}
-                      >
-                        {it.title}
-                      </h3>
-                      <p
-                        className={`text-sm leading-relaxed ${
-                          isDark ? "text-paper/80" : "text-ink-soft"
-                        }`}
-                      >
-                        {it.desc}
-                      </p>
-                      {it.link && (
-                        <Link
-                          href={it.link}
-                          className={`inline-flex items-center gap-1 text-xs font-bold mt-4 underline underline-offset-4 ${
-                            isDark ? "text-gold-300" : "text-navy-900 hover:text-gold-700"
-                          }`}
-                        >
-                          <span>Explore qualification</span>
-                          <Icon name="arrow-right" size={12} />
-                        </Link>
-                      )}
-                      {isEditor && (
-                        <span className="hidden group-hover/card:inline-flex absolute top-3 right-3 z-30 px-1.5 py-0.5 rounded-xs bg-navy-900 text-gold-300 text-[8px] font-bold shadow-xs whitespace-nowrap">
-                          Card #{idx + 1} ✎
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Container>
-          </section>
-        );
-      }
-
+    case "why_smartminds":
       return (
-        <HowItWorksTimeline
+        <WhyChooseUsSection
+          id={section.id}
+          badgeText={section.badgeText}
           headline={section.headline}
           subheadline={section.subheadline}
+          items={section.items}
+          buttonText={section.buttonText}
+          buttonLink={section.buttonLink}
+          buttonBgColor={section.buttonBgColor}
+          buttonTextColor={section.buttonTextColor}
+          trustNote={section.trustNote}
+          trustNoteIcon={section.trustNoteIcon}
+          image={section.image}
+          image2={section.image2}
+          image3={section.image3}
+          floatingBadgeTitle={section.floatingBadgeTitle}
+          floatingBadgeSubtitle={section.floatingBadgeSubtitle}
+          floatingBadgeIcon={section.floatingBadgeIcon}
+          floatingBadgeEnabled={section.floatingBadgeEnabled}
+          bgColor={section.bgColor}
+          headlineFontFamily={section.headlineFontFamily}
+          headlineFontSize={section.headlineFontSize}
+          headlineFontWeight={section.headlineFontWeight}
+          headlineFontStyle={section.headlineFontStyle}
+          headlineColor={section.headlineColor}
+          subheadlineFontFamily={section.subheadlineFontFamily}
+          subheadlineFontSize={section.subheadlineFontSize}
+          subheadlineFontWeight={section.subheadlineFontWeight}
+          subheadlineFontStyle={section.subheadlineFontStyle}
+          subheadlineColor={section.subheadlineColor}
+          paddingDensity={section.paddingDensity}
+          mediaPosition={section.mediaPosition}
+          isEditor={isEditor}
+          selectedElementKey={selectedElementKey}
+          selectedElementItemIndex={selectedElementItemIndex}
+          onSelectElement={onSelectElement}
         />
       );
-    }
 
     case "pricing":
       return (
@@ -977,6 +709,19 @@ export const SectionRenderer: React.FC<Props> = ({
           bgColor={section.bgColor as any}
           columns={(section.columns === 1 ? 2 : section.columns) as 2 | 3 | 4 | undefined}
           items={section.items}
+          headlineFontFamily={section.headlineFontFamily}
+          headlineFontSize={section.headlineFontSize}
+          headlineFontWeight={section.headlineFontWeight}
+          headlineFontStyle={section.headlineFontStyle}
+          headlineColor={section.headlineColor}
+          headlineTransform={section.headlineTransform}
+          headlineAlign={section.headlineAlign}
+          subheadlineFontFamily={section.subheadlineFontFamily}
+          subheadlineFontSize={section.subheadlineFontSize}
+          subheadlineFontWeight={section.subheadlineFontWeight}
+          subheadlineFontStyle={section.subheadlineFontStyle}
+          subheadlineColor={section.subheadlineColor}
+          subheadlineAlign={section.subheadlineAlign}
           isEditor={isEditor}
           selectedElementKey={selectedElementKey}
           selectedElementItemIndex={selectedElementItemIndex}
@@ -993,6 +738,8 @@ export const SectionRenderer: React.FC<Props> = ({
           buttonLink={section.buttonLink}
           bgColor={section.bgColor as any}
           columns={(section.columns === 1 ? 2 : section.columns) as 2 | 3 | 4 | undefined}
+          rows={section.rows}
+          courseLimit={section.courseLimit}
           courses={courses}
         />
       );
@@ -1275,6 +1022,788 @@ export const SectionRenderer: React.FC<Props> = ({
           isEditor={isEditor}
           onSelectElement={onSelectElement}
         />
+      );
+    }
+
+    case "student_benefits": {
+      return (
+        <StudentIDBenefitsSection
+          headline={section.headline}
+          subheadline={section.subheadline}
+          badgeText={section.badgeText}
+          buttonText={section.buttonText}
+          buttonLink={section.buttonLink}
+          bgColor={section.bgColor as any}
+          items={section.items}
+          headlineFontFamily={section.headlineFontFamily}
+          headlineFontSize={section.headlineFontSize}
+          headlineFontWeight={section.headlineFontWeight}
+          headlineFontStyle={section.headlineFontStyle}
+          headlineColor={section.headlineColor}
+          headlineTransform={section.headlineTransform}
+          headlineAlign={section.headlineAlign}
+          subheadlineFontFamily={section.subheadlineFontFamily}
+          subheadlineFontSize={section.subheadlineFontSize}
+          subheadlineFontWeight={section.subheadlineFontWeight}
+          subheadlineFontStyle={section.subheadlineFontStyle}
+          subheadlineColor={section.subheadlineColor}
+          subheadlineAlign={section.subheadlineAlign}
+          isEditor={isEditor}
+          selectedElementKey={selectedElementKey}
+          selectedElementItemIndex={selectedElementItemIndex}
+          onSelectElement={onSelectElement}
+        />
+      );
+    }
+
+    case "staff_training": {
+      return (
+        <StaffTrainingSection
+          headline={section.headline}
+          subheadline={section.subheadline}
+          badgeText={section.badgeText}
+          metricsBannerTitle={section.metricsBannerTitle}
+          metricsBannerSubtitle={section.metricsBannerSubtitle}
+          items={section.items}
+          image={section.image}
+          buttonText={section.buttonText}
+          buttonLink={section.buttonLink}
+          bgColor={section.bgColor as any}
+          headlineFontFamily={section.headlineFontFamily}
+          headlineFontSize={section.headlineFontSize}
+          headlineFontWeight={section.headlineFontWeight}
+          headlineFontStyle={section.headlineFontStyle}
+          headlineColor={section.headlineColor}
+          headlineTransform={section.headlineTransform}
+          headlineAlign={section.headlineAlign}
+          subheadlineFontFamily={section.subheadlineFontFamily}
+          subheadlineFontSize={section.subheadlineFontSize}
+          subheadlineFontWeight={section.subheadlineFontWeight}
+          subheadlineFontStyle={section.subheadlineFontStyle}
+          subheadlineColor={section.subheadlineColor}
+          subheadlineAlign={section.subheadlineAlign}
+          isEditor={isEditor}
+          selectedElementKey={selectedElementKey}
+          selectedElementItemIndex={selectedElementItemIndex}
+          onSelectElement={onSelectElement}
+        />
+      );
+    }
+
+    case "coral_promo": {
+      return (
+        <CoralPromoBanner
+          headline={section.headline}
+          subheadline={section.subheadline}
+          badgeText={section.badgeText}
+          buttonText={section.buttonText}
+          buttonLink={section.buttonLink}
+          buttonBgColor={section.buttonBgColor}
+          buttonTextColor={section.buttonTextColor}
+          secondaryButtonText={section.secondaryButtonText}
+          secondaryButtonLink={section.secondaryButtonLink}
+          secondaryButtonBgColor={section.secondaryButtonBgColor}
+          secondaryButtonTextColor={section.secondaryButtonTextColor}
+          image={section.image}
+          items={section.items}
+          bgColor={section.bgColor as any}
+          headlineFontFamily={section.headlineFontFamily}
+          headlineFontSize={section.headlineFontSize}
+          headlineFontWeight={section.headlineFontWeight}
+          headlineFontStyle={section.headlineFontStyle}
+          headlineColor={section.headlineColor}
+          headlineTransform={section.headlineTransform}
+          headlineAlign={section.headlineAlign}
+          subheadlineFontFamily={section.subheadlineFontFamily}
+          subheadlineFontSize={section.subheadlineFontSize}
+          subheadlineFontWeight={section.subheadlineFontWeight}
+          subheadlineFontStyle={section.subheadlineFontStyle}
+          subheadlineColor={section.subheadlineColor}
+          subheadlineAlign={section.subheadlineAlign}
+          isEditor={isEditor}
+          selectedElementKey={selectedElementKey}
+          selectedElementItemIndex={selectedElementItemIndex}
+          onSelectElement={onSelectElement}
+        />
+      );
+    }
+
+    case "exclusive_bundles": {
+      return (
+        <ExclusiveBundlesSection
+          headline={section.headline}
+          subheadline={section.subheadline}
+          items={section.items}
+          bgColor={section.bgColor as any}
+          headlineFontFamily={section.headlineFontFamily}
+          headlineFontSize={section.headlineFontSize}
+          headlineFontWeight={section.headlineFontWeight}
+          headlineFontStyle={section.headlineFontStyle}
+          headlineColor={section.headlineColor}
+          headlineTransform={section.headlineTransform}
+          headlineAlign={section.headlineAlign}
+          subheadlineFontFamily={section.subheadlineFontFamily}
+          subheadlineFontSize={section.subheadlineFontSize}
+          subheadlineFontWeight={section.subheadlineFontWeight}
+          subheadlineFontStyle={section.subheadlineFontStyle}
+          subheadlineColor={section.subheadlineColor}
+          subheadlineAlign={section.subheadlineAlign}
+          isEditor={isEditor}
+          selectedElementKey={selectedElementKey}
+          selectedElementItemIndex={selectedElementItemIndex}
+          onSelectElement={onSelectElement}
+        />
+      );
+    }
+
+    case "courses_listing": {
+      const listingCourses = courses && courses.length > 0 ? courses : [];
+      const faculties = DEFAULT_COLLEGE_FACULTIES;
+
+      return (
+        <section className="bg-paper min-h-screen">
+          <CoursesListingView
+            initialCourses={listingCourses}
+            initialFaculties={faculties}
+            customHeadline={section.headline}
+            customSubheadline={section.subheadline}
+            isEditor={isEditor}
+            onSelectElement={(el) => onSelectElement?.(el)}
+          />
+        </section>
+      );
+    }
+
+    case "page_header": {
+      const { bgClass, isDark, style } = resolveSectionBg(section.bgColor, "paper");
+      const badges = section.badgeText
+        ? section.badgeText.split("•").map((s) => s.trim()).filter(Boolean)
+        : [];
+
+      return (
+        <header style={style} className={`${bgClass} py-10 md:py-14 border-b border-line`}>
+          <Container>
+            <div className="max-w-3xl">
+              {badges.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2 mb-3">
+                  {badges.map((b, i) => (
+                    <Tag key={i} variant={i === 0 ? "gold" : "navy"}>
+                      {b}
+                    </Tag>
+                  ))}
+                </div>
+              )}
+              {section.eyebrow && (
+                <Eyebrow tone={isDark ? "gold" : "navy"} className="mb-2">
+                  {section.eyebrow}
+                </Eyebrow>
+              )}
+              <EditableElementWrapper
+                isEditor={isEditor}
+                isSelected={isEditor && selectedElementKey === "headline"}
+                label="Page Headline"
+                onClick={() => onSelectElement?.("headline")}
+              >
+                <Heading
+                  level="h1"
+                  className={`${isDark ? "text-white" : "text-navy-900"} text-3xl sm:text-4xl md:text-5xl mb-4`}
+                >
+                  {section.headline}
+                </Heading>
+              </EditableElementWrapper>
+              {section.subheadline && (
+                <EditableElementWrapper
+                  isEditor={isEditor}
+                  isSelected={isEditor && selectedElementKey === "subheadline"}
+                  label="Description"
+                  onClick={() => onSelectElement?.("subheadline")}
+                >
+                  <p className={`text-base sm:text-lg ${isDark ? "text-paper/85" : "text-ink-soft"} leading-relaxed`}>
+                    {section.subheadline}
+                  </p>
+                </EditableElementWrapper>
+              )}
+            </div>
+          </Container>
+        </header>
+      );
+    }
+
+    case "about_story": {
+      const { bgClass, style } = resolveSectionBg(section.bgColor, "paper");
+
+      return (
+        <section style={style} className={`${bgClass} py-12 border-b border-line`}>
+          <Container>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+              <div className="lg:col-span-7 space-y-5">
+                {section.badgeText && (
+                  <Tag variant="navy">{section.badgeText}</Tag>
+                )}
+                <EditableElementWrapper
+                  isEditor={isEditor}
+                  isSelected={isEditor && selectedElementKey === "headline"}
+                  label="Story Headline"
+                  onClick={() => onSelectElement?.("headline")}
+                >
+                  <Heading level="h2" className="text-navy-900 text-2xl sm:text-3xl">
+                    {section.headline}
+                  </Heading>
+                </EditableElementWrapper>
+                <EditableElementWrapper
+                  isEditor={isEditor}
+                  isSelected={isEditor && selectedElementKey === "subheadline"}
+                  label="Story Description"
+                  onClick={() => onSelectElement?.("subheadline")}
+                >
+                  <div className="space-y-4 text-sm sm:text-base text-ink-soft leading-relaxed whitespace-pre-line">
+                    {section.subheadline}
+                  </div>
+                </EditableElementWrapper>
+                {section.buttonText && (
+                  <div className="pt-2">
+                    <Button href={section.buttonLink || "/courses"} variant="primary" size="md">
+                      {section.buttonText}
+                    </Button>
+                  </div>
+                )}
+              </div>
+              <div className="lg:col-span-5">
+                <EditableElementWrapper
+                  isEditor={isEditor}
+                  isSelected={isEditor && selectedElementKey === "image"}
+                  label="Story Image"
+                  onClick={() => onSelectElement?.("image")}
+                >
+                  <div className="relative aspect-[4/3] rounded-lg overflow-hidden border border-line shadow-subtle bg-line">
+                    <Image
+                      src={section.image || "/images/tutor-teaching.jpg"}
+                      alt={section.headline || "Tutor teaching class"}
+                      fill
+                      sizes="(max-width: 768px) 100vw, 450px"
+                      className="object-cover"
+                    />
+                  </div>
+                </EditableElementWrapper>
+              </div>
+            </div>
+          </Container>
+        </section>
+      );
+    }
+
+    case "accreditations_block": {
+      const accItems = section.items && section.items.length > 0
+        ? section.items
+        : siteConfig.accreditations.map((acc) => ({
+            title: acc.acronym,
+            tag: acc.name,
+            desc: acc.description,
+            icon: "shield-check",
+          }));
+
+      return (
+        <section aria-labelledby="accreditation-heading" className="bg-white py-12 border-b border-line">
+          <Container>
+            <div className="max-w-2xl mb-8 space-y-2">
+              {section.badgeText && (
+                <Eyebrow tone="navy">{section.badgeText}</Eyebrow>
+              )}
+              <EditableElementWrapper
+                isEditor={isEditor}
+                isSelected={isEditor && selectedElementKey === "headline"}
+                label="Accreditation Headline"
+                onClick={() => onSelectElement?.("headline")}
+              >
+                <Heading level="h2" id="accreditation-heading" className="text-navy-900 text-2xl">
+                  {section.headline}
+                </Heading>
+              </EditableElementWrapper>
+              {section.subheadline && (
+                <p className="text-xs sm:text-sm text-ink-soft leading-relaxed">
+                  {section.subheadline}
+                </p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              {accItems.map((acc, idx) => (
+                <div
+                  key={idx}
+                  onClick={(e) => {
+                    if (isEditor && onSelectElement) {
+                      e.stopPropagation();
+                      onSelectElement("item", idx);
+                    }
+                  }}
+                  className={`p-5 rounded-sm bg-paper border border-line space-y-2 ${
+                    isEditor ? "cursor-pointer hover:outline hover:outline-dashed hover:outline-1 hover:outline-gold-500" : ""
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Icon name="shield-check" size={18} className="text-navy-900" />
+                    <strong className="font-heading font-bold text-lg text-navy-900">
+                      {acc.title}
+                    </strong>
+                  </div>
+                  <h3 className="text-xs font-semibold text-gold-700">
+                    {acc.tag}
+                  </h3>
+                  <p className="text-xs text-ink-soft leading-relaxed">
+                    {acc.desc}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </Container>
+        </section>
+      );
+    }
+
+    case "team_grid": {
+      const teamItems = section.items && section.items.length > 0
+        ? section.items
+        : siteConfig.team.map((m) => ({
+            title: m.name,
+            tag: m.role,
+            desc: m.credentials,
+            image: m.image,
+          }));
+
+      return (
+        <section aria-labelledby="team-heading" className="bg-paper py-12 border-b border-line">
+          <Container>
+            <div className="max-w-2xl mb-8 space-y-1">
+              {section.badgeText && (
+                <Eyebrow tone="navy">{section.badgeText}</Eyebrow>
+              )}
+              <EditableElementWrapper
+                isEditor={isEditor}
+                isSelected={isEditor && selectedElementKey === "headline"}
+                label="Team Headline"
+                onClick={() => onSelectElement?.("headline")}
+              >
+                <Heading level="h2" id="team-heading" className="text-navy-900 text-2xl">
+                  {section.headline}
+                </Heading>
+              </EditableElementWrapper>
+              {section.subheadline && (
+                <p className="text-xs sm:text-sm text-ink-soft leading-relaxed">
+                  {section.subheadline}
+                </p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              {teamItems.map((member, idx) => (
+                <div
+                  key={idx}
+                  onClick={(e) => {
+                    if (isEditor && onSelectElement) {
+                      e.stopPropagation();
+                      onSelectElement("item", idx);
+                    }
+                  }}
+                  className={`bg-white rounded-lg border border-line p-6 shadow-subtle space-y-4 ${
+                    isEditor ? "cursor-pointer hover:outline hover:outline-dashed hover:outline-1 hover:outline-gold-500" : ""
+                  }`}
+                >
+                  <div className="relative aspect-square rounded-sm overflow-hidden bg-line">
+                    <Image
+                      src={member.image || "/images/tutor-sarah.jpg"}
+                      alt={member.title}
+                      fill
+                      sizes="300px"
+                      className="object-cover"
+                    />
+                  </div>
+                  <div>
+                    <strong className="font-heading font-bold text-lg text-navy-900 block">
+                      {member.title}
+                    </strong>
+                    <span className="text-xs font-semibold text-gold-700 block mb-1">
+                      {member.tag}
+                    </span>
+                    <p className="text-xs text-ink-soft leading-relaxed font-mono text-[11px]">
+                      {member.desc}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Container>
+        </section>
+      );
+    }
+
+    case "legal_notice": {
+      return (
+        <section className="bg-paper py-8 border-b border-line">
+          <Container>
+            <div className="p-6 rounded-lg bg-paper border border-line text-center text-xs text-ink-soft leading-relaxed">
+              <p className="font-semibold text-navy-900 mb-1">
+                {section.headline || "Company Legal Registration"}
+              </p>
+              <p>{section.subheadline || siteConfig.legalLine}</p>
+            </div>
+          </Container>
+        </section>
+      );
+    }
+
+    case "contact_split": {
+      return (
+        <section className="bg-paper py-10 md:py-16">
+          <Container>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+              {/* Left Column: Direct channels and office hours */}
+              <div className="lg:col-span-5 space-y-6">
+                {/* WhatsApp Highlight Box */}
+                <div className="p-6 rounded-lg bg-navy-900 text-white space-y-4 shadow-subtle">
+                  <div className="flex items-center gap-2">
+                    <Icon name="whatsapp" size={24} className="text-emerald-400" />
+                    <h2 className="font-heading font-bold text-xl text-white">
+                      Chat on WhatsApp
+                    </h2>
+                  </div>
+                  <p className="text-xs text-paper/85 leading-relaxed">
+                    Need a fast answer regarding course prices or start dates?
+                    Message our admissions team directly on WhatsApp during business hours.
+                  </p>
+                  <a
+                    href={siteConfig.contact.whatsappUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center min-h-[44px] w-full px-4 rounded-sm bg-emerald-500 hover:bg-emerald-600 text-white font-heading font-bold text-sm transition-colors shadow-sm gap-2"
+                  >
+                    <Icon name="whatsapp" size={18} />
+                    <span>Message Admissions Team</span>
+                  </a>
+                </div>
+
+                {/* Contact Details Card */}
+                <div className="bg-white rounded-lg border border-line p-6 shadow-subtle space-y-5">
+                  <h3 className="font-heading font-bold text-lg text-navy-900 border-b border-line pb-3">
+                    Office Information
+                  </h3>
+                  <div className="space-y-4 text-sm text-ink">
+                    <div className="flex items-start gap-3">
+                      <Icon name="map-pin" size={18} className="text-gold-500 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <strong className="block font-heading font-bold text-navy-900 text-xs uppercase tracking-wider mb-0.5">
+                          Postal Address
+                        </strong>
+                        <address className="not-italic text-xs text-ink-soft leading-relaxed">
+                          {siteConfig.contact.address}
+                        </address>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <Icon name="phone" size={18} className="text-gold-500 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <strong className="block font-heading font-bold text-navy-900 text-xs uppercase tracking-wider mb-0.5">
+                          Telephone
+                        </strong>
+                        <a href={`tel:${siteConfig.contact.phone}`} className="text-xs text-ink hover:text-navy-900 font-semibold underline">
+                          {siteConfig.contact.phoneDisplay}
+                        </a>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <Icon name="mail" size={18} className="text-gold-500 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <strong className="block font-heading font-bold text-navy-900 text-xs uppercase tracking-wider mb-0.5">
+                          Email Admissions
+                        </strong>
+                        <a href={`mailto:${siteConfig.contact.email}`} className="text-xs text-ink hover:text-navy-900 font-semibold underline">
+                          {siteConfig.contact.email}
+                        </a>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <Icon name="clock" size={18} className="text-gold-500 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <strong className="block font-heading font-bold text-navy-900 text-xs uppercase tracking-wider mb-0.5">
+                          Opening Hours
+                        </strong>
+                        <p className="text-xs text-ink-soft leading-relaxed">
+                          {siteConfig.contact.openingHours}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: General Contact Form */}
+              <div className="lg:col-span-7">
+                <div className="bg-white rounded-lg border border-line p-6 sm:p-8 shadow-subtle">
+                  <div className="mb-6">
+                    <h2 className="font-heading font-bold text-2xl text-navy-900 mb-2">
+                      Send an Admissions Enquiry
+                    </h2>
+                    <p className="text-xs sm:text-sm text-ink-soft leading-relaxed">
+                      Complete the short form below and an academic advisor will get back to you within 24 business hours.
+                    </p>
+                  </div>
+                  <GeneralContactForm sourcePage="/contact" />
+                </div>
+              </div>
+            </div>
+          </Container>
+        </section>
+      );
+    }
+
+    case "funding_split": {
+      return (
+        <section className="bg-paper py-10 md:py-16">
+          <Container>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+              {/* Left Column: Plain-language funding explanation */}
+              <div className="lg:col-span-7 space-y-8">
+                {/* How Government Funding Works */}
+                <div className="bg-white rounded-lg border border-line p-6 sm:p-8 shadow-subtle space-y-4">
+                  <Heading level="h2" className="text-navy-900 text-2xl">
+                    How does government funding work?
+                  </Heading>
+                  <p className="text-sm text-ink-soft leading-relaxed">
+                    UK government funding is designed to upskill adults in vital sectors including adult social care, education, and early years nurseries. If you meet residency and eligibility thresholds, the government covers 100% of your course fees — you pay zero tuition.
+                  </p>
+                  <div className="p-4 rounded-sm bg-paper border border-line space-y-2">
+                    <span className="text-xs font-mono uppercase tracking-wider text-navy-900 font-bold block">
+                      {siteConfig.funding.complianceWarning}
+                    </span>
+                    <p className="text-xs text-ink-soft leading-relaxed font-mono">
+                      {siteConfig.funding.eligibilityNote}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Core Funded Initiatives */}
+                <div className="space-y-4">
+                  <Heading level="h2" className="text-navy-900 text-2xl">
+                    Funded Programmes Available
+                  </Heading>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="p-5 rounded-lg bg-white border border-line shadow-subtle space-y-2">
+                      <Tag variant="gold">AEB Funding</Tag>
+                      <h3 className="font-heading font-bold text-lg text-navy-900">
+                        Adult Education Budget
+                      </h3>
+                      <p className="text-xs text-ink-soft leading-relaxed">
+                        For adults aged 19+ looking to gain foundational Level 2 and Level 3 diplomas in healthcare, adult care, and education support.
+                      </p>
+                    </div>
+                    <div className="p-5 rounded-lg bg-white border border-line shadow-subtle space-y-2">
+                      <Tag variant="navy">Free Courses for Jobs</Tag>
+                      <h3 className="font-heading font-bold text-lg text-navy-900">
+                        National Skills Fund
+                      </h3>
+                      <p className="text-xs text-ink-soft leading-relaxed">
+                        Full funding for eligible adults to complete high-value Level 3 qualifications, even if you already hold a Level 3 in an unrelated subject.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: Funding Eligibility Form */}
+              <div className="lg:col-span-5">
+                <div className="bg-white rounded-lg border border-line p-6 sm:p-8 shadow-subtle">
+                  <div className="mb-6">
+                    <h2 className="font-heading font-bold text-2xl text-navy-900 mb-2">
+                      Check Your Funding Eligibility
+                    </h2>
+                    <p className="text-xs sm:text-sm text-ink-soft leading-relaxed">
+                      Complete this 60-second assessment and our finance coordinator will verify your funding route.
+                    </p>
+                  </div>
+                  <FundedEligibilityForm sourcePage="/funding" />
+                </div>
+              </div>
+            </div>
+          </Container>
+        </section>
+      );
+    }
+
+    case "cpd_listing": {
+      const cpdCourses = (courses || []).filter((c) => c.type === "cpd" && c.published);
+
+      return (
+        <section className="bg-paper py-10 md:py-16">
+          <Container>
+            <div className="space-y-6">
+              <Heading level="h2" className="text-navy-900 text-2xl">
+                {section.headline || "Available CPD Programmes"}
+              </Heading>
+              {section.subheadline && (
+                <p className="text-xs sm:text-sm text-ink-soft leading-relaxed">
+                  {section.subheadline}
+                </p>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {cpdCourses.map((course) => {
+                  const level = course.levels[0];
+                  return (
+                    <article
+                      key={course.id}
+                      className="bg-white rounded-lg border border-line p-6 shadow-subtle flex flex-col justify-between hover:border-navy-900/30 transition-colors"
+                    >
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-semibold uppercase text-gold-700 tracking-wider">
+                            {course.category}
+                          </span>
+                          <Tag variant="default" className="text-xs">
+                            {level?.level_label || "CPD"}
+                          </Tag>
+                        </div>
+                        <h3 className="font-heading text-xl font-bold text-navy-900">
+                          <Link href={`/courses/${course.slug}`}>
+                            {course.title}
+                          </Link>
+                        </h3>
+                        <p className="text-xs sm:text-sm text-ink-soft leading-relaxed line-clamp-3">
+                          {course.summary}
+                        </p>
+                      </div>
+                      <div className="pt-6 mt-6 border-t border-line flex items-center justify-between">
+                        <div>
+                          <span className="text-[11px] uppercase text-ink-soft font-mono block">
+                            Fee
+                          </span>
+                          <strong className="font-heading font-bold text-xl text-navy-900">
+                            {formatCurrency(level?.price_gbp || 95)}
+                          </strong>
+                        </div>
+                        <Link
+                          href={`/courses/${course.slug}`}
+                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-sm bg-navy-900 text-white hover:bg-navy-700 font-heading font-bold text-xs transition-colors"
+                        >
+                          <span>Enrol &amp; details</span>
+                          <Icon name="arrow-right" size={14} />
+                        </Link>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </div>
+          </Container>
+        </section>
+      );
+    }
+
+    case "tutoring_split": {
+      return (
+        <section className="bg-paper py-10 md:py-16">
+          <Container>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+              {/* Left Column: Tutoring Information */}
+              <div className="lg:col-span-7 space-y-8">
+                <div className="bg-white rounded-lg border border-line p-6 sm:p-8 shadow-subtle space-y-4">
+                  <Heading level="h2" className="text-navy-900 text-2xl">
+                    What We Offer
+                  </Heading>
+                  <p className="text-sm text-ink-soft leading-relaxed">
+                    Every child learns at a different pace. Our 1-on-1 tutoring pairs your child with a patient, qualified educator who tailors each 60-minute lesson to target areas where your child needs the most reinforcement.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                    <div className="p-4 rounded-sm bg-paper border border-line space-y-1.5">
+                      <h3 className="font-heading font-bold text-base text-navy-900">
+                        Mathematics (KS3 &amp; GCSE)
+                      </h3>
+                      <p className="text-xs text-ink-soft leading-relaxed">
+                        Foundation &amp; Higher tiers. Number work, algebra, ratio, geometry, and past paper step-by-step problem solving.
+                      </p>
+                    </div>
+                    <div className="p-4 rounded-sm bg-paper border border-line space-y-1.5">
+                      <h3 className="font-heading font-bold text-base text-navy-900">
+                        English Language &amp; Lit
+                      </h3>
+                      <p className="text-xs text-ink-soft leading-relaxed">
+                        Creative writing, reading comprehension, textual analysis, and essay structuring for AQA and Edexcel exam boards.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Safeguarding Reassurance */}
+                <div className="p-6 rounded-lg bg-navy-900 text-white space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Icon name="shield-check" size={20} className="text-gold-500" />
+                    <h3 className="font-heading font-bold text-lg text-white">
+                      Rigorous Tutor Safeguarding
+                    </h3>
+                  </div>
+                  <p className="text-xs text-paper/85 leading-relaxed">
+                    All tutors undergo Enhanced DBS vetting, photo ID verification, and reference checks. Sessions are delivered in our supervised online classroom.
+                  </p>
+                </div>
+              </div>
+
+              {/* Right Column: Private Tutoring Form */}
+              <div className="lg:col-span-5">
+                <div className="bg-white rounded-lg border border-line p-6 sm:p-8 shadow-subtle">
+                  <div className="mb-6">
+                    <h2 className="font-heading font-bold text-2xl text-navy-900 mb-2">
+                      Request Tutoring Consultation
+                    </h2>
+                    <p className="text-xs sm:text-sm text-ink-soft leading-relaxed">
+                      Tell us about your child&apos;s year group and learning goals. We will match you with a specialist tutor.
+                    </p>
+                  </div>
+                  <PrivateTutoringForm sourcePage="/private-tutoring" />
+                </div>
+              </div>
+            </div>
+          </Container>
+        </section>
+      );
+    }
+
+    case "scheduler_block": {
+      const liveCourseOptions = (courses || []).map((c) => ({
+        id: c.id,
+        title: c.title,
+        published: c.published,
+      }));
+
+      return (
+        <section className="bg-paper py-10 md:py-16">
+          <Container>
+            <div className="max-w-3xl mx-auto space-y-8">
+              {/* College Consultation Scheduler Card */}
+              <div className="bg-white rounded-lg border border-line p-6 sm:p-8 shadow-subtle">
+                <NativeScheduler coursesList={liveCourseOptions} />
+              </div>
+
+              {/* Consultation Reassurance */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+                <div className="p-4 bg-white rounded-lg border border-line text-xs space-y-1">
+                  <strong className="font-heading font-bold text-sm text-navy-900 block">
+                    15 Minutes
+                  </strong>
+                  <span className="text-ink-soft">Short, focused discussion</span>
+                </div>
+                <div className="p-4 bg-white rounded-lg border border-line text-xs space-y-1">
+                  <strong className="font-heading font-bold text-sm text-navy-900 block">
+                    Real Tutors
+                  </strong>
+                  <span className="text-ink-soft">Speak to subject teachers</span>
+                </div>
+                <div className="p-4 bg-white rounded-lg border border-line text-xs space-y-1">
+                  <strong className="font-heading font-bold text-sm text-navy-900 block">
+                    Zero Obligation
+                  </strong>
+                  <span className="text-ink-soft">Purely informational advice</span>
+                </div>
+              </div>
+            </div>
+          </Container>
+        </section>
       );
     }
 

@@ -9,6 +9,11 @@ import { Tag } from "@/components/ui/Tag";
 
 import { BuilderSectionItem } from "@/lib/repositories/seedData";
 import { EditableElementWrapper } from "@/components/admin/EditableElementWrapper";
+import {
+  resolveCardContainerStyles,
+  resolveTypography,
+  resolveSubheadlineTypography,
+} from "@/components/ui/typographyUtils";
 
 export interface PricingFlexibilityProps {
   headline?: string;
@@ -16,6 +21,19 @@ export interface PricingFlexibilityProps {
   bgColor?: "white" | "paper" | "navy" | "cream";
   columns?: 2 | 3 | 4;
   items?: BuilderSectionItem[];
+  headlineFontFamily?: string;
+  headlineFontSize?: string;
+  headlineFontWeight?: string;
+  headlineFontStyle?: string;
+  headlineColor?: string;
+  headlineTransform?: string;
+  headlineAlign?: string;
+  subheadlineFontFamily?: string;
+  subheadlineFontSize?: string;
+  subheadlineFontWeight?: string;
+  subheadlineFontStyle?: string;
+  subheadlineColor?: string;
+  subheadlineAlign?: string;
   isEditor?: boolean;
   selectedElementKey?: string | null;
   selectedElementItemIndex?: number | null;
@@ -82,12 +100,52 @@ export const PricingFlexibility: React.FC<PricingFlexibilityProps> = ({
   bgColor = "paper",
   columns = 3,
   items,
+  headlineFontFamily,
+  headlineFontSize,
+  headlineFontWeight,
+  headlineFontStyle,
+  headlineColor,
+  headlineTransform,
+  headlineAlign,
+  subheadlineFontFamily,
+  subheadlineFontSize,
+  subheadlineFontWeight,
+  subheadlineFontStyle,
+  subheadlineColor,
+  subheadlineAlign,
   isEditor = false,
   selectedElementKey,
   selectedElementItemIndex,
   onSelectElement,
 }) => {
   const isDark = bgColor === "navy";
+
+  const { className: hlClass, style: hlStyle } = resolveTypography({
+    fontFamily: headlineFontFamily as any,
+    fontSize: headlineFontSize as any,
+    fontWeight: headlineFontWeight as any,
+    fontStyle: headlineFontStyle as any,
+    color: headlineColor,
+    transform: headlineTransform as any,
+    align: headlineAlign as any,
+    isDark,
+    defaultFamily: "heading",
+    defaultSize: "lg",
+    defaultWeight: "bold",
+  });
+
+  const { className: subClass, style: subStyle } = resolveSubheadlineTypography({
+    fontFamily: subheadlineFontFamily as any,
+    fontSize: subheadlineFontSize as any,
+    fontWeight: subheadlineFontWeight as any,
+    fontStyle: subheadlineFontStyle as any,
+    color: subheadlineColor,
+    align: subheadlineAlign as any,
+    isDark,
+    defaultFamily: "body",
+    defaultSize: "md",
+    defaultWeight: "normal",
+  });
 
   const colClass =
     columns === 2
@@ -102,16 +160,50 @@ export const PricingFlexibility: React.FC<PricingFlexibilityProps> = ({
     <Section variant={bgColor} className="border-b border-line">
       <Container>
         {/* Section Header */}
-        <div className="max-w-2xl mb-12">
-          <Eyebrow tone={isDark ? "gold" : "navy"} className="mb-2">
-            Honest, Transparent Pricing
-          </Eyebrow>
-          <Heading level="h2" className={`mb-3 ${isDark ? "text-white" : "text-navy-900"}`}>
-            {headline}
-          </Heading>
-          <p className={`text-base sm:text-lg leading-relaxed ${isDark ? "text-paper/85" : "text-ink-soft"}`}>
-            {subheadline}
-          </p>
+        <div
+          className={`max-w-2xl mb-12 ${
+            headlineAlign === "center"
+              ? "mx-auto text-center"
+              : headlineAlign === "right"
+              ? "ml-auto text-right"
+              : "text-left"
+          }`}
+        >
+          <EditableElementWrapper
+            isEditor={isEditor}
+            isSelected={isEditor && selectedElementKey === "badge"}
+            label="Pricing Eyebrow"
+            onClick={() => onSelectElement?.("badge")}
+            className="inline-block mb-2"
+          >
+            <Eyebrow tone={isDark ? "gold" : "navy"}>
+              Honest, Transparent Pricing
+            </Eyebrow>
+          </EditableElementWrapper>
+
+          <EditableElementWrapper
+            isEditor={isEditor}
+            isSelected={isEditor && selectedElementKey === "headline"}
+            label="Pricing Headline"
+            onClick={() => onSelectElement?.("headline")}
+            className="block mb-3"
+          >
+            <Heading level="h2" style={hlStyle} className={hlClass}>
+              {headline}
+            </Heading>
+          </EditableElementWrapper>
+
+          <EditableElementWrapper
+            isEditor={isEditor}
+            isSelected={isEditor && selectedElementKey === "subheadline"}
+            label="Pricing Subheadline"
+            onClick={() => onSelectElement?.("subheadline")}
+            className="block"
+          >
+            <p style={subStyle} className={subClass}>
+              {subheadline}
+            </p>
+          </EditableElementWrapper>
         </div>
 
         {/* Dynamic Column Split Layout */}
@@ -121,6 +213,8 @@ export const PricingFlexibility: React.FC<PricingFlexibilityProps> = ({
               card.badge?.toLowerCase().includes("popular") ||
               (!card.badge && idx === 1);
 
+            const { containerClass, titleClass, descClass } = resolveCardContainerStyles(card, isDark || isFeatured);
+
             return (
               <EditableElementWrapper
                 key={card.title + idx}
@@ -128,15 +222,13 @@ export const PricingFlexibility: React.FC<PricingFlexibilityProps> = ({
                 isSelected={isEditor && selectedElementKey === "item" && selectedElementItemIndex === idx}
                 label={`Pricing Option #${idx + 1}`}
                 onClick={() => onSelectElement?.("item", idx)}
-                className="h-full rounded-lg"
+                className="h-full"
               >
                 <div
-                  className={`rounded-lg border p-7 transition-colors flex flex-col justify-between h-full relative ${
-                    isFeatured
-                      ? "bg-navy-900 text-white border-2 border-gold-500 shadow-subtle"
-                      : isDark
-                      ? "bg-white/5 border-white/10 hover:border-gold-500/50 text-white"
-                      : "bg-white border-line shadow-subtle hover:border-navy-900/30 text-ink"
+                  className={`flex flex-col justify-between h-full relative ${
+                    isFeatured && !card.cardBg && !card.cardBorder
+                      ? "bg-navy-900 text-white border-2 border-gold-500 shadow-subtle p-7 rounded-lg"
+                      : containerClass
                   }`}
                 >
                   {isFeatured && (
@@ -150,7 +242,7 @@ export const PricingFlexibility: React.FC<PricingFlexibilityProps> = ({
                   <div>
                     <div className={`flex items-center justify-between gap-2 mb-4 ${isFeatured ? "pt-1" : ""}`}>
                       {card.badge && !isFeatured && (
-                        <Tag variant={isDark ? "gold" : "default"}>{card.badge}</Tag>
+                        <Tag variant={card.badgeVariant || (isDark ? "gold" : "default")}>{card.badge}</Tag>
                       )}
                       {isFeatured && (
                         <Tag variant="live" className="text-xs">
@@ -159,24 +251,20 @@ export const PricingFlexibility: React.FC<PricingFlexibilityProps> = ({
                       )}
                       <span
                         className={`text-xs font-mono uppercase tracking-wider ${
-                          isFeatured ? "text-paper/70" : isDark ? "text-gold-300" : "text-ink-soft"
+                          isFeatured || card.cardBg === "navy" ? "text-paper/70" : isDark ? "text-gold-300" : "text-ink-soft"
                         }`}
                       >
                         {card.number || `Option 0${idx + 1}`}
                       </span>
                     </div>
 
-                    <h3
-                      className={`font-heading text-2xl font-bold mb-1 ${
-                        isFeatured || isDark ? "text-white" : "text-navy-900"
-                      }`}
-                    >
+                    <h3 className={`mb-1 ${titleClass}`}>
                       {card.title}
                     </h3>
                     {card.subtitle && (
                       <p
                         className={`text-sm font-bold mb-4 ${
-                          isFeatured ? "text-gold-300" : isDark ? "text-gold-300" : "text-navy-900"
+                          isFeatured || card.cardBg === "navy" ? "text-gold-300" : isDark ? "text-gold-300" : "text-navy-900"
                         }`}
                       >
                         {card.subtitle}

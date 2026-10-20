@@ -165,82 +165,79 @@ export const HomeFAQ: React.FC<HomeFAQProps> = ({
             const isOpen = openIndex === index;
             const headingId = `faq-heading-${index}`;
             const panelId = `faq-panel-${index}`;
+            const isSelected = isEditor && selectedElementKey === "item" && selectedElementItemIndex === index;
 
             return (
-              <div
+              <EditableElementWrapper
                 key={index}
+                isEditor={isEditor}
+                isSelected={isSelected}
+                label={`FAQ #${index + 1}`}
                 onClick={() => {
-                  if (isEditor && onSelectElement) {
-                    onSelectElement("item", index);
-                  }
+                  onSelectElement?.("item", index);
                 }}
-                className={`rounded-lg border transition-all ${
-                  isDark
-                    ? isOpen
-                      ? "border-gold-500/60 bg-white/10 shadow-subtle text-white"
-                      : "border-white/10 bg-white/5 hover:border-gold-500/40 text-white"
-                    : isOpen
-                    ? "border-navy-900/40 bg-paper shadow-subtle text-ink"
-                    : "border-line bg-white hover:border-navy-900/20 text-ink"
-                } ${
-                  isEditor
-                    ? "group/faq relative hover:outline hover:outline-dashed hover:outline-2 hover:outline-gold-500 cursor-pointer"
-                    : ""
-                }`}
+                className="w-full block"
               >
-                {isEditor && (
-                  <span className="hidden group-hover/faq:inline-flex absolute -top-3.5 right-4 z-30 px-1.5 py-0.5 rounded-xs bg-navy-900 text-gold-300 text-[9px] font-bold shadow-xs whitespace-nowrap">
-                    FAQ Question #{index + 1} ✎
-                  </span>
-                )}
-                <button
-                  type="button"
-                  id={headingId}
-                  aria-expanded={isOpen}
-                  aria-controls={panelId}
-                  onClick={(e) => {
-                    toggleIndex(index);
-                    if (isEditor && onSelectElement) {
-                      e.stopPropagation();
-                      onSelectElement("item", index);
-                    }
-                  }}
-                  className="w-full text-left p-5 sm:p-6 flex items-center justify-between gap-4 min-h-[44px] focus:outline-none rounded-lg"
+                <div
+                  className={`rounded-lg border transition-all ${
+                    isDark
+                      ? isOpen
+                        ? "border-gold-500/60 bg-white/10 shadow-subtle text-white"
+                        : "border-white/10 bg-white/5 hover:border-gold-500/40 text-white"
+                      : isOpen
+                      ? "border-navy-900/40 bg-paper shadow-subtle text-ink"
+                      : "border-line bg-white hover:border-navy-900/20 text-ink"
+                  }`}
                 >
-                  <span className={`font-heading font-bold text-lg leading-snug ${isDark ? "text-white" : "text-navy-900"}`}>
-                    {item.question}
-                  </span>
-
-                  <span
-                    className={`w-8 h-8 rounded-sm flex items-center justify-center flex-shrink-0 transition-transform ${
-                      isDark
-                        ? isOpen
-                          ? "bg-gold-500 text-navy-900 rotate-180"
-                          : "bg-white/10 text-gold-300"
-                        : isOpen
-                        ? "bg-navy-900 text-white rotate-180"
-                        : "bg-paper text-navy-900"
-                    }`}
+                  <button
+                    type="button"
+                    id={headingId}
+                    aria-expanded={isOpen}
+                    aria-controls={panelId}
+                    onClick={(e) => {
+                      toggleIndex(index);
+                      if (isEditor && onSelectElement) {
+                        e.stopPropagation();
+                        onSelectElement("item", index);
+                      }
+                    }}
+                    className="w-full text-left p-5 sm:p-6 flex items-center justify-between gap-4 min-h-[44px] focus:outline-none rounded-lg"
                   >
-                    <Icon name="chevron-down" size={16} />
-                  </span>
-                </button>
+                    <span className={`font-heading font-bold text-lg leading-snug ${isDark ? "text-white" : "text-navy-900"}`}>
+                      {item.question}
+                    </span>
 
-                {isOpen && (
-                  <div
-                    id={panelId}
-                    role="region"
-                    aria-labelledby={headingId}
-                    className={`px-5 pb-5 sm:px-6 sm:pb-6 pt-0 text-sm leading-relaxed border-t mt-1 ${
-                      isDark
-                        ? "text-paper/85 border-white/10"
-                        : "text-ink-soft border-line/60"
-                    }`}
-                  >
-                    <p className="pt-3">{item.answer}</p>
-                  </div>
-                )}
-              </div>
+                    <span
+                      className={`w-8 h-8 rounded-sm flex items-center justify-center flex-shrink-0 transition-transform ${
+                        isDark
+                          ? isOpen
+                            ? "bg-gold-500 text-navy-900 rotate-180"
+                            : "bg-white/10 text-gold-300"
+                          : isOpen
+                          ? "bg-navy-900 text-white rotate-180"
+                          : "bg-paper text-navy-900"
+                      }`}
+                    >
+                      <Icon name="chevron-down" size={16} />
+                    </span>
+                  </button>
+
+                  {isOpen && (
+                    <div
+                      id={panelId}
+                      role="region"
+                      aria-labelledby={headingId}
+                      className={`px-5 pb-5 sm:px-6 sm:pb-6 pt-0 text-sm leading-relaxed border-t mt-1 ${
+                        isDark
+                          ? "text-paper/85 border-white/10"
+                          : "text-ink-soft border-line/60"
+                      }`}
+                    >
+                      <p className="pt-3">{item.answer}</p>
+                    </div>
+                  )}
+                </div>
+              </EditableElementWrapper>
             );
           })}
         </div>

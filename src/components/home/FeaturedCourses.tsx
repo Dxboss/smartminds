@@ -15,6 +15,7 @@ import { globalSettings } from "@/content/globals";
 import { defaultPlan6Months } from "@/content/plans";
 import { Course } from "@/content/types";
 import { resolveSectionBg, SectionBgColor } from "@/components/ui/sectionBg";
+import { OrangeWaveAccent } from "@/components/ui/OrangeWaveAccent";
 
 export interface FeaturedCoursesProps {
   headline?: string;
@@ -23,6 +24,8 @@ export interface FeaturedCoursesProps {
   buttonLink?: string;
   bgColor?: SectionBgColor;
   columns?: 2 | 3 | 4;
+  rows?: 1 | 2 | 3 | 4 | "all";
+  courseLimit?: number;
   courses?: Course[];
 }
 
@@ -35,12 +38,14 @@ const CATEGORY_TABS = [
 ];
 
 export const FeaturedCourses: React.FC<FeaturedCoursesProps> = ({
-  headline = "Popular live-taught qualifications",
+  headline = "Popular Courses",
   subheadline = "Explore our most requested British diplomas. Every programme features live tutor-led sessions, continuous mentor support, and flexible instalment schedules.",
   buttonText = "Browse complete qualification catalogue",
   buttonLink = "/courses",
   bgColor = "white",
-  columns = 3,
+  columns = 4,
+  rows = 2,
+  courseLimit,
   courses: propCourses,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -49,115 +54,127 @@ export const FeaturedCourses: React.FC<FeaturedCoursesProps> = ({
 
   const effectiveCourses = propCourses && propCourses.length > 0 ? propCourses : courses;
 
+  const effectiveLimit = useMemo(() => {
+    if (typeof courseLimit === "number" && courseLimit > 0) {
+      return courseLimit;
+    }
+    if (rows === "all") {
+      return undefined;
+    }
+    const cols = columns || 4;
+    const numRows = typeof rows === "number" ? rows : 2;
+    return cols * numRows;
+  }, [courseLimit, rows, columns]);
+
   const filteredCourses = useMemo(() => {
     const published = effectiveCourses.filter((c) => c.published);
-    if (selectedCategory === "all") return published.slice(0, 6);
+    let matched = published;
+    if (selectedCategory !== "all") {
+      matched = published.filter((c) => {
+        const cat = c.category.toLowerCase();
+        const title = c.title.toLowerCase();
+        if (selectedCategory === "health") {
+          return cat.includes("health") || cat.includes("care");
+        }
+        if (selectedCategory === "teaching") {
+          return cat.includes("teach") || cat.includes("educat") || title.includes("aet") || title.includes("cava");
+        }
+        if (selectedCategory === "early-years") {
+          return cat.includes("child") || cat.includes("early") || title.includes("young people");
+        }
+        if (selectedCategory === "business") {
+          return cat.includes("business") || cat.includes("admin") || cat.includes("management");
+        }
+        return true;
+      });
+    }
 
-    return published.filter((c) => {
-      const cat = c.category.toLowerCase();
-      const title = c.title.toLowerCase();
-      if (selectedCategory === "health") {
-        return cat.includes("health") || cat.includes("care");
-      }
-      if (selectedCategory === "teaching") {
-        return cat.includes("teach") || cat.includes("educat") || title.includes("aet") || title.includes("cava");
-      }
-      if (selectedCategory === "early-years") {
-        return cat.includes("child") || cat.includes("early") || title.includes("young people");
-      }
-      if (selectedCategory === "business") {
-        return cat.includes("business") || cat.includes("admin") || cat.includes("management");
-      }
-      return true;
-    });
-  }, [selectedCategory]);
+    if (effectiveLimit && effectiveLimit > 0) {
+      return matched.slice(0, effectiveLimit);
+    }
+    return matched;
+  }, [selectedCategory, effectiveCourses, effectiveLimit]);
 
-  const colClass =
-    columns === 2
-      ? "grid-cols-1 md:grid-cols-2"
-      : columns === 4
-      ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
-      : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3";
+  const gridColsClass = useMemo(() => {
+    switch (columns) {
+      case 2:
+        return "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6";
+      case 3:
+        return "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6";
+      case 4:
+      default:
+        return "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6";
+    }
+  }, [columns]);
 
   return (
-    <Section variant={bgColor} className="border-b border-line">
+    <Section variant={bgColor} id="popular-courses" className="pt-24 pb-20 border-b border-line scroll-mt-20">
       <Container>
-        {/* Section Header */}
-        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-8">
-          <div>
-            <Eyebrow tone={isDark ? "gold" : "navy"} className="mb-2">
-              Official College Prospectus
-            </Eyebrow>
-            <Heading level="h2" className={`mb-2 ${isDark ? "text-white" : "text-navy-900"}`}>
-              {headline}
-            </Heading>
-            <p className={`text-base sm:text-lg max-w-2xl leading-relaxed ${isDark ? "text-paper/85" : "text-ink-soft"}`}>
-              {subheadline}
-            </p>
+        {/* Section Header: Centered with Orange Wave Accent matching Inspiration */}
+        <div className="text-center max-w-2xl mx-auto mb-10">
+          <div className="inline-block relative">
+            <h2 className="font-heading text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-tight">
+              {headline === "Popular Courses" ? (
+                <>
+                  <span className="text-[#FF5722]">Popular</span>{" "}
+                  <span className="text-[#0B4D4E]">Courses</span>
+                </>
+              ) : (
+                <span className="text-[#0B4D4E]">{headline}</span>
+              )}
+            </h2>
+            <div className="flex justify-center mt-2">
+              <OrangeWaveAccent width={150} height={20} className="text-[#FF5722]" />
+            </div>
           </div>
+          <p className="text-base sm:text-lg text-ink-soft mt-3 leading-relaxed">
+            {subheadline}
+          </p>
+        </div>
 
-          {/* Institutional Trust Indicator */}
-          <div className="flex items-center gap-2 text-xs font-semibold text-ink-soft bg-paper px-3 py-2 rounded-sm border border-line self-start lg:self-end">
-            <Icon name="shield-check" size={16} className="text-navy-900 flex-shrink-0" />
-            <span>Ofqual-Regulated &amp; UK Accredited</span>
+        {/* Category Filter Tabs: Responsive horizontal pills (centered when fitting, scrollable from first tab without clipping on tablet/mobile) */}
+        <div className="w-full overflow-x-auto pb-4 mb-10 scrollbar-none">
+          <div className="flex items-center gap-2.5 min-w-max mx-auto px-4 justify-start sm:justify-center text-xs sm:text-sm">
+            {CATEGORY_TABS.map((tab) => {
+              const isActive = selectedCategory === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setSelectedCategory(tab.id)}
+                  className={`px-5 py-2.5 rounded-full whitespace-nowrap font-bold text-xs sm:text-sm transition-all shadow-xs ${
+                    isActive
+                      ? "bg-[#0B4D4E] text-white shadow-md font-extrabold"
+                      : "bg-white text-ink-soft border border-line hover:border-[#0B4D4E] hover:text-[#0B4D4E]"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        {/* Category Filter Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-8 scrollbar-none text-xs sm:text-sm border-b border-line/60">
-          {CATEGORY_TABS.map((tab) => {
-            const isActive = selectedCategory === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setSelectedCategory(tab.id)}
-                className={`px-4 py-2 rounded-sm whitespace-nowrap font-semibold border transition-all ${
-                  isActive
-                    ? isDark
-                      ? "bg-gold-500 text-navy-900 border-gold-400 shadow-xs font-bold"
-                      : "bg-navy-900 text-white border-navy-900 shadow-xs font-bold"
-                    : isDark
-                    ? "bg-white/5 text-paper/80 border-white/10 hover:border-white/30"
-                    : "bg-white text-ink-soft border-line hover:border-navy-900/40 hover:text-navy-900"
-                }`}
-              >
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Visual Course Cards Grid */}
-        <div className={`grid ${colClass} gap-6`}>
+        {/* Visual Course Cards Grid: Responsive Columns (2, 3, 4 on desktop, 2 on tablet, 1 on mobile) */}
+        <div className={gridColsClass}>
           {filteredCourses.map((course, index) => (
             <CourseCard
               key={course.id}
               course={course}
               headingLevel="h3"
-              priority={index < 3}
+              priority={index < (columns || 4)}
             />
           ))}
         </div>
 
-        {/* Bottom Banner */}
-        <div className="mt-12 pt-6 border-t border-line/80 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2 text-xs sm:text-sm text-ink-soft">
-            <Icon name="check" size={16} className="text-emerald-600 flex-shrink-0" />
-            <span>
-              All qualifications feature live interactive evening Zoom seminars, dedicated assessor support, and direct college monthly payment plans.
-            </span>
-          </div>
-
+        {/* Centered View All Button matching Target Image 2 */}
+        <div className="text-center mt-12">
           <Link
             href={buttonLink || "/courses"}
-            className={`inline-flex items-center justify-center min-h-[44px] px-6 rounded-sm border font-heading font-bold text-sm tracking-wide transition-colors whitespace-nowrap flex-shrink-0 ${
-              isDark
-                ? "border-gold-300 text-gold-300 hover:bg-gold-500 hover:text-navy-900"
-                : "border-navy-900 text-navy-900 hover:bg-navy-900 hover:text-white"
-            }`}
+            className="inline-flex items-center justify-center px-8 py-3.5 rounded-full border border-teal-300 text-[#0B4D4E] hover:bg-teal-50 hover:border-teal-500 font-heading font-bold text-sm tracking-wide transition-all shadow-xs"
           >
-            {buttonText || "Browse complete qualification catalogue"} &rarr;
+            <span>View All Courses</span>
+            <Icon name="arrow-right" size={15} className="ml-2 text-[#0B4D4E]" />
           </Link>
         </div>
       </Container>

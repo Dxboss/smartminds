@@ -155,6 +155,7 @@ export const TrustStrip: React.FC<TrustStripProps> = ({
               variant={isDark ? "dark" : "light"}
               className="justify-start md:justify-end"
               isEditor={isEditor}
+              selectedIndex={selectedElementKey === "item" ? selectedElementItemIndex : null}
               onSelectBadge={(idx) => {
                 if (isEditor && onSelectElement) {
                   onSelectElement("item", idx);

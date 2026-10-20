@@ -2,7 +2,7 @@
 
 import React, { useState, useTransition } from "react";
 import Link from "next/link";
-import { Course, CourseLevel, Unit, FAQ, DeliveryMode } from "@/content/types";
+import { Course, CourseLevel, Unit, FAQ, DeliveryMode, CourseType } from "@/content/types";
 import { formatCurrency } from "@/content/pricing";
 import { Icon } from "@/components/ui/Icon";
 import { ImageDropzone } from "@/components/ui/ImageDropzone";
@@ -11,16 +11,21 @@ import {
   updateCourseDetailsAction,
   createCourseAction,
   deleteCourseAction,
+  saveFacultyAction,
+  deleteFacultyAction,
 } from "@/app/admin/actions";
+import { type FacultyRecord, DEFAULT_COLLEGE_FACULTIES } from "@/content/faculties";
 
 interface CoursesManagerViewProps {
   courses: Course[];
   userRole: string;
+  initialFaculties?: FacultyRecord[];
 }
 
 export function CoursesManagerView({
   courses: initialCourses,
   userRole,
+  initialFaculties,
 }: CoursesManagerViewProps) {
   const [courses, setCourses] = useState<Course[]>(initialCourses);
   const [searchQuery, setSearchQuery] = useState("");
@@ -51,6 +56,10 @@ export function CoursesManagerView({
   const [editSummary, setEditSummary] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editCategory, setEditCategory] = useState("Health & Social Care");
+  const [editType, setEditType] = useState<CourseType>("regulated");
+  const [editIsPrivateTutoring, setEditIsPrivateTutoring] = useState(false);
+  const [editIsCustomFaculty, setEditIsCustomFaculty] = useState(false);
+  const [editCustomFacultyText, setEditCustomFacultyText] = useState("");
   const [editAwardingBody, setEditAwardingBody] = useState("");
   const [editAwardingRef, setEditAwardingRef] = useState("");
   const [editDelivery, setEditDelivery] = useState<DeliveryMode>("live_online");
@@ -59,7 +68,8 @@ export function CoursesManagerView({
   const [editIntroVideoUrl, setEditIntroVideoUrl] = useState("");
   const [editIntroVideoPoster, setEditIntroVideoPoster] = useState("");
   const [editTrainingLocations, setEditTrainingLocations] = useState<string[]>([]);
-  const [editAttendanceType, setEditAttendanceType] = useState<"online_only" | "blended_practical">("online_only");
+  const [editLocationInput, setEditLocationInput] = useState("");
+  const [editAttendanceType, setEditAttendanceType] = useState<"online_only" | "blended_practical" | "physical_venue">("online_only");
 
   // Career Opportunities & Progression
   const [editJobProspects, setEditJobProspects] = useState<string[]>([]);
@@ -103,9 +113,16 @@ export function CoursesManagerView({
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newCategory, setNewCategory] = useState("Health & Social Care");
+  const [newType, setNewType] = useState<CourseType>("regulated");
+  const [newIsPrivateTutoring, setNewIsPrivateTutoring] = useState(false);
+  const [newIsCustomFaculty, setNewIsCustomFaculty] = useState(false);
+  const [newCustomFacultyText, setNewCustomFacultyText] = useState("");
   const [newAwardingBody, setNewAwardingBody] = useState("TQUK & NCFE");
   const [newAwardingRef, setNewAwardingRef] = useState("");
   const [newDelivery, setNewDelivery] = useState<DeliveryMode>("live_online");
+  const [newAttendanceType, setNewAttendanceType] = useState<"online_only" | "blended_practical" | "physical_venue">("online_only");
+  const [newTrainingLocations, setNewTrainingLocations] = useState<string[]>([]);
+  const [newLocationInput, setNewLocationInput] = useState("");
   const [newCustomDeliveryText, setNewCustomDeliveryText] = useState("");
   const [newIntroVideoUrl, setNewIntroVideoUrl] = useState("");
   const [newLevelLabel, setNewLevelLabel] = useState("Level 3");
@@ -128,10 +145,80 @@ export function CoursesManagerView({
 
   const isOwner = userRole === "owner_admin" || userRole === "super_admin";
 
+  // Standalone Academic Faculties State
+  const [faculties, setFaculties] = useState<FacultyRecord[]>(
+    initialFaculties && initialFaculties.length > 0
+      ? initialFaculties
+      : DEFAULT_COLLEGE_FACULTIES
+  );
+  const [isFacultyModalOpen, setIsFacultyModalOpen] = useState(false);
+  const [newFacultyName, setNewFacultyName] = useState("");
+  const [newFacultyDesc, setNewFacultyDesc] = useState("");
+  const [newFacultyIcon, setNewFacultyIcon] = useState("shield-check");
+  const [newFacultyColor, setNewFacultyColor] = useState("navy");
+  const [newFacultyStatus, setNewFacultyStatus] = useState<"active" | "enrolments_opening_soon">("active");
+  const [facultyError, setFacultyError] = useState("");
+  const [isSavingFaculty, setIsSavingFaculty] = useState(false);
+
   const categories = [
     "all",
-    ...Array.from(new Set(courses.map((c) => c.category).filter(Boolean))),
+    ...Array.from(
+      new Set([
+        ...faculties.map((f) => f.name),
+        ...courses.map((c) => c.category).filter(Boolean),
+      ])
+    ),
   ];
+
+  const handleSaveFaculty = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFacultyError("");
+    if (!newFacultyName.trim()) {
+      setFacultyError("Please enter a faculty / department name.");
+      return;
+    }
+    setIsSavingFaculty(true);
+    try {
+      const res = await saveFacultyAction({
+        name: newFacultyName.trim(),
+        description: newFacultyDesc.trim(),
+        icon: newFacultyIcon,
+        color: newFacultyColor,
+        status: newFacultyStatus,
+      });
+      if (res.success && res.faculties) {
+        setFaculties(res.faculties);
+        setNewFacultyName("");
+        setNewFacultyDesc("");
+        setToastMessage(`Faculty "${newFacultyName.trim()}" created successfully.`);
+        setTimeout(() => setToastMessage(null), 4000);
+      }
+    } catch (err: unknown) {
+      setFacultyError(err instanceof Error ? err.message : "Failed to save faculty.");
+    } finally {
+      setIsSavingFaculty(false);
+    }
+  };
+
+  const handleDeleteFaculty = async (facultyId: string, facultyName: string) => {
+    if (
+      !confirm(
+        `Are you sure you want to remove the faculty "${facultyName}"? Existing qualifications will remain unaffected.`
+      )
+    ) {
+      return;
+    }
+    try {
+      const res = await deleteFacultyAction(facultyId);
+      if (res.success && res.faculties) {
+        setFaculties(res.faculties);
+        setToastMessage(`Faculty "${facultyName}" removed.`);
+        setTimeout(() => setToastMessage(null), 4000);
+      }
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Failed to remove faculty.");
+    }
+  };
 
   const filteredCourses = courses.filter((c) => {
     const matchesSearch =
@@ -151,6 +238,10 @@ export function CoursesManagerView({
     setEditSummary(course.summary);
     setEditDescription(course.description || course.summary);
     setEditCategory(course.category);
+    setEditType(course.type || (course.is_private_tutoring ? "tutoring" : "regulated"));
+    setEditIsPrivateTutoring(Boolean(course.is_private_tutoring));
+    setEditIsCustomFaculty(false);
+    setEditCustomFacultyText("");
     setEditAwardingBody(course.awarding_body || "");
     setEditAwardingRef(course.awarding_reference || "");
     setEditDelivery(course.delivery || "live_online");
@@ -160,7 +251,9 @@ export function CoursesManagerView({
     setEditTrainingLocations(course.training_locations ? [...course.training_locations] : []);
     setEditAttendanceType(
       course.attendance_type ||
-        (course.training_locations && course.training_locations.length > 0
+        (course.delivery === "classroom"
+          ? "physical_venue"
+          : course.delivery === "blended" || (course.training_locations && course.training_locations.length > 0)
           ? "blended_practical"
           : "online_only")
     );
@@ -437,11 +530,17 @@ export function CoursesManagerView({
 
     startTransition(async () => {
       try {
+        const finalCategory = editIsCustomFaculty && editCustomFacultyText.trim()
+          ? editCustomFacultyText.trim()
+          : editCategory;
+
         const result = await updateCourseDetailsAction(selectedCourse.id, {
           title: editTitle.trim(),
           summary: editSummary.trim(),
           description: editDescription.trim() || editSummary.trim(),
-          category: editCategory,
+          category: finalCategory,
+          type: editType,
+          is_private_tutoring: editIsPrivateTutoring,
           awarding_body: editAwardingBody.trim() || null,
           awarding_reference: editAwardingRef.trim() || null,
           delivery: editDelivery,
@@ -449,7 +548,9 @@ export function CoursesManagerView({
           intro_video_url: editIntroVideoUrl.trim() || null,
           intro_video_poster: editIntroVideoPoster.trim() || null,
           training_locations:
-            editAttendanceType === "blended_practical" ? editTrainingLocations : undefined,
+            (editAttendanceType === "blended_practical" || editAttendanceType === "physical_venue")
+              ? editTrainingLocations
+              : undefined,
           attendance_type: editAttendanceType,
           image: editImage.trim() || "/images/adult-care-training.jpg",
           levels: finalLevels,
@@ -511,15 +612,22 @@ export function CoursesManagerView({
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)/g, "");
 
+    const finalNewCategory = newIsCustomFaculty && newCustomFacultyText.trim()
+      ? newCustomFacultyText.trim()
+      : newCategory;
+
     const newCourseObj: Course = {
       id: `course-${Date.now().toString().slice(-4)}`,
       slug,
       title: newTitle.trim(),
       summary: newSummary.trim(),
       description: newSummary.trim(),
-      category: newCategory,
-      type: "regulated",
+      category: finalNewCategory,
+      type: newType,
+      is_private_tutoring: newIsPrivateTutoring,
       delivery: newDelivery,
+      attendance_type: newAttendanceType,
+      training_locations: (newAttendanceType === "blended_practical" || newAttendanceType === "physical_venue") ? newTrainingLocations : undefined,
       custom_delivery_text: newCustomDeliveryText.trim() || undefined,
       start_mode: "rolling",
       start_dates: ["Every Monday", "First of each month"],
@@ -652,13 +760,23 @@ export function CoursesManagerView({
 
         <div className="flex flex-wrap items-center gap-3">
           {isOwner && (
-            <button
-              onClick={() => setIsAddModalOpen(true)}
-              className="px-4 py-2.5 rounded-sm bg-navy-900 text-white text-sm font-bold hover:bg-navy-700 transition-colors inline-flex items-center gap-2 shadow-sm"
-            >
-              <Icon name="plus" size={16} />
-              <span>Add New Qualification</span>
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => setIsFacultyModalOpen(true)}
+                className="px-4 py-2.5 rounded-sm bg-paper hover:bg-gold-50 border border-line hover:border-gold-500 text-navy-900 text-sm font-bold transition-all inline-flex items-center gap-2 shadow-2xs cursor-pointer"
+              >
+                <Icon name="layers" size={16} className="text-gold-600" />
+                <span>Manage Academic Faculties ({faculties.length})</span>
+              </button>
+              <button
+                onClick={() => setIsAddModalOpen(true)}
+                className="px-4 py-2.5 rounded-sm bg-navy-900 text-white text-sm font-bold hover:bg-navy-700 transition-colors inline-flex items-center gap-2 shadow-sm cursor-pointer"
+              >
+                <Icon name="plus" size={16} />
+                <span>Add New Qualification</span>
+              </button>
+            </>
           )}
           <Link
             href="/courses"
@@ -792,7 +910,35 @@ export function CoursesManagerView({
                 filteredCourses.map((c) => (
                   <tr key={c.id} className="hover:bg-paper/50 transition-colors">
                     <td className="py-4 px-4 font-semibold text-navy-900 max-w-xs">
-                      <div>{c.title}</div>
+                      <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                        {c.is_private_tutoring ? (
+                          <span className="px-1.5 py-0.5 rounded-sm bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold">
+                            🎒 Kids Tutoring (KS3/GCSE)
+                          </span>
+                        ) : c.type === "cpd" ? (
+                          <span className="px-1.5 py-0.5 rounded-sm bg-blue-100 text-blue-900 border border-blue-300 text-[10px] font-bold">
+                            ⚡ CPD Short Course
+                          </span>
+                        ) : (
+                          <span className="px-1.5 py-0.5 rounded-sm bg-navy-100 text-navy-900 border border-navy-200 text-[10px] font-bold">
+                            🎓 Adult RQF Qualification
+                          </span>
+                        )}
+                        {c.attendance_type === "physical_venue" || c.delivery === "classroom" ? (
+                          <span className="px-1.5 py-0.5 rounded-sm bg-amber-100 text-amber-950 border border-amber-300 text-[10px] font-bold">
+                            🏢 Physical Venue {c.training_locations?.length ? `(${c.training_locations.length})` : ""}
+                          </span>
+                        ) : c.attendance_type === "blended_practical" || c.delivery === "blended" || (c.training_locations && c.training_locations.length > 0) ? (
+                          <span className="px-1.5 py-0.5 rounded-sm bg-purple-100 text-purple-900 border border-purple-300 text-[10px] font-bold">
+                            🔄 Blended Practical {c.training_locations?.length ? `(${c.training_locations.length})` : ""}
+                          </span>
+                        ) : (
+                          <span className="px-1.5 py-0.5 rounded-sm bg-slate-100 text-slate-800 border border-slate-300 text-[10px] font-bold">
+                            💻 100% Online
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-sm font-bold text-navy-900">{c.title}</div>
                       <span className="text-xs font-mono text-ink-soft font-normal">
                         slug: /{c.slug}
                       </span>
@@ -844,9 +990,11 @@ export function CoursesManagerView({
                     <td className="py-4 px-4 whitespace-nowrap">
                       <span className="px-2 py-0.5 rounded-sm bg-indigo-50 text-indigo-800 text-xs font-semibold">
                         {c.custom_delivery_text ||
-                          (c.delivery === "live_online"
+                          (c.attendance_type === "physical_venue" || c.delivery === "classroom"
+                            ? "Physical Venue / Campus"
+                            : c.delivery === "live_online"
                             ? "Live Online (Zoom)"
-                            : "Blended Learning")}
+                            : "Blended Practical")}
                       </span>
                       {c.custom_delivery_text && (
                         <span className="block text-[10px] text-ink-soft">
@@ -855,7 +1003,7 @@ export function CoursesManagerView({
                       )}
                       {c.training_locations && c.training_locations.length > 0 && (
                         <span className="block text-[10px] font-semibold text-emerald-700 mt-0.5">
-                          📍 {c.training_locations.length} Practical Venues
+                          📍 {c.training_locations.length} {c.attendance_type === "physical_venue" ? "Campus" : "Practical"} Venues
                         </span>
                       )}
                       <span className="block text-xs text-ink-soft mt-0.5">
@@ -1038,17 +1186,117 @@ export function CoursesManagerView({
                     />
                   </div>
 
+                  {/* TARGET AUDIENCE & QUALIFICATION TYPE */}
+                  <div className="p-3 bg-paper rounded-sm border border-line space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-bold text-navy-900 uppercase tracking-wider">
+                        Target Audience & Qualification Category
+                      </label>
+                      <span className="text-[10px] text-ink-soft">
+                        Configures student portal mode, DBS requirements & compliance
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditType("regulated");
+                          setEditIsPrivateTutoring(false);
+                        }}
+                        className={`p-2.5 rounded-sm border text-left transition-all cursor-pointer ${
+                          editType === "regulated" && !editIsPrivateTutoring
+                            ? "bg-navy-900 text-white border-navy-900 shadow-xs"
+                            : "bg-white text-ink border-line hover:border-navy-700"
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 font-bold text-xs">
+                          <span>🎓 Adult RQF Qualification</span>
+                        </div>
+                        <p className={`text-[10px] mt-1 leading-snug ${editType === "regulated" && !editIsPrivateTutoring ? "text-navy-100" : "text-ink-soft"}`}>
+                          Regulated British diplomas for adult vocational careers.
+                        </p>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditType("cpd");
+                          setEditIsPrivateTutoring(false);
+                        }}
+                        className={`p-2.5 rounded-sm border text-left transition-all cursor-pointer ${
+                          editType === "cpd" && !editIsPrivateTutoring
+                            ? "bg-navy-900 text-white border-navy-900 shadow-xs"
+                            : "bg-white text-ink border-line hover:border-navy-700"
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 font-bold text-xs">
+                          <span>⚡ Mandatory CPD Course</span>
+                        </div>
+                        <p className={`text-[10px] mt-1 leading-snug ${editType === "cpd" && !editIsPrivateTutoring ? "text-navy-100" : "text-ink-soft"}`}>
+                          1-day or short workplace compliance certificates.
+                        </p>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditType("tutoring");
+                          setEditIsPrivateTutoring(true);
+                        }}
+                        className={`p-2.5 rounded-sm border text-left transition-all cursor-pointer ${
+                          editIsPrivateTutoring
+                            ? "bg-navy-900 text-white border-navy-900 shadow-xs"
+                            : "bg-white text-ink border-line hover:border-navy-700"
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 font-bold text-xs">
+                          <span>🎒 Kids & GCSE Tutoring</span>
+                        </div>
+                        <p className={`text-[10px] mt-1 leading-snug ${editIsPrivateTutoring ? "text-navy-100" : "text-ink-soft"}`}>
+                          1-on-1 tutoring for secondary pupils (English, Maths, Science - DBS Checked).
+                        </p>
+                      </button>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
-                      <label className="block text-xs font-semibold text-navy-900 uppercase tracking-wider mb-1">
-                        Category / Faculty
-                      </label>
-                      <input
-                        type="text"
-                        value={editCategory}
-                        onChange={(e) => setEditCategory(e.target.value)}
-                        className="w-full px-3 py-2 border border-line rounded-sm text-xs focus:outline-none focus:border-navy-900 bg-paper focus:bg-white"
-                      />
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs font-semibold text-navy-900 uppercase tracking-wider">
+                          Faculty / Department
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setEditIsCustomFaculty(!editIsCustomFaculty)}
+                          className="text-[10px] font-bold text-navy-700 hover:underline"
+                        >
+                          {editIsCustomFaculty ? "← Presets" : "+ Custom"}
+                        </button>
+                      </div>
+                      {editIsCustomFaculty ? (
+                        <input
+                          type="text"
+                          placeholder="e.g. Faculty of Nursing"
+                          value={editCustomFacultyText}
+                          onChange={(e) => setEditCustomFacultyText(e.target.value)}
+                          className="w-full px-3 py-2 border border-line rounded-sm text-xs focus:outline-none focus:border-navy-900 bg-paper focus:bg-white"
+                        />
+                      ) : (
+                        <select
+                          value={editCategory}
+                          onChange={(e) => setEditCategory(e.target.value)}
+                          className="w-full px-3 py-2 border border-line rounded-sm text-xs focus:outline-none focus:border-navy-900 bg-white"
+                        >
+                          {faculties.map((f) => (
+                            <option key={f.id} value={f.name}>
+                              {f.name}
+                            </option>
+                          ))}
+                          {!faculties.some((f) => f.name === editCategory) && (
+                            <option value={editCategory}>{editCategory}</option>
+                          )}
+                        </select>
+                      )}
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-navy-900 uppercase tracking-wider mb-1">
@@ -1087,8 +1335,8 @@ export function CoursesManagerView({
                       </span>
                     </div>
 
-                    {/* Segmented 3-Pill Selector */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    {/* Segmented 4-Pill Selector */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                       <button
                         type="button"
                         onClick={() => {
@@ -1115,6 +1363,41 @@ export function CoursesManagerView({
                         </div>
                         <span className="text-[10px] opacity-80 block leading-tight">
                           100% distance via weekly Zoom seminars
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditDelivery("classroom");
+                          setEditAttendanceType("physical_venue");
+                          if (editTrainingLocations.length === 0) {
+                            setEditTrainingLocations([
+                              "London Stratford",
+                              "Birmingham Central",
+                            ]);
+                          }
+                        }}
+                        className={`p-2.5 rounded-sm border text-left transition-all cursor-pointer ${
+                          editAttendanceType === "physical_venue"
+                            ? "bg-navy-900 text-white border-navy-900 shadow-xs"
+                            : "bg-white text-ink-soft border-line hover:border-navy-900"
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 font-bold text-xs mb-0.5">
+                          <Icon
+                            name="map-pin"
+                            size={13}
+                            className={
+                              editAttendanceType === "physical_venue"
+                                ? "text-gold-300"
+                                : "text-navy-900"
+                            }
+                          />
+                          <span>Physical Venue</span>
+                        </div>
+                        <span className="text-[10px] opacity-80 block leading-tight">
+                          100% classroom or campus training
                         </span>
                       </button>
 
@@ -1197,56 +1480,122 @@ export function CoursesManagerView({
                       />
                     </div>
 
-                    {/* Embedded UK Campus Venues (Only when Blended Practical) */}
-                    {editAttendanceType === "blended_practical" && (
-                      <div className="pt-2.5 border-t border-line space-y-2">
+                    {/* Embedded UK Campus Venues (When Physical Venue or Blended Practical) */}
+                    {(editAttendanceType === "blended_practical" || editAttendanceType === "physical_venue") && (
+                      <div className="pt-2.5 border-t border-line space-y-3">
                         <div className="flex items-center justify-between">
                           <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-950">
-                            Select Practical Training & Assessment Venues:
+                            Select Training & Assessment Venues:
                           </span>
                           <span className="text-[10px] text-emerald-800 font-semibold font-mono">
                             {editTrainingLocations.length} locations selected
                           </span>
                         </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                          {[
-                            "London Stratford",
-                            "Birmingham Central",
-                            "Manchester Piccadilly",
-                            "Leeds City Centre",
-                            "Bristol Harbourside",
-                            "Milton Keynes",
-                            "Southampton",
-                            "Portsmouth",
-                          ].map((loc) => {
-                            const isChecked = editTrainingLocations.includes(loc);
-                            return (
-                              <label
-                                key={loc}
-                                className={`flex items-center gap-2 p-2 rounded-sm border text-xs cursor-pointer transition-colors ${
-                                  isChecked
-                                    ? "bg-emerald-50 border-emerald-400 font-bold text-emerald-900"
-                                    : "bg-white border-line text-ink-soft hover:border-navy-900"
-                                }`}
+
+                        {/* Custom Venue Add Input */}
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            placeholder="Add specific centre, e.g. London Healthcare Centre - 45 Aldgate High St"
+                            value={editLocationInput}
+                            onChange={(e) => setEditLocationInput(e.target.value)}
+                            className="flex-1 px-3 py-1.5 border border-line rounded-sm text-xs focus:outline-none focus:border-navy-900 bg-white"
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                if (editLocationInput.trim()) {
+                                  if (!editTrainingLocations.includes(editLocationInput.trim())) {
+                                    setEditTrainingLocations([...editTrainingLocations, editLocationInput.trim()]);
+                                  }
+                                  setEditLocationInput("");
+                                }
+                              }
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (editLocationInput.trim()) {
+                                if (!editTrainingLocations.includes(editLocationInput.trim())) {
+                                  setEditTrainingLocations([...editTrainingLocations, editLocationInput.trim()]);
+                                }
+                                setEditLocationInput("");
+                              }
+                            }}
+                            className="px-3 py-1.5 bg-navy-900 text-white text-xs font-semibold rounded-sm hover:bg-navy-700 transition-colors"
+                          >
+                            + Add Venue
+                          </button>
+                        </div>
+
+                        {/* Selected Venues Tags */}
+                        {editTrainingLocations.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 pt-0.5">
+                            {editTrainingLocations.map((loc, idx) => (
+                              <span
+                                key={idx}
+                                className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-medium"
                               >
-                                <input
-                                  type="checkbox"
-                                  checked={isChecked}
-                                  onChange={() => {
-                                    if (isChecked) {
-                                      setEditTrainingLocations(
-                                        editTrainingLocations.filter((l) => l !== loc)
-                                      );
-                                    } else {
-                                      setEditTrainingLocations([...editTrainingLocations, loc]);
-                                    }
-                                  }}
-                                  className="accent-emerald-600"
-                                />
-                                <span>{loc}</span>
-                              </label>
-                            );
-                          })}
+                                <span>📍 {loc}</span>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setEditTrainingLocations(editTrainingLocations.filter((_, i) => i !== idx))
+                                  }
+                                  className="text-emerald-700 hover:text-emerald-950 font-bold leading-none"
+                                >
+                                  ✕
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Quick Preset Checkboxes */}
+                        <div className="pt-1">
+                          <span className="block text-[10px] font-semibold text-ink-soft mb-1.5">
+                            Quick-select primary UK campuses:
+                          </span>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                            {[
+                              "London Stratford",
+                              "Birmingham Central",
+                              "Manchester Piccadilly",
+                              "Leeds City Centre",
+                              "Bristol Harbourside",
+                              "Milton Keynes",
+                              "Southampton",
+                              "Portsmouth",
+                            ].map((loc) => {
+                              const isChecked = editTrainingLocations.includes(loc);
+                              return (
+                                <label
+                                  key={loc}
+                                  className={`flex items-center gap-1.5 p-1.5 rounded-sm border text-[11px] cursor-pointer transition-colors ${
+                                    isChecked
+                                      ? "bg-emerald-50 border-emerald-400 font-bold text-emerald-900"
+                                      : "bg-white border-line text-ink-soft hover:border-navy-900"
+                                  }`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={() => {
+                                      if (isChecked) {
+                                        setEditTrainingLocations(
+                                          editTrainingLocations.filter((l) => l !== loc)
+                                        );
+                                      } else {
+                                        setEditTrainingLocations([...editTrainingLocations, loc]);
+                                      }
+                                    }}
+                                    className="accent-emerald-600"
+                                  />
+                                  <span className="truncate">{loc}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
                         </div>
                       </div>
                     )}
@@ -2300,21 +2649,121 @@ export function CoursesManagerView({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-navy-900 uppercase tracking-wider mb-1">
-                    Faculty / Category
+              {/* 1. TARGET AUDIENCE & COURSE TYPE */}
+              <div className="p-3 bg-paper rounded-sm border border-line space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-navy-900 uppercase tracking-wider">
+                    Target Audience & Qualification Category
                   </label>
-                  <select
-                    value={newCategory}
-                    onChange={(e) => setNewCategory(e.target.value)}
-                    className="w-full px-3 py-2 border border-line rounded-sm text-sm bg-white focus:outline-none focus:border-navy-900"
+                  <span className="text-[10px] text-ink-soft">
+                    Determines pricing model, portal experience & regulatory compliance
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewType("regulated");
+                      setNewIsPrivateTutoring(false);
+                      if (newCategory === "Private Tutoring") setNewCategory("Health & Social Care");
+                    }}
+                    className={`p-2.5 rounded-sm border text-left transition-all cursor-pointer ${
+                      newType === "regulated" && !newIsPrivateTutoring
+                        ? "bg-navy-900 text-white border-navy-900 shadow-xs"
+                        : "bg-white text-ink border-line hover:border-navy-700 hover:bg-white"
+                    }`}
                   >
-                    <option value="Health & Social Care">Health & Social Care</option>
-                    <option value="Childcare & Early Years">Childcare & Early Years</option>
-                    <option value="Education & Training">Education & Training</option>
-                    <option value="Private Tutoring">Private Tutoring</option>
-                  </select>
+                    <div className="flex items-center gap-1.5 font-bold text-xs">
+                      <span>🎓 Adult RQF Qualification</span>
+                    </div>
+                    <p className={`text-[10px] mt-1 leading-snug ${newType === "regulated" && !newIsPrivateTutoring ? "text-navy-100" : "text-ink-soft"}`}>
+                      Regulated British diplomas (Levels 2–5) for adult career advancement.
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewType("cpd");
+                      setNewIsPrivateTutoring(false);
+                      if (newCategory === "Private Tutoring") setNewCategory("Health & Social Care");
+                    }}
+                    className={`p-2.5 rounded-sm border text-left transition-all cursor-pointer ${
+                      newType === "cpd" && !newIsPrivateTutoring
+                        ? "bg-navy-900 text-white border-navy-900 shadow-xs"
+                        : "bg-white text-ink border-line hover:border-navy-700 hover:bg-white"
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 font-bold text-xs">
+                      <span>⚡ Mandatory CPD Course</span>
+                    </div>
+                    <p className={`text-[10px] mt-1 leading-snug ${newType === "cpd" && !newIsPrivateTutoring ? "text-navy-100" : "text-ink-soft"}`}>
+                      1-day or short compliance certificate (Safeguarding, First Aid, CQC).
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewType("tutoring");
+                      setNewIsPrivateTutoring(true);
+                      setNewCategory("Academic Tutoring (Kids & GCSE)");
+                    }}
+                    className={`p-2.5 rounded-sm border text-left transition-all cursor-pointer ${
+                      newIsPrivateTutoring
+                        ? "bg-navy-900 text-white border-navy-900 shadow-xs"
+                        : "bg-white text-ink border-line hover:border-navy-700 hover:bg-white"
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 font-bold text-xs">
+                      <span>🎒 Kids & GCSE Tutoring</span>
+                    </div>
+                    <p className={`text-[10px] mt-1 leading-snug ${newIsPrivateTutoring ? "text-navy-100" : "text-ink-soft"}`}>
+                      1-on-1 tutoring for secondary pupils (English, Maths, Science - DBS Checked).
+                    </p>
+                  </button>
+                </div>
+              </div>
+
+              {/* 2. FACULTY & AWARDING ORGANISATION */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-semibold text-navy-900 uppercase tracking-wider">
+                      Faculty / Department
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setNewIsCustomFaculty(!newIsCustomFaculty)}
+                      className="text-[10px] font-bold text-navy-700 hover:underline"
+                    >
+                      {newIsCustomFaculty ? "← Pick Presets" : "+ Type Custom Faculty"}
+                    </button>
+                  </div>
+                  {newIsCustomFaculty ? (
+                    <input
+                      type="text"
+                      placeholder="e.g. Faculty of Advanced Clinical Leadership"
+                      value={newCustomFacultyText}
+                      onChange={(e) => setNewCustomFacultyText(e.target.value)}
+                      className="w-full px-3 py-2 border border-line rounded-sm text-sm focus:outline-none focus:border-navy-900 bg-white"
+                    />
+                  ) : (
+                    <select
+                      value={newCategory}
+                      onChange={(e) => setNewCategory(e.target.value)}
+                      className="w-full px-3 py-2 border border-line rounded-sm text-sm bg-white focus:outline-none focus:border-navy-900"
+                    >
+                      {faculties.map((f) => (
+                        <option key={f.id} value={f.name}>
+                          {f.name}
+                        </option>
+                      ))}
+                      {!faculties.some((f) => f.name === newCategory) && (
+                        <option value={newCategory}>{newCategory}</option>
+                      )}
+                    </select>
+                  )}
                 </div>
 
                 <div>
@@ -2331,22 +2780,151 @@ export function CoursesManagerView({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-navy-900 uppercase tracking-wider mb-1">
-                    Delivery Mode
+              {/* 3. DELIVERY MODE & PHYSICAL VENUE */}
+              <div className="p-3 bg-paper rounded-sm border border-line space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-navy-900 uppercase tracking-wider">
+                    Delivery Mode & Campus Attendance
                   </label>
-                  <select
-                    value={newDelivery}
-                    onChange={(e) => setNewDelivery(e.target.value as DeliveryMode)}
-                    className="w-full px-3 py-2 border border-line rounded-sm text-sm bg-white focus:outline-none focus:border-navy-900"
-                  >
-                    <option value="live_online">Live Online (Zoom Seminars)</option>
-                    <option value="blended">Blended Learning (Online + Clinical)</option>
-                  </select>
+                  <span className="text-[10px] text-ink-soft">
+                    Select if learning is 100% remote or includes a physical training venue
+                  </span>
                 </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewDelivery("live_online");
+                      setNewAttendanceType("online_only");
+                    }}
+                    className={`p-2.5 rounded-sm border text-left transition-all cursor-pointer ${
+                      newDelivery === "live_online" && newAttendanceType === "online_only"
+                        ? "bg-navy-900 text-white border-navy-900 shadow-xs"
+                        : "bg-white text-ink border-line hover:border-navy-700 hover:bg-white"
+                    }`}
+                  >
+                    <div className="font-bold text-xs">💻 Live Online</div>
+                    <p className={`text-[10px] mt-0.5 ${newDelivery === "live_online" && newAttendanceType === "online_only" ? "text-navy-100" : "text-ink-soft"}`}>
+                      Zoom classes & digital portal. No campus.
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewDelivery("classroom");
+                      setNewAttendanceType("physical_venue");
+                    }}
+                    className={`p-2.5 rounded-sm border text-left transition-all cursor-pointer ${
+                      newAttendanceType === "physical_venue"
+                        ? "bg-navy-900 text-white border-navy-900 shadow-xs"
+                        : "bg-white text-ink border-line hover:border-navy-700 hover:bg-white"
+                    }`}
+                  >
+                    <div className="font-bold text-xs">🏢 Physical Venue</div>
+                    <p className={`text-[10px] mt-0.5 ${newAttendanceType === "physical_venue" ? "text-navy-100" : "text-ink-soft"}`}>
+                      Classroom, training lab or health centre.
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewDelivery("blended");
+                      setNewAttendanceType("blended_practical");
+                    }}
+                    className={`p-2.5 rounded-sm border text-left transition-all cursor-pointer ${
+                      newAttendanceType === "blended_practical"
+                        ? "bg-navy-900 text-white border-navy-900 shadow-xs"
+                        : "bg-white text-ink border-line hover:border-navy-700 hover:bg-white"
+                    }`}
+                  >
+                    <div className="font-bold text-xs">🔄 Blended Practical</div>
+                    <p className={`text-[10px] mt-0.5 ${newAttendanceType === "blended_practical" ? "text-navy-100" : "text-ink-soft"}`}>
+                      Online theory + practical assessment days.
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewDelivery("self_paced");
+                      setNewAttendanceType("online_only");
+                    }}
+                    className={`p-2.5 rounded-sm border text-left transition-all cursor-pointer ${
+                      newDelivery === "self_paced"
+                        ? "bg-navy-900 text-white border-navy-900 shadow-xs"
+                        : "bg-white text-ink border-line hover:border-navy-700 hover:bg-white"
+                    }`}
+                  >
+                    <div className="font-bold text-xs">⏱️ Self-Paced</div>
+                    <p className={`text-[10px] mt-0.5 ${newDelivery === "self_paced" ? "text-navy-100" : "text-ink-soft"}`}>
+                      Flexible distance study + 1-to-1 assessor.
+                    </p>
+                  </button>
+                </div>
+
+                {/* If Physical Venue or Blended: Training Locations Manager */}
+                {(newAttendanceType === "blended_practical" || newAttendanceType === "physical_venue") && (
+                  <div className="pt-2 border-t border-line space-y-2">
+                    <label className="block text-[11px] font-bold text-navy-900 uppercase tracking-wider">
+                      📍 Physical Training Venues & Campus Addresses
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        placeholder="e.g. London Healthcare Centre - 45 Aldgate High St, EC3N 1AH"
+                        value={newLocationInput}
+                        onChange={(e) => setNewLocationInput(e.target.value)}
+                        className="flex-1 px-3 py-1.5 border border-line rounded-sm text-xs focus:outline-none focus:border-navy-900 bg-white"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            if (newLocationInput.trim()) {
+                              setNewTrainingLocations((prev) => [...prev, newLocationInput.trim()]);
+                              setNewLocationInput("");
+                            }
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (newLocationInput.trim()) {
+                            setNewTrainingLocations((prev) => [...prev, newLocationInput.trim()]);
+                            setNewLocationInput("");
+                          }
+                        }}
+                        className="px-3 py-1.5 bg-navy-900 text-white text-xs font-semibold rounded-sm hover:bg-navy-700"
+                      >
+                        + Add Venue
+                      </button>
+                    </div>
+                    {newTrainingLocations.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {newTrainingLocations.map((loc, idx) => (
+                          <span
+                            key={idx}
+                            className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs"
+                          >
+                            <span>📍 {loc}</span>
+                            <button
+                              type="button"
+                              onClick={() => setNewTrainingLocations((prev) => prev.filter((_, i) => i !== idx))}
+                              className="text-emerald-700 hover:text-emerald-950 font-bold"
+                            >
+                              ✕
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div>
-                  <label className="block text-xs font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                  <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
                     Custom Delivery Schedule (Optional)
                   </label>
                   <input
@@ -2354,7 +2932,7 @@ export function CoursesManagerView({
                     placeholder="e.g. Evening Zoom Classes + Weekend Assessor Mentoring"
                     value={newCustomDeliveryText}
                     onChange={(e) => setNewCustomDeliveryText(e.target.value)}
-                    className="w-full px-3 py-2 border border-line rounded-sm text-sm focus:outline-none focus:border-navy-900"
+                    className="w-full px-3 py-1.5 border border-line rounded-sm text-xs focus:outline-none focus:border-navy-900 bg-white"
                   />
                 </div>
               </div>
@@ -2570,6 +3148,223 @@ export function CoursesManagerView({
                 className="px-5 py-2 bg-navy-900 text-white rounded-sm text-sm font-semibold hover:bg-navy-700 transition-colors shadow-sm disabled:opacity-50"
               >
                 {isPending ? "Adding..." : "Add to Catalogue"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MANAGE ACADEMIC FACULTIES MODAL */}
+      {isFacultyModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white rounded-md border border-line shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-5 sm:p-6 bg-paper border-b border-line flex items-center justify-between">
+              <div className="space-y-1">
+                <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-navy-900 text-gold-300 text-xs font-semibold">
+                  <Icon name="layers" size={13} />
+                  <span>Academic Departments</span>
+                </div>
+                <h2 className="font-heading text-xl sm:text-2xl font-bold text-navy-900">
+                  Manage Academic Faculties
+                </h2>
+                <p className="text-xs text-ink-soft">
+                  Add new faculties directly without needing to create or assign courses first.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsFacultyModalOpen(false)}
+                className="p-1.5 rounded-sm hover:bg-white text-ink-soft hover:text-navy-900 transition-colors cursor-pointer"
+              >
+                <Icon name="close" size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-6 overflow-y-auto flex-1">
+              {facultyError && (
+                <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-sm flex items-center gap-2">
+                  <Icon name="alert-circle" size={14} />
+                  <span>{facultyError}</span>
+                </div>
+              )}
+
+              {/* 1. Existing Faculties List */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-heading text-sm font-bold uppercase tracking-wider text-navy-900">
+                    Configured Faculties ({faculties.length})
+                  </h3>
+                  <span className="text-[11px] text-ink-soft">
+                    {courses.length} total courses assigned
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 gap-2.5 max-h-60 overflow-y-auto pr-1">
+                  {faculties.map((f) => {
+                    const assignedCount = courses.filter((c) => c.category === f.name).length;
+                    return (
+                      <div
+                        key={f.id}
+                        className="p-3 rounded-sm border border-line bg-paper hover:bg-white transition-all flex items-center justify-between gap-3 shadow-2xs"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-8 h-8 rounded-sm bg-navy-900 text-gold-300 flex items-center justify-center shrink-0">
+                            <Icon name={(f.icon as any) || "shield-check"} size={16} />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <strong className="text-xs font-bold text-navy-900 truncate">
+                                {f.name}
+                              </strong>
+                              <span
+                                className={`text-[9px] font-mono px-1.5 py-0.5 rounded-full font-bold uppercase ${
+                                  f.status === "enrolments_opening_soon"
+                                    ? "bg-amber-100 text-amber-800"
+                                    : "bg-emerald-100 text-emerald-800"
+                                }`}
+                              >
+                                {f.status === "enrolments_opening_soon"
+                                  ? "Opening Soon"
+                                  : "Active Intake"}
+                              </span>
+                            </div>
+                            {f.description && (
+                              <p className="text-[11px] text-ink-soft truncate mt-0.5">
+                                {f.description}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 shrink-0">
+                          <span
+                            className={`text-[11px] font-semibold px-2 py-0.5 rounded-sm ${
+                              assignedCount === 0
+                                ? "bg-amber-50 text-amber-800 border border-amber-200"
+                                : "bg-navy-50 text-navy-900"
+                            }`}
+                          >
+                            {assignedCount === 0 ? "0 Courses (Standalone)" : `${assignedCount} Courses`}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteFaculty(f.id, f.name)}
+                            className="p-1.5 rounded-xs hover:bg-rose-50 text-ink-soft hover:text-rose-600 transition-colors cursor-pointer"
+                            title={`Delete faculty ${f.name}`}
+                          >
+                            <Icon name="trash" size={13} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 2. Add New Faculty Form */}
+              <form
+                onSubmit={handleSaveFaculty}
+                className="p-4 rounded-sm border border-line bg-paper space-y-4"
+              >
+                <div className="flex items-center gap-2 border-b border-line pb-2">
+                  <Icon name="plus" size={14} className="text-navy-900" />
+                  <strong className="text-xs font-bold text-navy-900 uppercase font-mono tracking-wider">
+                    Add New Academic Faculty (No Course Required)
+                  </strong>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="block text-xs font-semibold text-navy-900 uppercase tracking-wider">
+                      Faculty / Department Title <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Faculty of Clinical Leadership & Nursing"
+                      value={newFacultyName}
+                      onChange={(e) => setNewFacultyName(e.target.value)}
+                      required
+                      className="w-full px-3 py-2 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900 font-semibold"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-xs font-semibold text-navy-900 uppercase tracking-wider">
+                      Faculty Status
+                    </label>
+                    <select
+                      value={newFacultyStatus}
+                      onChange={(e) => setNewFacultyStatus(e.target.value as any)}
+                      className="w-full px-3 py-2 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900 font-medium"
+                    >
+                      <option value="active">Active Intake (Immediate Admissions)</option>
+                      <option value="enrolments_opening_soon">
+                        Enrolments Opening Soon (Pre-registration Banner)
+                      </option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="block text-xs font-semibold text-navy-900 uppercase tracking-wider">
+                      Department Line Icon
+                    </label>
+                    <select
+                      value={newFacultyIcon}
+                      onChange={(e) => setNewFacultyIcon(e.target.value)}
+                      className="w-full px-3 py-2 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900 font-medium"
+                    >
+                      <option value="shield-check">Shield Check (Regulated / Healthcare)</option>
+                      <option value="graduation-cap">Graduation Cap (Higher / Teacher Training)</option>
+                      <option value="book-open">Open Book (Academic / Curriculum)</option>
+                      <option value="user">User / Practitioner (Early Years)</option>
+                      <option value="briefcase">Briefcase (Business / Executive)</option>
+                      <option value="award">Award Ribbon (CPD & Mandatory)</option>
+                      <option value="star">Star (Specialist Tutoring)</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-xs font-semibold text-navy-900 uppercase tracking-wider">
+                      Summary Description (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Postgraduate qualifications and professional assessor awards"
+                      value={newFacultyDesc}
+                      onChange={(e) => setNewFacultyDesc(e.target.value)}
+                      className="w-full px-3 py-2 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-2 flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={isSavingFaculty}
+                    className="px-4 py-2 bg-navy-900 hover:bg-navy-800 text-gold-300 font-bold text-xs rounded-sm transition-all shadow-xs inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    <Icon name="check" size={13} />
+                    <span>{isSavingFaculty ? "Saving Faculty..." : "Create Faculty Without Course"}</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-paper border-t border-line flex items-center justify-between">
+              <span className="text-[11px] text-ink-soft">
+                Created faculties are immediately accessible in course editor dropdowns and public filters.
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsFacultyModalOpen(false)}
+                className="px-4 py-2 bg-white border border-line rounded-sm text-xs font-bold text-navy-900 hover:bg-paper transition-colors cursor-pointer"
+              >
+                Done
               </button>
             </div>
           </div>

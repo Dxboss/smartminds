@@ -1,6 +1,6 @@
 import React, { Suspense } from "react";
 import type { Metadata } from "next";
-import { Saira_Condensed, Source_Sans_3 } from "next/font/google";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { siteConfig } from "@/content/siteConfig";
 import { ConsentProvider } from "@/context/ConsentContext";
@@ -19,6 +19,7 @@ import { InactivityTimer } from "@/components/auth/InactivityTimer";
 import { UtmTracker } from "@/components/analytics/UtmTracker";
 import { GoogleTagManager } from "@/components/analytics/GoogleTagManager";
 import { OrganizationStructuredData } from "@/components/layout/OrganizationStructuredData";
+import { BackToTop } from "@/components/ui/BackToTop";
 import {
   HeaderNavConfig,
   FooterConfig,
@@ -27,20 +28,20 @@ import {
 } from "@/lib/repositories/seedData";
 import { getPersistentSiteTheme } from "@/lib/siteTheme";
 
-const sairaCondensed = Saira_Condensed({
-  weight: ["600", "700"],
+const plusJakartaHeading = Plus_Jakarta_Sans({
+  weight: ["600", "700", "800"],
   subsets: ["latin"],
   variable: "--font-heading",
   display: "swap",
-  fallback: ["Arial Narrow", "sans-serif"],
+  fallback: ["Inter", "system-ui", "sans-serif"],
 });
 
-const sourceSans3 = Source_Sans_3({
+const plusJakartaBody = Plus_Jakarta_Sans({
   weight: ["400", "500", "600", "700"],
   subsets: ["latin"],
   variable: "--font-body",
   display: "swap",
-  fallback: ["Segoe UI", "Tahoma", "sans-serif"],
+  fallback: ["Inter", "system-ui", "sans-serif"],
 });
 
 export const metadata: Metadata = {
@@ -85,7 +86,7 @@ export default function RootLayout({
     <html
       lang="en-GB"
       data-scroll-behavior="smooth"
-      className={`${sairaCondensed.variable} ${sourceSans3.variable} h-full antialiased`}
+      className={`${plusJakartaHeading.variable} ${plusJakartaBody.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <body
@@ -136,6 +137,9 @@ export default function RootLayout({
 
               {/* Inactivity Security Auto-Logout Watcher */}
               <InactivityTimer />
+
+              {/* Floating Back to Top Control */}
+              <BackToTop />
             </BookingProvider>
           </AuthProvider>
         </ConsentProvider>

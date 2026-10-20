@@ -46,7 +46,7 @@ export const Logo: React.FC<LogoProps> = ({
         />
       </div>
 
-      {variant !== "mark-only" && (
+      {variant !== "mark-only" && !logoSrc.includes("logo-color") && !logoSrc.includes("logo-white") && (
         <div className="flex flex-col justify-center leading-none select-none">
           <span
             className={`font-heading text-lg sm:text-xl font-bold tracking-tight uppercase transition-colors ${

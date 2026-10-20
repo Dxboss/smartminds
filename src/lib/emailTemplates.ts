@@ -1551,4 +1551,99 @@ ${siteConfig.contact.address}
   return { subject, html, text };
 }
 
+export function renderNewsletterWelcomeEmail(data: {
+  email: string;
+  discountCode?: string;
+}): { subject: string; html: string; text: string } {
+  const discountCode = data.discountCode || "WELCOME5";
+  const baseUrl = getBaseUrl();
+  const subject = "Welcome to Smartminds Training College — Exclusive Tuition Discount";
+
+  const bodyHtml = `
+    <p style="margin: 0 0 16px 0; font-size: 15px; color: #1B1B2B; line-height: 1.6;">
+      Thank you for subscribing to the <strong>Smartminds Training College</strong> newsletter.
+    </p>
+
+    <p style="margin: 0 0 16px 0; font-size: 15px; color: #1B1B2B; line-height: 1.6;">
+      You are now subscribed to receive our latest British qualification announcements, early cohort enrolment windows, career advancement insights, and government funding updates directly in your inbox.
+    </p>
+
+    <!-- Exclusive Voucher Code Box -->
+    <div style="background-color: #FAF8F3; border: 2px dashed #D9B84A; border-radius: 6px; padding: 20px; text-align: center; margin: 24px 0;">
+      <span style="font-size: 11px; font-weight: 700; color: #B78A2E; text-transform: uppercase; letter-spacing: 1.5px; display: block; margin-bottom: 6px;">
+        Exclusive Subscriber Tuition Voucher
+      </span>
+      <div style="font-size: 26px; font-weight: 800; color: #23216B; letter-spacing: 3px; font-family: monospace; background-color: #FFFFFF; display: inline-block; padding: 8px 24px; border: 1px solid #E6E1D5; border-radius: 4px; margin: 8px 0;">
+        ${discountCode}
+      </div>
+      <p style="margin: 8px 0 0 0; font-size: 13px; color: #5A5A6E;">
+        Enjoy <strong>5% off tuition fees</strong> on any accredited Level 2, 3, 4, or 5 diploma programme when enrolling. Mention this voucher during your enrolment consultation.
+      </p>
+    </div>
+
+    <!-- Highlights Grid -->
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin: 20px 0; border: 1px solid #E6E1D5; border-radius: 4px; background-color: #FFFFFF;">
+      <tr>
+        <td style="padding: 14px 16px; border-bottom: 1px solid #E6E1D5;">
+          <strong style="color: #23216B; font-size: 14px;">🎓 Regulated Qualifications:</strong>
+          <span style="color: #5A5A6E; font-size: 13px; display: block; margin-top: 2px;">
+            Ofqual-regulated diplomas in Adult Social Care, Teacher Training (AET/CAVA), Early Years Childcare, and Business Management.
+          </span>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding: 14px 16px; border-bottom: 1px solid #E6E1D5;">
+          <strong style="color: #23216B; font-size: 14px;">💻 Live Evening Classes:</strong>
+          <span style="color: #5A5A6E; font-size: 13px; display: block; margin-top: 2px;">
+            Interactive live online seminars led by certified UK assessors with recordings available 24/7.
+          </span>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding: 14px 16px;">
+          <strong style="color: #23216B; font-size: 14px;">💳 0% Interest Flexible Plans:</strong>
+          <span style="color: #5A5A6E; font-size: 13px; display: block; margin-top: 2px;">
+            Transparent monthly instalment plans with zero credit checks and zero hidden charges.
+          </span>
+        </td>
+      </tr>
+    </table>
+
+    <p style="margin: 20px 0 0 0; font-size: 14px; color: #5A5A6E; line-height: 1.5;">
+      Ready to start or advance your career? Explore our full course catalogue or speak with an admissions advisor today.
+    </p>
+  `;
+
+  const html = wrapBrandedEmailHtml({
+    preheader: "Welcome to Smartminds College! Here is your exclusive 5% tuition discount code.",
+    heading: "Welcome to Smartminds College",
+    badgeText: "Exclusive Welcome Gift",
+    bodyHtml,
+    ctaText: "Explore Accredited Qualifications",
+    ctaUrl: `${baseUrl}/courses`,
+    isMarketing: true,
+  });
+
+  const text = `Welcome to Smartminds Training College!
+
+Thank you for subscribing to our newsletter. You will receive qualification announcements, cohort schedules, and funding updates directly in your inbox.
+
+YOUR EXCLUSIVE SUBSCRIBER DISCOUNT CODE:
+${discountCode}
+(Save 5% on tuition fees on any Level 2–5 qualification programme)
+
+Explore all courses: ${baseUrl}/courses
+Book free admissions consultation: ${baseUrl}/book
+
+Warm regards,
+Admissions & Student Advisory Team
+Smartminds Training College
+${siteConfig.contact.email} | ${siteConfig.contact.phone}
+${siteConfig.contact.address}
+`;
+
+  return { subject, html, text };
+}
+
+
 

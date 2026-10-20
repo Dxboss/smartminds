@@ -1,4 +1,4 @@
-import React from "react";
+import React, { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Container } from "@/components/ui/Container";
@@ -17,7 +17,25 @@ export const metadata: Metadata = {
   },
 };
 
-export default function LoginPage() {
+export const instant = false;
+
+interface LoginPageProps {
+  searchParams?: Promise<{ reason?: string; from?: string }>;
+}
+
+async function LoginContent({
+  searchParams,
+}: {
+  searchParams?: Promise<{ reason?: string; from?: string }>;
+}) {
+  const resolvedParams = searchParams ? await searchParams : {};
+  const reason = resolvedParams.reason;
+  return <LoginForm reason={reason} />;
+}
+
+export default function LoginPage({
+  searchParams,
+}: LoginPageProps) {
   return (
     <div className="py-12 md:py-20 bg-paper/50 min-h-[calc(100vh-80px)] flex flex-col justify-center">
       <Container>
@@ -40,8 +58,10 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Login Form Component */}
-        <LoginForm />
+        {/* Login Form Component with optional reason notice wrapped in Suspense */}
+        <Suspense fallback={<LoginForm />}>
+          <LoginContent searchParams={searchParams} />
+        </Suspense>
 
         {/* Clean, discreet account & admissions assistance */}
         <div className="max-w-xl mx-auto mt-6 text-center space-y-2.5 text-xs text-ink-soft">

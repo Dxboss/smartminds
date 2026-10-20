@@ -1,7 +1,8 @@
 import { Metadata } from "next";
 import Link from "next/link";
 import { formatCurrency } from "@/content";
-import { getLiveCourses } from "@/lib/persistedData";
+import { getLiveCourses, getPublishedCmsPageSections } from "@/lib/persistedData";
+import { SectionRenderer } from "@/components/cms/SectionRenderer";
 import { Container } from "@/components/ui/Container";
 import { Heading } from "@/components/ui/Heading";
 import { Eyebrow } from "@/components/ui/Eyebrow";
@@ -28,6 +29,19 @@ export const metadata: Metadata = {
 export default function CPDPage() {
   const allCourses = getLiveCourses();
   const cpdCourses = allCourses.filter((c) => c.type === "cpd" && c.published);
+
+  const customSections = getPublishedCmsPageSections("/cpd");
+  if (customSections && customSections.length > 0) {
+    return (
+      <main className="bg-paper text-ink min-h-screen">
+        {customSections
+          .filter((sec) => sec.enabled)
+          .map((sec) => (
+            <SectionRenderer key={sec.id} section={sec} courses={allCourses} />
+          ))}
+      </main>
+    );
+  }
 
   return (
     <main className="bg-paper min-h-screen py-10 md:py-16">

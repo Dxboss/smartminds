@@ -17,6 +17,7 @@ import {
   HeaderNavConfig,
   defaultHeaderNavConfig,
 } from "@/lib/repositories/seedData";
+import { subscribeNewsletterAction } from "@/app/actions/newsletterActions";
 
 export interface FooterProps {
   config?: FooterConfig;
@@ -33,6 +34,39 @@ export const Footer: React.FC<FooterProps> = ({
   const effectiveHeader = headerConfig || defaultHeaderNavConfig;
   const { openManage } = useConsent();
   const pathname = usePathname();
+  const [email, setEmail] = React.useState("");
+  const [submitting, setSubmitting] = React.useState(false);
+  const [subscribed, setSubscribed] = React.useState(false);
+  const [statusMessage, setStatusMessage] = React.useState("");
+  const [errorMessage, setErrorMessage] = React.useState("");
+  const [alreadySubscribed, setAlreadySubscribed] = React.useState(false);
+
+  const handleSubscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim() || submitting) return;
+    setSubmitting(true);
+    setErrorMessage("");
+    try {
+      const res = await subscribeNewsletterAction(email, "website_footer");
+      if (res.success) {
+        setSubscribed(true);
+        setAlreadySubscribed(!!res.alreadySubscribed);
+        setStatusMessage(
+          res.message ||
+            "Thank you for subscribing! Check your inbox for your exclusive welcome discount code."
+        );
+        setEmail("");
+      } else {
+        setErrorMessage(
+          res.message || "Subscription failed. Please check your email and try again."
+        );
+      }
+    } catch {
+      setErrorMessage("Something went wrong. Please try again later.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   // Hide marketing website footer completely inside application portals (unless forced in editor)
   if (
@@ -46,16 +80,130 @@ export const Footer: React.FC<FooterProps> = ({
     return null;
   }
 
+  // Match homepage light mint footer across all pages (unless dark theme is explicitly configured)
+  const isLightFooter = effectiveFooter.footerTheme !== "dark";
+
   return (
-    <footer className="bg-navy-900 text-white pt-16 pb-24 lg:pb-16 border-t border-navy-700/60">
+    <footer
+      style={
+        effectiveFooter.footerBgColor
+          ? { backgroundColor: effectiveFooter.footerBgColor }
+          : undefined
+      }
+      className={`${
+        isLightFooter
+          ? "bg-[#E8F4F1] text-ink border-t border-teal-200/80"
+          : "bg-navy-900 text-white border-t border-navy-700/60"
+      } pt-16 pb-24 lg:pb-16`}
+    >
       <Container>
+        {/* Newsletter Subscription Banner (Image 2 Onlearn style) */}
+        <div
+          className={`mb-14 p-6 sm:p-10 rounded-3xl ${
+            isLightFooter
+              ? "bg-white border border-teal-200/80 shadow-xl"
+              : "bg-gradient-to-r from-[#0B4D4E] to-navy-900 border border-teal-500/30 shadow-2xl"
+          } relative overflow-hidden`}
+        >
+          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div className="max-w-xl">
+              <span className="text-xs font-extrabold uppercase tracking-widest text-[#FF5722] block mb-1">
+                Stay Ahead in Your Career
+              </span>
+              <h3
+                className={`font-heading text-2xl sm:text-3xl font-bold ${
+                  isLightFooter ? "text-[#0B4D4E]" : "text-white"
+                } tracking-tight`}
+              >
+                Subscribe to our Newsletter
+              </h3>
+              <p
+                className={`text-sm ${
+                  isLightFooter ? "text-ink-soft" : "text-white/80"
+                } mt-1 leading-relaxed`}
+              >
+                Get the latest qualification updates, exclusive fee discounts, and accredited career resources directly in your inbox.
+              </p>
+            </div>
+
+            <div className="flex flex-col items-start w-full lg:w-auto">
+              <form
+                onSubmit={handleSubscribe}
+                className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto"
+              >
+                {subscribed ? (
+                  <div
+                    className={`inline-flex items-center gap-2.5 px-6 py-3.5 rounded-full border text-sm font-bold shadow-xs ${
+                      alreadySubscribed
+                        ? isLightFooter
+                          ? "bg-navy-900/10 border-navy-900/30 text-navy-900"
+                          : "bg-white/20 border-white/40 text-white"
+                        : "bg-emerald-500/20 border-emerald-400 text-emerald-800"
+                    }`}
+                  >
+                    <Icon name="check" size={16} className="text-emerald-600 shrink-0" />
+                    <span>{statusMessage}</span>
+                  </div>
+                ) : (
+                  <>
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      disabled={submitting}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="Enter your email address"
+                      className={`w-full sm:w-72 px-5 py-3.5 rounded-full ${
+                        isLightFooter
+                          ? "bg-[#E8F4F1]/60 border border-teal-200 text-ink placeholder-ink-soft/70 focus:ring-[#0B4D4E]"
+                          : "bg-white/10 border border-white/20 text-white placeholder-white/60 focus:ring-[#FF5722]"
+                      } text-sm focus:outline-none focus:ring-2 backdrop-blur-sm disabled:opacity-50`}
+                    />
+                    <button
+                      type="submit"
+                      disabled={submitting}
+                      className="w-full sm:w-auto px-7 py-3.5 rounded-full bg-[#0B4D4E] hover:bg-[#073637] disabled:opacity-60 text-white font-heading font-bold text-sm tracking-wide shadow-lg shadow-teal-900/20 transition-all flex items-center justify-center gap-2 flex-shrink-0 cursor-pointer"
+                    >
+                      {submitting ? (
+                        <>
+                          <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          <span>Subscribing...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Subscribe Now</span>
+                          <Icon name="arrow-right" size={15} />
+                        </>
+                      )}
+                    </button>
+                  </>
+                )}
+              </form>
+              {errorMessage && (
+                <p className="text-xs text-red-500 font-semibold mt-2 pl-3">
+                  {errorMessage}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+
         {/* Main Footer Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 pb-12 border-b border-navy-700/50">
+        <div
+          className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 pb-12 border-b ${
+            isLightFooter ? "border-teal-200/80" : "border-navy-700/50"
+          }`}
+        >
           {/* Brand Column (Span 2) */}
           <div className="lg:col-span-2 space-y-4">
             {(() => {
-              const activeLogoUrl =
+              const rawLogoUrl =
                 effectiveFooter.logoImageUrl || effectiveHeader.logoImageUrl;
+              const activeLogoUrl = isLightFooter
+                ? (rawLogoUrl?.includes("logo-white")
+                    ? "/images/logo-color.png"
+                    : rawLogoUrl) || "/images/logo-color.png"
+                : rawLogoUrl || "/images/logo-white.png";
               const activeLogoType =
                 effectiveFooter.logoImageUrl && effectiveFooter.logoType === "image"
                   ? "image"
@@ -65,7 +213,7 @@ export const Footer: React.FC<FooterProps> = ({
 
               return (
                 <Logo
-                  variant="white"
+                  variant={isLightFooter ? "full-color" : "white"}
                   logoType={activeLogoType}
                   logoImageUrl={activeLogoUrl}
                   logoHeight={effectiveFooter.logoHeight || effectiveHeader.logoHeight || 44}
@@ -74,33 +222,51 @@ export const Footer: React.FC<FooterProps> = ({
                 />
               );
             })()}
-            <p className="text-white/70 text-sm max-w-sm leading-relaxed">
+            <p
+              className={`${
+                isLightFooter ? "text-ink-soft" : "text-white/70"
+              } text-sm max-w-sm leading-relaxed`}
+            >
               {effectiveFooter.bioText}
             </p>
             <div className="pt-2 flex items-center gap-2">
-              <Tag variant="on-navy" dot>
+              <Tag variant={isLightFooter ? "default" : "on-navy"} dot>
                 {effectiveFooter.badge1}
               </Tag>
-              <Tag variant="on-navy">{effectiveFooter.badge2}</Tag>
+              <Tag variant={isLightFooter ? "default" : "on-navy"}>
+                {effectiveFooter.badge2}
+              </Tag>
             </div>
           </div>
 
           {/* Courses & Pathways Column */}
           <div>
-            <h3 className="font-heading text-lg font-bold uppercase tracking-wider text-gold-300 mb-4">
+            <h3
+              className={`font-heading text-lg font-bold uppercase tracking-wider ${
+                isLightFooter ? "text-[#0B4D4E]" : "text-gold-300"
+              } mb-4`}
+            >
               Explore
             </h3>
             <ul className="space-y-2.5 text-sm">
               {effectiveFooter.exploreLinks.map((item) => (
                 <li key={item.id || item.href}>
                   {isEditor ? (
-                    <span className="text-white/80 cursor-default">
+                    <span
+                      className={`${
+                        isLightFooter ? "text-ink-soft" : "text-white/80"
+                      } cursor-default`}
+                    >
                       {item.label}
                     </span>
                   ) : (
                     <Link
                       href={item.href}
-                      className="text-white/80 hover:text-white transition-colors hover:underline"
+                      className={`${
+                        isLightFooter
+                          ? "text-ink-soft hover:text-[#0B4D4E]"
+                          : "text-white/80 hover:text-white"
+                      } transition-colors hover:underline`}
                     >
                       {item.label}
                     </Link>
@@ -112,20 +278,32 @@ export const Footer: React.FC<FooterProps> = ({
 
           {/* College Info Column */}
           <div>
-            <h3 className="font-heading text-lg font-bold uppercase tracking-wider text-gold-300 mb-4">
+            <h3
+              className={`font-heading text-lg font-bold uppercase tracking-wider ${
+                isLightFooter ? "text-[#0B4D4E]" : "text-gold-300"
+              } mb-4`}
+            >
               College
             </h3>
             <ul className="space-y-2.5 text-sm">
               {effectiveFooter.collegeLinks.map((item) => (
                 <li key={item.id || item.href}>
                   {isEditor ? (
-                    <span className="text-white/70 cursor-default">
+                    <span
+                      className={`${
+                        isLightFooter ? "text-ink-soft" : "text-white/70"
+                      } cursor-default`}
+                    >
                       {item.label}
                     </span>
                   ) : (
                     <Link
                       href={item.href}
-                      className="text-white/70 hover:text-white transition-colors hover:underline"
+                      className={`${
+                        isLightFooter
+                          ? "text-ink-soft hover:text-[#0B4D4E]"
+                          : "text-white/70 hover:text-white"
+                      } transition-colors hover:underline`}
                     >
                       {item.label}
                     </Link>
@@ -137,19 +315,31 @@ export const Footer: React.FC<FooterProps> = ({
 
           {/* Contact & Support Column */}
           <div>
-            <h3 className="font-heading text-lg font-bold uppercase tracking-wider text-gold-300 mb-4">
+            <h3
+              className={`font-heading text-lg font-bold uppercase tracking-wider ${
+                isLightFooter ? "text-[#0B4D4E]" : "text-gold-300"
+              } mb-4`}
+            >
               Contact
             </h3>
-            <ul className="space-y-3 text-sm text-white/80">
+            <ul
+              className={`space-y-3 text-sm ${
+                isLightFooter ? "text-ink-soft" : "text-white/80"
+              }`}
+            >
               <li className="flex items-start gap-2.5">
                 <Icon
                   name="phone"
                   size={18}
-                  className="text-gold-500 mt-0.5 flex-shrink-0"
+                  className={`${
+                    isLightFooter ? "text-[#0B4D4E]" : "text-gold-500"
+                  } mt-0.5 flex-shrink-0`}
                 />
                 <a
                   href={`tel:${effectiveFooter.phone.replace(/\s+/g, "")}`}
-                  className="hover:text-white transition-colors inline-block whitespace-nowrap"
+                  className={`${
+                    isLightFooter ? "hover:text-[#0B4D4E]" : "hover:text-white"
+                  } transition-colors inline-block whitespace-nowrap`}
                 >
                   {effectiveFooter.phone}
                 </a>
@@ -158,11 +348,15 @@ export const Footer: React.FC<FooterProps> = ({
                 <Icon
                   name="mail"
                   size={18}
-                  className="text-gold-500 mt-0.5 flex-shrink-0"
+                  className={`${
+                    isLightFooter ? "text-[#0B4D4E]" : "text-gold-500"
+                  } mt-0.5 flex-shrink-0`}
                 />
                 <a
                   href={`mailto:${effectiveFooter.email}`}
-                  className="hover:text-white transition-colors inline-block whitespace-nowrap"
+                  className={`${
+                    isLightFooter ? "hover:text-[#0B4D4E]" : "hover:text-white"
+                  } transition-colors inline-block whitespace-nowrap`}
                 >
                   {effectiveFooter.email}
                 </a>
@@ -171,13 +365,20 @@ export const Footer: React.FC<FooterProps> = ({
                 <Icon
                   name="whatsapp"
                   size={18}
-                  className="text-gold-500 mt-0.5 flex-shrink-0"
+                  className={`${
+                    isLightFooter ? "text-[#0B4D4E]" : "text-gold-500"
+                  } mt-0.5 flex-shrink-0`}
                 />
                 <a
-                  href={`https://wa.me/${effectiveFooter.whatsappNumber.replace(/\D/g, "")}?text=Hello%20Smartminds%2C%20I%20would%20like%20course%20advice`}
+                  href={`https://wa.me/${effectiveFooter.whatsappNumber.replace(
+                    /\D/g,
+                    ""
+                  )}?text=Hello%20Smartminds%2C%20I%20would%20like%20course%20advice`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="hover:text-white transition-colors"
+                  className={`${
+                    isLightFooter ? "hover:text-[#0B4D4E]" : "hover:text-white"
+                  } transition-colors`}
                 >
                   WhatsApp:{" "}
                   <span className="inline-block whitespace-nowrap">
@@ -189,7 +390,9 @@ export const Footer: React.FC<FooterProps> = ({
                 <Icon
                   name="clock"
                   size={18}
-                  className="text-gold-500 mt-0.5 flex-shrink-0"
+                  className={`${
+                    isLightFooter ? "text-[#0B4D4E]" : "text-gold-500"
+                  } mt-0.5 flex-shrink-0`}
                 />
                 <span>{effectiveFooter.openingHours}</span>
               </li>
@@ -197,27 +400,137 @@ export const Footer: React.FC<FooterProps> = ({
           </div>
         </div>
 
-        {/* Accreditation Logo Row per PRD 8 & 10.1 */}
-        <div className="py-8 border-b border-navy-700/50">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div>
-              <span className="text-xs font-semibold uppercase tracking-wider text-gold-300 block mb-1">
-                {effectiveFooter.accreditationHeadline}
-              </span>
-              <p className="text-xs text-white/60">
-                {effectiveFooter.accreditationSubtext}
-              </p>
-            </div>
+        {/* Accreditation Logo Row - Editable, Stylable & Strictly One Single Line */}
+        {(() => {
+          const bgStyle = effectiveFooter.accreditationBgStyle || "transparent";
+          const layout = effectiveFooter.accreditationLayout || "row";
+          const isWhiteCard = bgStyle === "white";
+          const isSubtleCard = bgStyle === "subtle";
+          const isDarkCard = bgStyle === "dark";
+          const isAreaDark =
+            isDarkCard || (!isLightFooter && bgStyle === "transparent");
 
-            {/* Authentic UK Accreditation Logo Badges */}
-            <AccreditationBadgeRow variant="dark" />
-          </div>
-        </div>
+          const containerStyleClasses = isWhiteCard
+            ? "my-8 p-5 sm:p-6 rounded-2xl bg-white shadow-sm border border-teal-200/80"
+            : isSubtleCard
+            ? "my-8 p-5 sm:p-6 rounded-2xl bg-[#D8EDE8]/75 border border-teal-300/70"
+            : isDarkCard
+            ? "my-8 p-5 sm:p-6 rounded-2xl bg-navy-900 text-white shadow-md border border-navy-700"
+            : `py-8 border-b ${
+                isLightFooter ? "border-teal-200/80" : "border-navy-700/50"
+              }`;
+
+          const headlineColor =
+            effectiveFooter.accreditationTextColor ||
+            (isAreaDark ? "text-gold-300" : "text-[#0B4D4E]");
+          const subtextColor = isAreaDark ? "text-white/70" : "text-ink-soft";
+
+          return (
+            <div
+              className={containerStyleClasses}
+              style={
+                effectiveFooter.accreditationBgColor
+                  ? { backgroundColor: effectiveFooter.accreditationBgColor }
+                  : undefined
+              }
+            >
+              {layout === "stacked" ? (
+                <div className="flex flex-col items-center text-center gap-4">
+                  <div className="max-w-xl">
+                    <span
+                      className={`text-xs font-bold uppercase tracking-wider block mb-1`}
+                      style={
+                        effectiveFooter.accreditationTextColor
+                          ? { color: effectiveFooter.accreditationTextColor }
+                          : undefined
+                      }
+                    >
+                      <span
+                        className={
+                          effectiveFooter.accreditationTextColor
+                            ? ""
+                            : headlineColor
+                        }
+                      >
+                        {effectiveFooter.accreditationHeadline}
+                      </span>
+                    </span>
+                    {effectiveFooter.accreditationSubtext && (
+                      <p className={`text-xs ${subtextColor}`}>
+                        {effectiveFooter.accreditationSubtext}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Badges in Strictly ONE Horizontal Line */}
+                  <div className="w-full flex items-center justify-center overflow-x-auto scrollbar-none py-1">
+                    <AccreditationBadgeRow
+                      items={effectiveFooter.accreditations}
+                      variant={isAreaDark ? "dark" : "light"}
+                      badgeStyle={effectiveFooter.accreditationBadgeStyle}
+                      wrap={false}
+                      className="flex-nowrap justify-center"
+                      isEditor={isEditor}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 lg:gap-8">
+                  <div className="flex-shrink-0 max-w-sm">
+                    <span
+                      className={`text-xs font-bold uppercase tracking-wider block mb-1`}
+                      style={
+                        effectiveFooter.accreditationTextColor
+                          ? { color: effectiveFooter.accreditationTextColor }
+                          : undefined
+                      }
+                    >
+                      <span
+                        className={
+                          effectiveFooter.accreditationTextColor
+                            ? ""
+                            : headlineColor
+                        }
+                      >
+                        {effectiveFooter.accreditationHeadline}
+                      </span>
+                    </span>
+                    {effectiveFooter.accreditationSubtext && (
+                      <p className={`text-xs ${subtextColor} leading-relaxed`}>
+                        {effectiveFooter.accreditationSubtext}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Badges in Strictly ONE Horizontal Line */}
+                  <div className="w-full lg:w-auto overflow-x-auto scrollbar-none py-1 flex items-center justify-start lg:justify-end flex-shrink-0">
+                    <AccreditationBadgeRow
+                      items={effectiveFooter.accreditations}
+                      variant={isAreaDark ? "dark" : "light"}
+                      badgeStyle={effectiveFooter.accreditationBadgeStyle}
+                      wrap={false}
+                      className="flex-nowrap"
+                      isEditor={isEditor}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Legal Line, Copyright & Cookie Settings Link */}
-        <div className="pt-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 text-xs text-white/60">
+        <div
+          className={`pt-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 text-xs ${
+            isLightFooter ? "text-ink-soft" : "text-white/60"
+          }`}
+        >
           <div>
-            <p className="text-white/80 font-medium mb-1">
+            <p
+              className={`${
+                isLightFooter ? "text-ink font-semibold" : "text-white/80 font-medium"
+              } mb-1`}
+            >
               {effectiveFooter.legalLine}
             </p>
             <p>{effectiveFooter.copyrightText}</p>
@@ -228,16 +541,20 @@ export const Footer: React.FC<FooterProps> = ({
               <Link
                 key={item.href}
                 href={item.href}
-                className="hover:text-white transition-colors"
+                className={`${
+                  isLightFooter ? "hover:text-[#0B4D4E]" : "hover:text-white"
+                } transition-colors`}
               >
                 {item.label}
               </Link>
             ))}
-            {/* Interactive Cookie Settings link required by PRD Section 16 */}
+            {/* Interactive Cookie Settings link */}
             <button
               type="button"
               onClick={openManage}
-              className="text-gold-300 hover:text-white underline underline-offset-2 transition-colors cursor-pointer"
+              className={`${
+                isLightFooter ? "text-[#0B4D4E]" : "text-gold-300"
+              } underline underline-offset-2 transition-colors cursor-pointer font-medium`}
             >
               Cookie settings
             </button>

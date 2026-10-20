@@ -4,8 +4,8 @@ import React, { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Icon } from "@/components/ui/Icon";
-import { FeatureEntitlement, AuditLogEntry, UserRole } from "@/lib/repositories/types";
-import { PersistedUserRecord } from "@/lib/persistedData";
+import type { FeatureEntitlement, AuditLogEntry, UserRole } from "@/lib/repositories/types";
+import type { PersistedUserRecord } from "@/lib/persistedData";
 import {
   createPlatformUserAction,
   deletePlatformUserAction,

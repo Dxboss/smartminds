@@ -81,13 +81,23 @@ export const CourseHeader: React.FC<CourseHeaderProps> = ({ course }) => {
           </span>
           <strong className="text-xs sm:text-sm font-heading font-bold text-navy-900 block leading-tight truncate">
             {course.custom_delivery_text ||
-              (course.delivery === "blended" ? "Blended Learning" : "Live Online Evening")}
+              (course.attendance_type === "physical_venue" || course.delivery === "classroom"
+                ? "Physical Campus / Venue"
+                : course.delivery === "blended"
+                ? "Blended Learning"
+                : course.delivery === "self_paced"
+                ? "Self-Paced Distance"
+                : "Live Online Evening")}
           </strong>
           <span className="text-[11px] text-ink-soft mt-0.5 block truncate">
             {course.custom_delivery_text
               ? "Tutor-led interactive schedule"
+              : course.attendance_type === "physical_venue" || course.delivery === "classroom"
+              ? "On-site face-to-face tuition & lab training"
               : course.delivery === "blended"
               ? "Online theory + workplace practice"
+              : course.delivery === "self_paced"
+              ? "Flexible online portal + 1-to-1 assessor"
               : "Weekly interactive Zoom lectures"}
           </span>
         </div>
@@ -138,7 +148,9 @@ export const CourseHeader: React.FC<CourseHeaderProps> = ({ course }) => {
             </span>
             <div>
               <span className="font-bold text-xs uppercase tracking-wider text-emerald-950 block">
-                Practical Training & Assessment Locations:
+                {course.attendance_type === "physical_venue"
+                  ? "Campus Training & Assessment Venues:"
+                  : "Practical Training & Assessment Locations:"}
               </span>
               <span className="text-sm font-medium text-emerald-900">
                 {course.training_locations.join(" • ")}

@@ -1,6 +1,6 @@
 export type CourseType = "regulated" | "cpd" | "tutoring";
 
-export type DeliveryMode = "live_online" | "blended" | "self_paced";
+export type DeliveryMode = "live_online" | "blended" | "self_paced" | "classroom";
 
 export type StartMode = "rolling" | "fixed";
 
@@ -73,7 +73,7 @@ export interface Course {
   training_locations?: string[];
   is_private_tutoring?: boolean;
   session_duration_info?: string;
-  attendance_type?: "online_only" | "blended_practical";
+  attendance_type?: "online_only" | "blended_practical" | "physical_venue";
   workplace_evidence_text?: string;
   observation_methods_text?: string;
   tuition_includes?: string[];

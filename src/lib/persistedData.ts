@@ -33,6 +33,14 @@ export interface PasswordResetTokenRecord {
   expiresAt: number;
 }
 
+export interface NewsletterSubscriber {
+  id: string;
+  email: string;
+  status: "active" | "unsubscribed";
+  subscribedAt: string;
+  source?: string;
+}
+
 export interface PersistedRecordsStore {
   learners: Learner[];
   enrolments: Enrolment[];
@@ -53,7 +61,12 @@ export interface PersistedRecordsStore {
   cohortSchedule?: CohortScheduleConfig;
   paymentGatewaySettings?: PaymentGatewaySettings;
   blogPosts?: BlogPost[];
+  faculties?: FacultyRecord[];
+  subscribers?: NewsletterSubscriber[];
 }
+
+import { type FacultyRecord, DEFAULT_COLLEGE_FACULTIES } from "@/content/faculties";
+export { type FacultyRecord, DEFAULT_COLLEGE_FACULTIES };
 
 function getStoreFilePath(): string {
   const dataDir = path.join(process.cwd(), "data");
@@ -126,6 +139,7 @@ export function loadPersistedRecords(): PersistedRecordsStore {
           ? parsed.paymentGatewaySettings
           : undefined,
       blogPosts: Array.isArray(parsed.blogPosts) ? parsed.blogPosts : undefined,
+      subscribers: Array.isArray(parsed.subscribers) ? parsed.subscribers : [],
     };
   } catch (err) {
     console.error("[persistedData] Failed to load store:", err);
@@ -139,6 +153,7 @@ export function loadPersistedRecords(): PersistedRecordsStore {
       courseOverrides: {},
       cohorts: [],
       classSessions: [],
+      subscribers: [],
     };
   }
 }
@@ -1143,6 +1158,8 @@ export function wipeAllDemoData(): { success: boolean; message: string } {
     try {
       const devLeadsPath = path.join(process.cwd(), "data", "dev_leads.json");
       fs.writeFileSync(devLeadsPath, JSON.stringify([], null, 2));
+      const devEmailsPath = path.join(process.cwd(), "data", "dev_emails.json");
+      fs.writeFileSync(devEmailsPath, JSON.stringify([], null, 2));
     } catch {}
 
     try {
@@ -1309,3 +1326,168 @@ export function verifyAndConsumePasswordResetToken(
     return false;
   }
 }
+
+
+
+export function getPersistedFaculties(): FacultyRecord[] {
+  try {
+    const store = loadPersistedRecords();
+    if (store.faculties && Array.isArray(store.faculties) && store.faculties.length > 0) {
+      return store.faculties;
+    }
+    return DEFAULT_COLLEGE_FACULTIES;
+  } catch (err) {
+    console.error("[persistedData] Failed to load faculties:", err);
+    return DEFAULT_COLLEGE_FACULTIES;
+  }
+}
+
+export function saveFacultyToStore(faculty: FacultyRecord): FacultyRecord[] {
+  try {
+    const store = loadPersistedRecords();
+    if (!store.faculties || !Array.isArray(store.faculties) || store.faculties.length === 0) {
+      store.faculties = [...DEFAULT_COLLEGE_FACULTIES];
+    }
+
+    const existingIdx = store.faculties.findIndex((f) => f.id === faculty.id || f.name.toLowerCase() === faculty.name.toLowerCase());
+    if (existingIdx >= 0) {
+      store.faculties[existingIdx] = {
+        ...store.faculties[existingIdx],
+        ...faculty,
+      };
+    } else {
+      store.faculties.push({
+        ...faculty,
+        createdAt: new Date().toISOString(),
+      });
+    }
+
+    const filePath = getStoreFilePath();
+    fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+    return store.faculties;
+  } catch (err) {
+    console.error("[persistedData] Failed to save faculty:", err);
+    return DEFAULT_COLLEGE_FACULTIES;
+  }
+}
+
+export function deleteFacultyFromStore(facultyId: string): FacultyRecord[] {
+  try {
+    const store = loadPersistedRecords();
+    if (!store.faculties || !Array.isArray(store.faculties) || store.faculties.length === 0) {
+      store.faculties = [...DEFAULT_COLLEGE_FACULTIES];
+    }
+
+    store.faculties = store.faculties.filter((f) => f.id !== facultyId);
+    const filePath = getStoreFilePath();
+    fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+    return store.faculties;
+  } catch (err) {
+    console.error("[persistedData] Failed to delete faculty:", err);
+    return DEFAULT_COLLEGE_FACULTIES;
+  }
+}
+
+export function listNewsletterSubscribers(): NewsletterSubscriber[] {
+  try {
+    const store = loadPersistedRecords();
+    return (store.subscribers || []).slice().reverse();
+  } catch (err) {
+    console.error("[persistedData] Failed to list newsletter subscribers:", err);
+    return [];
+  }
+}
+
+export function saveNewsletterSubscriber(
+  email: string,
+  source: string = "website_footer"
+): { success: boolean; isNew: boolean; reActivated?: boolean; subscriber: NewsletterSubscriber } {
+  try {
+    const store = loadPersistedRecords();
+    if (!store.subscribers) {
+      store.subscribers = [];
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const existing = store.subscribers.find(
+      (s) => s.email.toLowerCase() === cleanEmail
+    );
+
+    if (existing) {
+      if (existing.status === "unsubscribed") {
+        existing.status = "active";
+        existing.subscribedAt = new Date().toISOString();
+        if (source) existing.source = source;
+        const filePath = getStoreFilePath();
+        fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+        return { success: true, isNew: false, reActivated: true, subscriber: existing };
+      }
+      return { success: true, isNew: false, subscriber: existing };
+    }
+
+    const newSub: NewsletterSubscriber = {
+      id: `sub-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      email: cleanEmail,
+      status: "active",
+      subscribedAt: new Date().toISOString(),
+      source,
+    };
+
+    store.subscribers.push(newSub);
+    const filePath = getStoreFilePath();
+    fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+    return { success: true, isNew: true, subscriber: newSub };
+  } catch (err) {
+    console.error("[persistedData] Failed to save newsletter subscriber:", err);
+    throw err;
+  }
+}
+
+export function deleteNewsletterSubscriber(idOrEmail: string): boolean {
+  try {
+    const store = loadPersistedRecords();
+    if (!store.subscribers || store.subscribers.length === 0) return false;
+
+    const clean = idOrEmail.trim().toLowerCase();
+    const initialLen = store.subscribers.length;
+    store.subscribers = store.subscribers.filter(
+      (s) => s.id !== idOrEmail && s.email.toLowerCase() !== clean
+    );
+
+    if (store.subscribers.length !== initialLen) {
+      const filePath = getStoreFilePath();
+      fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+      return true;
+    }
+    return false;
+  } catch (err) {
+    console.error("[persistedData] Failed to delete subscriber:", err);
+    return false;
+  }
+}
+
+export function toggleNewsletterSubscriberStatus(
+  idOrEmail: string
+): { success: boolean; newStatus?: "active" | "unsubscribed" } {
+  try {
+    const store = loadPersistedRecords();
+    if (!store.subscribers) return { success: false };
+
+    const clean = idOrEmail.trim().toLowerCase();
+    const sub = store.subscribers.find(
+      (s) => s.id === idOrEmail || s.email.toLowerCase() === clean
+    );
+
+    if (!sub) return { success: false };
+
+    sub.status = sub.status === "active" ? "unsubscribed" : "active";
+    const filePath = getStoreFilePath();
+    fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+    return { success: true, newStatus: sub.status };
+  } catch (err) {
+    console.error("[persistedData] Failed to toggle subscriber status:", err);
+    return { success: false };
+  }
+}
+
+

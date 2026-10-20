@@ -6,6 +6,7 @@ import { Heading } from "@/components/ui/Heading";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 import { Icon, IconName } from "@/components/ui/Icon";
 import { Tag } from "@/components/ui/Tag";
+import { OrangeWaveAccent } from "@/components/ui/OrangeWaveAccent";
 
 interface Pathway {
   title: string;
@@ -82,6 +83,16 @@ const PATHWAYS: Pathway[] = [
 
 import { BuilderSectionItem } from "@/lib/repositories/seedData";
 import { EditableElementWrapper } from "@/components/admin/EditableElementWrapper";
+import {
+  resolveCardContainerStyles,
+  resolveTypography,
+  resolveSubheadlineTypography,
+  type FontFamilyChoice,
+  type FontSizeChoice,
+  type FontWeightChoice,
+  type FontStyleChoice,
+  type FontColorChoice,
+} from "@/components/ui/typographyUtils";
 
 export interface ChooseYourPathProps {
   headline?: string;
@@ -89,6 +100,19 @@ export interface ChooseYourPathProps {
   bgColor?: "white" | "paper" | "navy" | "cream";
   columns?: 2 | 3 | 4;
   items?: BuilderSectionItem[];
+  headlineFontFamily?: FontFamilyChoice;
+  headlineFontSize?: FontSizeChoice;
+  headlineFontWeight?: FontWeightChoice;
+  headlineFontStyle?: FontStyleChoice;
+  headlineColor?: FontColorChoice;
+  headlineTransform?: "normal" | "uppercase";
+  headlineAlign?: "left" | "center" | "right";
+  subheadlineFontFamily?: FontFamilyChoice;
+  subheadlineFontSize?: FontSizeChoice;
+  subheadlineFontWeight?: FontWeightChoice;
+  subheadlineFontStyle?: FontStyleChoice;
+  subheadlineColor?: FontColorChoice;
+  subheadlineAlign?: "left" | "center" | "right";
   isEditor?: boolean;
   selectedElementKey?: string | null;
   selectedElementItemIndex?: number | null;
@@ -113,12 +137,52 @@ export const ChooseYourPath: React.FC<ChooseYourPathProps> = ({
   bgColor = "paper",
   columns = 3,
   items,
+  headlineFontFamily,
+  headlineFontSize,
+  headlineFontWeight,
+  headlineFontStyle,
+  headlineColor,
+  headlineTransform,
+  headlineAlign,
+  subheadlineFontFamily,
+  subheadlineFontSize,
+  subheadlineFontWeight,
+  subheadlineFontStyle,
+  subheadlineColor,
+  subheadlineAlign,
   isEditor = false,
   selectedElementKey,
   selectedElementItemIndex,
   onSelectElement,
 }) => {
   const isDark = bgColor === "navy";
+
+  const { className: hlClass, style: hlStyle } = resolveTypography({
+    fontFamily: headlineFontFamily,
+    fontSize: headlineFontSize,
+    fontWeight: headlineFontWeight,
+    fontStyle: headlineFontStyle,
+    color: headlineColor,
+    transform: headlineTransform,
+    align: headlineAlign || "center",
+    isDark,
+    defaultFamily: "heading",
+    defaultSize: "xl",
+    defaultWeight: "bold",
+  });
+
+  const { className: subClass, style: subStyle } = resolveSubheadlineTypography({
+    fontFamily: subheadlineFontFamily,
+    fontSize: subheadlineFontSize,
+    fontWeight: subheadlineFontWeight,
+    fontStyle: subheadlineFontStyle,
+    color: subheadlineColor,
+    align: subheadlineAlign || "center",
+    isDark,
+    defaultFamily: "body",
+    defaultSize: "md",
+    defaultWeight: "normal",
+  });
 
   const colClass =
     columns === 2
@@ -142,128 +206,146 @@ export const ChooseYourPath: React.FC<ChooseYourPathProps> = ({
       : PATHWAYS;
 
   return (
-    <Section variant={bgColor}>
+    <Section variant={bgColor} className="py-20 border-b border-line">
       <Container>
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
-          <div>
-            <Eyebrow tone={isDark ? "gold" : "navy"} className="mb-2">
-              Career Pathways
-            </Eyebrow>
-            <Heading level="h2" className={isDark ? "text-white" : "text-navy-900"}>
-              {headline}
-            </Heading>
-            <p className={`text-base sm:text-lg max-w-xl mt-2 leading-relaxed ${isDark ? "text-paper/85" : "text-ink-soft"}`}>
-              {subheadline}
-            </p>
+        {/* Centered Heading with Image 1 Orange Wave Accent */}
+        <div className="flex flex-col items-center text-center max-w-2xl mx-auto mb-14">
+          <EditableElementWrapper
+            isEditor={isEditor}
+            isSelected={isEditor && selectedElementKey === "badge"}
+            label="Badge"
+            onClick={() => onSelectElement?.("badge")}
+            inline
+          >
+            <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-teal-50 text-[#0B4D4E] border border-teal-200/70 mb-3 shadow-xs">
+              Explore Sector Pathways
+            </span>
+          </EditableElementWrapper>
+
+          <div className="inline-flex flex-col items-center relative w-full">
+            <EditableElementWrapper
+              isEditor={isEditor}
+              isSelected={isEditor && selectedElementKey === "headline"}
+              label="Headline"
+              onClick={() => onSelectElement?.("headline")}
+              className="w-full"
+            >
+              <Heading
+                level="h2"
+                style={hlStyle}
+                className={hlClass}
+              >
+                {headline}
+              </Heading>
+            </EditableElementWrapper>
+            <div className="flex justify-center mt-2">
+              <OrangeWaveAccent width={130} height={14} className="text-[#FF5722]" />
+            </div>
           </div>
 
-          <Link
-            href="/courses"
-            className={`text-sm font-semibold underline underline-offset-4 decoration-gold-500 whitespace-nowrap min-h-[44px] inline-flex items-center ${
-              isDark ? "text-gold-300 hover:text-white" : "text-navy-900 hover:text-navy-700"
-            }`}
+          <EditableElementWrapper
+            isEditor={isEditor}
+            isSelected={isEditor && selectedElementKey === "subheadline"}
+            label="Subheadline"
+            onClick={() => onSelectElement?.("subheadline")}
+            className="w-full mt-4"
           >
-            Explore all qualifications &rarr;
-          </Link>
+            <p
+              style={subStyle}
+              className={`max-w-xl mx-auto leading-relaxed ${subClass}`}
+            >
+              {subheadline ||
+                "Online learning has revolutionized British qualifications, providing flexible accredited pathways across vital care and educational sectors."}
+            </p>
+          </EditableElementWrapper>
         </div>
 
-        {/* Dynamic Grid by configured columns */}
+        {/* Category Cards Grid */}
         <div className={`grid ${colClass} gap-6`}>
-          {renderedCards.map((pathway, idx) => (
-            <EditableElementWrapper
-              key={pathway.title + idx}
-              isEditor={isEditor}
-              isSelected={isEditor && selectedElementKey === "item" && selectedElementItemIndex === idx}
-              label={`Pathway #${idx + 1}`}
-              onClick={() => onSelectElement?.("item", idx)}
-              className="h-full rounded-lg"
-            >
-              <Link
-                href={pathway.href}
-                onClick={(e) => {
-                  if (isEditor) {
-                    e.preventDefault();
-                  }
-                }}
-                className={`group rounded-lg border p-6 transition-all flex flex-col justify-between h-full ${
-                  isDark
-                    ? "bg-white/5 border-white/10 hover:border-gold-500/50 text-white"
-                    : "bg-white border-line shadow-subtle hover:border-navy-900/40 hover:-translate-y-0.5 text-ink"
-                }`}
+          {renderedCards.map((pathway, idx) => {
+            const themes = [
+              {
+                iconBg: "bg-cyan-50 text-cyan-600 border border-cyan-100",
+                buttonBg: "bg-cyan-600 hover:bg-cyan-700 text-white shadow-md shadow-cyan-600/20",
+                cardBorder: "hover:border-cyan-400",
+                buttonText: "View Pathway",
+              },
+              {
+                iconBg: "bg-purple-50 text-purple-600 border border-purple-100",
+                buttonBg: "bg-purple-600 hover:bg-purple-700 text-white shadow-md shadow-purple-600/20",
+                cardBorder: "hover:border-purple-400",
+                buttonText: "View Pathway",
+              },
+              {
+                iconBg: "bg-orange-50 text-[#FF5722] border border-orange-100",
+                buttonBg: "bg-[#FF5722] hover:bg-[#e64a19] text-white shadow-md shadow-orange-500/20",
+                cardBorder: "hover:border-orange-400",
+                buttonText: "Explore Courses",
+              },
+              {
+                iconBg: "bg-emerald-50 text-emerald-600 border border-emerald-100",
+                buttonBg: "bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20",
+                cardBorder: "hover:border-emerald-400",
+                buttonText: "View Pathway",
+              },
+            ];
+            const theme = themes[idx % themes.length];
+
+            return (
+              <EditableElementWrapper
+                key={pathway.title + idx}
+                isEditor={isEditor}
+                isSelected={isEditor && selectedElementKey === "item" && selectedElementItemIndex === idx}
+                label={`Category #${idx + 1}`}
+                onClick={() => onSelectElement?.("item", idx)}
+                className="h-full"
               >
-                <div>
-                  <div className="flex items-center justify-between gap-3 mb-4">
-                    <div
-                      className={`w-12 h-12 rounded-sm flex items-center justify-center transition-colors ${
-                        isDark
-                          ? "bg-gold-500/10 text-gold-300 group-hover:bg-gold-500 group-hover:text-navy-900"
-                          : "bg-navy-900/5 text-navy-900 group-hover:bg-navy-900 group-hover:text-white"
-                      }`}
-                    >
+                <div
+                  className={`group flex flex-col justify-between h-full p-6 sm:p-7 rounded-2xl bg-white border border-line shadow-[0_4px_20px_rgba(0,0,0,0.05)] hover:shadow-xl ${theme.cardBorder} transition-all duration-300 text-center`}
+                >
+                  <div>
+                    {/* Glowing Circular Pastel Icon matching color */}
+                    <div className={`w-16 h-16 rounded-full mx-auto flex items-center justify-center mb-5 shadow-xs group-hover:scale-110 transition-transform ${theme.iconBg}`}>
                       <Icon
                         name={pathway.icon}
-                        size={24}
-                        className={pathway.icon === "star" ? "text-gold-500" : ""}
+                        size={28}
                       />
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      {pathway.fundingEligible && (
-                        <Tag variant="gold" className="text-xs">
-                          Funded
-                        </Tag>
-                      )}
-                      {pathway.levelBadge && (
-                        <Tag variant={isDark ? "gold" : "default"} className="text-xs">
-                          {pathway.levelBadge}
-                        </Tag>
-                      )}
-                    </div>
+
+                    <h3 className="font-heading text-xl font-bold text-navy-900 group-hover:text-[#0B4D4E] transition-colors mb-2 min-h-[3rem] flex items-center justify-center">
+                      {pathway.title}
+                    </h3>
+
+                    <p className="text-xs sm:text-sm text-ink-soft leading-relaxed mb-6 min-h-[3.75rem] line-clamp-3 flex items-center justify-center">
+                      {pathway.description}
+                    </p>
                   </div>
 
-                  <h3
-                    className={`font-heading text-xl font-bold mb-1 transition-colors ${
-                      isDark
-                        ? "text-white group-hover:text-gold-300"
-                        : "text-navy-900 group-hover:text-navy-700"
-                    }`}
-                  >
-                    {pathway.title}
-                  </h3>
-                  {pathway.targetRole && (
-                    <span
-                      className={`text-xs font-semibold block mb-2.5 ${
-                        isDark ? "text-gold-300" : "text-navy-700"
-                      }`}
+                  {/* Button matching icon color */}
+                  <div className="pt-2">
+                    <Link
+                      href={pathway.href}
+                      className={`w-full py-2.5 px-4 rounded-full ${theme.buttonBg} font-heading font-bold text-xs sm:text-sm tracking-wide inline-flex items-center justify-center gap-1.5 transition-all group-hover:scale-[1.02]`}
                     >
-                      {pathway.targetRole}
-                    </span>
-                  )}
-                  <p
-                    className={`text-sm leading-relaxed ${
-                      isDark ? "text-paper/80" : "text-ink-soft"
-                    }`}
-                  >
-                    {pathway.description}
-                  </p>
+                      <span>{theme.buttonText}</span>
+                      <Icon name="arrow-right" size={14} className="text-white" />
+                    </Link>
+                  </div>
                 </div>
+              </EditableElementWrapper>
+            );
+          })}
+        </div>
 
-                <div
-                  className={`pt-6 mt-4 border-t flex items-center justify-between text-xs font-bold ${
-                    isDark
-                      ? "border-white/10 text-gold-300 group-hover:text-white"
-                      : "border-line text-navy-900 group-hover:text-navy-700"
-                  }`}
-                >
-                  <span>View course details</span>
-                  <Icon
-                    name="arrow-right"
-                    size={16}
-                    className="transform group-hover:translate-x-1 transition-transform"
-                  />
-                </div>
-              </Link>
-            </EditableElementWrapper>
-          ))}
+        {/* View All Categories Pill Button (Image 1 style) */}
+        <div className="text-center mt-12">
+          <Link
+            href="/courses"
+            className="inline-flex items-center justify-center px-8 py-3.5 rounded-full border border-teal-300 text-[#0B4D4E] hover:bg-teal-50 hover:border-teal-500 font-heading font-bold text-sm tracking-wide transition-all shadow-xs"
+          >
+            <span>View All Categories</span>
+            <Icon name="arrow-right" size={15} className="ml-2 text-teal-700" />
+          </Link>
         </div>
       </Container>
     </Section>

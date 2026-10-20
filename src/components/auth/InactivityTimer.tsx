@@ -29,9 +29,12 @@ export const InactivityTimer: React.FC = () => {
     } catch {
       // Ignore network errors on signout
     }
-    logout();
-    router.push("/login?reason=timeout");
-  }, [logout, router]);
+    try {
+      localStorage.removeItem("smartminds_auth_session_v1");
+      window.dispatchEvent(new Event("smartminds_auth_updated"));
+    } catch {}
+    window.location.href = "/login?reason=timeout";
+  }, []);
 
   const resetActivity = useCallback(() => {
     lastActivityRef.current = Date.now();

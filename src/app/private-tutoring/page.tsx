@@ -6,6 +6,8 @@ import { Eyebrow } from "@/components/ui/Eyebrow";
 import { Tag } from "@/components/ui/Tag";
 import { Icon } from "@/components/ui/Icon";
 import { PrivateTutoringForm } from "@/components/forms/PrivateTutoringForm";
+import { getPublishedCmsPageSections, getLiveCourses } from "@/lib/persistedData";
+import { SectionRenderer } from "@/components/cms/SectionRenderer";
 
 export const metadata: Metadata = {
   title: "1-on-1 Private Tutoring (KS3 & GCSE) | Smartminds Training College",
@@ -23,6 +25,20 @@ export const metadata: Metadata = {
 };
 
 export default function PrivateTutoringPage() {
+  const customSections = getPublishedCmsPageSections("/private-tutoring");
+  if (customSections && customSections.length > 0) {
+    const liveCourses = getLiveCourses();
+    return (
+      <main className="bg-paper text-ink min-h-screen">
+        {customSections
+          .filter((sec) => sec.enabled)
+          .map((sec) => (
+            <SectionRenderer key={sec.id} section={sec} courses={liveCourses} />
+          ))}
+      </main>
+    );
+  }
+
   return (
     <main className="bg-paper min-h-screen py-10 md:py-16">
       <Container>

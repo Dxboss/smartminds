@@ -141,11 +141,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
 
     if (targetRole === "student") {
-      router.push("/portal/student");
+      router.push("/student");
     } else if (targetRole === "staff") {
-      router.push("/portal/tutor");
+      router.push("/staff");
     } else if (targetRole === "owner_admin") {
-      router.push("/portal/admin");
+      router.push("/admin");
     } else if (targetRole === "super_admin") {
       router.push("/super");
     }
@@ -211,7 +211,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch {
       // Storage remove error
     }
-    router.push("/");
+    if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+      router.push("/");
+    }
   };
 
   return (
