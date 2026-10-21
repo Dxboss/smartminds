@@ -183,14 +183,14 @@ export function syncStoreSnapshotToNeon(store: PersistedRecordsStore): void {
 }
 
 /**
- * Pulls master snapshot from Neon PostgreSQL if local file is missing/empty.
- * Guarantees that Hostinger deployments and local environments can restore instantly.
+ * Pulls master snapshot from Neon PostgreSQL if local file is missing/empty or out of sync.
+ * Guarantees that Hostinger deployments and local environments restore instantly after git push.
  */
 export async function pullLatestFromNeon(): Promise<boolean> {
-  if (!process.env.DATABASE_URL) return false;
-
   try {
-    const { sql, ensureDbTablesExist } = await import("@/lib/db");
+    const { isDbConfigured, sql, ensureDbTablesExist } = await import("@/lib/db");
+    if (!isDbConfigured) return false;
+
     await ensureDbTablesExist();
 
     const rows: any = await sql`
@@ -201,30 +201,65 @@ export async function pullLatestFromNeon(): Promise<boolean> {
       const dbStore = rows[0].value as PersistedRecordsStore;
       const store = loadPersistedRecords();
 
-      if (dbStore.courseOverrides && Object.keys(dbStore.courseOverrides).length > 0) {
-        store.courseOverrides = { ...(store.courseOverrides || {}), ...dbStore.courseOverrides };
-      }
-      if (dbStore.cmsPagesData && Object.keys(dbStore.cmsPagesData).length > 0) {
-        store.cmsPagesData = { ...(store.cmsPagesData || {}), ...dbStore.cmsPagesData };
-      }
-      if (Array.isArray(dbStore.learners) && dbStore.learners.length > 0) {
-        for (const l of dbStore.learners) {
-          if (!store.learners.some((ex) => ex.id === l.id)) {
-            store.learners.push(l);
-          }
-        }
-      }
-      if (Array.isArray(dbStore.subscribers) && dbStore.subscribers.length > 0) {
-        if (!store.subscribers) store.subscribers = [];
-        for (const s of dbStore.subscribers) {
-          if (!store.subscribers.some((ex) => ex.id === s.id || ex.email === s.email)) {
-            store.subscribers.push(s);
-          }
-        }
-      }
+      const mergedStore: PersistedRecordsStore = {
+        ...store,
+        ...dbStore,
+        courseOverrides: {
+          ...(store.courseOverrides || {}),
+          ...(dbStore.courseOverrides || {}),
+        },
+        cmsPagesData: {
+          ...(store.cmsPagesData || {}),
+          ...(dbStore.cmsPagesData || {}),
+        },
+        cmsPagesDraftData: {
+          ...(store.cmsPagesDraftData || {}),
+          ...(dbStore.cmsPagesDraftData || {}),
+        },
+        faculties:
+          Array.isArray(dbStore.faculties) && dbStore.faculties.length > 0
+            ? dbStore.faculties
+            : store.faculties,
+        learners:
+          Array.isArray(dbStore.learners) && dbStore.learners.length > 0
+            ? dbStore.learners
+            : store.learners,
+        subscribers:
+          Array.isArray(dbStore.subscribers) && dbStore.subscribers.length > 0
+            ? dbStore.subscribers
+            : store.subscribers,
+        cohorts:
+          Array.isArray(dbStore.cohorts) && dbStore.cohorts.length > 0
+            ? dbStore.cohorts
+            : store.cohorts,
+        classSessions:
+          Array.isArray(dbStore.classSessions) && dbStore.classSessions.length > 0
+            ? dbStore.classSessions
+            : store.classSessions,
+        paymentRecords:
+          Array.isArray(dbStore.paymentRecords) && dbStore.paymentRecords.length > 0
+            ? dbStore.paymentRecords
+            : store.paymentRecords,
+        enrolments:
+          Array.isArray(dbStore.enrolments) && dbStore.enrolments.length > 0
+            ? dbStore.enrolments
+            : store.enrolments,
+        enquiries:
+          Array.isArray(dbStore.enquiries) && dbStore.enquiries.length > 0
+            ? dbStore.enquiries
+            : store.enquiries,
+        bookings:
+          Array.isArray(dbStore.bookings) && dbStore.bookings.length > 0
+            ? dbStore.bookings
+            : store.bookings,
+        blogPosts:
+          Array.isArray(dbStore.blogPosts) && dbStore.blogPosts.length > 0
+            ? dbStore.blogPosts
+            : store.blogPosts,
+      };
 
       const filePath = getStoreFilePath();
-      fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+      fs.writeFileSync(filePath, JSON.stringify(mergedStore, null, 2));
       syncPersistedRecords(true);
       return true;
     }

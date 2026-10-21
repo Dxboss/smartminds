@@ -42,6 +42,7 @@ import { ButtonCustomizerFields } from "./ButtonCustomizerFields";
 import { FocusedElementInspector, getDefaultItemsForSection } from "./FocusedElementInspector";
 import { MediaLibraryModal } from "./MediaLibraryModal";
 import { CourseGridCmsControls } from "./CourseGridCmsControls";
+import { ColorPalettePicker } from "./ColorPalettePicker";
 
 interface Props {
   initialSections: BuilderSection[];
@@ -5016,133 +5017,15 @@ export const SiteCmsEditorView: React.FC<Props> = ({
 
                 return (
                   <div className="p-4 space-y-5">
-                    {/* Background Palette */}
+                    {/* Background Palette with Shades of Navy, Yellow, Grey & Custom Hex */}
                     <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider">
-                          Background Palette
-                        </label>
-                        <span className="text-[10px] text-ink-soft font-mono uppercase">
-                          Active: {activeBg}
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 mb-3">
-                        {[
-                          { key: "white", label: "Crisp White", bgClass: "bg-white border-line text-ink" },
-                          { key: "paper", label: "Parchment Paper", bgClass: "bg-paper border-line text-ink" },
-                          { key: "navy", label: "Deep Royal Navy", bgClass: "bg-navy-900 text-white border-navy-800" },
-                          { key: "cream", label: "Gold / Cream Tint", bgClass: "bg-gold-50/70 border-gold-200 text-ink" },
-                          { key: "slate", label: "Midnight Slate", bgClass: "bg-[#0B132B] text-white border-[#1C2541]" },
-                          { key: "sage", label: "Sage Mist", bgClass: "bg-[#EFF5F2] border-emerald-200 text-ink" },
-                          { key: "sand", label: "Warm Sand", bgClass: "bg-[#F7F4EE] border-[#E8E2D5] text-ink" },
-                          { key: "navy_gradient", label: "Navy Indigo Gradient", bgClass: "bg-gradient-to-r from-[#1C1A57] to-[#34318F] text-white border-navy-700" },
-                        ].map((bg) => {
-                          const isSelected = activeBg === bg.key;
-                          return (
-                            <button
-                              key={bg.key}
-                              type="button"
-                              onClick={() => updateSelectedField("bgColor", bg.key)}
-                              className={`p-2.5 rounded-sm border text-xs font-semibold flex items-center justify-between transition-all cursor-pointer ${
-                                bg.bgClass
-                              } ${
-                                isSelected
-                                  ? "ring-2 ring-gold-500 shadow-sm"
-                                  : "opacity-80 hover:opacity-100"
-                              }`}
-                            >
-                              <span className="truncate">{bg.label}</span>
-                              {isSelected && (
-                                <Icon name="check" size={13} className="text-gold-500 shrink-0" />
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      {/* Custom Hex Color Picker */}
-                      <div className="p-3 bg-paper/60 rounded-sm border border-line space-y-2.5">
-                        <div className="flex items-center justify-between">
-                          <label className="block text-[10px] font-semibold text-navy-900 uppercase tracking-wider">
-                            Custom Hex Background Color
-                          </label>
-                          {activeBg?.startsWith("#") && (
-                            <span className="text-[10px] font-mono text-gold-600 font-bold flex items-center gap-1">
-                              <span
-                                className="inline-block w-2.5 h-2.5 rounded-full border border-black/20"
-                                style={{ backgroundColor: activeBg }}
-                              />
-                              Custom Hex
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="relative flex items-center justify-center">
-                            <input
-                              type="color"
-                              value={
-                                activeBg?.startsWith("#") && activeBg.length === 7
-                                  ? activeBg
-                                  : "#23216B"
-                              }
-                              onChange={(e) => updateSelectedField("bgColor", e.target.value)}
-                              className="w-10 h-10 p-0.5 rounded-xs border border-line cursor-pointer bg-white"
-                            />
-                          </div>
-                          <input
-                            type="text"
-                            placeholder="#23216B"
-                            value={activeBg?.startsWith("#") ? activeBg : ""}
-                            onChange={(e) => {
-                              let val = e.target.value.trim();
-                              if (val && !val.startsWith("#")) {
-                                val = "#" + val;
-                              }
-                              updateSelectedField("bgColor", val);
-                            }}
-                            className="flex-1 px-3 py-2 font-mono text-xs border border-line rounded-sm bg-white uppercase tracking-wider focus:outline-none focus:border-navy-900"
-                          />
-                        </div>
-
-                        {/* Quick-Pick Brand Swatches */}
-                        <div>
-                          <span className="text-[9px] font-mono text-ink-soft uppercase block mb-1">
-                            Popular Academic Swatches:
-                          </span>
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            {[
-                              { hex: "#23216B", name: "Oxford Navy" },
-                              { hex: "#0B132B", name: "Deep Slate" },
-                              { hex: "#1C1A57", name: "Midnight Indigo" },
-                              { hex: "#064E3B", name: "British Emerald" },
-                              { hex: "#4A154B", name: "Imperial Plum" },
-                              { hex: "#8B3A2B", name: "Terracotta" },
-                              { hex: "#1E293B", name: "Charcoal" },
-                            ].map((swatch) => (
-                              <button
-                                key={swatch.hex}
-                                type="button"
-                                title={`${swatch.name} (${swatch.hex})`}
-                                onClick={() => updateSelectedField("bgColor", swatch.hex)}
-                                className={`w-6 h-6 rounded-xs border transition-transform cursor-pointer hover:scale-110 flex items-center justify-center ${
-                                  activeBg?.toLowerCase() === swatch.hex.toLowerCase()
-                                    ? "ring-2 ring-gold-500 scale-105"
-                                    : "border-black/20"
-                                }`}
-                                style={{ backgroundColor: swatch.hex }}
-                              >
-                                {activeBg?.toLowerCase() === swatch.hex.toLowerCase() && (
-                                  <span className="text-white text-[9px] font-bold">✓</span>
-                                )}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        <p className="text-[10px] text-ink-soft">
-                          Pick any custom brand HEX code. Text contrast automatically adjusts to dark or light.
-                        </p>
-                      </div>
+                      <ColorPalettePicker
+                        value={activeBg}
+                        onChange={(val) => updateSelectedField("bgColor", val)}
+                        label="Background Palette & Section Accent"
+                        defaultColor="paper"
+                        allowCustomHex={true}
+                      />
                     </div>
 
                     {/* TYPOGRAPHY CONTROLS (Font Style, Size, Color, Weight) */}

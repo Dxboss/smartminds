@@ -5,6 +5,7 @@ import { ButtonCustomizerFields } from "@/components/admin/ButtonCustomizerField
 import { ImageDropzone } from "@/components/ui/ImageDropzone";
 import { MediaLibraryModal } from "./MediaLibraryModal";
 import { CourseGridCmsControls } from "./CourseGridCmsControls";
+import { ColorPalettePicker } from "./ColorPalettePicker";
 
 export const COLLEGE_STOCK_IMAGES = [
   {
@@ -2199,32 +2200,13 @@ export const FocusedElementInspector: React.FC<FocusedElementInspectorProps> = (
                 <span>Layout, Palette & Spacing</span>
               </strong>
               <div>
-                <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1.5">
-                  Background Palette
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { key: "paper", label: "Parchment Paper" },
-                    { key: "white", label: "Crisp White" },
-                    { key: "navy", label: "Royal Navy" },
-                    { key: "slate", label: "Deep Slate" },
-                    { key: "cream", label: "Warm Cream" },
-                    { key: "sage", label: "Muted Sage" },
-                  ].map((pal) => (
-                    <button
-                      key={pal.key}
-                      type="button"
-                      onClick={() => updateField("bgColor", pal.key as any)}
-                      className={`p-2 rounded-xs border text-xs font-medium text-left transition-all cursor-pointer ${
-                        (section.bgColor || "paper") === pal.key
-                          ? "border-navy-900 bg-white shadow-xs font-bold ring-1 ring-navy-900"
-                          : "border-line bg-white/70 hover:bg-white"
-                      }`}
-                    >
-                      {pal.label}
-                    </button>
-                  ))}
-                </div>
+                <ColorPalettePicker
+                  value={section.bgColor || "paper"}
+                  onChange={(pal) => updateField("bgColor", pal as any)}
+                  label="Background Palette & Custom Hue"
+                  defaultColor="paper"
+                  allowCustomHex={true}
+                />
               </div>
               <div className="grid grid-cols-2 gap-2 pt-2 border-t border-line">
                 <div>

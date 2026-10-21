@@ -28,6 +28,11 @@ export default async function AdminCoursesPage() {
     redirect("/login");
   }
 
+  try {
+    const { pullLatestFromNeon } = await import("@/lib/persistedData");
+    await pullLatestFromNeon();
+  } catch {}
+
   const courseRepo = getCourseRepo();
   const courses = await courseRepo.listCourses();
   const faculties = getPersistedFaculties();

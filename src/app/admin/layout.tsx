@@ -58,6 +58,12 @@ export default async function AdminLayout({
     redirect("/login?from=/admin");
   }
 
+  // Ensure latest cloud changes from Neon PostgreSQL are hydrated into memory/filesystem
+  try {
+    const { pullLatestFromNeon } = await import("@/lib/persistedData");
+    await pullLatestFromNeon();
+  } catch {}
+
   if (
     session.role !== "admin_staff" &&
     session.role !== "owner_admin" &&

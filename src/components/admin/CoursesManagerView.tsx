@@ -15,6 +15,8 @@ import {
   deleteFacultyAction,
 } from "@/app/admin/actions";
 import { type FacultyRecord, DEFAULT_COLLEGE_FACULTIES } from "@/content/faculties";
+import { ColorPalettePicker } from "./ColorPalettePicker";
+import { COLLEGE_COLOR_PALETTES, isDarkHex } from "@/components/ui/sectionBg";
 
 interface CoursesManagerViewProps {
   courses: Course[];
@@ -3521,15 +3523,25 @@ export function CoursesManagerView({
                         }`}
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <div
-                            className={`w-8 h-8 rounded-sm flex items-center justify-center shrink-0 ${
-                              isEditing
-                                ? "bg-navy-900 text-gold-300 ring-2 ring-gold-500"
-                                : "bg-navy-900 text-gold-300"
-                            }`}
-                          >
-                            <Icon name={(f.icon as any) || "shield-check"} size={16} />
-                          </div>
+                          {(() => {
+                            const facultyHex = f.color?.startsWith("#")
+                              ? f.color
+                              : (COLLEGE_COLOR_PALETTES.find((p) => p.key === f.color)?.hex || "#23216B");
+                            const isDark = isDarkHex(facultyHex);
+                            return (
+                              <div
+                                className={`w-8 h-8 rounded-sm flex items-center justify-center shrink-0 border border-black/10 shadow-2xs ${
+                                  isEditing ? "ring-2 ring-gold-500 scale-105" : ""
+                                }`}
+                                style={{
+                                  backgroundColor: facultyHex,
+                                  color: isDark ? "#FAF8F3" : "#1B1B2B",
+                                }}
+                              >
+                                <Icon name={(f.icon as any) || "shield-check"} size={16} />
+                              </div>
+                            );
+                          })()}
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
                               <strong className="text-xs font-bold text-navy-900 truncate">
@@ -3697,6 +3709,17 @@ export function CoursesManagerView({
                       className="w-full px-3 py-2 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900"
                     />
                   </div>
+                </div>
+
+                {/* Faculty Color / Department Hue Selector */}
+                <div>
+                  <ColorPalettePicker
+                    value={newFacultyColor}
+                    onChange={(color) => setNewFacultyColor(color)}
+                    label="Department Accent Theme & Badge Color"
+                    defaultColor="navy"
+                    allowCustomHex={true}
+                  />
                 </div>
 
                 <div className="pt-2 flex items-center justify-end gap-2">

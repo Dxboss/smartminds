@@ -17,6 +17,11 @@ export const metadata: Metadata = {
 };
 
 export default async function CoursesPage() {
+  try {
+    const { pullLatestFromNeon } = await import("@/lib/persistedData");
+    await pullLatestFromNeon();
+  } catch {}
+
   const customSections = getPublishedCmsPageSections("/courses");
   const courseRepo = getCourseRepo();
   const allCourses = await courseRepo.listCourses();
