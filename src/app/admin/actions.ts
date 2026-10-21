@@ -1658,7 +1658,7 @@ export async function saveVisualBuilderSectionsAction(
 
   // Persist CMS page to disk so changes survive restarts and page reloads
   const { savePersistedCmsPage } = await import("@/lib/persistedData");
-  savePersistedCmsPage(pagePath, sections);
+  await savePersistedCmsPage(pagePath, sections);
 
   // Persist header and footer if provided during publish
   if (headerNav || footerConfig) {
@@ -2249,7 +2249,7 @@ export async function saveFacultyAction(faculty: {
 
   const { saveFacultyToStore } = await import("@/lib/persistedData");
   const id = faculty.id || faculty.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-  const updatedFaculties = saveFacultyToStore({
+  const updatedFaculties = await saveFacultyToStore({
     id,
     name: faculty.name.trim(),
     description: faculty.description?.trim(),
@@ -2273,7 +2273,7 @@ export async function deleteFacultyAction(facultyId: string) {
   assertAdminAuthorized(session);
 
   const { deleteFacultyFromStore } = await import("@/lib/persistedData");
-  const updatedFaculties = deleteFacultyFromStore(facultyId);
+  const updatedFaculties = await deleteFacultyFromStore(facultyId);
 
   try {
     revalidatePath("/admin/courses");

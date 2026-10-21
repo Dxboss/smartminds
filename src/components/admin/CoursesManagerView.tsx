@@ -208,16 +208,50 @@ export function CoursesManagerView({
       const oldFaculty = editingFacultyId ? faculties.find((f) => f.id === editingFacultyId) : null;
       const oldName = oldFaculty?.name;
 
-      const res = await saveFacultyAction({
-        id: editingFacultyId || undefined,
-        name: newFacultyName.trim(),
-        description: newFacultyDesc.trim(),
-        icon: newFacultyIcon,
-        color: newFacultyColor,
-        status: newFacultyStatus,
-      });
-      if (res.success && res.faculties) {
-        setFaculties(res.faculties);
+      let savedFaculties: any = null;
+
+      // 1. Primary: Dedicated REST API
+      try {
+        const apiRes = await fetch("/api/admin/courses", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "save_faculty",
+            faculty: {
+              id: editingFacultyId || undefined,
+              name: newFacultyName.trim(),
+              description: newFacultyDesc.trim(),
+              icon: newFacultyIcon,
+              color: newFacultyColor,
+              status: newFacultyStatus,
+            },
+          }),
+        });
+        if (apiRes.ok) {
+          const json = await apiRes.json();
+          if (json.success && json.faculties) {
+            savedFaculties = json.faculties;
+          }
+        }
+      } catch {}
+
+      // 2. Secondary fallback: Server Action
+      if (!savedFaculties) {
+        const res = await saveFacultyAction({
+          id: editingFacultyId || undefined,
+          name: newFacultyName.trim(),
+          description: newFacultyDesc.trim(),
+          icon: newFacultyIcon,
+          color: newFacultyColor,
+          status: newFacultyStatus,
+        });
+        if (res.success && res.faculties) {
+          savedFaculties = res.faculties;
+        }
+      }
+
+      if (savedFaculties) {
+        setFaculties(savedFaculties);
 
         // If faculty was renamed, keep local course categories in sync
         if (oldName && oldName.toLowerCase() !== newFacultyName.trim().toLowerCase()) {
@@ -252,9 +286,30 @@ export function CoursesManagerView({
       return;
     }
     try {
-      const res = await deleteFacultyAction(facultyId);
-      if (res.success && res.faculties) {
-        setFaculties(res.faculties);
+      let savedFaculties: any = null;
+      try {
+        const apiRes = await fetch("/api/admin/courses", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "delete_faculty", facultyId }),
+        });
+        if (apiRes.ok) {
+          const json = await apiRes.json();
+          if (json.success && json.faculties) {
+            savedFaculties = json.faculties;
+          }
+        }
+      } catch {}
+
+      if (!savedFaculties) {
+        const res = await deleteFacultyAction(facultyId);
+        if (res.success && res.faculties) {
+          savedFaculties = res.faculties;
+        }
+      }
+
+      if (savedFaculties) {
+        setFaculties(savedFaculties);
         if (editingFacultyId === facultyId) {
           handleCancelEditFaculty();
         }

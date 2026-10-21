@@ -162,30 +162,32 @@ export function loadPersistedRecords(): PersistedRecordsStore {
  * Asynchronously synchronizes the full state snapshot into Neon PostgreSQL system_store.
  * Acts as an immutable cloud backup whenever changes occur.
  */
-export function syncStoreSnapshotToNeon(store: PersistedRecordsStore): void {
+export async function syncStoreSnapshotToNeon(store: PersistedRecordsStore): Promise<boolean> {
   if (
     typeof window !== "undefined" ||
     !process.env.DATABASE_URL ||
     process.env.NEXT_PHASE === "phase-production-build"
   ) {
-    return;
+    return false;
   }
 
-  import("@/lib/db")
-    .then(({ sql, ensureDbTablesExist }) => {
-      ensureDbTablesExist()
-        .then(() => {
-          sql`
-            INSERT INTO system_store (key, value, updated_at)
-            VALUES ('master_records_store', ${JSON.stringify(store)}, now())
-            ON CONFLICT (key) DO UPDATE SET
-              value = EXCLUDED.value,
-              updated_at = now();
-          `.catch((err) => console.warn("[Neon DB] Notice: system_store sync:", err));
-        })
-        .catch(() => {});
-    })
-    .catch(() => {});
+  try {
+    const { isDbConfigured, sql, ensureDbTablesExist } = await import("@/lib/db");
+    if (!isDbConfigured) return false;
+
+    await ensureDbTablesExist();
+    await sql`
+      INSERT INTO system_store (key, value, updated_at)
+      VALUES ('master_records_store', ${JSON.stringify(store)}, now())
+      ON CONFLICT (key) DO UPDATE SET
+        value = EXCLUDED.value,
+        updated_at = now();
+    `;
+    return true;
+  } catch (err) {
+    console.warn("[Neon DB] Notice: system_store sync:", err);
+    return false;
+  }
 }
 
 /**
@@ -502,7 +504,7 @@ export function updateLearnerPasswordInStore(email: string, newPassword: string)
   }
 }
 
-export function savePersistedCmsPage(pagePath: string, sections: any[]): void {
+export async function savePersistedCmsPage(pagePath: string, sections: any[]): Promise<boolean> {
   try {
     const store = loadPersistedRecords();
     if (!store.cmsPagesData) store.cmsPagesData = {};
@@ -514,25 +516,30 @@ export function savePersistedCmsPage(pagePath: string, sections: any[]): void {
     fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
     syncPersistedRecords(true);
 
-    // Continuous Neon Cloud synchronization
-    syncStoreSnapshotToNeon(store);
+    // Continuous Neon Cloud synchronization - fully awaited
+    await syncStoreSnapshotToNeon(store);
 
     if (process.env.DATABASE_URL) {
-      import("@/lib/db")
-        .then(({ sql }) => {
-          sql`
+      try {
+        const { isDbConfigured, sql } = await import("@/lib/db");
+        if (isDbConfigured) {
+          await sql`
             INSERT INTO cms_pages (path, sections, draft_sections, updated_at)
             VALUES (${pagePath}, ${JSON.stringify(sections)}, null, now())
             ON CONFLICT (path) DO UPDATE SET
               sections = EXCLUDED.sections,
               draft_sections = null,
               updated_at = now();
-          `.catch((err) => console.warn("[Neon DB] cms_pages sync error:", err));
-        })
-        .catch(() => {});
+          `;
+        }
+      } catch (err) {
+        console.warn("[Neon DB] cms_pages sync error:", err);
+      }
     }
+    return true;
   } catch (err) {
     console.error("[persistedData] Failed to save CMS page:", err);
+    return false;
   }
 }
 
@@ -1596,7 +1603,7 @@ export function getPersistedFaculties(): FacultyRecord[] {
   }
 }
 
-export function saveFacultyToStore(faculty: FacultyRecord): FacultyRecord[] {
+export async function saveFacultyToStore(faculty: FacultyRecord): Promise<FacultyRecord[]> {
   try {
     const store = loadPersistedRecords();
     if (!store.faculties || !Array.isArray(store.faculties) || store.faculties.length === 0) {
@@ -1635,7 +1642,7 @@ export function saveFacultyToStore(faculty: FacultyRecord): FacultyRecord[] {
 
     const filePath = getStoreFilePath();
     fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
-    syncStoreSnapshotToNeon(store);
+    await syncStoreSnapshotToNeon(store);
     return store.faculties;
   } catch (err) {
     console.error("[persistedData] Failed to save faculty:", err);
@@ -1643,7 +1650,7 @@ export function saveFacultyToStore(faculty: FacultyRecord): FacultyRecord[] {
   }
 }
 
-export function deleteFacultyFromStore(facultyId: string): FacultyRecord[] {
+export async function deleteFacultyFromStore(facultyId: string): Promise<FacultyRecord[]> {
   try {
     const store = loadPersistedRecords();
     if (!store.faculties || !Array.isArray(store.faculties) || store.faculties.length === 0) {
@@ -1653,7 +1660,7 @@ export function deleteFacultyFromStore(facultyId: string): FacultyRecord[] {
     store.faculties = store.faculties.filter((f) => f.id !== facultyId);
     const filePath = getStoreFilePath();
     fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
-    syncStoreSnapshotToNeon(store);
+    await syncStoreSnapshotToNeon(store);
     return store.faculties;
   } catch (err) {
     console.error("[persistedData] Failed to delete faculty:", err);

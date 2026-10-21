@@ -497,22 +497,58 @@ export const SiteCmsEditorView: React.FC<Props> = ({
 
     setDraftStatus((prev) => ({ ...prev, isSaving: true, text: "Saving draft to server..." }));
 
+    // Keep immediate copy in localStorage to protect user's work against tab closes or deploys
+    try {
+      localStorage.setItem(`smartminds_cms_draft_${activePagePath}`, currentSnapshot);
+    } catch {}
+
     const timer = setTimeout(async () => {
       try {
-        const res = await saveVisualBuilderDraftAction(activePagePath, activeSections);
-        if (res.success && res.updatedAt) {
+        let saved = false;
+        let updatedAt = new Date().toISOString();
+
+        // 1. Try dedicated REST API route first
+        try {
+          const apiRes = await fetch("/api/admin/cms", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "save_draft",
+              pagePath: activePagePath,
+              sections: activeSections,
+            }),
+          });
+          if (apiRes.ok) {
+            const data = await apiRes.json();
+            if (data.success) {
+              saved = true;
+            }
+          }
+        } catch {}
+
+        // 2. Fallback to server action if needed
+        if (!saved) {
+          const res = await saveVisualBuilderDraftAction(activePagePath, activeSections);
+          if (res.success && res.updatedAt) {
+            saved = true;
+            updatedAt = res.updatedAt;
+          } else if ((res as any)?.unauthorized || (res as any)?.sessionExpired) {
+            setDraftStatus({ text: "Session expired — sign in as Director", isSaving: false });
+            return;
+          }
+        }
+
+        if (saved) {
           lastSavedDraftSnapshotRef.current[activePagePath] = currentSnapshot;
-          const timeStr = new Date(res.updatedAt).toLocaleTimeString([], {
+          const timeStr = new Date(updatedAt).toLocaleTimeString([], {
             hour: "2-digit",
             minute: "2-digit",
           });
           setDraftStatus({ text: `Draft saved to server (${timeStr})`, isSaving: false });
           setServerDrafts((prev) => ({
             ...prev,
-            [activePagePath]: { sections: activeSections, updatedAt: res.updatedAt },
+            [activePagePath]: { sections: activeSections, updatedAt },
           }));
-        } else if ((res as any)?.unauthorized || (res as any)?.sessionExpired) {
-          setDraftStatus({ text: "Session expired — sign in as Director", isSaving: false });
         } else {
           setDraftStatus({ text: "Draft save paused", isSaving: false });
         }
@@ -520,8 +556,8 @@ export const SiteCmsEditorView: React.FC<Props> = ({
         if (err?.message?.includes("Unauthorized")) {
           setDraftStatus({ text: "Session expired — sign in as Director", isSaving: false });
         } else {
-          console.error("Draft auto-save failed:", err);
-          setDraftStatus({ text: "Auto-save failed (offline)", isSaving: false });
+          console.error("Draft auto-save notice:", err);
+          setDraftStatus({ text: "Draft saved locally", isSaving: false });
         }
       }
     }, 2500);
@@ -2284,13 +2320,61 @@ export const SiteCmsEditorView: React.FC<Props> = ({
   const handlePublishPage = () => {
     startTransition(async () => {
       try {
-        const result = await saveVisualBuilderSectionsAction(
-          activeSections,
-          activePagePath,
-          headerNav,
-          footerConfig
-        );
-        if (result.success) {
+        let success = false;
+        let errorMessage = "";
+
+        // 1. Primary: Call dedicated REST API route (immune to server action build hash mismatches)
+        try {
+          const apiRes = await fetch("/api/admin/cms", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "publish_page",
+              pagePath: activePagePath,
+              sections: activeSections,
+              headerNav,
+              footerConfig,
+            }),
+          });
+          const json = await apiRes.json();
+          if (apiRes.ok && json.success) {
+            success = true;
+          } else if (apiRes.status === 401) {
+            alert("Your session has expired or Director/Owner privileges are required. Please log in as College Director (Millie Davis) or Super Admin.");
+            return;
+          } else {
+            errorMessage = json.error || "Failed to publish page via API.";
+          }
+        } catch (fetchErr) {
+          console.warn("[CMS Editor] API route unreachable, falling back to Server Action:", fetchErr);
+        }
+
+        // 2. Secondary fallback: Server Action
+        if (!success) {
+          try {
+            const result = await saveVisualBuilderSectionsAction(
+              activeSections,
+              activePagePath,
+              headerNav,
+              footerConfig
+            );
+            if (result.success) {
+              success = true;
+            } else if ((result as any)?.unauthorized || (result as any)?.sessionExpired) {
+              alert("Your session has expired or Director/Owner privileges are required. Please log in as College Director (Millie Davis) or Super Admin.");
+              return;
+            } else {
+              errorMessage = (result as any)?.error || errorMessage || "Failed to publish changes.";
+            }
+          } catch (saErr: any) {
+            errorMessage = saErr?.message || errorMessage;
+          }
+        }
+
+        if (success) {
+          try {
+            localStorage.removeItem(`smartminds_cms_draft_${activePagePath}`);
+          } catch {}
           publishedSnapshotsRef.current[activePagePath] = JSON.stringify(activeSections);
           delete lastSavedDraftSnapshotRef.current[activePagePath];
           setServerDrafts((prev) => {
@@ -2301,10 +2385,8 @@ export const SiteCmsEditorView: React.FC<Props> = ({
           setDraftStatus({ text: "Published to Live", isSaving: false });
           setToastNotice(`"${activePageObj.name}" and site navigation published live successfully!`);
           setTimeout(() => setToastNotice(null), 5000);
-        } else if ((result as any)?.unauthorized || (result as any)?.sessionExpired) {
-          alert("Your session has expired or Director/Owner privileges are required. Please log in as College Director (Millie Davis) or Super Admin.");
         } else {
-          alert((result as any)?.error || "Failed to publish changes.");
+          alert(errorMessage || "Failed to publish changes. Please refresh and try again.");
         }
       } catch (err: unknown) {
         alert(err instanceof Error ? err.message : "Failed to publish changes.");
@@ -2315,8 +2397,28 @@ export const SiteCmsEditorView: React.FC<Props> = ({
   const handleSaveHeaderNav = () => {
     startTransition(async () => {
       try {
-        const result = await saveHeaderNavConfigAction(headerNav);
-        if (result.success) {
+        let success = false;
+        try {
+          const apiRes = await fetch("/api/admin/cms", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "save_header",
+              headerNav,
+            }),
+          });
+          if (apiRes.ok) {
+            const json = await apiRes.json();
+            if (json.success) success = true;
+          }
+        } catch {}
+
+        if (!success) {
+          const result = await saveHeaderNavConfigAction(headerNav);
+          if (result.success) success = true;
+        }
+
+        if (success) {
           setToastNotice("Navigation menu and header updated successfully!");
           setTimeout(() => setToastNotice(null), 5000);
         }
