@@ -2291,3 +2291,42 @@ export async function getFacultiesAction() {
   return { success: true, faculties };
 }
 
+export async function deletePaymentRecordAction(paymentId: string) {
+  const session = await getServerSession();
+  if (
+    !session ||
+    (session.role !== "owner_admin" &&
+      session.role !== "super_admin" &&
+      session.originalRole !== "super_admin")
+  ) {
+    throw new Error("Unauthorized: Only Owner Admin or Super Admin can delete payments.");
+  }
+
+  const { deletePaymentRecordFromStore } = await import("@/lib/persistedData");
+  const success = deletePaymentRecordFromStore(paymentId);
+
+  revalidatePath("/admin/payments");
+  revalidatePath("/admin");
+  return { success };
+}
+
+export async function clearAllTestPaymentsAction() {
+  const session = await getServerSession();
+  if (
+    !session ||
+    (session.role !== "owner_admin" &&
+      session.role !== "super_admin" &&
+      session.originalRole !== "super_admin")
+  ) {
+    throw new Error("Unauthorized: Only Owner Admin or Super Admin can clear test payments.");
+  }
+
+  const { purgeAllTestRecordsFromStore } = await import("@/lib/persistedData");
+  const result = purgeAllTestRecordsFromStore();
+
+  revalidatePath("/admin/payments");
+  revalidatePath("/admin");
+  revalidatePath("/student");
+  return { success: true, ...result };
+}
+

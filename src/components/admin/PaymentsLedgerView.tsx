@@ -21,6 +21,8 @@ import {
   resetLearnerGracePeriodAction,
   confirmScheduleBankTransferAction,
   queryBankTransferAction,
+  deletePaymentRecordAction,
+  clearAllTestPaymentsAction,
 } from "@/app/admin/actions";
 
 interface PaymentsLedgerViewProps {
@@ -320,6 +322,53 @@ export function PaymentsLedgerView({
         }
       } catch (err: any) {
         setGraceFeedback(`Failed to adjust grace: ${err?.message || "Unknown error"}`);
+      }
+    });
+  };
+
+  const handleDeletePaymentRecord = (paymentId: string) => {
+    if (!confirm("Are you sure you want to delete this test payment record from the college ledger?")) return;
+    startTransition(async () => {
+      try {
+        const res = await deletePaymentRecordAction(paymentId);
+        if (res.success) {
+          setRecords((prev) => prev.filter((r) => r.id !== paymentId));
+          setFeedbackNotice("Test payment record was successfully deleted from the ledger.");
+        }
+      } catch (err: any) {
+        setFeedbackNotice(`Error deleting payment: ${err?.message || "Failed"}`);
+      }
+    });
+  };
+
+  const handleClearAllTestPayments = () => {
+    if (
+      !confirm(
+        "WARNING: Are you sure you want to purge all test payments, schedules, and test student records? This resets your ledger to a pristine clean slate ready for live Stripe & bank payments."
+      )
+    ) {
+      return;
+    }
+    startTransition(async () => {
+      try {
+        const res = await clearAllTestPaymentsAction();
+        if (res.success) {
+          setRecords([]);
+          setSchedules([]);
+          setPlans([]);
+          setLearners([]);
+          setSummary({
+            receivedThisMonthGbp: 0,
+            totalOutstandingGbp: 0,
+            overdueLearnersCount: 0,
+            upcomingInstalmentsCount: 0,
+          });
+          setFeedbackNotice(
+            `Clean slate complete! Successfully purged test payments and reset ledger.`
+          );
+        }
+      } catch (err: any) {
+        setFeedbackNotice(`Error clearing test payments: ${err?.message || "Failed"}`);
       }
     });
   };
@@ -657,6 +706,16 @@ export function PaymentsLedgerView({
           >
             <Icon name="check-circle" size={16} />
             <span>Record BACS Transfer</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleClearAllTestPayments}
+            disabled={isPending}
+            className="px-3.5 py-2.5 rounded-sm border border-red-300 bg-red-50 text-red-800 text-sm font-semibold hover:bg-red-100 transition-colors inline-flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
+            title="Purge all test payments, schedules, and test student enrolments"
+          >
+            <Icon name="trash" size={15} />
+            <span>Clear Test Ledger</span>
           </button>
         </div>
       </div>
@@ -1241,12 +1300,13 @@ export function PaymentsLedgerView({
                     <th className="py-3 px-4 text-right">Amount</th>
                     <th className="py-3 px-4 text-center">Status</th>
                     <th className="py-3 px-4">Notes</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
                   {filteredRecords.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="py-8 text-center text-ink-soft">
+                      <td colSpan={9} className="py-8 text-center text-ink-soft">
                         No transactions found matching your criteria.
                       </td>
                     </tr>
@@ -1302,6 +1362,17 @@ export function PaymentsLedgerView({
                         </td>
                         <td className="py-3 px-4 text-xs text-ink-soft max-w-xs truncate">
                           {r.notes || "—"}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePaymentRecord(r.id)}
+                            disabled={isPending}
+                            className="p-1 rounded-xs text-ink-soft hover:text-red-700 hover:bg-red-50 transition-colors cursor-pointer"
+                            title="Delete test payment record"
+                          >
+                            <Icon name="trash" size={14} />
+                          </button>
                         </td>
                       </tr>
                     ))

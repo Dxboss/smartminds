@@ -285,7 +285,7 @@ export default async function AdminDashboardPage() {
             <div className="flex items-center gap-2">
               <Icon name="users" size={20} className="text-navy-900" />
               <h2 className="font-heading text-xl font-bold text-navy-900">
-                Learner records ({learners.length} sample learners)
+                Learner records ({learners.length} registered)
               </h2>
             </div>
             <span className="text-xs font-semibold text-ink-soft">

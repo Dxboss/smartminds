@@ -218,43 +218,10 @@ export const seedPaymentSchedules: PaymentScheduleItem[] = [];
 
 // ============================================================================
 // 6. Assignments, Submissions & Unit Results
+// Coursework assignments will be created and assigned by tutors via the Staff Console.
 // ============================================================================
 
-export const seedAssignments: Assignment[] = [
-  {
-    id: "assign-care-301",
-    classId: "class-care-l3",
-    tutorId: "tutor-001",
-    unitCode: "UNIT-301",
-    title: "Unit 301: Principles of Person-Centred Practice",
-    instructions:
-      "Submit your reflective practice account exploring person-centred values, individual rights, and collaborative care planning in your workplace context.",
-    deadline: "2026-10-20T23:59:00Z",
-    createdAt: "2026-09-20T10:00:00Z",
-  },
-  {
-    id: "assign-lead-501",
-    classId: "class-lead-l5",
-    tutorId: "tutor-002",
-    unitCode: "UNIT-501",
-    title: "Unit 501: Leadership & Strategic Governance Report",
-    instructions:
-      "Evaluate regulatory governance structures against current CQC Key Lines of Enquiry, with recommendations for continuous service quality improvement.",
-    deadline: "2026-10-25T23:59:00Z",
-    createdAt: "2026-09-22T11:00:00Z",
-  },
-  {
-    id: "assign-ey-302",
-    classId: "class-ey-l3",
-    tutorId: "tutor-003",
-    unitCode: "UNIT-EY-302",
-    title: "Unit EY-302: Safeguarding & Child Protection Case Study",
-    instructions:
-      "Analyze a multi-agency safeguarding scenario adhering to Working Together to Safeguard Children statutory guidance.",
-    deadline: "2026-10-18T23:59:00Z",
-    createdAt: "2026-09-21T09:30:00Z",
-  },
-];
+export const seedAssignments: Assignment[] = [];
 
 export const seedSubmissions: Submission[] = [];
 

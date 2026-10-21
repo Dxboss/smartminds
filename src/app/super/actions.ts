@@ -8,6 +8,8 @@ import {
   createPlatformUserInStore,
   deleteUserFromStore,
   cleanDemoUsersFromStore,
+  updateUserRoleInStore,
+  purgeAllTestRecordsFromStore,
   generatePlatformBackupData,
   restorePlatformBackupData,
   listAllPlatformUsers,
@@ -95,6 +97,35 @@ export async function createPlatformUserAction(data: {
   return { success: true, user };
 }
 
+export async function updatePlatformUserRoleAction(data: {
+  userIdOrEmail: string;
+  newRole: UserRole;
+}) {
+  const session = await getServerSession();
+  if (!session || (session.role !== "super_admin" && session.originalRole !== "super_admin")) {
+    throw new Error("Unauthorized: Super Administrator privileges required.");
+  }
+
+  const result = updateUserRoleInStore(data.userIdOrEmail, data.newRole);
+  if (!result.success) {
+    throw new Error(`Failed to update role for '${data.userIdOrEmail}'.`);
+  }
+
+  // Append audit event
+  try {
+    const repo = getEntitlementRepo();
+    await (repo as any).recordCustomAudit?.({
+      action: "ROLE_CHANGED",
+      details: `Changed role of user ${data.userIdOrEmail} to '${data.newRole}' by ${session.email}`,
+      actor: session,
+    });
+  } catch {}
+
+  revalidatePath("/super");
+  revalidatePath("/admin");
+  return { success: true, user: result.user };
+}
+
 export async function deletePlatformUserAction(userIdOrEmail: string) {
   const session = await getServerSession();
   if (!session || (session.role !== "super_admin" && session.originalRole !== "super_admin")) {
@@ -103,6 +134,7 @@ export async function deletePlatformUserAction(userIdOrEmail: string) {
 
   const success = deleteUserFromStore(userIdOrEmail);
   revalidatePath("/super");
+  revalidatePath("/admin");
   return { success };
 }
 
@@ -112,9 +144,23 @@ export async function cleanDemoUsersAction() {
     throw new Error("Unauthorized: Super Administrator privileges required.");
   }
 
-  const result = cleanDemoUsersFromStore();
+  const result = purgeAllTestRecordsFromStore();
   revalidatePath("/super");
   revalidatePath("/admin");
+  revalidatePath("/admin/payments");
+  return { success: true, ...result };
+}
+
+export async function purgeAllTestRecordsAction() {
+  const session = await getServerSession();
+  if (!session || (session.role !== "super_admin" && session.originalRole !== "super_admin")) {
+    throw new Error("Unauthorized: Super Administrator privileges required.");
+  }
+
+  const result = purgeAllTestRecordsFromStore();
+  revalidatePath("/super");
+  revalidatePath("/admin");
+  revalidatePath("/admin/payments");
   return { success: true, ...result };
 }
 

@@ -22,6 +22,8 @@ export const metadata: Metadata = {
 
 export const instant = false;
 
+import { SuperSignOutButton } from "./SuperSignOutButton";
+
 export default async function SuperLayout({
   children,
 }: {
@@ -88,6 +90,7 @@ export default async function SuperLayout({
               <div className="w-8 h-8 rounded-full bg-gold-500 text-navy-900 flex items-center justify-center font-bold text-xs">
                 DG
               </div>
+              <SuperSignOutButton />
             </div>
           </div>
         </div>

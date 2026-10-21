@@ -8,6 +8,7 @@ import type { FeatureEntitlement, AuditLogEntry, UserRole } from "@/lib/reposito
 import type { PersistedUserRecord } from "@/lib/persistedData";
 import {
   createPlatformUserAction,
+  updatePlatformUserRoleAction,
   deletePlatformUserAction,
   cleanDemoUsersAction,
   impersonateUserAction,
@@ -112,10 +113,39 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
     });
   };
 
+  const handleRoleChange = (userId: string, email: string, newRole: UserRole) => {
+    if (!confirm(`Are you sure you want to change the role of '${email}' to '${newRole}'?`)) return;
+
+    startTransition(async () => {
+      try {
+        const res = await updatePlatformUserRoleAction({
+          userIdOrEmail: userId || email,
+          newRole,
+        });
+        if (res.success && res.user) {
+          setUsers((prev) =>
+            prev.map((u) =>
+              u.id === userId || u.email.toLowerCase() === email.toLowerCase()
+                ? { ...u, role: newRole }
+                : u
+            )
+          );
+          setStatusMessage({
+            type: "success",
+            text: `Successfully updated user '${email}' to role '${newRole}'.`,
+          });
+          router.refresh();
+        }
+      } catch (err: any) {
+        setStatusMessage({ type: "error", text: err?.message || "Failed to update role." });
+      }
+    });
+  };
+
   const handleCleanDemoUsers = () => {
     if (
       !confirm(
-        "Are you sure you want to clean up all dummy/demo users and sample learners? This will keep only your superadmin account and any newly created real users."
+        "Are you sure you want to purge all test records (test payments, test learners, test enrolments, and demo profiles)? This will prepare a pristine clean slate for live payments while preserving real administrators."
       )
     ) {
       return;
@@ -127,7 +157,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
         if (res.success) {
           setStatusMessage({
             type: "success",
-            text: `Demo cleanup complete! Removed ${res.cleanedUsers} demo accounts and ${res.cleanedLearners} sample learners.`,
+            text: `Clean slate complete! Successfully purged test records. Ready for live Stripe and bank payments.`,
           });
           router.refresh();
         }
@@ -434,27 +464,50 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
                         <tr key={user.id} className="hover:bg-paper/30 transition-colors">
                           <td className="py-3 px-4">
                             <div className="font-bold text-navy-900">{user.name}</div>
-                            <div className="text-[11px] text-ink-soft font-mono">{user.id}</div>
+                            <div className="text-[11px] text-ink-soft font-mono">
+                              {user.email.toLowerCase() === "millie@smartmindstraining.co.uk"
+                                ? "user-owner-01"
+                                : user.id}
+                            </div>
                           </td>
                           <td className="py-3 px-4 font-mono text-ink">
                             {user.email}
                           </td>
                           <td className="py-3 px-4">
-                            <span
-                              className={`px-2 py-0.5 rounded-xs font-semibold text-[11px] uppercase tracking-wider ${
-                                isSuper
-                                  ? "bg-purple-100 text-purple-900 border border-purple-300"
-                                  : isOwner
-                                  ? "bg-amber-100 text-amber-900 border border-amber-300 font-bold"
-                                  : isTutor
-                                  ? "bg-blue-100 text-blue-900 border border-blue-300"
-                                  : isStudent
-                                  ? "bg-emerald-100 text-emerald-900 border border-emerald-300"
-                                  : "bg-slate-100 text-slate-900 border border-slate-300"
-                              }`}
-                            >
-                              {user.role}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`px-2 py-0.5 rounded-xs font-semibold text-[11px] uppercase tracking-wider ${
+                                  isSuper
+                                    ? "bg-purple-100 text-purple-900 border border-purple-300"
+                                    : isOwner
+                                    ? "bg-amber-100 text-amber-900 border border-amber-300 font-bold"
+                                    : isTutor
+                                    ? "bg-blue-100 text-blue-900 border border-blue-300"
+                                    : isStudent
+                                    ? "bg-emerald-100 text-emerald-900 border border-emerald-300"
+                                    : "bg-slate-100 text-slate-900 border border-slate-300"
+                                }`}
+                              >
+                                {user.role}
+                              </span>
+                              {user.email.toLowerCase() !== currentSuperAdminEmail.toLowerCase() && (
+                                <select
+                                  value={user.role}
+                                  disabled={isPending}
+                                  onChange={(e) =>
+                                    handleRoleChange(user.id, user.email, e.target.value as UserRole)
+                                  }
+                                  className="px-1.5 py-0.5 rounded-xs text-[11px] font-semibold border border-line bg-paper text-navy-900 hover:border-navy-900 focus:outline-none cursor-pointer"
+                                  title="Change user role"
+                                >
+                                  <option value="owner_admin">Owner Admin</option>
+                                  <option value="admin_staff">Admin Staff</option>
+                                  <option value="tutor">Tutor</option>
+                                  <option value="student">Student</option>
+                                  <option value="super_admin">Super Admin</option>
+                                </select>
+                              )}
+                            </div>
                           </td>
                           <td className="py-3 px-4 text-ink-soft">
                             {user.createdAt ? new Date(user.createdAt).toLocaleDateString("en-GB") : "System Baseline"}

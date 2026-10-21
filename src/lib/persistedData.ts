@@ -1223,53 +1223,196 @@ export function deleteUserFromStore(userIdOrEmail: string): boolean {
   }
 }
 
-export function cleanDemoUsersFromStore(): {
+export function deletePaymentRecordFromStore(paymentId: string): boolean {
+  try {
+    const store = loadPersistedRecords();
+    const initialLen = store.paymentRecords?.length || 0;
+    store.paymentRecords = (store.paymentRecords || []).filter((p) => p.id !== paymentId);
+
+    // Also remove in-memory reference
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { seedPaymentRecords } = require("@/lib/repositories/seedData");
+      if (Array.isArray(seedPaymentRecords)) {
+        const idx = seedPaymentRecords.findIndex((p: any) => p.id === paymentId);
+        if (idx >= 0) seedPaymentRecords.splice(idx, 1);
+      }
+    } catch {}
+
+    const filePath = getStoreFilePath();
+    fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+    syncPersistedRecords(true);
+    return true;
+  } catch (err) {
+    console.error("[persistedData] Failed to delete payment:", err);
+    return false;
+  }
+}
+
+export function updateUserRoleInStore(
+  userIdOrEmail: string,
+  newRole: string
+): { success: boolean; user?: PersistedUserRecord } {
+  try {
+    const store = loadPersistedRecords();
+    if (!store.userCredentials) store.userCredentials = [];
+
+    const cleanQuery = userIdOrEmail.toLowerCase().trim();
+    let user = store.userCredentials.find(
+      (u) => u.id === userIdOrEmail || u.email.toLowerCase() === cleanQuery
+    );
+
+    if (!user) {
+      // Check seedUsers if not yet persisted in userCredentials
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { seedUsers } = require("@/lib/repositories/seedData");
+        const seedMatch = seedUsers.find(
+          (u: any) => u.id === userIdOrEmail || u.email.toLowerCase() === cleanQuery
+        );
+        if (seedMatch) {
+          user = {
+            id: seedMatch.id,
+            email: seedMatch.email,
+            name: seedMatch.name,
+            role: newRole,
+            learnerId: seedMatch.learnerId,
+            createdAt: seedMatch.createdAt || new Date().toISOString(),
+          };
+          store.userCredentials.push(user);
+        }
+      } catch {}
+    }
+
+    if (!user) {
+      return { success: false };
+    }
+
+    user.role = newRole;
+
+    // If Millie, guarantee proper ID
+    if (user.email.toLowerCase() === "millie@smartmindstraining.co.uk") {
+      user.id = "user-owner-01";
+    }
+
+    // Also update seedUsers in-memory
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { seedUsers } = require("@/lib/repositories/seedData");
+      if (Array.isArray(seedUsers)) {
+        const seedMatch = seedUsers.find(
+          (u: any) => u.id === user!.id || u.email.toLowerCase() === user!.email.toLowerCase()
+        );
+        if (seedMatch) {
+          seedMatch.role = newRole as any;
+          if (user.email.toLowerCase() === "millie@smartmindstraining.co.uk") {
+            seedMatch.id = "user-owner-01";
+          }
+        }
+      }
+    } catch {}
+
+    const filePath = getStoreFilePath();
+    fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+    syncPersistedRecords(true);
+    return { success: true, user };
+  } catch (err) {
+    console.error("[persistedData] Failed to update user role:", err);
+    return { success: false };
+  }
+}
+
+export function purgeAllTestRecordsFromStore(): {
+  deletedPayments: number;
+  deletedSchedules: number;
+  deletedLearners: number;
+  deletedEnrolments: number;
   cleanedUsers: number;
-  cleanedLearners: number;
-  cleanedEnrolments: number;
 } {
   try {
     const store = loadPersistedRecords();
-    const demoEmails = [
-      "maya.lin@example.com",
-      "kemi.adeleke@smartmindstraining.co.uk",
-      "sarah.jenkins@smartmindstraining.co.uk",
-      "eleanor.vance@smartmindstraining.co.uk",
-      "marcus.vance@smartmindstraining.co.uk",
-      "super.admin@smartmindstraining.co.uk",
-      "david.ross@example.com",
-      "aisha.patel@example.com",
-      "james.wilson@example.com",
-      "fatima.al-mansoor@example.com",
-    ];
-
+    const initialPayments = store.paymentRecords?.length || 0;
+    const initialSchedules = store.paymentSchedules?.length || 0;
+    const initialLearners = store.learners?.length || 0;
+    const initialEnrolments = store.enrolments?.length || 0;
     const initialUsers = store.userCredentials?.length || 0;
-    const initialLearners = store.learners.length;
-    const initialEnrolments = store.enrolments.length;
 
-    // Filter out demo records
+    // Purge test transactional records
+    store.paymentRecords = [];
+    store.paymentSchedules = [];
+    store.learners = [];
+    store.enrolments = [];
+
+    // Filter out student accounts from userCredentials, preserve real staff/admins
     if (store.userCredentials) {
       store.userCredentials = store.userCredentials.filter(
-        (u) => !demoEmails.includes(u.email.toLowerCase())
+        (u) =>
+          u.role !== "student" &&
+          !u.email.includes("example.com") &&
+          u.email.toLowerCase() !== "maya.lin@example.com"
       );
+
+      // Clean Millie Davis account ID & role, strictly preserve password
+      const millie = store.userCredentials.find(
+        (u) => u.email.toLowerCase() === "millie@smartmindstraining.co.uk"
+      );
+      if (millie) {
+        millie.id = "user-owner-01";
+        millie.role = "owner_admin";
+      }
     }
 
-    store.learners = store.learners.filter(
-      (l) => !demoEmails.includes(l.email.toLowerCase()) && !l.id.startsWith("learner-00")
-    );
+    // Clear in-memory seed records
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const seedData = require("@/lib/repositories/seedData");
+      if (Array.isArray(seedData.seedLearners)) seedData.seedLearners.length = 0;
+      if (Array.isArray(seedData.seedEnrolments)) seedData.seedEnrolments.length = 0;
+      if (Array.isArray(seedData.seedPaymentRecords)) seedData.seedPaymentRecords.length = 0;
+      if (Array.isArray(seedData.seedPaymentSchedules)) seedData.seedPaymentSchedules.length = 0;
+      if (Array.isArray(seedData.seedAssignments)) seedData.seedAssignments.length = 0;
+      if (Array.isArray(seedData.seedSubmissions)) seedData.seedSubmissions.length = 0;
 
-    store.enrolments = store.enrolments.filter(
-      (e) => !e.learnerId.startsWith("learner-00")
-    );
+      // Ensure Millie in seedUsers
+      if (Array.isArray(seedData.seedUsers)) {
+        const millieSeed = seedData.seedUsers.find(
+          (u: any) => u.email.toLowerCase() === "millie@smartmindstraining.co.uk"
+        );
+        if (millieSeed) {
+          millieSeed.id = "user-owner-01";
+          millieSeed.role = "owner_admin";
+        }
+      }
+    } catch {}
 
     const filePath = getStoreFilePath();
     fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
     syncPersistedRecords(true);
 
     return {
+      deletedPayments: initialPayments,
+      deletedSchedules: initialSchedules,
+      deletedLearners: initialLearners,
+      deletedEnrolments: initialEnrolments,
       cleanedUsers: initialUsers - (store.userCredentials?.length || 0),
-      cleanedLearners: initialLearners - store.learners.length,
-      cleanedEnrolments: initialEnrolments - store.enrolments.length,
+    };
+  } catch (err) {
+    console.error("[persistedData] Failed to purge all test records:", err);
+    throw err;
+  }
+}
+
+export function cleanDemoUsersFromStore(): {
+  cleanedUsers: number;
+  cleanedLearners: number;
+  cleanedEnrolments: number;
+} {
+  try {
+    const res = purgeAllTestRecordsFromStore();
+    return {
+      cleanedUsers: res.cleanedUsers,
+      cleanedLearners: res.deletedLearners,
+      cleanedEnrolments: res.deletedEnrolments,
     };
   } catch (err) {
     console.error("[persistedData] Failed to clean demo users:", err);
