@@ -5,6 +5,10 @@
  */
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
+    // Never run remote database hydration during static production build phase
+    if (process.env.NEXT_PHASE === "phase-production-build") {
+      return;
+    }
     try {
       const { pullLatestFromNeon } = await import("@/lib/persistedData");
       const hydrated = await pullLatestFromNeon();

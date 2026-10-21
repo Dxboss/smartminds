@@ -163,7 +163,13 @@ export function loadPersistedRecords(): PersistedRecordsStore {
  * Acts as an immutable cloud backup whenever changes occur.
  */
 export function syncStoreSnapshotToNeon(store: PersistedRecordsStore): void {
-  if (typeof window !== "undefined" || !process.env.DATABASE_URL) return;
+  if (
+    typeof window !== "undefined" ||
+    !process.env.DATABASE_URL ||
+    process.env.NEXT_PHASE === "phase-production-build"
+  ) {
+    return;
+  }
 
   import("@/lib/db")
     .then(({ sql, ensureDbTablesExist }) => {
@@ -187,6 +193,10 @@ export function syncStoreSnapshotToNeon(store: PersistedRecordsStore): void {
  * Guarantees that Hostinger deployments and local environments restore instantly after git push.
  */
 export async function pullLatestFromNeon(): Promise<boolean> {
+  if (process.env.NEXT_PHASE === "phase-production-build") {
+    return false;
+  }
+
   try {
     const { isDbConfigured, sql, ensureDbTablesExist } = await import("@/lib/db");
     if (!isDbConfigured) return false;

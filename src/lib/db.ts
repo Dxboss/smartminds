@@ -6,18 +6,18 @@ export const isDbConfigured = Boolean(
   databaseUrl && databaseUrl.trim().length > 0
 );
 
+const dummySql = ((..._args: any[]) => Promise.resolve([])) as unknown as ReturnType<typeof neon>;
+
 export const sql = isDbConfigured
   ? neon(databaseUrl!)
-  : (neon(
-      "postgresql://postgres:postgres@localhost:5432/smartminds_placeholder"
-    ) as ReturnType<typeof neon>);
+  : dummySql;
 
 /**
  * Ensures all core tables exist in Neon PostgreSQL.
  * Safe to run multiple times (uses CREATE TABLE IF NOT EXISTS).
  */
 export async function ensureDbTablesExist(): Promise<boolean> {
-  if (!isDbConfigured) return false;
+  if (!isDbConfigured || process.env.NEXT_PHASE === "phase-production-build") return false;
 
   try {
     await sql`
