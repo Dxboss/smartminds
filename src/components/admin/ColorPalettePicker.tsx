@@ -70,6 +70,60 @@ export const ColorPalettePicker: React.FC<ColorPalettePickerProps> = ({
   const [isSavingSwatch, setIsSavingSwatch] = useState(false);
   const [saveSuccessNotice, setSaveSuccessNotice] = useState<string | null>(null);
 
+  // Swatch Renaming & Editing State
+  const [editingSwatch, setEditingSwatch] = useState<ColorSwatch | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editHex, setEditHex] = useState("");
+  const [isUpdatingSwatch, setIsUpdatingSwatch] = useState(false);
+
+  const startEditSwatch = (s: ColorSwatch) => {
+    setEditingSwatch(s);
+    setEditName(s.name);
+    setEditHex(s.hex);
+    setShowAddForm(false);
+  };
+
+  const handleUpdateSwatch = async () => {
+    if (!editingSwatch) return;
+    let cleanHex = editHex.trim();
+    if (!cleanHex.startsWith("#")) cleanHex = "#" + cleanHex;
+    if (!/^#[0-9A-Fa-f]{3,8}$/.test(cleanHex)) {
+      alert("Please enter a valid hex color code like #13416B");
+      return;
+    }
+    const name = editName.trim() || editingSwatch.name;
+    setIsUpdatingSwatch(true);
+    try {
+      const res = await saveColorSwatchAction({
+        id: editingSwatch.id,
+        name,
+        hex: cleanHex,
+        category: editingSwatch.category || "custom",
+        isDark: isDarkHex(cleanHex),
+      });
+      if (res.success && res.swatch) {
+        const nextList = swatches.map((s) => (s.id === editingSwatch.id ? res.swatch! : s));
+        setSwatches(nextList);
+        try {
+          localStorage.setItem("smartminds_saved_swatches", JSON.stringify(nextList));
+          window.dispatchEvent(new CustomEvent("smartminds:swatches-updated", { detail: nextList }));
+        } catch {}
+        if (value.toLowerCase() === editingSwatch.hex.toLowerCase() || value === editingSwatch.id) {
+          onChange(cleanHex);
+        }
+        setEditingSwatch(null);
+        setSaveSuccessNotice(`Renamed to "${name}" (${cleanHex})!`);
+        setTimeout(() => setSaveSuccessNotice(null), 4000);
+      } else {
+        alert(res.error || "Failed to update color swatch.");
+      }
+    } catch (err: any) {
+      alert(`Could not update color: ${err?.message || "Unknown error"}`);
+    } finally {
+      setIsUpdatingSwatch(false);
+    }
+  };
+
   useEffect(() => {
     const handleSwatchesUpdated = (e: any) => {
       if (Array.isArray(e.detail)) {
@@ -172,6 +226,8 @@ export const ColorPalettePicker: React.FC<ColorPalettePickerProps> = ({
         setNewSwatchName("");
         setSaveSuccessNotice(`"${name}" saved to global palette & applied!`);
         setTimeout(() => setSaveSuccessNotice(null), 4000);
+      } else {
+        alert(res.error || "Failed to save swatch. Please check your privileges.");
       }
     } catch (err: any) {
       alert(`Could not save color: ${err?.message || "Unknown error"}`);
@@ -269,28 +325,108 @@ export const ColorPalettePicker: React.FC<ColorPalettePickerProps> = ({
             </div>
           )}
 
-          {/* Brand Swatches Pills */}
+          {/* Inline Swatch Edit / Rename Popover */}
+          {editingSwatch && (
+            <div className="p-2 bg-white rounded-xs border-2 border-navy-900 shadow-sm space-y-1.5 animate-fade-in">
+              <div className="flex items-center justify-between">
+                <span className="block text-[10px] font-bold text-navy-900 uppercase">
+                  Rename / Edit Swatch
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setEditingSwatch(null)}
+                  className="text-ink-soft hover:text-navy-900 text-xs font-bold p-0.5 cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                <input
+                  type="text"
+                  placeholder="Swatch Name"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="px-2 py-1 text-xs border border-line rounded-xs focus:outline-none focus:border-navy-900 font-semibold"
+                />
+                <div className="flex items-center gap-1">
+                  <input
+                    type="color"
+                    value={editHex.length === 7 ? editHex : "#13416B"}
+                    onChange={(e) => setEditHex(e.target.value)}
+                    className="h-6 w-7 rounded-xs border border-line cursor-pointer p-0"
+                  />
+                  <input
+                    type="text"
+                    value={editHex}
+                    onChange={(e) => setEditHex(e.target.value)}
+                    placeholder="#13416B"
+                    className="w-full px-1.5 py-1 text-xs font-mono font-bold uppercase border border-line rounded-xs"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center justify-between pt-1 border-t border-line">
+                <div className="flex items-center gap-1 text-[10px] font-mono">
+                  <span className="h-2.5 w-2.5 rounded-full border border-black/20" style={{ backgroundColor: editHex }} />
+                  <span className="text-ink-soft text-[9px]">{isDarkHex(editHex) ? "Dark BG" : "Light BG"}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setEditingSwatch(null)}
+                    className="px-2 py-0.5 text-[10px] text-ink-soft hover:text-navy-900 border border-line rounded-xs bg-white cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleUpdateSwatch}
+                    disabled={isUpdatingSwatch || !editName.trim()}
+                    className="px-2.5 py-0.5 text-[10px] font-bold bg-navy-900 text-gold-300 rounded-xs hover:bg-navy-800 disabled:opacity-40 transition-colors cursor-pointer"
+                  >
+                    {isUpdatingSwatch ? "Saving..." : "Save"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Brand Swatches Pills with inline edit capability */}
           <div className="flex flex-wrap items-center gap-1 max-h-24 overflow-y-auto p-1 bg-white rounded-xs border border-line">
             {swatches.map((swatch) => {
               const isSelected = value.toLowerCase() === swatch.hex.toLowerCase() || value === swatch.id;
               return (
-                <button
+                <div
                   key={swatch.id}
-                  type="button"
-                  onClick={() => onChange(swatch.hex)}
-                  className={`px-1.5 py-0.5 rounded-xs border text-[10px] font-medium flex items-center gap-1 transition-all cursor-pointer ${
+                  className={`group/pill inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-xs border text-[10px] font-medium transition-all ${
                     isSelected
                       ? "ring-1 ring-navy-900 border-navy-900 bg-navy-50 font-bold shadow-2xs"
                       : "bg-paper hover:bg-white border-line hover:border-navy-900"
                   }`}
-                  title={`${swatch.name} (${swatch.hex})`}
                 >
-                  <span
-                    className="h-2.5 w-2.5 rounded-full border border-black/20 shrink-0"
-                    style={{ backgroundColor: swatch.hex }}
-                  />
-                  <span className="truncate max-w-[85px] text-navy-900 text-[10px]">{swatch.name}</span>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => onChange(swatch.hex)}
+                    className="flex items-center gap-1 cursor-pointer"
+                    title={`${swatch.name} (${swatch.hex})`}
+                  >
+                    <span
+                      className="h-2.5 w-2.5 rounded-full border border-black/20 shrink-0"
+                      style={{ backgroundColor: swatch.hex }}
+                    />
+                    <span className="truncate max-w-[85px] text-navy-900 text-[10px]">{swatch.name}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      startEditSwatch(swatch);
+                    }}
+                    className="opacity-0 group-hover/pill:opacity-100 hover:text-navy-900 text-ink-soft p-0.5 cursor-pointer transition-opacity"
+                    title={`Rename / Edit ${swatch.name}`}
+                  >
+                    <Icon name="edit" size={9} />
+                  </button>
+                </div>
               );
             })}
           </div>
@@ -506,42 +642,129 @@ export const ColorPalettePicker: React.FC<ColorPalettePickerProps> = ({
           </div>
         )}
 
+        {/* Inline Swatch Edit / Rename Popover in Full Mode */}
+        {editingSwatch && (
+          <div className="p-2.5 bg-paper rounded-xs border-2 border-navy-900 shadow-sm space-y-2 animate-fade-in">
+            <div className="flex items-center justify-between border-b border-line pb-1">
+              <span className="block text-[11px] font-bold text-navy-900 uppercase">
+                Rename / Edit Swatch: {editingSwatch.name}
+              </span>
+              <button
+                type="button"
+                onClick={() => setEditingSwatch(null)}
+                className="text-ink-soft hover:text-navy-900 text-xs font-bold p-1 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[9px] font-bold uppercase text-ink-soft mb-0.5">Swatch Name</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Oceanic Blue"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full px-2 py-1 text-xs border border-line rounded-xs focus:outline-none focus:border-navy-900 bg-white font-medium"
+                />
+              </div>
+              <div>
+                <label className="block text-[9px] font-bold uppercase text-ink-soft mb-0.5">Hex Code</label>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="color"
+                    value={editHex.length === 7 ? editHex : "#13416B"}
+                    onChange={(e) => setEditHex(e.target.value)}
+                    className="h-7 w-8 rounded-xs border border-line cursor-pointer p-0 bg-white shrink-0"
+                  />
+                  <input
+                    type="text"
+                    value={editHex}
+                    onChange={(e) => setEditHex(e.target.value)}
+                    placeholder="#13416B"
+                    className="w-full px-2 py-1 text-xs font-mono font-bold uppercase border border-line rounded-xs bg-white text-navy-900"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center justify-between pt-1 border-t border-line">
+              <div className="flex items-center gap-1.5 text-[10px] font-mono">
+                <span className="h-3 w-3 rounded-full border border-black/20" style={{ backgroundColor: editHex }} />
+                <span className="text-ink font-bold">{editHex}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setEditingSwatch(null)}
+                  className="px-2.5 py-1 text-[10px] font-semibold text-ink-soft hover:text-navy-900 bg-white border border-line rounded-xs cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleUpdateSwatch}
+                  disabled={isUpdatingSwatch || !editName.trim()}
+                  className="px-3 py-1 text-[11px] font-bold bg-navy-900 text-gold-300 rounded-xs hover:bg-navy-800 disabled:opacity-40 transition-colors cursor-pointer"
+                >
+                  {isUpdatingSwatch ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Swatches Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-36 overflow-y-auto p-1">
           {swatches.map((swatch) => {
             const isSelected = value.toLowerCase() === swatch.hex.toLowerCase() || value === swatch.id;
             return (
-              <button
+              <div
                 key={swatch.id}
-                type="button"
-                onClick={() => onChange(swatch.hex)}
-                className={`flex items-center gap-2 p-1.5 rounded-xs border text-left transition-all cursor-pointer ${
+                className={`group/card flex items-center justify-between p-1.5 rounded-xs border text-left transition-all ${
                   isSelected
                     ? "border-navy-900 bg-navy-50 ring-1 ring-navy-900 shadow-xs"
                     : "border-line bg-paper/60 hover:bg-paper hover:border-navy-900"
                 }`}
               >
-                <div
-                  className="h-5 w-5 rounded-full border border-black/20 shrink-0 flex items-center justify-center shadow-2xs"
-                  style={{ backgroundColor: swatch.hex }}
+                <button
+                  type="button"
+                  onClick={() => onChange(swatch.hex)}
+                  className="flex items-center gap-2 min-w-0 flex-1 cursor-pointer"
+                  title={`Apply ${swatch.name} (${swatch.hex})`}
                 >
-                  {isSelected && (
-                    <Icon
-                      name="check"
-                      size={10}
-                      className={swatch.isDark ? "text-white" : "text-navy-900"}
-                    />
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <strong className="block text-[10px] font-bold text-navy-900 truncate leading-tight">
-                    {swatch.name}
-                  </strong>
-                  <span className="block font-mono text-[8px] text-ink-soft uppercase leading-none mt-0.5">
-                    {swatch.hex}
-                  </span>
-                </div>
-              </button>
+                  <div
+                    className="h-5 w-5 rounded-full border border-black/20 shrink-0 flex items-center justify-center shadow-2xs"
+                    style={{ backgroundColor: swatch.hex }}
+                  >
+                    {isSelected && (
+                      <Icon
+                        name="check"
+                        size={10}
+                        className={swatch.isDark ? "text-white" : "text-navy-900"}
+                      />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <strong className="block text-[10px] font-bold text-navy-900 truncate leading-tight">
+                      {swatch.name}
+                    </strong>
+                    <span className="block font-mono text-[8px] text-ink-soft uppercase leading-none mt-0.5">
+                      {swatch.hex}
+                    </span>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    startEditSwatch(swatch);
+                  }}
+                  className="opacity-0 group-hover/card:opacity-100 hover:text-navy-900 text-ink-soft p-1 cursor-pointer transition-opacity"
+                  title={`Rename / Edit ${swatch.name}`}
+                >
+                  <Icon name="edit" size={11} />
+                </button>
+              </div>
             );
           })}
         </div>

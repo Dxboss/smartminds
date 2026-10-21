@@ -1629,13 +1629,15 @@ export async function saveVisualBuilderSectionsAction(
   if (
     !isTestEnv &&
     (!session ||
-      (session.role !== "owner_admin" && session.role !== "super_admin"))
+      (session.role !== "owner_admin" &&
+        session.role !== "super_admin" &&
+        session.role !== "admin_staff"))
   ) {
     return {
       success: false,
       unauthorized: true,
       sessionExpired: !session,
-      error: "Unauthorized: Director/Owner privileges required.",
+      error: "Unauthorized: Admin privileges required.",
     };
   }
 
@@ -1692,13 +1694,15 @@ export async function saveVisualBuilderDraftAction(
   if (
     !isTestEnv &&
     (!session ||
-      (session.role !== "owner_admin" && session.role !== "super_admin"))
+      (session.role !== "owner_admin" &&
+        session.role !== "super_admin" &&
+        session.role !== "admin_staff"))
   ) {
     return {
       success: false,
       unauthorized: true,
       sessionExpired: !session,
-      error: "Unauthorized: Director/Owner privileges required.",
+      error: "Unauthorized: Admin privileges required.",
     };
   }
 
@@ -1712,13 +1716,15 @@ export async function discardVisualBuilderDraftAction(pagePath: string) {
   if (
     !isTestEnv &&
     (!session ||
-      (session.role !== "owner_admin" && session.role !== "super_admin"))
+      (session.role !== "owner_admin" &&
+        session.role !== "super_admin" &&
+        session.role !== "admin_staff"))
   ) {
     return {
       success: false,
       unauthorized: true,
       sessionExpired: !session,
-      error: "Unauthorized: Director/Owner privileges required.",
+      error: "Unauthorized: Admin privileges required.",
     };
   }
 
@@ -1741,13 +1747,15 @@ export async function createNewPageAction(
   if (
     !isTestEnv &&
     (!session ||
-      (session.role !== "owner_admin" && session.role !== "super_admin"))
+      (session.role !== "owner_admin" &&
+        session.role !== "super_admin" &&
+        session.role !== "admin_staff"))
   ) {
     return {
       success: false,
       unauthorized: true,
       sessionExpired: !session,
-      error: "Unauthorized: Director/Owner privileges required.",
+      error: "Unauthorized: Admin privileges required.",
     };
   }
 
@@ -1779,13 +1787,15 @@ export async function deletePageAction(pagePath: string) {
   if (
     !isTestEnv &&
     (!session ||
-      (session.role !== "owner_admin" && session.role !== "super_admin"))
+      (session.role !== "owner_admin" &&
+        session.role !== "super_admin" &&
+        session.role !== "admin_staff"))
   ) {
     return {
       success: false,
       unauthorized: true,
       sessionExpired: !session,
-      error: "Unauthorized: Director/Owner privileges required.",
+      error: "Unauthorized: Admin privileges required.",
     };
   }
 
@@ -1820,13 +1830,15 @@ export async function saveHeaderNavConfigAction(config: any) {
   if (
     !isTestEnv &&
     (!session ||
-      (session.role !== "owner_admin" && session.role !== "super_admin"))
+      (session.role !== "owner_admin" &&
+        session.role !== "super_admin" &&
+        session.role !== "admin_staff"))
   ) {
     return {
       success: false,
       unauthorized: true,
       sessionExpired: !session,
-      error: "Unauthorized: Director/Owner privileges required.",
+      error: "Unauthorized: Admin privileges required.",
     };
   }
 
@@ -1873,13 +1885,15 @@ export async function saveFooterConfigAction(config: any) {
   if (
     !isTestEnv &&
     (!session ||
-      (session.role !== "owner_admin" && session.role !== "super_admin"))
+      (session.role !== "owner_admin" &&
+        session.role !== "super_admin" &&
+        session.role !== "admin_staff"))
   ) {
     return {
       success: false,
       unauthorized: true,
       sessionExpired: !session,
-      error: "Unauthorized: Director/Owner privileges required.",
+      error: "Unauthorized: Admin privileges required.",
     };
   }
 
@@ -2338,17 +2352,19 @@ export async function saveColorSwatchAction(data: {
 }): Promise<{ success: boolean; swatch?: ColorSwatch; error?: string }> {
   const session = await getServerSession();
   if (
-    !session ||
-    (session.role !== "owner_admin" &&
-      session.role !== "super_admin" &&
-      session.originalRole !== "super_admin")
+    !isTestEnv &&
+    (!session ||
+      (session.role !== "owner_admin" &&
+        session.role !== "super_admin" &&
+        session.role !== "admin_staff" &&
+        session.originalRole !== "super_admin"))
   ) {
-    return { success: false, error: "Unauthorized: Only Owner Admin or Super Admin can manage color swatches." };
+    return { success: false, error: "Unauthorized: Admin privileges required to manage color swatches." };
   }
 
   try {
     const { saveColorSwatch } = await import("@/lib/persistedData");
-    const swatch = saveColorSwatch(data);
+    const swatch = await saveColorSwatch(data);
     revalidatePath("/admin/cms");
     return { success: true, swatch };
   } catch (err: any) {
@@ -2359,17 +2375,19 @@ export async function saveColorSwatchAction(data: {
 export async function deleteColorSwatchAction(swatchId: string): Promise<{ success: boolean; error?: string }> {
   const session = await getServerSession();
   if (
-    !session ||
-    (session.role !== "owner_admin" &&
-      session.role !== "super_admin" &&
-      session.originalRole !== "super_admin")
+    !isTestEnv &&
+    (!session ||
+      (session.role !== "owner_admin" &&
+        session.role !== "super_admin" &&
+        session.role !== "admin_staff" &&
+        session.originalRole !== "super_admin"))
   ) {
-    return { success: false, error: "Unauthorized: Only Owner Admin or Super Admin can delete color swatches." };
+    return { success: false, error: "Unauthorized: Admin privileges required to delete color swatches." };
   }
 
   try {
     const { deleteColorSwatch } = await import("@/lib/persistedData");
-    const success = deleteColorSwatch(swatchId);
+    const success = await deleteColorSwatch(swatchId);
     revalidatePath("/admin/cms");
     return { success };
   } catch (err: any) {

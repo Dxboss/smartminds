@@ -2021,13 +2021,13 @@ export const FocusedElementInspector: React.FC<FocusedElementInspectorProps> = (
           {/* D. PRIMARY BUTTON DESIGN */}
           {elementKey === "button" && (
             <ButtonCustomizerFields
-              label="Primary CTA Button Styling"
-              buttonText={section.buttonText || ""}
+              label={section.type === "choose_path" ? "Bottom CTA Button Styling" : "Primary CTA Button Styling"}
+              buttonText={section.buttonText !== undefined ? section.buttonText : (section.type === "choose_path" ? "View All Categories" : "")}
               onButtonTextChange={(val) => updateField("buttonText", val)}
-              buttonLink={section.buttonLink}
+              buttonLink={section.buttonLink || (section.type === "choose_path" ? "/courses" : undefined)}
               onButtonLinkChange={(val) => updateField("buttonLink", val)}
-              linkPlaceholder="/book or /courses"
-              defaultVariant="primary"
+              linkPlaceholder="/courses or /book"
+              defaultVariant={section.type === "choose_path" ? "outline" : "primary"}
               defaultSize={section.type === "hero" ? "lg" : "md"}
               isDarkContainer={isDark}
               config={{
@@ -2036,8 +2036,8 @@ export const FocusedElementInspector: React.FC<FocusedElementInspectorProps> = (
                 fontFamily: section.buttonFontFamily,
                 fontWeight: section.buttonFontWeight,
                 textTransform: section.buttonTextTransform,
-                icon: section.buttonIcon,
-                iconPosition: section.buttonIconPosition,
+                icon: section.buttonIcon || (section.type === "choose_path" ? "arrow-right" : undefined),
+                iconPosition: section.buttonIconPosition || (section.type === "choose_path" ? "right" : undefined),
                 radius: section.buttonRadius,
                 size: section.buttonSize,
               }}

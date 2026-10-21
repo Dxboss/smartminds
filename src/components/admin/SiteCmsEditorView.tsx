@@ -666,6 +666,53 @@ export const SiteCmsEditorView: React.FC<Props> = ({
   const [isSavingSwatch, setIsSavingSwatch] = useState(false);
   const [copiedHex, setCopiedHex] = useState<string | null>(null);
 
+  // Swatch Renaming & Editing State
+  const [editingSwatchId, setEditingSwatchId] = useState<string | null>(null);
+  const [editingSwatchName, setEditingSwatchName] = useState("");
+  const [editingSwatchHex, setEditingSwatchHex] = useState("");
+  const [editingSwatchCategory, setEditingSwatchCategory] = useState<"primary" | "secondary" | "accent" | "custom">("custom");
+  const [isUpdatingSwatch, setIsUpdatingSwatch] = useState(false);
+
+  const startEditSwatch = (swatch: ColorSwatch) => {
+    setEditingSwatchId(swatch.id);
+    setEditingSwatchName(swatch.name);
+    setEditingSwatchHex(swatch.hex);
+    setEditingSwatchCategory(swatch.category || "custom");
+  };
+
+  const handleUpdateGlobalSwatch = async (swatchId: string) => {
+    if (!editingSwatchName.trim() || !editingSwatchHex.trim()) return;
+    setIsUpdatingSwatch(true);
+    try {
+      const isDark = isDarkHex(editingSwatchHex);
+      const res = await saveColorSwatchAction({
+        id: swatchId,
+        name: editingSwatchName.trim(),
+        hex: editingSwatchHex.trim(),
+        category: editingSwatchCategory,
+        isDark,
+      });
+      if (res.success && res.swatch) {
+        const updatedSwatch = res.swatch;
+        const updated = swatchesList.map((s) => (s.id === swatchId ? updatedSwatch : s));
+        setSwatchesList(updated);
+        try {
+          localStorage.setItem("smartminds_saved_swatches", JSON.stringify(updated));
+        } catch {}
+        window.dispatchEvent(new CustomEvent("smartminds:swatches-updated", { detail: updated }));
+        setEditingSwatchId(null);
+        setToastNotice(`Renamed swatch to "${updatedSwatch.name}" (${updatedSwatch.hex})`);
+        setTimeout(() => setToastNotice(null), 3000);
+      } else {
+        alert(res.error || "Failed to update swatch");
+      }
+    } catch (err: any) {
+      alert("Error updating swatch: " + (err.message || String(err)));
+    } finally {
+      setIsUpdatingSwatch(false);
+    }
+  };
+
   useEffect(() => {
     // Initial fetch of persisted swatches from Neon/JSON
     listColorSwatchesAction()
@@ -840,11 +887,11 @@ export const SiteCmsEditorView: React.FC<Props> = ({
       });
     }
 
-    if (sec.buttonText) {
+    if (sec.buttonText || sec.type === "choose_path") {
       list.push({
         key: "button",
-        label: "Primary CTA Button",
-        sublabel: sec.buttonText,
+        label: sec.type === "choose_path" ? "Bottom CTA Button" : "Primary CTA Button",
+        sublabel: sec.buttonText || (sec.type === "choose_path" ? "View All Categories" : undefined),
         icon: "arrow-right",
       });
     }
@@ -5122,15 +5169,15 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                         />
                       </div>
 
-                      {selectedSection.buttonText !== undefined && (
+                      {(selectedSection.buttonText !== undefined || selectedSection.type === "choose_path") && (
                         <ButtonCustomizerFields
-                          label="Primary CTA Button"
-                          buttonText={selectedSection.buttonText || ""}
+                          label={selectedSection.type === "choose_path" ? "Bottom CTA Button (e.g. View All Categories)" : "Primary CTA Button"}
+                          buttonText={selectedSection.buttonText !== undefined ? selectedSection.buttonText : (selectedSection.type === "choose_path" ? "View All Categories" : "")}
                           onButtonTextChange={(val) => updateSelectedField("buttonText", val)}
-                          buttonLink={selectedSection.buttonLink}
+                          buttonLink={selectedSection.buttonLink || (selectedSection.type === "choose_path" ? "/courses" : undefined)}
                           onButtonLinkChange={(val) => updateSelectedField("buttonLink", val)}
-                          linkPlaceholder="/book or /courses"
-                          defaultVariant="primary"
+                          linkPlaceholder="/courses or /book"
+                          defaultVariant={selectedSection.type === "choose_path" ? "outline" : "primary"}
                           defaultSize={selectedSection.type === "hero" ? "lg" : "md"}
                           config={{
                             bgColor: selectedSection.buttonBgColor,
@@ -5138,8 +5185,8 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                             fontFamily: selectedSection.buttonFontFamily,
                             fontWeight: selectedSection.buttonFontWeight,
                             textTransform: selectedSection.buttonTextTransform,
-                            icon: selectedSection.buttonIcon,
-                            iconPosition: selectedSection.buttonIconPosition,
+                            icon: selectedSection.buttonIcon || (selectedSection.type === "choose_path" ? "arrow-right" : undefined),
+                            iconPosition: selectedSection.buttonIconPosition || (selectedSection.type === "choose_path" ? "right" : undefined),
                             radius: selectedSection.buttonRadius,
                             size: selectedSection.buttonSize,
                           }}
@@ -9021,73 +9068,177 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                     return (
                       <div
                         key={swatch.id}
-                        className={`p-2 bg-white rounded-sm border transition-all flex items-center justify-between gap-2 shadow-2xs ${
+                        className={`p-2 bg-white rounded-sm border transition-all shadow-2xs ${
                           isClientRequested ? "border-blue-400 bg-blue-50/20" : "border-line hover:border-slate-300"
                         }`}
                       >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div
-                            className="w-7 h-7 rounded-sm shadow-2xs flex-shrink-0 border border-black/10 flex items-center justify-center text-[8px] font-bold"
-                            style={{
-                              backgroundColor: swatch.hex,
-                              color: isDark ? "#ffffff" : "#1B1B2B",
-                            }}
-                          >
-                            Aa
-                          </div>
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-xs font-bold text-navy-900 truncate">
-                                {swatch.name}
+                        {editingSwatchId === swatch.id ? (
+                          <div className="space-y-2 animate-fade-in p-1">
+                            <div className="flex items-center justify-between border-b border-line pb-1">
+                              <span className="text-[11px] font-bold text-navy-900 uppercase">
+                                Edit Swatch: {swatch.name}
                               </span>
-                              {isClientRequested && (
-                                <span className="text-[8px] font-bold uppercase tracking-wider bg-blue-100 text-blue-900 px-1 py-0.2 rounded-xs">
-                                  Client
+                              <button
+                                type="button"
+                                onClick={() => setEditingSwatchId(null)}
+                                className="text-ink-soft hover:text-navy-900 text-xs font-bold p-1 cursor-pointer"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                            <div>
+                              <label className="block text-[9px] font-bold uppercase text-ink-soft mb-0.5">
+                                Swatch Name
+                              </label>
+                              <input
+                                type="text"
+                                value={editingSwatchName}
+                                onChange={(e) => setEditingSwatchName(e.target.value)}
+                                className="w-full px-2 py-1 text-xs border border-line rounded-xs focus:outline-none focus:border-navy-900 bg-white font-medium"
+                                required
+                              />
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="block text-[9px] font-bold uppercase text-ink-soft mb-0.5">
+                                  Hex Code
+                                </label>
+                                <div className="flex items-center gap-1.5">
+                                  <input
+                                    type="color"
+                                    value={editingSwatchHex.length === 7 ? editingSwatchHex : "#13416B"}
+                                    onChange={(e) => setEditingSwatchHex(e.target.value)}
+                                    className="w-7 h-7 rounded-xs border border-line cursor-pointer p-0 bg-white shrink-0"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={editingSwatchHex}
+                                    onChange={(e) => setEditingSwatchHex(e.target.value)}
+                                    className="w-full px-1.5 py-1 text-xs font-mono font-bold uppercase border border-line rounded-xs bg-white text-navy-900"
+                                    required
+                                  />
+                                </div>
+                              </div>
+                              <div>
+                                <label className="block text-[9px] font-bold uppercase text-ink-soft mb-0.5">
+                                  Category
+                                </label>
+                                <select
+                                  value={editingSwatchCategory}
+                                  onChange={(e) => setEditingSwatchCategory(e.target.value as any)}
+                                  className="w-full px-1.5 py-1 text-xs border border-line rounded-xs bg-white cursor-pointer"
+                                >
+                                  <option value="custom">Custom (User Created)</option>
+                                  <option value="primary">Primary Brand</option>
+                                  <option value="secondary">Secondary Accent</option>
+                                  <option value="accent">Call to Action</option>
+                                </select>
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between pt-1 border-t border-line">
+                              <div className="flex items-center gap-1.5 text-[10px] font-mono">
+                                <span
+                                  className="h-3 w-3 rounded-full border border-black/20"
+                                  style={{ backgroundColor: editingSwatchHex }}
+                                />
+                                <span className="text-ink font-bold">{editingSwatchHex}</span>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingSwatchId(null)}
+                                  className="px-2 py-0.5 text-[10px] font-semibold text-ink-soft hover:text-navy-900 bg-white border border-line rounded-xs cursor-pointer"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleUpdateGlobalSwatch(swatch.id)}
+                                  disabled={isUpdatingSwatch || !editingSwatchName.trim()}
+                                  className="px-2.5 py-0.5 text-[10px] font-bold bg-navy-900 text-gold-300 rounded-xs hover:bg-navy-800 disabled:opacity-40 transition-colors cursor-pointer"
+                                >
+                                  {isUpdatingSwatch ? "Saving..." : "Save Changes"}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div
+                                className="w-7 h-7 rounded-sm shadow-2xs flex-shrink-0 border border-black/10 flex items-center justify-center text-[8px] font-bold"
+                                style={{
+                                  backgroundColor: swatch.hex,
+                                  color: isDark ? "#ffffff" : "#1B1B2B",
+                                }}
+                              >
+                                Aa
+                              </div>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-xs font-bold text-navy-900 truncate">
+                                    {swatch.name}
+                                  </span>
+                                  {isClientRequested && (
+                                    <span className="text-[8px] font-bold uppercase tracking-wider bg-blue-100 text-blue-900 px-1 py-0.2 rounded-xs">
+                                      Client
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 text-[10px] font-mono text-ink-soft">
+                                  <span>{swatch.hex}</span>
+                                  <span className="text-[9px] uppercase px-1 py-0.1 bg-slate-100 rounded-xs">
+                                    {swatch.category || "custom"}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => startEditSwatch(swatch)}
+                                className="px-1.5 py-1 text-[10px] text-ink-soft hover:text-navy-900 hover:bg-slate-100 rounded-xs transition-colors flex items-center gap-1 cursor-pointer"
+                                title={`Edit / Rename ${swatch.name}`}
+                              >
+                                <Icon name="edit" size={11} />
+                                <span>Edit</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard?.writeText(swatch.hex);
+                                  setCopiedHex(swatch.id);
+                                  setTimeout(() => setCopiedHex(null), 1800);
+                                }}
+                                className="px-1.5 py-1 text-[10px] text-ink-soft hover:text-navy-900 hover:bg-slate-100 rounded-xs transition-colors flex items-center gap-1 cursor-pointer"
+                                title={`Copy ${swatch.hex}`}
+                              >
+                                <Icon name={copiedHex === swatch.id ? "check" : "copy"} size={11} />
+                                <span>{copiedHex === swatch.id ? "Copied" : "Copy"}</span>
+                              </button>
+
+                              {swatch.category === "custom" && !isClientRequested ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteGlobalSwatch(swatch.id, swatch.name)}
+                                  className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xs transition-colors cursor-pointer"
+                                  title={`Delete ${swatch.name}`}
+                                >
+                                  <Icon name="close" size={12} />
+                                </button>
+                              ) : (
+                                <span
+                                  className="p-1 text-slate-300"
+                                  title="Core College Protected Token"
+                                >
+                                  <Icon name="shield-check" size={12} />
                                 </span>
                               )}
                             </div>
-                            <div className="flex items-center gap-2 text-[10px] font-mono text-ink-soft">
-                              <span>{swatch.hex}</span>
-                              <span className="text-[9px] uppercase px-1 py-0.1 bg-slate-100 rounded-xs">
-                                {swatch.category || "custom"}
-                              </span>
-                            </div>
                           </div>
-                        </div>
-
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              navigator.clipboard?.writeText(swatch.hex);
-                              setCopiedHex(swatch.id);
-                              setTimeout(() => setCopiedHex(null), 1800);
-                            }}
-                            className="px-1.5 py-1 text-[10px] text-ink-soft hover:text-navy-900 hover:bg-slate-100 rounded-xs transition-colors flex items-center gap-1"
-                            title={`Copy ${swatch.hex}`}
-                          >
-                            <Icon name={copiedHex === swatch.id ? "check" : "copy"} size={11} />
-                            <span>{copiedHex === swatch.id ? "Copied" : "Copy"}</span>
-                          </button>
-
-                          {swatch.category === "custom" && !isClientRequested ? (
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteGlobalSwatch(swatch.id, swatch.name)}
-                              className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xs transition-colors"
-                              title={`Delete ${swatch.name}`}
-                            >
-                              <Icon name="close" size={12} />
-                            </button>
-                          ) : (
-                            <span
-                              className="p-1 text-slate-300"
-                              title="Core College Protected Token"
-                            >
-                              <Icon name="shield-check" size={12} />
-                            </span>
-                          )}
-                        </div>
+                        )}
                       </div>
                     );
                   })}

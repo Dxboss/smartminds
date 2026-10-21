@@ -2002,13 +2002,13 @@ export function listColorSwatches(): ColorSwatch[] {
   return store.colorSwatches;
 }
 
-export function saveColorSwatch(swatch: {
+export async function saveColorSwatch(swatch: {
   id?: string;
   name: string;
   hex: string;
   category?: "primary" | "secondary" | "accent" | "custom";
   isDark?: boolean;
-}): ColorSwatch {
+}): Promise<ColorSwatch> {
   const store = loadPersistedRecords();
   if (!store.colorSwatches || !Array.isArray(store.colorSwatches) || store.colorSwatches.length === 0) {
     store.colorSwatches = [...DEFAULT_COLOR_SWATCHES];
@@ -2022,16 +2022,17 @@ export function saveColorSwatch(swatch: {
     `swatch-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
   const isDark = typeof swatch.isDark === "boolean" ? swatch.isDark : computeIsDark(cleanHex);
 
-  const existingIdx = store.colorSwatches.findIndex(
-    (s) => s.id === id || s.name.toLowerCase() === swatch.name.trim().toLowerCase()
-  );
+  const existingIdx = swatch.id
+    ? store.colorSwatches.findIndex((s) => s.id === swatch.id)
+    : store.colorSwatches.findIndex((s) => s.name.toLowerCase() === swatch.name.trim().toLowerCase());
+
   const newSwatch: ColorSwatch = {
     id: existingIdx >= 0 ? store.colorSwatches[existingIdx].id : id,
     name: swatch.name.trim(),
     hex: cleanHex,
-    category: swatch.category || "custom",
+    category: swatch.category || (existingIdx >= 0 ? store.colorSwatches[existingIdx].category : "custom"),
     isDark,
-    createdAt: new Date().toISOString(),
+    createdAt: existingIdx >= 0 ? store.colorSwatches[existingIdx].createdAt : new Date().toISOString(),
   };
 
   if (existingIdx >= 0) {
@@ -2042,11 +2043,11 @@ export function saveColorSwatch(swatch: {
 
   const filePath = getStoreFilePath();
   fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
-  syncStoreSnapshotToNeon(store).catch(() => {});
+  await syncStoreSnapshotToNeon(store);
   return newSwatch;
 }
 
-export function deleteColorSwatch(swatchId: string): boolean {
+export async function deleteColorSwatch(swatchId: string): Promise<boolean> {
   const store = loadPersistedRecords();
   if (!store.colorSwatches) return false;
   const initialLen = store.colorSwatches.length;
@@ -2054,7 +2055,7 @@ export function deleteColorSwatch(swatchId: string): boolean {
   if (store.colorSwatches.length !== initialLen) {
     const filePath = getStoreFilePath();
     fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
-    syncStoreSnapshotToNeon(store).catch(() => {});
+    await syncStoreSnapshotToNeon(store);
     return true;
   }
   return false;

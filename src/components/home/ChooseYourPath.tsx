@@ -94,6 +94,17 @@ import {
   type FontStyleChoice,
   type FontColorChoice,
 } from "@/components/ui/typographyUtils";
+import {
+  type ButtonBgPreset,
+  type ButtonTextColorPreset,
+  type ButtonFontFamily,
+  type ButtonFontWeight,
+  type ButtonTextTransform,
+  type ButtonIconPosition,
+  type ButtonRadius,
+  type ButtonSizePreset,
+  resolveCustomButtonClasses,
+} from "@/components/ui/buttonCustomizer";
 
 export interface ChooseYourPathProps {
   headline?: string;
@@ -114,6 +125,18 @@ export interface ChooseYourPathProps {
   subheadlineFontStyle?: FontStyleChoice;
   subheadlineColor?: FontColorChoice;
   subheadlineAlign?: "left" | "center" | "right";
+  buttonText?: string;
+  buttonLink?: string;
+  buttonBgColor?: ButtonBgPreset | string;
+  buttonTextColor?: ButtonTextColorPreset | string;
+  buttonFontFamily?: ButtonFontFamily;
+  buttonFontWeight?: ButtonFontWeight;
+  buttonTextTransform?: ButtonTextTransform;
+  buttonIcon?: IconName;
+  buttonIconPosition?: ButtonIconPosition;
+  buttonRadius?: ButtonRadius;
+  buttonSize?: ButtonSizePreset;
+  buttonEnabled?: boolean;
   isEditor?: boolean;
   selectedElementKey?: string | null;
   selectedElementItemIndex?: number | null;
@@ -151,12 +174,41 @@ export const ChooseYourPath: React.FC<ChooseYourPathProps> = ({
   subheadlineFontStyle,
   subheadlineColor,
   subheadlineAlign,
+  buttonText = "View All Categories",
+  buttonLink = "/courses",
+  buttonBgColor,
+  buttonTextColor,
+  buttonFontFamily,
+  buttonFontWeight,
+  buttonTextTransform,
+  buttonIcon = "arrow-right",
+  buttonIconPosition = "right",
+  buttonRadius = "full",
+  buttonSize = "md",
+  buttonEnabled = true,
   isEditor = false,
   selectedElementKey,
   selectedElementItemIndex,
   onSelectElement,
 }) => {
   const isDark = bgColor === "navy";
+
+  const customBtn = resolveCustomButtonClasses(
+    {
+      bgColor: buttonBgColor,
+      textColor: buttonTextColor,
+      fontFamily: buttonFontFamily,
+      fontWeight: buttonFontWeight,
+      textTransform: buttonTextTransform,
+      icon: buttonIcon,
+      iconPosition: buttonIconPosition,
+      radius: buttonRadius,
+      size: buttonSize,
+    },
+    "outline",
+    buttonSize || "md",
+    isDark
+  );
 
   const { className: hlClass, style: hlStyle } = resolveTypography({
     fontFamily: headlineFontFamily,
@@ -350,16 +402,46 @@ export const ChooseYourPath: React.FC<ChooseYourPathProps> = ({
           })}
         </div>
 
-        {/* View All Categories Pill Button (Image 1 style) */}
-        <div className="text-center mt-12">
-          <Link
-            href="/courses"
-            className="inline-flex items-center justify-center px-8 py-3.5 rounded-full border border-teal-300 text-[#0B4D4E] hover:bg-teal-50 hover:border-teal-500 font-heading font-bold text-sm tracking-wide transition-all shadow-xs"
-          >
-            <span>View All Categories</span>
-            <Icon name="arrow-right" size={15} className="ml-2 text-teal-700" />
-          </Link>
-        </div>
+        {/* View All Categories Pill Button (Editable & Styleable) */}
+        {buttonEnabled !== false && (
+          <div className="text-center mt-12">
+            <EditableElementWrapper
+              isEditor={isEditor}
+              isSelected={isEditor && selectedElementKey === "button"}
+              label="Bottom CTA Button"
+              onClick={() => onSelectElement?.("button")}
+              inline
+            >
+              <div className={isEditor ? "pointer-events-none inline-block" : "inline-block"}>
+                <Link
+                  href={buttonLink || "/courses"}
+                  style={customBtn.style}
+                  className={
+                    buttonBgColor || buttonTextColor || buttonRadius || buttonSize || buttonFontFamily
+                      ? `inline-flex items-center justify-center ${customBtn.className}`
+                      : "inline-flex items-center justify-center px-8 py-3.5 rounded-full border border-teal-300 text-[#0B4D4E] hover:bg-teal-50 hover:border-teal-500 font-heading font-bold text-sm tracking-wide transition-all shadow-xs"
+                  }
+                >
+                  {customBtn.icon && customBtn.iconPosition === "left" && (
+                    <Icon
+                      name={customBtn.icon}
+                      size={15}
+                      className={buttonTextColor ? "mr-2" : "mr-2 text-teal-700"}
+                    />
+                  )}
+                  <span>{buttonText || "View All Categories"}</span>
+                  {customBtn.icon && customBtn.iconPosition === "right" && (
+                    <Icon
+                      name={customBtn.icon}
+                      size={15}
+                      className={buttonTextColor ? "ml-2" : "ml-2 text-teal-700"}
+                    />
+                  )}
+                </Link>
+              </div>
+            </EditableElementWrapper>
+          </div>
+        )}
       </Container>
     </Section>
   );

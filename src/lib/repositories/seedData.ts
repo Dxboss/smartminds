@@ -687,6 +687,7 @@ export interface BuilderSection {
   buttonIconPosition?: "left" | "right";
   buttonRadius?: "none" | "sm" | "md" | "full";
   buttonSize?: "sm" | "md" | "lg";
+  buttonEnabled?: boolean;
   secondaryButtonBgColor?: string;
   secondaryButtonTextColor?: string;
   secondaryButtonFontFamily?: "heading" | "body";
@@ -790,6 +791,8 @@ export const defaultPageBuilderSections: BuilderSection[] = [
     enabled: true,
     headline: "Choose your path by outcome",
     subheadline: "Select where you want your qualification to take you.",
+    buttonText: "View All Categories",
+    buttonLink: "/courses",
     items: [
       {
         title: "Work in Adult Care",

@@ -30,6 +30,7 @@ export default async function AdminCmsPage() {
   }
 
   const {
+    pullLatestFromNeon,
     loadPersistedRecords,
     syncPersistedRecords,
     getAllPublishedCmsPages,
@@ -37,6 +38,7 @@ export default async function AdminCmsPage() {
     getLiveCourses,
   } = await import("@/lib/persistedData");
   const { getPersistentSiteTheme } = await import("@/lib/siteTheme");
+  await pullLatestFromNeon();
   syncPersistedRecords(true);
   const store = loadPersistedRecords();
   const initialDrafts = store.cmsPagesDraftData || {};

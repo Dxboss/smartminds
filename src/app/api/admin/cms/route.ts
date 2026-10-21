@@ -5,9 +5,14 @@ import { revalidatePath } from "next/cache";
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession();
-    if (!session || (session.role !== "owner_admin" && session.role !== "super_admin")) {
+    if (
+      !session ||
+      (session.role !== "owner_admin" &&
+        session.role !== "super_admin" &&
+        session.role !== "admin_staff")
+    ) {
       return NextResponse.json(
-        { success: false, error: "Unauthorized: Director or Super Admin privileges required." },
+        { success: false, error: "Unauthorized: Admin privileges required." },
         { status: 401 }
       );
     }
