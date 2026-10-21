@@ -1558,12 +1558,29 @@ export function saveFacultyToStore(faculty: FacultyRecord): FacultyRecord[] {
       store.faculties = [...DEFAULT_COLLEGE_FACULTIES];
     }
 
-    const existingIdx = store.faculties.findIndex((f) => f.id === faculty.id || f.name.toLowerCase() === faculty.name.toLowerCase());
+    const existingIdx = store.faculties.findIndex(
+      (f) => f.id === faculty.id || f.name.toLowerCase() === faculty.name.toLowerCase()
+    );
     if (existingIdx >= 0) {
+      const oldName = store.faculties[existingIdx].name;
       store.faculties[existingIdx] = {
         ...store.faculties[existingIdx],
         ...faculty,
       };
+
+      // If the faculty name changed, keep associated courses updated in courseOverrides
+      if (oldName && faculty.name && oldName.toLowerCase() !== faculty.name.toLowerCase()) {
+        if (store.courseOverrides) {
+          for (const [cId, override] of Object.entries(store.courseOverrides)) {
+            if (override && (override as any).category === oldName) {
+              (store.courseOverrides as any)[cId] = {
+                ...override,
+                category: faculty.name,
+              };
+            }
+          }
+        }
+      }
     } else {
       store.faculties.push({
         ...faculty,
@@ -1573,6 +1590,7 @@ export function saveFacultyToStore(faculty: FacultyRecord): FacultyRecord[] {
 
     const filePath = getStoreFilePath();
     fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+    syncStoreSnapshotToNeon(store);
     return store.faculties;
   } catch (err) {
     console.error("[persistedData] Failed to save faculty:", err);
@@ -1590,6 +1608,7 @@ export function deleteFacultyFromStore(facultyId: string): FacultyRecord[] {
     store.faculties = store.faculties.filter((f) => f.id !== facultyId);
     const filePath = getStoreFilePath();
     fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+    syncStoreSnapshotToNeon(store);
     return store.faculties;
   } catch (err) {
     console.error("[persistedData] Failed to delete faculty:", err);

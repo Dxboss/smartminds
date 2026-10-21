@@ -155,6 +155,7 @@ export function CoursesManagerView({
       : DEFAULT_COLLEGE_FACULTIES
   );
   const [isFacultyModalOpen, setIsFacultyModalOpen] = useState(false);
+  const [editingFacultyId, setEditingFacultyId] = useState<string | null>(null);
   const [newFacultyName, setNewFacultyName] = useState("");
   const [newFacultyDesc, setNewFacultyDesc] = useState("");
   const [newFacultyIcon, setNewFacultyIcon] = useState("shield-check");
@@ -173,6 +174,26 @@ export function CoursesManagerView({
     ),
   ];
 
+  const handleStartEditFaculty = (faculty: FacultyRecord) => {
+    setEditingFacultyId(faculty.id);
+    setNewFacultyName(faculty.name);
+    setNewFacultyDesc(faculty.description || "");
+    setNewFacultyIcon(faculty.icon || "shield-check");
+    setNewFacultyColor(faculty.color || "navy");
+    setNewFacultyStatus(faculty.status || "active");
+    setFacultyError("");
+  };
+
+  const handleCancelEditFaculty = () => {
+    setEditingFacultyId(null);
+    setNewFacultyName("");
+    setNewFacultyDesc("");
+    setNewFacultyIcon("shield-check");
+    setNewFacultyColor("navy");
+    setNewFacultyStatus("active");
+    setFacultyError("");
+  };
+
   const handleSaveFaculty = async (e: React.FormEvent) => {
     e.preventDefault();
     setFacultyError("");
@@ -182,7 +203,11 @@ export function CoursesManagerView({
     }
     setIsSavingFaculty(true);
     try {
+      const oldFaculty = editingFacultyId ? faculties.find((f) => f.id === editingFacultyId) : null;
+      const oldName = oldFaculty?.name;
+
       const res = await saveFacultyAction({
+        id: editingFacultyId || undefined,
         name: newFacultyName.trim(),
         description: newFacultyDesc.trim(),
         icon: newFacultyIcon,
@@ -191,10 +216,23 @@ export function CoursesManagerView({
       });
       if (res.success && res.faculties) {
         setFaculties(res.faculties);
-        setNewFacultyName("");
-        setNewFacultyDesc("");
-        setToastMessage(`Faculty "${newFacultyName.trim()}" created successfully.`);
+
+        // If faculty was renamed, keep local course categories in sync
+        if (oldName && oldName.toLowerCase() !== newFacultyName.trim().toLowerCase()) {
+          setCourses((prev) =>
+            prev.map((c) =>
+              c.category === oldName ? { ...c, category: newFacultyName.trim() } : c
+            )
+          );
+        }
+
+        setToastMessage(
+          editingFacultyId
+            ? `Faculty "${newFacultyName.trim()}" updated successfully.`
+            : `Faculty "${newFacultyName.trim()}" created successfully.`
+        );
         setTimeout(() => setToastMessage(null), 4000);
+        handleCancelEditFaculty();
       }
     } catch (err: unknown) {
       setFacultyError(err instanceof Error ? err.message : "Failed to save faculty.");
@@ -215,6 +253,9 @@ export function CoursesManagerView({
       const res = await deleteFacultyAction(facultyId);
       if (res.success && res.faculties) {
         setFaculties(res.faculties);
+        if (editingFacultyId === facultyId) {
+          handleCancelEditFaculty();
+        }
         setToastMessage(`Faculty "${facultyName}" removed.`);
         setTimeout(() => setToastMessage(null), 4000);
       }
@@ -3436,7 +3477,10 @@ export function CoursesManagerView({
               </div>
               <button
                 type="button"
-                onClick={() => setIsFacultyModalOpen(false)}
+                onClick={() => {
+                  setIsFacultyModalOpen(false);
+                  handleCancelEditFaculty();
+                }}
                 className="p-1.5 rounded-sm hover:bg-white text-ink-soft hover:text-navy-900 transition-colors cursor-pointer"
               >
                 <Icon name="close" size={18} />
@@ -3466,13 +3510,24 @@ export function CoursesManagerView({
                 <div className="grid grid-cols-1 gap-2.5 max-h-60 overflow-y-auto pr-1">
                   {faculties.map((f) => {
                     const assignedCount = courses.filter((c) => c.category === f.name).length;
+                    const isEditing = editingFacultyId === f.id;
                     return (
                       <div
                         key={f.id}
-                        className="p-3 rounded-sm border border-line bg-paper hover:bg-white transition-all flex items-center justify-between gap-3 shadow-2xs"
+                        className={`p-3 rounded-sm border transition-all flex items-center justify-between gap-3 shadow-2xs ${
+                          isEditing
+                            ? "border-navy-900 bg-navy-50/50 ring-1 ring-navy-900/20"
+                            : "border-line bg-paper hover:bg-white"
+                        }`}
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-8 h-8 rounded-sm bg-navy-900 text-gold-300 flex items-center justify-center shrink-0">
+                          <div
+                            className={`w-8 h-8 rounded-sm flex items-center justify-center shrink-0 ${
+                              isEditing
+                                ? "bg-navy-900 text-gold-300 ring-2 ring-gold-500"
+                                : "bg-navy-900 text-gold-300"
+                            }`}
+                          >
                             <Icon name={(f.icon as any) || "shield-check"} size={16} />
                           </div>
                           <div className="min-w-0">
@@ -3491,6 +3546,11 @@ export function CoursesManagerView({
                                   ? "Opening Soon"
                                   : "Active Intake"}
                               </span>
+                              {isEditing && (
+                                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full font-bold uppercase bg-gold-500 text-navy-950">
+                                  Currently Editing
+                                </span>
+                              )}
                             </div>
                             {f.description && (
                               <p className="text-[11px] text-ink-soft truncate mt-0.5">
@@ -3500,7 +3560,7 @@ export function CoursesManagerView({
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-3 shrink-0">
+                        <div className="flex items-center gap-2 shrink-0">
                           <span
                             className={`text-[11px] font-semibold px-2 py-0.5 rounded-sm ${
                               assignedCount === 0
@@ -3510,6 +3570,21 @@ export function CoursesManagerView({
                           >
                             {assignedCount === 0 ? "0 Courses (Standalone)" : `${assignedCount} Courses`}
                           </span>
+
+                          <button
+                            type="button"
+                            onClick={() => (isEditing ? handleCancelEditFaculty() : handleStartEditFaculty(f))}
+                            className={`px-2.5 py-1 rounded-xs border text-xs font-semibold inline-flex items-center gap-1 transition-colors cursor-pointer ${
+                              isEditing
+                                ? "bg-navy-900 border-navy-900 text-gold-300 hover:bg-navy-800"
+                                : "bg-white border-line text-navy-900 hover:border-navy-900 hover:bg-navy-50"
+                            }`}
+                            title={isEditing ? "Cancel editing this faculty" : `Edit details for ${f.name}`}
+                          >
+                            <Icon name="edit" size={12} />
+                            <span>{isEditing ? "Editing" : "Edit"}</span>
+                          </button>
+
                           <button
                             type="button"
                             onClick={() => handleDeleteFaculty(f.id, f.name)}
@@ -3525,16 +3600,37 @@ export function CoursesManagerView({
                 </div>
               </div>
 
-              {/* 2. Add New Faculty Form */}
+              {/* 2. Faculty Form (Add New or Edit Existing) */}
               <form
                 onSubmit={handleSaveFaculty}
-                className="p-4 rounded-sm border border-line bg-paper space-y-4"
+                className={`p-4 rounded-sm border transition-all space-y-4 ${
+                  editingFacultyId
+                    ? "border-navy-900 bg-white ring-1 ring-navy-900/20"
+                    : "border-line bg-paper"
+                }`}
               >
-                <div className="flex items-center gap-2 border-b border-line pb-2">
-                  <Icon name="plus" size={14} className="text-navy-900" />
-                  <strong className="text-xs font-bold text-navy-900 uppercase font-mono tracking-wider">
-                    Add New Academic Faculty (No Course Required)
-                  </strong>
+                <div className="flex items-center justify-between border-b border-line pb-2">
+                  <div className="flex items-center gap-2">
+                    <Icon
+                      name={editingFacultyId ? "edit" : "plus"}
+                      size={14}
+                      className={editingFacultyId ? "text-gold-600" : "text-navy-900"}
+                    />
+                    <strong className="text-xs font-bold text-navy-900 uppercase font-mono tracking-wider">
+                      {editingFacultyId
+                        ? `Edit Faculty: ${faculties.find((f) => f.id === editingFacultyId)?.name || ""}`
+                        : "Add New Academic Faculty (No Course Required)"}
+                    </strong>
+                  </div>
+                  {editingFacultyId && (
+                    <button
+                      type="button"
+                      onClick={handleCancelEditFaculty}
+                      className="text-xs text-ink-soft hover:text-navy-900 font-semibold underline cursor-pointer"
+                    >
+                      Cancel Edit (Create New Instead)
+                    </button>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -3603,14 +3699,29 @@ export function CoursesManagerView({
                   </div>
                 </div>
 
-                <div className="pt-2 flex justify-end">
+                <div className="pt-2 flex items-center justify-end gap-2">
+                  {editingFacultyId && (
+                    <button
+                      type="button"
+                      onClick={handleCancelEditFaculty}
+                      className="px-3 py-2 bg-white border border-line hover:bg-paper text-ink font-semibold text-xs rounded-sm transition-all cursor-pointer"
+                    >
+                      Cancel Edit
+                    </button>
+                  )}
                   <button
                     type="submit"
                     disabled={isSavingFaculty}
                     className="px-4 py-2 bg-navy-900 hover:bg-navy-800 text-gold-300 font-bold text-xs rounded-sm transition-all shadow-xs inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                   >
-                    <Icon name="check" size={13} />
-                    <span>{isSavingFaculty ? "Saving Faculty..." : "Create Faculty Without Course"}</span>
+                    <Icon name={editingFacultyId ? "check" : "plus"} size={13} />
+                    <span>
+                      {isSavingFaculty
+                        ? "Saving..."
+                        : editingFacultyId
+                        ? "Save Faculty Changes"
+                        : "Create Faculty Without Course"}
+                    </span>
                   </button>
                 </div>
               </form>
@@ -3619,11 +3730,14 @@ export function CoursesManagerView({
             {/* Modal Footer */}
             <div className="p-4 bg-paper border-t border-line flex items-center justify-between">
               <span className="text-[11px] text-ink-soft">
-                Created faculties are immediately accessible in course editor dropdowns and public filters.
+                Created and updated faculties are immediately accessible in course editor dropdowns and public filters.
               </span>
               <button
                 type="button"
-                onClick={() => setIsFacultyModalOpen(false)}
+                onClick={() => {
+                  setIsFacultyModalOpen(false);
+                  handleCancelEditFaculty();
+                }}
                 className="px-4 py-2 bg-white border border-line rounded-sm text-xs font-bold text-navy-900 hover:bg-paper transition-colors cursor-pointer"
               >
                 Done
