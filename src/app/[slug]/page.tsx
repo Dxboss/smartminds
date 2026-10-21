@@ -12,16 +12,36 @@ import {
 export const instant = false;
 
 const RESERVED_SLUGS = [
+  "",
+  "index",
+  "home",
+  "about",
+  "actions",
   "admin",
   "api",
+  "blog",
+  "book",
+  "contact",
+  "cookies",
+  "courses",
+  "cpd",
+  "enrol",
+  "funding",
+  "login",
   "portal",
+  "privacy",
+  "private-tutoring",
+  "refunds",
+  "reset-password",
   "staff",
   "student",
   "super",
-  "login",
+  "terms",
   "robots.txt",
   "sitemap.xml",
   "favicon.ico",
+  "apple-icon.png",
+  "icon.png",
 ];
 
 export async function generateStaticParams() {
@@ -47,7 +67,7 @@ export async function generateMetadata({
 }: PageProps): Promise<Metadata> {
   const { slug } = await params;
 
-  if (RESERVED_SLUGS.includes(slug)) {
+  if (!slug || RESERVED_SLUGS.includes(slug)) {
     return { title: "Page Not Found" };
   }
 
@@ -92,7 +112,7 @@ async function CmsPageContent({
 }) {
   const { slug } = await paramsPromise;
 
-  if (RESERVED_SLUGS.includes(slug)) {
+  if (!slug || RESERVED_SLUGS.includes(slug)) {
     notFound();
   }
 
