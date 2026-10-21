@@ -16,6 +16,7 @@ import {
   AVAILABLE_BUTTON_ICONS,
   resolveCustomButtonClasses,
 } from "@/components/ui/buttonCustomizer";
+import { ColorPalettePicker } from "./ColorPalettePicker";
 
 export interface ButtonCustomizerFieldsProps {
   label: string;
@@ -125,93 +126,29 @@ export const ButtonCustomizerFields: React.FC<ButtonCustomizerFieldsProps> = ({
       {/* Collapsible Styling Panel */}
       {showStylePanel && (
         <div className="pt-3 border-t border-line space-y-3.5 animate-in fade-in-50 duration-150">
-          {/* 1. Button Colors */}
+          {/* 1. Button Background Palette & Custom Hue */}
           <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-[11px] font-bold text-navy-900 uppercase tracking-wider">
-                Background &amp; Theme Color
-              </label>
-              <button
-                type="button"
-                onClick={() => setShowCustomHex(!showCustomHex)}
-                className="text-[10px] text-ink-soft hover:text-navy-900 underline"
-              >
-                {showCustomHex ? "Use Presets" : "Custom Hex Code"}
-              </button>
-            </div>
-
-            {showCustomHex ? (
-              <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  value={config.bgColor?.startsWith("#") ? config.bgColor : "#23216B"}
-                  onChange={(e) => onChange("bgColor", e.target.value)}
-                  className="w-8 h-8 rounded-sm border border-line cursor-pointer p-0.5"
-                />
-                <input
-                  type="text"
-                  value={config.bgColor || ""}
-                  onChange={(e) => onChange("bgColor", e.target.value)}
-                  placeholder="#23216B or rgba(...)"
-                  className="flex-1 px-2 py-1 text-xs font-mono border border-line rounded-sm bg-white"
-                />
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                {BUTTON_COLOR_PRESETS.map((preset) => {
-                  const isSelected =
-                    config.bgColor === preset.key ||
-                    (!config.bgColor && preset.key === (defaultVariant === "outline" ? "outline-navy" : "navy"));
-
-                  return (
-                    <button
-                      key={preset.key}
-                      type="button"
-                      onClick={() => onChange("bgColor", preset.key)}
-                      className={`p-1.5 rounded-sm border text-left flex items-center gap-1.5 transition-all cursor-pointer ${
-                        isSelected
-                          ? "ring-2 ring-gold-500 border-navy-900 font-bold bg-white"
-                          : "border-line bg-white hover:border-navy-900/40 text-ink-soft"
-                      }`}
-                    >
-                      <span
-                        className={`w-3.5 h-3.5 rounded-xs flex-shrink-0 ${preset.swatchClass}`}
-                      />
-                      <span className="text-[10px] truncate">{preset.label.split(" ")[0]}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+            <ColorPalettePicker
+              value={config.bgColor || (defaultVariant === "outline" ? "outline-navy" : "navy")}
+              onChange={(val) => onChange("bgColor", val)}
+              label="Button Background Color"
+              compact={true}
+              defaultColor={defaultVariant === "outline" ? "outline-navy" : "navy"}
+              allowCustomHex={true}
+            />
           </div>
 
-          {/* 2. Text Color Override */}
+          {/* 2. Button Text Color Override */}
           <div>
-            <label className="block text-[11px] font-bold text-navy-900 uppercase tracking-wider mb-1.5">
-              Text Color
-            </label>
-            <div className="grid grid-cols-5 gap-1 text-[10px] font-semibold">
-              {[
-                { key: "auto", label: "Auto" },
-                { key: "white", label: "White" },
-                { key: "navy", label: "Navy" },
-                { key: "gold", label: "Gold" },
-                { key: "ink", label: "Dark Ink" },
-              ].map((opt) => (
-                <button
-                  key={opt.key}
-                  type="button"
-                  onClick={() => onChange("textColor", opt.key === "auto" ? undefined : opt.key)}
-                  className={`py-1 rounded-sm border text-center transition-all cursor-pointer ${
-                    (config.textColor === opt.key || (!config.textColor && opt.key === "auto"))
-                      ? "bg-navy-900 text-white font-bold border-navy-900 shadow-xs"
-                      : "bg-white text-ink border-line hover:border-navy-900/30"
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
+            <ColorPalettePicker
+              value={config.textColor || "auto"}
+              onChange={(val) => onChange("textColor", val === "auto" ? undefined : val)}
+              label="Button Text Color"
+              compact={true}
+              showAutoOption={true}
+              defaultColor="auto"
+              allowCustomHex={true}
+            />
           </div>
 
           {/* 3. Typography: Font Family & Text Transform */}

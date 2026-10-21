@@ -16,6 +16,7 @@ import {
   type FontStyleChoice,
   type FontColorChoice,
 } from "@/components/ui/typographyUtils";
+import { resolveItemColor } from "@/components/ui/sectionBg";
 
 export interface CoralPromoBannerProps {
   headline?: string;
@@ -248,20 +249,12 @@ export const CoralPromoBanner: React.FC<CoralPromoBannerProps> = ({
 
               <div className="space-y-4 pt-2">
                 {activeBullets.map((bullet, idx) => {
-                  const textMap: Record<string, string> = {
-                    white: "#ffffff",
-                    gold: "#F3E58A",
-                    navy: "#23216B",
-                    ink_soft: "#E6E1D5",
-                  };
-                  const titleCol =
-                    bullet.titleColor && bullet.titleColor !== "auto"
-                      ? textMap[bullet.titleColor] || bullet.titleColor
-                      : "#ffffff";
-                  const descCol =
-                    bullet.descColor && bullet.descColor !== "auto"
-                      ? textMap[bullet.descColor] || bullet.descColor
-                      : "rgba(255, 255, 255, 0.95)";
+                  const resolvedTitle = resolveItemColor(bullet.titleColor);
+                  const resolvedDesc = resolveItemColor(bullet.descColor);
+                  const resolvedBg = resolveItemColor(bullet.cardBg);
+
+                  const titleCol = resolvedTitle || "#ffffff";
+                  const descCol = resolvedDesc || "rgba(255, 255, 255, 0.95)";
 
                   const iconTone = bullet.iconColor;
                   const iconCircleBg =
@@ -283,6 +276,8 @@ export const CoralPromoBanner: React.FC<CoralPromoBannerProps> = ({
                         ? "p-3 rounded-xl bg-navy-900/40 border border-white/20 backdrop-blur-xs"
                         : bullet.cardBg === "white"
                         ? "p-3 rounded-xl bg-white/20 border border-white/30 backdrop-blur-xs"
+                        : resolvedBg
+                        ? "p-3 rounded-xl border border-white/20"
                         : "p-3 rounded-xl bg-black/10 border border-white/15"
                       : "";
 
@@ -294,7 +289,10 @@ export const CoralPromoBanner: React.FC<CoralPromoBannerProps> = ({
                       label={`Bullet #${idx + 1}`}
                       onClick={() => onSelectElement?.("item", idx)}
                     >
-                      <div className={`flex items-start gap-3.5 ${rowClass}`}>
+                      <div
+                        style={resolvedBg && bullet.cardBg !== "transparent" ? { backgroundColor: resolvedBg } : undefined}
+                        className={`flex items-start gap-3.5 ${rowClass}`}
+                      >
                         <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm ${iconCircleBg}`}>
                           <Icon name={bullet.icon} size={16} />
                         </div>

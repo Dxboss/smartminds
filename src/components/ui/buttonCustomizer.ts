@@ -1,5 +1,6 @@
 import React from "react";
 import { IconName } from "@/components/ui/Icon";
+import { COLLEGE_COLOR_PALETTES, isDarkHex } from "@/components/ui/sectionBg";
 
 export type ButtonBgPreset =
   | "navy"
@@ -186,16 +187,27 @@ export function resolveCustomButtonClasses(
       case "slate":
         classes.push("bg-slate-800 text-white hover:bg-slate-700 active:bg-slate-900 focus-visible:ring-slate-400 shadow-subtle border border-transparent");
         break;
-      default:
-        // Raw hex or custom CSS color
-        if (bg.startsWith("#") || bg.startsWith("rgb")) {
+      default: {
+        const matchedPalette = COLLEGE_COLOR_PALETTES.find((p) => p.key === bg);
+        if (matchedPalette) {
+          inlineStyle.backgroundColor = matchedPalette.hex;
+          inlineStyle.borderColor = "transparent";
+          if (!config?.textColor || config.textColor === "auto") {
+            classes.push(matchedPalette.isDark ? "!text-white" : "!text-navy-900");
+          }
+          classes.push("shadow-subtle hover:brightness-110 active:brightness-90");
+        } else if (bg.startsWith("#") || bg.startsWith("rgb")) {
           inlineStyle.backgroundColor = bg;
           inlineStyle.borderColor = "transparent";
+          if (!config?.textColor || config.textColor === "auto") {
+            classes.push(isDarkHex(bg) ? "!text-white" : "!text-navy-900");
+          }
           classes.push("shadow-subtle hover:brightness-110 active:brightness-90");
         } else {
           classes.push("bg-navy-900 text-white hover:bg-navy-700 shadow-subtle border border-transparent");
         }
         break;
+      }
     }
   }
 
@@ -214,11 +226,15 @@ export function resolveCustomButtonClasses(
       case "ink":
         classes.push("!text-ink");
         break;
-      default:
-        if (config.textColor.startsWith("#") || config.textColor.startsWith("rgb")) {
+      default: {
+        const matchedTextColor = COLLEGE_COLOR_PALETTES.find((p) => p.key === config.textColor);
+        if (matchedTextColor) {
+          inlineStyle.color = matchedTextColor.hex;
+        } else if (config.textColor.startsWith("#") || config.textColor.startsWith("rgb")) {
           inlineStyle.color = config.textColor;
         }
         break;
+      }
     }
   }
 

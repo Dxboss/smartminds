@@ -7,6 +7,7 @@ import { Eyebrow } from "@/components/ui/Eyebrow";
 import { Icon, IconName } from "@/components/ui/Icon";
 import { Tag } from "@/components/ui/Tag";
 import { OrangeWaveAccent } from "@/components/ui/OrangeWaveAccent";
+import { resolveItemColor } from "@/components/ui/sectionBg";
 
 interface Pathway {
   title: string;
@@ -291,6 +292,11 @@ export const ChooseYourPath: React.FC<ChooseYourPathProps> = ({
             ];
             const theme = themes[idx % themes.length];
 
+            const rawItem = items?.[idx];
+            const resolvedCardBg = resolveItemColor(rawItem?.cardBg);
+            const resolvedTitleColor = resolveItemColor(rawItem?.titleColor);
+            const resolvedDescColor = resolveItemColor(rawItem?.descColor);
+
             return (
               <EditableElementWrapper
                 key={pathway.title + idx}
@@ -301,6 +307,7 @@ export const ChooseYourPath: React.FC<ChooseYourPathProps> = ({
                 className="h-full"
               >
                 <div
+                  style={resolvedCardBg ? { backgroundColor: resolvedCardBg, borderColor: "transparent" } : undefined}
                   className={`group flex flex-col justify-between h-full p-6 sm:p-7 rounded-2xl bg-white border border-line shadow-[0_4px_20px_rgba(0,0,0,0.05)] hover:shadow-xl ${theme.cardBorder} transition-all duration-300 text-center`}
                 >
                   <div>
@@ -312,11 +319,17 @@ export const ChooseYourPath: React.FC<ChooseYourPathProps> = ({
                       />
                     </div>
 
-                    <h3 className="font-heading text-xl font-bold text-navy-900 group-hover:text-[#0B4D4E] transition-colors mb-2 min-h-[3rem] flex items-center justify-center">
+                    <h3
+                      style={resolvedTitleColor ? { color: resolvedTitleColor } : undefined}
+                      className="font-heading text-xl font-bold text-navy-900 group-hover:text-[#0B4D4E] transition-colors mb-2 min-h-[3rem] flex items-center justify-center"
+                    >
                       {pathway.title}
                     </h3>
 
-                    <p className="text-xs sm:text-sm text-ink-soft leading-relaxed mb-6 min-h-[3.75rem] line-clamp-3 flex items-center justify-center">
+                    <p
+                      style={resolvedDescColor ? { color: resolvedDescColor } : undefined}
+                      className="text-xs sm:text-sm text-ink-soft leading-relaxed mb-6 min-h-[3.75rem] line-clamp-3 flex items-center justify-center"
+                    >
                       {pathway.description}
                     </p>
                   </div>

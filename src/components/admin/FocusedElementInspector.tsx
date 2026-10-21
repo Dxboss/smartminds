@@ -79,49 +79,18 @@ const UniversalTextDesignControls: React.FC<UniversalTextDesignControlsProps> = 
         <span>{label} Design & Typography</span>
       </strong>
 
-      {/* Brand Color Token Selector */}
+      {/* Brand Color & Palette Picker */}
       {onColorChange && (
         <div>
-          <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1.5">
-            Brand Color Token
-          </label>
-          <div className="grid grid-cols-2 gap-1.5">
-            {[
-              { key: "auto", label: "Adaptive Auto", desc: "Matches section theme" },
-              { key: "navy", label: "Royal Navy 900", desc: "#23216B" },
-              { key: "ink_soft", label: "Soft Charcoal", desc: "#5A5A6E" },
-              { key: "gold", label: "Refined Gold", desc: "#D9B84A" },
-              { key: "white", label: "Pure White", desc: "For dark backgrounds" },
-            ].map((col) => (
-              <button
-                key={col.key}
-                type="button"
-                onClick={() => onColorChange(col.key)}
-                className={`p-2 rounded-xs border text-left transition-all cursor-pointer ${
-                  color === col.key
-                    ? "border-navy-900 bg-white shadow-xs font-bold ring-1 ring-navy-900"
-                    : "border-line bg-white/70 hover:bg-white"
-                }`}
-              >
-                <div className="flex items-center gap-1.5">
-                  <span
-                    className={`w-3 h-3 rounded-full border border-black/10 shrink-0 ${
-                      col.key === "navy"
-                        ? "bg-navy-900"
-                        : col.key === "gold"
-                        ? "bg-gold-500"
-                        : col.key === "white"
-                        ? "bg-white"
-                        : col.key === "ink_soft"
-                        ? "bg-ink-soft"
-                        : "bg-gradient-to-tr from-navy-900 to-gold-500"
-                    }`}
-                  />
-                  <span className="text-[11px] font-medium leading-none truncate">{col.label}</span>
-                </div>
-              </button>
-            ))}
-          </div>
+          <ColorPalettePicker
+            value={color || "auto"}
+            onChange={onColorChange}
+            label={`${label} Text Color`}
+            compact={true}
+            showAutoOption={true}
+            defaultColor="auto"
+            allowCustomHex={true}
+          />
         </div>
       )}
 
@@ -464,35 +433,14 @@ const UniversalCardDesignControls: React.FC<UniversalCardDesignControlsProps> = 
 
       {/* 1. Card Surface Fill */}
       <div>
-        <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1.5">
-          Card Surface Fill
-        </label>
-        <div className="grid grid-cols-2 gap-1.5">
-          {[
-            { key: "mint", label: "Soft Mint Pill", class: "bg-[#dff5ec] text-emerald-950" },
-            { key: "peach", label: "Warm Peach Pill", class: "bg-[#faedd9] text-amber-950" },
-            { key: "lavender", label: "Soft Lavender Pill", class: "bg-[#eeeaf8] text-purple-950" },
-            { key: "sky", label: "Soft Sky Blue Pill", class: "bg-[#e2f3fa] text-sky-950" },
-            { key: "white", label: "Crisp White", class: "bg-white border-line" },
-            { key: "paper", label: "Parchment Paper", class: "bg-paper border-line" },
-            { key: "navy", label: "Royal Navy (Dark)", class: "bg-navy-900 text-white" },
-            { key: "gold_subtle", label: "Subtle Gold Fill", class: "bg-gold-50 border-gold-300" },
-            { key: "transparent", label: "Transparent", class: "bg-transparent border-dashed" },
-          ].map((surf) => (
-            <button
-              key={surf.key}
-              type="button"
-              onClick={() => updateItemField(idx, "cardBg", surf.key)}
-              className={`p-2 rounded-xs border text-left transition-all cursor-pointer ${
-                (item.cardBg || "white") === surf.key
-                  ? "border-navy-900 bg-white shadow-xs font-bold ring-1 ring-navy-900"
-                  : "border-line bg-white/70 hover:bg-white"
-              }`}
-            >
-              <span className="text-[11px] font-semibold block">{surf.label}</span>
-            </button>
-          ))}
-        </div>
+        <ColorPalettePicker
+          value={item.cardBg || "white"}
+          onChange={(val) => updateItemField(idx, "cardBg", val)}
+          label="Card Surface Fill"
+          compact={true}
+          defaultColor="white"
+          allowCustomHex={true}
+        />
       </div>
 
       {/* 2. Card Border Style */}
@@ -586,55 +534,56 @@ const UniversalCardDesignControls: React.FC<UniversalCardDesignControlsProps> = 
       {/* 5. Title & Heading Typography */}
       <div className="pt-2 border-t border-line space-y-2">
         <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider">
-          Card Title Style
+          Card Title Style & Scale
         </label>
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="block text-[10px] text-ink-soft mb-0.5">Title Color</label>
-            <select
-              value={item.titleColor || "auto"}
-              onChange={(e) => updateItemField(idx, "titleColor", e.target.value)}
-              className="w-full px-2 py-1 text-xs border border-line rounded-xs bg-white"
-            >
-              <option value="auto">Adaptive Auto</option>
-              <option value="navy">Royal Navy 900</option>
-              <option value="gold">Gold 500</option>
-              <option value="white">White</option>
-              <option value="ink_soft">Soft Charcoal</option>
-            </select>
+        <div>
+          <label className="block text-[10px] text-ink-soft mb-1 uppercase font-semibold">Title Size</label>
+          <div className="grid grid-cols-4 gap-1">
+            {[
+              { key: "sm", label: "SM" },
+              { key: "md", label: "MD" },
+              { key: "lg", label: "LG" },
+              { key: "xl", label: "XL" },
+            ].map((ts) => (
+              <button
+                key={ts.key}
+                type="button"
+                onClick={() => updateItemField(idx, "titleSize", ts.key)}
+                className={`py-1 text-xs font-semibold rounded-xs border text-center transition-all cursor-pointer ${
+                  (item.titleSize || "lg") === ts.key
+                    ? "bg-navy-900 text-white font-bold border-navy-900 shadow-2xs"
+                    : "bg-white text-ink border-line hover:border-navy-900/40"
+                }`}
+              >
+                {ts.label}
+              </button>
+            ))}
           </div>
-          <div>
-            <label className="block text-[10px] text-ink-soft mb-0.5">Title Size</label>
-            <select
-              value={item.titleSize || "lg"}
-              onChange={(e) => updateItemField(idx, "titleSize", e.target.value)}
-              className="w-full px-2 py-1 text-xs border border-line rounded-xs bg-white"
-            >
-              <option value="sm">Small</option>
-              <option value="md">Medium</option>
-              <option value="lg">Large (Default)</option>
-              <option value="xl">Extra Large</option>
-            </select>
-          </div>
+        </div>
+        <div>
+          <ColorPalettePicker
+            value={item.titleColor || "auto"}
+            onChange={(val) => updateItemField(idx, "titleColor", val)}
+            label="Title Text Color"
+            compact={true}
+            showAutoOption={true}
+            defaultColor="auto"
+            allowCustomHex={true}
+          />
         </div>
       </div>
 
       {/* 6. Description Typography */}
       <div className="pt-2 border-t border-line space-y-2">
-        <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider">
-          Card Description Color
-        </label>
-        <select
+        <ColorPalettePicker
           value={item.descColor || "auto"}
-          onChange={(e) => updateItemField(idx, "descColor", e.target.value)}
-          className="w-full px-2 py-1.5 text-xs border border-line rounded-xs bg-white font-medium"
-        >
-          <option value="auto">Adaptive Auto (Muted ink / Light)</option>
-          <option value="ink_soft">Soft Charcoal</option>
-          <option value="navy">Royal Navy</option>
-          <option value="white">White</option>
-          <option value="gold">Gold Accent</option>
-        </select>
+          onChange={(val) => updateItemField(idx, "descColor", val)}
+          label="Card Description Color"
+          compact={true}
+          showAutoOption={true}
+          defaultColor="auto"
+          allowCustomHex={true}
+        />
       </div>
 
       {/* 7. Badge Variant Pill */}

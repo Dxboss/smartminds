@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Container } from "@/components/ui/Container";
 import { Icon, IconName } from "@/components/ui/Icon";
-import { resolveSectionBg } from "@/components/ui/sectionBg";
+import { resolveSectionBg, resolveItemColor } from "@/components/ui/sectionBg";
 import {
   resolveTypography,
   resolveSubheadlineTypography,
@@ -326,7 +326,10 @@ export const WhyChooseUsSection: React.FC<WhyChooseUsProps> = ({
             {/* 4. FOUR COLORFUL CHECKLIST PILLS */}
             <div className="space-y-3 pt-1">
               {displayedItems.map((item, idx) => {
-                const surfaceClass = getPillSurfaceClass(item.cardBg);
+                const resolvedPillBg = resolveItemColor(item.cardBg);
+                const resolvedTitleCol = resolveItemColor(item.titleColor);
+                const resolvedDescCol = resolveItemColor(item.descColor);
+                const surfaceClass = resolvedPillBg ? "" : getPillSurfaceClass(item.cardBg);
                 const { circle: iconCircleClass, icon: iconClass } = getPillIconTone(
                   item.iconColor,
                   item.cardBg
@@ -346,6 +349,7 @@ export const WhyChooseUsSection: React.FC<WhyChooseUsProps> = ({
                         onSelectElement("item", idx);
                       }
                     }}
+                    style={resolvedPillBg ? { backgroundColor: resolvedPillBg, borderColor: "transparent" } : undefined}
                     className={`group/pill relative flex items-center gap-3.5 px-4 sm:px-5 py-3 rounded-xl sm:rounded-2xl border transition-all duration-200 ${surfaceClass} ${
                       isSelected
                         ? "ring-2 ring-gold-500 border-navy-900 shadow-md"
@@ -370,8 +374,11 @@ export const WhyChooseUsSection: React.FC<WhyChooseUsProps> = ({
                     {/* Pill Text */}
                     <div className="min-w-0 flex-1">
                       <span
+                        style={resolvedTitleCol ? { color: resolvedTitleCol } : undefined}
                         className={`font-heading text-base sm:text-lg font-bold block leading-tight ${
-                          item.titleColor === "white"
+                          resolvedTitleCol
+                            ? ""
+                            : item.titleColor === "white"
                             ? "text-white"
                             : item.titleColor === "gold"
                             ? "text-gold-700"
@@ -384,8 +391,11 @@ export const WhyChooseUsSection: React.FC<WhyChooseUsProps> = ({
                       </span>
                       {item.desc && (
                         <span
+                          style={resolvedDescCol ? { color: resolvedDescCol } : undefined}
                           className={`text-xs block mt-0.5 leading-snug ${
-                            item.descColor === "white"
+                            resolvedDescCol
+                              ? ""
+                              : item.descColor === "white"
                               ? "text-white/80"
                               : item.descColor === "navy"
                               ? "text-navy-900"

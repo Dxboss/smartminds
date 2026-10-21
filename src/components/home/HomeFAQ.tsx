@@ -8,13 +8,21 @@ import { Heading } from "@/components/ui/Heading";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 import { Icon } from "@/components/ui/Icon";
 import { BookingCTAButton } from "@/components/booking/BookingCTAButton";
-import { resolveSectionBg, SectionBgColor } from "@/components/ui/sectionBg";
+import { resolveSectionBg, SectionBgColor, resolveItemColor } from "@/components/ui/sectionBg";
+import {
+  resolveTypography,
+  resolveSubheadlineTypography,
+} from "@/components/ui/typographyUtils";
 import { EditableElementWrapper } from "@/components/admin/EditableElementWrapper";
 
 interface FAQItem {
   question: string;
   answer: string;
   category?: string;
+  cardBg?: string;
+  cardBorder?: string;
+  titleColor?: string;
+  descColor?: string;
 }
 
 const FAQ_ITEMS: FAQItem[] = [
@@ -72,9 +80,22 @@ const FAQ_ITEMS: FAQItem[] = [
 export interface HomeFAQProps {
   headline?: string;
   subheadline?: string;
-  items?: { title: string; desc?: string; tag?: string }[];
+  items?: { title: string; desc?: string; tag?: string; cardBg?: string; cardBorder?: string; titleColor?: string; descColor?: string; [key: string]: any }[];
   bgColor?: SectionBgColor;
   columns?: 2 | 3 | 4;
+  headlineFontFamily?: string;
+  headlineFontSize?: string;
+  headlineFontWeight?: string;
+  headlineFontStyle?: string;
+  headlineColor?: string;
+  headlineTransform?: string;
+  headlineAlign?: string;
+  subheadlineFontFamily?: string;
+  subheadlineFontSize?: string;
+  subheadlineFontWeight?: string;
+  subheadlineFontStyle?: string;
+  subheadlineColor?: string;
+  subheadlineAlign?: string;
   isEditor?: boolean;
   selectedElementKey?: string | null;
   selectedElementItemIndex?: number | null;
@@ -98,6 +119,19 @@ export const HomeFAQ: React.FC<HomeFAQProps> = ({
   items,
   bgColor = "white",
   columns = 4,
+  headlineFontFamily,
+  headlineFontSize,
+  headlineFontWeight,
+  headlineFontStyle,
+  headlineColor,
+  headlineTransform,
+  headlineAlign,
+  subheadlineFontFamily,
+  subheadlineFontSize,
+  subheadlineFontWeight,
+  subheadlineFontStyle,
+  subheadlineColor,
+  subheadlineAlign,
   isEditor,
   selectedElementKey,
   selectedElementItemIndex,
@@ -105,6 +139,33 @@ export const HomeFAQ: React.FC<HomeFAQProps> = ({
 }) => {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
   const { isDark } = resolveSectionBg(bgColor, "white");
+
+  const { className: hlClass, style: hlStyle } = resolveTypography({
+    fontFamily: headlineFontFamily as any,
+    fontSize: headlineFontSize as any,
+    fontWeight: headlineFontWeight as any,
+    fontStyle: headlineFontStyle as any,
+    color: headlineColor,
+    align: headlineAlign as any,
+    transform: headlineTransform as any,
+    isDark,
+    defaultFamily: "heading",
+    defaultSize: "lg",
+    defaultWeight: "bold",
+  });
+
+  const { className: subClass, style: subStyle } = resolveSubheadlineTypography({
+    fontFamily: subheadlineFontFamily as any,
+    fontSize: subheadlineFontSize as any,
+    fontWeight: subheadlineFontWeight as any,
+    fontStyle: subheadlineFontStyle as any,
+    color: subheadlineColor,
+    align: subheadlineAlign as any,
+    isDark,
+    defaultFamily: "body",
+    defaultSize: "md",
+    defaultWeight: "normal",
+  });
 
   const toggleIndex = (index: number) => {
     setOpenIndex((prev) => (prev === index ? null : index));
@@ -116,6 +177,10 @@ export const HomeFAQ: React.FC<HomeFAQProps> = ({
           question: it.title,
           answer: it.desc || "",
           category: it.tag || "General",
+          cardBg: it.cardBg,
+          cardBorder: it.cardBorder,
+          titleColor: it.titleColor,
+          descColor: it.descColor,
         }))
       : FAQ_ITEMS;
 
@@ -134,7 +199,7 @@ export const HomeFAQ: React.FC<HomeFAQProps> = ({
             onClick={() => onSelectElement?.("headline")}
             className="mb-3"
           >
-            <Heading level="h2" className={`mb-3 ${isDark ? "text-white" : "text-navy-900"}`}>
+            <Heading level="h2" style={hlStyle} className={`mb-3 ${hlClass}`}>
               {headline}
             </Heading>
           </EditableElementWrapper>
@@ -145,7 +210,7 @@ export const HomeFAQ: React.FC<HomeFAQProps> = ({
             label="FAQ Subtitle"
             onClick={() => onSelectElement?.("subheadline")}
           >
-            <p className={`text-base sm:text-lg leading-relaxed ${isDark ? "text-paper/85" : "text-ink-soft"}`}>
+            <p style={subStyle} className={`leading-relaxed ${subClass}`}>
               {subheadline}
             </p>
           </EditableElementWrapper>
@@ -166,6 +231,21 @@ export const HomeFAQ: React.FC<HomeFAQProps> = ({
             const headingId = `faq-heading-${index}`;
             const panelId = `faq-panel-${index}`;
             const isSelected = isEditor && selectedElementKey === "item" && selectedElementItemIndex === index;
+            const resolvedItemBg = item.cardBg ? resolveItemColor(item.cardBg) : undefined;
+            const resolvedItemBorder = item.cardBorder ? resolveItemColor(item.cardBorder) : undefined;
+            const resolvedItemTitle = item.titleColor ? resolveItemColor(item.titleColor) : undefined;
+            const resolvedItemDesc = item.descColor ? resolveItemColor(item.descColor) : undefined;
+
+            const cardStyle: React.CSSProperties = {
+              backgroundColor: resolvedItemBg,
+              borderColor: resolvedItemBorder,
+            };
+            const questionStyle: React.CSSProperties = {
+              color: resolvedItemTitle,
+            };
+            const answerStyle: React.CSSProperties = {
+              color: resolvedItemDesc,
+            };
 
             return (
               <EditableElementWrapper
@@ -179,6 +259,7 @@ export const HomeFAQ: React.FC<HomeFAQProps> = ({
                 className="w-full block"
               >
                 <div
+                  style={cardStyle}
                   className={`rounded-lg border transition-all ${
                     isDark
                       ? isOpen
@@ -203,7 +284,10 @@ export const HomeFAQ: React.FC<HomeFAQProps> = ({
                     }}
                     className="w-full text-left p-5 sm:p-6 flex items-center justify-between gap-4 min-h-[44px] focus:outline-none rounded-lg"
                   >
-                    <span className={`font-heading font-bold text-lg leading-snug ${isDark ? "text-white" : "text-navy-900"}`}>
+                    <span
+                      style={questionStyle}
+                      className={`font-heading font-bold text-lg leading-snug ${isDark ? "text-white" : "text-navy-900"}`}
+                    >
                       {item.question}
                     </span>
 
@@ -233,7 +317,7 @@ export const HomeFAQ: React.FC<HomeFAQProps> = ({
                           : "text-ink-soft border-line/60"
                       }`}
                     >
-                      <p className="pt-3">{item.answer}</p>
+                      <p style={answerStyle} className="pt-3">{item.answer}</p>
                     </div>
                   )}
                 </div>

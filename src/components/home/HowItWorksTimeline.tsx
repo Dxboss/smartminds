@@ -219,7 +219,7 @@ export const HowItWorksTimeline: React.FC<HowItWorksTimelineProps> = ({
         <div className={`grid ${colClass} gap-6 relative`}>
           {renderedSteps.map((step, index) => {
             const rawItem = items?.[index];
-            const { containerClass, titleClass, descClass } = resolveCardContainerStyles(rawItem, isDark);
+            const { containerClass, containerStyle, titleClass, titleStyle, descClass, descStyle } = resolveCardContainerStyles(rawItem, isDark);
 
             return (
               <EditableElementWrapper
@@ -231,6 +231,7 @@ export const HowItWorksTimeline: React.FC<HowItWorksTimelineProps> = ({
                 className="h-full"
               >
                 <div
+                  style={containerStyle}
                   className={`relative flex flex-col justify-between h-full ${containerClass}`}
                 >
                   <div>
@@ -246,7 +247,7 @@ export const HowItWorksTimeline: React.FC<HowItWorksTimelineProps> = ({
                       )}
                     </div>
 
-                    <h3 className={`mb-1 ${titleClass}`}>
+                    <h3 style={titleStyle} className={`mb-1 ${titleClass}`}>
                       {step.title}
                     </h3>
                     {step.subtitle && (
@@ -255,7 +256,7 @@ export const HowItWorksTimeline: React.FC<HowItWorksTimelineProps> = ({
                       </span>
                     )}
 
-                    <p className={`leading-relaxed ${descClass}`}>
+                    <p style={descStyle} className={`leading-relaxed ${descClass}`}>
                       {step.description}
                     </p>
                   </div>

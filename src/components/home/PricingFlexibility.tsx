@@ -213,7 +213,7 @@ export const PricingFlexibility: React.FC<PricingFlexibilityProps> = ({
               card.badge?.toLowerCase().includes("popular") ||
               (!card.badge && idx === 1);
 
-            const { containerClass, titleClass, descClass } = resolveCardContainerStyles(card, isDark || isFeatured);
+            const { containerClass, containerStyle, titleClass, titleStyle, descClass, descStyle } = resolveCardContainerStyles(card, isDark || isFeatured);
 
             return (
               <EditableElementWrapper
@@ -225,6 +225,7 @@ export const PricingFlexibility: React.FC<PricingFlexibilityProps> = ({
                 className="h-full"
               >
                 <div
+                  style={isFeatured && !card.cardBg && !card.cardBorder ? undefined : containerStyle}
                   className={`flex flex-col justify-between h-full relative ${
                     isFeatured && !card.cardBg && !card.cardBorder
                       ? "bg-navy-900 text-white border-2 border-gold-500 shadow-subtle p-7 rounded-lg"
@@ -258,7 +259,7 @@ export const PricingFlexibility: React.FC<PricingFlexibilityProps> = ({
                       </span>
                     </div>
 
-                    <h3 className={`mb-1 ${titleClass}`}>
+                    <h3 style={titleStyle} className={`mb-1 ${titleClass}`}>
                       {card.title}
                     </h3>
                     {card.subtitle && (
@@ -273,8 +274,9 @@ export const PricingFlexibility: React.FC<PricingFlexibilityProps> = ({
 
                     {card.desc && (
                       <p
+                        style={descStyle}
                         className={`text-sm leading-relaxed mb-6 ${
-                          isFeatured ? "text-paper/85" : isDark ? "text-paper/80" : "text-ink-soft"
+                          descStyle ? "" : isFeatured ? "text-paper/85" : isDark ? "text-paper/80" : "text-ink-soft"
                         }`}
                       >
                         {card.desc}

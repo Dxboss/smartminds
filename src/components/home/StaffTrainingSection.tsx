@@ -14,6 +14,7 @@ import {
   type FontStyleChoice,
   type FontColorChoice,
 } from "@/components/ui/typographyUtils";
+import { resolveSectionBg, resolveItemColor, isDarkHex } from "@/components/ui/sectionBg";
 
 export interface StaffTrainingSectionProps {
   headline?: string;
@@ -261,44 +262,21 @@ export const StaffTrainingSection: React.FC<StaffTrainingSectionProps> = ({
 
             <div className="space-y-3.5 flex-1 flex flex-col justify-center">
               {activePoints.map((point, idx) => {
-                const isNavyCard = point.cardBg === "navy";
-                const bgMap: Record<string, string> = {
-                  white: "#ffffff",
-                  paper: "#FAF8F3",
-                  navy: "#23216B",
-                  gold_subtle: "#FDF8E7",
-                  transparent: "transparent",
-                };
-                const borderMap: Record<string, string> = {
-                  line: "#E6E1D5",
-                  gold: "#D9B84A",
-                  navy: "#23216B",
-                  none: "transparent",
-                };
-                const textMap: Record<string, string> = {
-                  navy: "#23216B",
-                  gold: "#B78A2E",
-                  white: "#ffffff",
-                  ink_soft: "#5A5A6E",
-                };
+                const resolvedBg = resolveItemColor(point.cardBg);
+                const isNavyCard = point.cardBg === "navy" || (resolvedBg ? isDarkHex(resolvedBg) : false);
+                const resolvedBorder = resolveItemColor(point.cardBorder);
+                const resolvedTitleCol = resolveItemColor(point.titleColor);
+                const resolvedDescCol = resolveItemColor(point.descColor);
 
                 const cardStyle: React.CSSProperties = {
-                  backgroundColor: point.cardBg ? (bgMap[point.cardBg] || point.cardBg) : "#ffffff",
-                  borderColor: point.cardBorder ? (borderMap[point.cardBorder] || point.cardBorder) : (isNavyCard ? "rgba(255,255,255,0.15)" : "#E6E1D5"),
+                  backgroundColor: resolvedBg || "#ffffff",
+                  borderColor: resolvedBorder || (point.cardBorder === "none" ? "transparent" : isNavyCard ? "rgba(255,255,255,0.15)" : "#E6E1D5"),
                 };
                 const titleStyle: React.CSSProperties = {
-                  color: point.titleColor && point.titleColor !== "auto"
-                    ? (textMap[point.titleColor] || point.titleColor)
-                    : isNavyCard
-                    ? "#ffffff"
-                    : "#23216B",
+                  color: resolvedTitleCol || (isNavyCard ? "#ffffff" : "#23216B"),
                 };
                 const descStyle: React.CSSProperties = {
-                  color: point.descColor && point.descColor !== "auto"
-                    ? (textMap[point.descColor] || point.descColor)
-                    : isNavyCard
-                    ? "rgba(255,255,255,0.85)"
-                    : "#5A5A6E",
+                  color: resolvedDescCol || (isNavyCard ? "rgba(255,255,255,0.85)" : "#5A5A6E"),
                 };
 
                 const iconTone = point.iconColor || (isNavyCard ? "gold" : point.color);

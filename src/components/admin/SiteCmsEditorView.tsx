@@ -5293,81 +5293,15 @@ export const SiteCmsEditorView: React.FC<Props> = ({
 
                         {/* Font Color */}
                         <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <label className="block text-[10px] font-semibold text-ink-soft uppercase">
-                              Text Color
-                            </label>
-                            {selectedSection.headlineColor?.startsWith("#") && (
-                              <span className="text-[10px] font-mono text-gold-600 font-bold flex items-center gap-1">
-                                <span
-                                  className="inline-block w-2.5 h-2.5 rounded-full border border-black/20"
-                                  style={{ backgroundColor: selectedSection.headlineColor }}
-                                />
-                                {selectedSection.headlineColor}
-                              </span>
-                            )}
-                          </div>
-                          <div className="grid grid-cols-5 gap-1 mb-2">
-                            {[
-                              { key: "auto", label: "Auto", desc: "Auto Smart Contrast" },
-                              { key: "navy", label: "Navy", desc: "Oxford Navy" },
-                              { key: "white", label: "White", desc: "Pure White" },
-                              { key: "gold", label: "Gold", desc: "College Gold" },
-                              { key: "ink_soft", label: "Slate", desc: "Soft Slate" },
-                            ].map((c) => {
-                              const isSelected = (selectedSection.headlineColor || "auto") === c.key;
-                              return (
-                                <button
-                                  key={c.key}
-                                  type="button"
-                                  title={c.desc}
-                                  onClick={() => updateSelectedField("headlineColor", c.key)}
-                                  className={`py-1 rounded-xs border text-[11px] font-semibold text-center transition-all cursor-pointer ${
-                                    isSelected
-                                      ? "bg-navy-900 text-white border-navy-900 shadow-xs font-bold"
-                                      : "bg-white border-line text-ink hover:border-navy-900/40"
-                                  }`}
-                                >
-                                  {c.label}
-                                </button>
-                              );
-                            })}
-                          </div>
-                          {/* Custom Hex Color Picker for Headline */}
-                          <div className="flex items-center gap-2 pt-1 border-t border-line/50">
-                            <input
-                              type="color"
-                              value={
-                                selectedSection.headlineColor?.startsWith("#") && selectedSection.headlineColor.length === 7
-                                  ? selectedSection.headlineColor
-                                  : "#23216B"
-                              }
-                              onChange={(e) => updateSelectedField("headlineColor", e.target.value)}
-                              className="w-8 h-8 p-0.5 rounded-xs border border-line cursor-pointer bg-white"
-                              title="Pick custom text color wheel"
-                            />
-                            <input
-                              type="text"
-                              placeholder="Custom HEX (e.g. #D9B84A)"
-                              value={selectedSection.headlineColor?.startsWith("#") ? selectedSection.headlineColor : ""}
-                              onChange={(e) => {
-                                let val = e.target.value.trim();
-                                if (val && !val.startsWith("#")) val = "#" + val;
-                                updateSelectedField("headlineColor", val || "auto");
-                              }}
-                              className="flex-1 px-2.5 py-1 font-mono text-xs border border-line rounded-sm bg-white uppercase tracking-wider focus:outline-none focus:border-navy-900"
-                            />
-                            {selectedSection.headlineColor && selectedSection.headlineColor !== "auto" && (
-                              <button
-                                type="button"
-                                onClick={() => updateSelectedField("headlineColor", "auto")}
-                                title="Reset to Auto Smart Contrast"
-                                className="px-2 py-1 text-[10px] text-ink-soft hover:text-navy-900 border border-line rounded-xs bg-white"
-                              >
-                                Reset
-                              </button>
-                            )}
-                          </div>
+                          <ColorPalettePicker
+                            value={selectedSection.headlineColor || "auto"}
+                            onChange={(val) => updateSelectedField("headlineColor", val)}
+                            label="Headline Text Color"
+                            compact={true}
+                            showAutoOption={true}
+                            defaultColor="auto"
+                            allowCustomHex={true}
+                          />
                         </div>
 
                         {/* Text Alignment */}
@@ -5579,81 +5513,15 @@ export const SiteCmsEditorView: React.FC<Props> = ({
 
                         {/* Font Color */}
                         <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <label className="block text-[10px] font-semibold text-ink-soft uppercase">
-                              Text Color
-                            </label>
-                            {selectedSection.subheadlineColor?.startsWith("#") && (
-                              <span className="text-[10px] font-mono text-gold-600 font-bold flex items-center gap-1">
-                                <span
-                                  className="inline-block w-2.5 h-2.5 rounded-full border border-black/20"
-                                  style={{ backgroundColor: selectedSection.subheadlineColor }}
-                                />
-                                {selectedSection.subheadlineColor}
-                              </span>
-                            )}
-                          </div>
-                          <div className="grid grid-cols-5 gap-1 mb-2">
-                            {[
-                              { key: "auto", label: "Auto", desc: "Auto Smart Contrast" },
-                              { key: "navy", label: "Navy", desc: "Oxford Navy" },
-                              { key: "white", label: "White", desc: "Pure White" },
-                              { key: "gold", label: "Gold", desc: "College Gold" },
-                              { key: "ink_soft", label: "Slate", desc: "Soft Slate" },
-                            ].map((c) => {
-                              const isSelected = (selectedSection.subheadlineColor || "auto") === c.key;
-                              return (
-                                <button
-                                  key={c.key}
-                                  type="button"
-                                  title={c.desc}
-                                  onClick={() => updateSelectedField("subheadlineColor", c.key)}
-                                  className={`py-1 rounded-xs border text-[11px] font-semibold text-center transition-all cursor-pointer ${
-                                    isSelected
-                                      ? "bg-navy-900 text-white border-navy-900 shadow-xs font-bold"
-                                      : "bg-white border-line text-ink hover:border-navy-900/40"
-                                  }`}
-                                >
-                                  {c.label}
-                                </button>
-                              );
-                            })}
-                          </div>
-                          {/* Custom Hex Color Picker for Subheadline */}
-                          <div className="flex items-center gap-2 pt-1 border-t border-line/50">
-                            <input
-                              type="color"
-                              value={
-                                selectedSection.subheadlineColor?.startsWith("#") && selectedSection.subheadlineColor.length === 7
-                                  ? selectedSection.subheadlineColor
-                                  : "#5A5A6E"
-                              }
-                              onChange={(e) => updateSelectedField("subheadlineColor", e.target.value)}
-                              className="w-8 h-8 p-0.5 rounded-xs border border-line cursor-pointer bg-white"
-                              title="Pick custom subheadline text color wheel"
-                            />
-                            <input
-                              type="text"
-                              placeholder="Custom HEX (e.g. #5A5A6E)"
-                              value={selectedSection.subheadlineColor?.startsWith("#") ? selectedSection.subheadlineColor : ""}
-                              onChange={(e) => {
-                                let val = e.target.value.trim();
-                                if (val && !val.startsWith("#")) val = "#" + val;
-                                updateSelectedField("subheadlineColor", val || "auto");
-                              }}
-                              className="flex-1 px-2.5 py-1 font-mono text-xs border border-line rounded-sm bg-white uppercase tracking-wider focus:outline-none focus:border-navy-900"
-                            />
-                            {selectedSection.subheadlineColor && selectedSection.subheadlineColor !== "auto" && (
-                              <button
-                                type="button"
-                                onClick={() => updateSelectedField("subheadlineColor", "auto")}
-                                title="Reset to Auto Smart Contrast"
-                                className="px-2 py-1 text-[10px] text-ink-soft hover:text-navy-900 border border-line rounded-xs bg-white"
-                              >
-                                Reset
-                              </button>
-                            )}
-                          </div>
+                          <ColorPalettePicker
+                            value={selectedSection.subheadlineColor || "auto"}
+                            onChange={(val) => updateSelectedField("subheadlineColor", val)}
+                            label="Subheadline / Body Text Color"
+                            compact={true}
+                            showAutoOption={true}
+                            defaultColor="auto"
+                            allowCustomHex={true}
+                          />
                         </div>
 
                         {/* Subheadline Alignment */}

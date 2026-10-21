@@ -33,7 +33,7 @@ export interface ColorOption {
   key: string;
   label: string;
   hex: string;
-  category: "navy" | "yellow" | "grey" | "classic";
+  category: "navy" | "yellow" | "grey" | "greens" | "warm" | "royal" | "classic";
   isDark: boolean;
   description?: string;
 }
@@ -64,11 +64,35 @@ export const COLLEGE_COLOR_PALETTES: ColorOption[] = [
   { key: "grey_charcoal", label: "Dark Charcoal Grey", hex: "#334155", category: "grey", isDark: true, description: "Deep architectural charcoal" },
   { key: "slate", label: "Midnight Slate Black", hex: "#0B132B", category: "grey", isDark: true, description: "Near-black slate tone" },
 
-  // 4. Classic Brand Bases
+  // 4. Greens & Teals
+  { key: "emerald", label: "Emerald Green", hex: "#059669", category: "greens", isDark: true, description: "Vibrant growth & health emerald" },
+  { key: "forest", label: "Deep Forest Pine", hex: "#064E3B", category: "greens", isDark: true, description: "Deep academic forest green" },
+  { key: "mint", label: "Fresh Crisp Mint", hex: "#E8F4F1", category: "greens", isDark: false, description: "Invigorating light mint background" },
+  { key: "sage", label: "Herbal Sage", hex: "#EFF5F2", category: "greens", isDark: false, description: "Calm organic herbal mist" },
+  { key: "teal_deep", label: "Deep Ocean Teal", hex: "#0F766E", category: "greens", isDark: true, description: "Rich aquatic teal" },
+  { key: "teal_seafoam", label: "Seafoam Pastel", hex: "#CCFBF1", category: "greens", isDark: false, description: "Soft clean seafoam" },
+
+  // 5. Warm Tones & Corals
+  { key: "coral", label: "Vibrant Coral", hex: "#E53935", category: "warm", isDark: true, description: "Energetic promotional coral red" },
+  { key: "crimson", label: "Deep Ruby Crimson", hex: "#991B1B", category: "warm", isDark: true, description: "Prestigious academic crimson" },
+  { key: "terracotta", label: "Warm Terracotta", hex: "#C2410C", category: "warm", isDark: true, description: "Earthy artisan terracotta" },
+  { key: "amber_sunset", label: "Sunset Amber", hex: "#F97316", category: "warm", isDark: false, description: "Radiant sunset orange" },
+  { key: "rose", label: "Blush Rose", hex: "#F43F5E", category: "warm", isDark: true, description: "Vibrant modern rose pink" },
+  { key: "peach", label: "Soft Warm Peach", hex: "#FFEDD5", category: "warm", isDark: false, description: "Gentle warm peach highlight" },
+
+  // 6. Royal Purples & Blues
+  { key: "royal_purple", label: "Royal Imperial Purple", hex: "#581C87", category: "royal", isDark: true, description: "Majestic academic purple" },
+  { key: "amethyst", label: "Vivid Amethyst", hex: "#7E22CE", category: "royal", isDark: true, description: "Deep crystalline violet" },
+  { key: "cobalt", label: "Electric Cobalt", hex: "#1D4ED8", category: "royal", isDark: true, description: "High-energy electric blue" },
+  { key: "sapphire", label: "Deep Sapphire", hex: "#1E3A8A", category: "royal", isDark: true, description: "Rich royal gem blue" },
+  { key: "lavender", label: "Soft Lavender Mist", hex: "#F3E8FF", category: "royal", isDark: false, description: "Soothing academic lilac" },
+  { key: "plum", label: "Deep Velvet Plum", hex: "#4C1D95", category: "royal", isDark: true, description: "Regal velvet dark plum" },
+
+  // 7. Classic Brand Bases & Neutrals
   { key: "white", label: "Crisp Pure White", hex: "#FFFFFF", category: "classic", isDark: false, description: "Standard modern clean canvas" },
   { key: "paper", label: "Parchment Paper (Brand)", hex: "#FAF8F3", category: "classic", isDark: false, description: "College signature tactile paper" },
   { key: "sand", label: "Warm Sand", hex: "#F7F4EE", category: "classic", isDark: false, description: "Earthy warm beige neutral" },
-  { key: "sage", label: "Sage Mist", hex: "#EFF5F2", category: "classic", isDark: false, description: "Calm organic herbal mist" },
+  { key: "black_obsidian", label: "Obsidian Black", hex: "#0A0A0A", category: "classic", isDark: true, description: "Ultra-deep luxury pitch black" },
 ];
 
 export function isDarkHex(hex: string): boolean {
@@ -147,4 +171,27 @@ export function resolveSectionBg(
     style,
   };
 }
+
+export function resolveItemColor(color?: string): string | undefined {
+  if (!color || color === "auto") return undefined;
+  if (color.startsWith("#") || color.startsWith("rgb")) return color;
+  const matched = COLLEGE_COLOR_PALETTES.find((p) => p.key === color);
+  if (matched) return matched.hex;
+  const legacyMap: Record<string, string> = {
+    white: "#ffffff",
+    navy: "#23216B",
+    gold: "#D9B84A",
+    gold_subtle: "#F3E58A",
+    paper: "#FAF8F3",
+    ink: "#1B1B2B",
+    ink_soft: "#5A5A6E",
+    mint: "#dff5ec",
+    peach: "#faedd9",
+    lavender: "#eeeaf8",
+    sky: "#e2f3fa",
+    transparent: "transparent",
+  };
+  return legacyMap[color];
+}
+
 

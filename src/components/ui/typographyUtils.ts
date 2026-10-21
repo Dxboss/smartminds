@@ -1,4 +1,5 @@
 import React from "react";
+import { COLLEGE_COLOR_PALETTES, resolveItemColor, isDarkHex } from "./sectionBg";
 
 export type FontFamilyChoice = "heading" | "body" | "serif";
 export type FontSizeChoice = "sm" | "md" | "lg" | "xl" | "2xl";
@@ -90,7 +91,12 @@ export function resolveTypography(options: TypographyOptions): ResolvedTypograph
   } else if (typeof colorChoice === "string" && colorChoice.startsWith("#")) {
     inlineStyle = { color: colorChoice };
   } else {
-    colorClass = options.isDark ? "text-white" : "text-navy-900";
+    const matched = COLLEGE_COLOR_PALETTES.find((p) => p.key === colorChoice);
+    if (matched) {
+      inlineStyle = { color: matched.hex };
+    } else {
+      colorClass = options.isDark ? "text-white" : "text-navy-900";
+    }
   }
 
   const className = `${familyClass} ${sizeClass} ${weightClass} ${italicClass} ${alignClass} ${transformClass} ${colorClass}`.trim();
@@ -144,6 +150,12 @@ export function resolveSubheadlineTypography(options: TypographyOptions): Resolv
   } else if (typeof colorChoice === "string" && colorChoice.startsWith("#")) {
     inlineStyle = { color: colorChoice };
     colorClass = "";
+  } else {
+    const matched = COLLEGE_COLOR_PALETTES.find((p) => p.key === colorChoice);
+    if (matched) {
+      inlineStyle = { color: matched.hex };
+      colorClass = "";
+    }
   }
 
   let alignClass = "";
@@ -161,8 +173,11 @@ export function resolveSubheadlineTypography(options: TypographyOptions): Resolv
 
 export interface ResolvedCardStyles {
   containerClass: string;
+  containerStyle?: React.CSSProperties;
   titleClass: string;
+  titleStyle?: React.CSSProperties;
   descClass: string;
+  descStyle?: React.CSSProperties;
 }
 
 export function resolveCardContainerStyles(
@@ -179,20 +194,36 @@ export function resolveCardContainerStyles(
   },
   isDark = false
 ): ResolvedCardStyles {
+  let containerStyle: React.CSSProperties | undefined = undefined;
+  let titleStyle: React.CSSProperties | undefined = undefined;
+  let descStyle: React.CSSProperties | undefined = undefined;
+
   // Surface fill
   let bgClass = isDark ? "bg-white/5 text-white" : "bg-white text-ink";
+  const resolvedBg = resolveItemColor(item?.cardBg);
+  const isNavyCard = item?.cardBg === "navy" || (resolvedBg ? isDarkHex(resolvedBg) : false);
+
   if (item?.cardBg === "white") bgClass = "bg-white text-ink";
   else if (item?.cardBg === "paper") bgClass = "bg-paper text-ink";
   else if (item?.cardBg === "navy") bgClass = "bg-navy-900 text-white";
   else if (item?.cardBg === "gold_subtle") bgClass = "bg-gold-500/10 text-navy-900";
   else if (item?.cardBg === "transparent") bgClass = "bg-transparent text-inherit";
+  else if (resolvedBg) {
+    containerStyle = { backgroundColor: resolvedBg };
+    bgClass = isNavyCard ? "text-white" : "text-ink";
+  }
 
   // Border style
-  let borderClass = isDark ? "border border-white/10" : "border border-line";
-  if (item?.cardBorder === "line") borderClass = "border border-line";
+  let borderClass = isDark || isNavyCard ? "border border-white/10" : "border border-line";
+  const resolvedBorder = resolveItemColor(item?.cardBorder);
+
+  if (item?.cardBorder === "line") borderClass = isDark || isNavyCard ? "border border-white/10" : "border border-line";
   else if (item?.cardBorder === "gold") borderClass = "border-2 border-gold-500 shadow-sm";
   else if (item?.cardBorder === "navy") borderClass = "border-2 border-navy-900";
   else if (item?.cardBorder === "none") borderClass = "border-0";
+  else if (resolvedBorder) {
+    containerStyle = { ...(containerStyle || {}), borderColor: resolvedBorder, borderWidth: "2px" };
+  }
 
   // Radius (strictly PRD 2 radii rule: 6px vs 16px)
   let radiusClass = "rounded-lg"; // default signature 16px
@@ -211,11 +242,16 @@ export function resolveCardContainerStyles(
   else if (item?.textAlign === "right") alignClass = "text-right";
 
   // Title styling
-  let titleColor = isDark || item?.cardBg === "navy" ? "text-white" : "text-navy-900";
+  let titleColor = isDark || isNavyCard ? "text-white" : "text-navy-900";
+  const resolvedTitle = resolveItemColor(item?.titleColor);
   if (item?.titleColor === "navy") titleColor = "text-navy-900";
   else if (item?.titleColor === "gold") titleColor = "text-gold-500";
   else if (item?.titleColor === "white") titleColor = "text-white";
   else if (item?.titleColor === "ink_soft") titleColor = "text-ink-soft";
+  else if (resolvedTitle) {
+    titleStyle = { color: resolvedTitle };
+    titleColor = "";
+  }
 
   let titleSize = "text-xl";
   if (item?.titleSize === "sm") titleSize = "text-base sm:text-lg";
@@ -230,16 +266,21 @@ export function resolveCardContainerStyles(
   else if (item?.titleWeight === "bold") titleWeight = "font-bold";
 
   // Description styling
-  let descColor = isDark || item?.cardBg === "navy" ? "text-paper/80" : "text-ink-soft";
+  let descColor = isDark || isNavyCard ? "text-paper/80" : "text-ink-soft";
+  const resolvedDesc = resolveItemColor(item?.descColor);
   if (item?.descColor === "navy") descColor = "text-navy-900";
   else if (item?.descColor === "gold") descColor = "text-gold-500";
   else if (item?.descColor === "white") descColor = "text-white/80";
   else if (item?.descColor === "ink_soft") descColor = "text-ink-soft";
+  else if (resolvedDesc) {
+    descStyle = { color: resolvedDesc };
+    descColor = "";
+  }
 
   const containerClass = `${bgClass} ${borderClass} ${radiusClass} ${paddingClass} ${alignClass} shadow-subtle transition-all`.trim();
   const titleClass = `font-heading ${titleSize} ${titleWeight} ${titleColor}`.trim();
   const descClass = `text-sm leading-relaxed ${descColor}`.trim();
 
-  return { containerClass, titleClass, descClass };
+  return { containerClass, containerStyle, titleClass, titleStyle, descClass, descStyle };
 }
 

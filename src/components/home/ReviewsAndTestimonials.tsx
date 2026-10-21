@@ -193,7 +193,7 @@ export const ReviewsAndTestimonials: React.FC<ReviewsAndTestimonialsProps> = ({
               : siteConfig.testimonials
             ).map((t, idx) => {
               const rawItem = items?.[idx];
-              const { containerClass, titleClass, descClass } = resolveCardContainerStyles(rawItem, isDark);
+              const { containerClass, containerStyle, titleClass, titleStyle, descClass, descStyle } = resolveCardContainerStyles(rawItem, isDark);
 
               return (
                 <EditableElementWrapper
@@ -204,7 +204,7 @@ export const ReviewsAndTestimonials: React.FC<ReviewsAndTestimonialsProps> = ({
                   onClick={() => onSelectElement?.("item", idx)}
                   className="rounded-lg"
                 >
-                  <div className={`p-6 ${containerClass}`}>
+                  <div style={containerStyle} className={`p-6 ${containerClass}`}>
                     {/* Header with photo, name, course */}
                     <div className="flex items-center justify-between gap-4 mb-4">
                       <div className="flex items-center gap-3.5">
@@ -220,7 +220,7 @@ export const ReviewsAndTestimonials: React.FC<ReviewsAndTestimonialsProps> = ({
                           </div>
                         ) : null}
                         <div>
-                          <strong className={`block leading-tight ${titleClass}`}>
+                          <strong style={titleStyle} className={`block leading-tight ${titleClass}`}>
                             {t.name}
                           </strong>
                           <span className={`text-xs block font-medium ${isDark || rawItem?.cardBg === "navy" ? "text-paper/70" : "text-ink-soft"}`}>
@@ -230,7 +230,7 @@ export const ReviewsAndTestimonials: React.FC<ReviewsAndTestimonialsProps> = ({
                       </div>
                     </div>
 
-                    <p className={`italic ${descClass}`}>
+                    <p style={descStyle} className={`italic ${descClass}`}>
                       &ldquo;{t.quote}&rdquo;
                     </p>
                   </div>

@@ -17,6 +17,7 @@ import {
   type FontStyleChoice,
   type FontColorChoice,
 } from "@/components/ui/typographyUtils";
+import { resolveSectionBg, resolveItemColor } from "@/components/ui/sectionBg";
 
 export interface BundleItem {
   id: string;
@@ -318,80 +319,92 @@ export const ExclusiveBundlesSection: React.FC<ExclusiveBundlesSectionProps> = (
               const isFeatured = idx === 1;
               const cardWidthClass = "w-[85vw] sm:w-[350px] lg:w-[370px] max-w-[380px] flex-shrink-0 snap-start";
 
-              return (
-                <EditableElementWrapper
-                  key={bundle.id}
-                  isEditor={isEditor}
-                  isSelected={isEditor && selectedElementKey === "item" && selectedElementItemIndex === idx}
-                  label={`Bundle Card #${idx + 1}`}
-                  onClick={() => onSelectElement?.("item", idx)}
-                  className={`${cardWidthClass} flex flex-col h-full`}
-                >
-                  <div
+                const rawItem = items?.[idx];
+                const resolvedCardBg = resolveItemColor(rawItem?.cardBg);
+                const resolvedTitleColor = resolveItemColor(rawItem?.titleColor);
+                const resolvedDescColor = resolveItemColor(rawItem?.descColor);
+
+                return (
+                  <EditableElementWrapper
                     key={bundle.id}
-                    data-bundle-card
-                    className={`${isEditor ? "w-full" : cardWidthClass} h-full relative rounded-3xl overflow-hidden bg-white border shadow-card hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between ${
-                      isFeatured
-                        ? "border-teal-500 ring-2 ring-teal-500/20"
-                        : "border-line"
-                    }`}
+                    isEditor={isEditor}
+                    isSelected={isEditor && selectedElementKey === "item" && selectedElementItemIndex === idx}
+                    label={`Bundle Card #${idx + 1}`}
+                    onClick={() => onSelectElement?.("item", idx)}
+                    className={`${cardWidthClass} flex flex-col h-full`}
                   >
-                    {/* Top Half: Real Photo with Atmospheric Teal Overlay & Floating Price Tag (Image 2 style) */}
-                    <div className="relative h-52 bg-gradient-to-br from-[#0B4D4E] to-[#073637] p-4 sm:p-5 flex flex-col justify-between overflow-hidden group/art">
-                      {/* Real photo background */}
-                      <Image
-                        src={bundle.image}
-                        alt={bundle.title}
-                        fill
-                        sizes="(max-width: 640px) 85vw, (max-width: 1024px) 50vw, 400px"
-                        className="object-cover group-hover/art:scale-105 transition-transform duration-500 ease-out"
-                      />
+                    <div
+                      key={bundle.id}
+                      data-bundle-card
+                      style={resolvedCardBg ? { backgroundColor: resolvedCardBg } : undefined}
+                      className={`${isEditor ? "w-full" : cardWidthClass} h-full relative rounded-3xl overflow-hidden bg-white border shadow-card hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between ${
+                        isFeatured
+                          ? "border-teal-500 ring-2 ring-teal-500/20"
+                          : "border-line"
+                      }`}
+                    >
+                      {/* Top Half: Real Photo with Atmospheric Teal Overlay & Floating Price Tag (Image 2 style) */}
+                      <div className="relative h-52 bg-gradient-to-br from-[#0B4D4E] to-[#073637] p-4 sm:p-5 flex flex-col justify-between overflow-hidden group/art">
+                        {/* Real photo background */}
+                        <Image
+                          src={bundle.image}
+                          alt={bundle.title}
+                          fill
+                          sizes="(max-width: 640px) 85vw, (max-width: 1024px) 50vw, 400px"
+                          className="object-cover group-hover/art:scale-105 transition-transform duration-500 ease-out"
+                        />
 
-                      {/* Dark teal gradient overlay */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#0B4D4E] via-[#0B4D4E]/75 to-[#073637]/40 pointer-events-none" />
+                        {/* Dark teal gradient overlay */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-[#0B4D4E] via-[#0B4D4E]/75 to-[#073637]/40 pointer-events-none" />
 
-                      {/* Top Badges */}
-                      <div className="flex items-center justify-between gap-2 z-10 w-full">
-                        <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white/20 text-white backdrop-blur-md border border-white/20 shadow-xs truncate">
-                          {bundle.tag}
-                        </span>
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-[#FF5722] text-white shadow-xs shrink-0 whitespace-nowrap">
-                          {bundle.saveAmount}
-                        </span>
+                        {/* Top Badges */}
+                        <div className="flex items-center justify-between gap-2 z-10 w-full">
+                          <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white/20 text-white backdrop-blur-md border border-white/20 shadow-xs truncate">
+                            {bundle.tag}
+                          </span>
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-[#FF5722] text-white shadow-xs shrink-0 whitespace-nowrap">
+                            {bundle.saveAmount}
+                          </span>
+                        </div>
+
+                        {/* Bottom Price Pill Tag matching Image 2 */}
+                        <div className="self-center z-10 bg-white px-4 py-1.5 rounded-full shadow-lg border border-teal-100 flex items-center gap-2 whitespace-nowrap">
+                          <span className="font-heading font-extrabold text-lg sm:text-xl text-[#FF5722] leading-none">
+                            {bundle.price}
+                          </span>
+                          <span className="text-xs text-ink-soft line-through leading-none">
+                            {bundle.originalPrice}
+                          </span>
+                        </div>
                       </div>
 
-                      {/* Bottom Price Pill Tag matching Image 2 */}
-                      <div className="self-center z-10 bg-white px-4 py-1.5 rounded-full shadow-lg border border-teal-100 flex items-center gap-2 whitespace-nowrap">
-                        <span className="font-heading font-extrabold text-lg sm:text-xl text-[#FF5722] leading-none">
-                          {bundle.price}
-                        </span>
-                        <span className="text-xs text-ink-soft line-through leading-none">
-                          {bundle.originalPrice}
-                        </span>
+                    {/* Bottom Half: Course Metadata, Title, Avatars & Enrol CTA */}
+                    <div className="p-6 flex flex-col justify-between flex-1 space-y-4">
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-xs text-ink-soft">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-[#0B4D4E]">
+                            Dual Qualification
+                          </span>
+                          <span className="flex items-center gap-1 font-medium text-[11px]">
+                            <Icon name="clock" size={12} />
+                            {bundle.duration}
+                          </span>
+                        </div>
+
+                        <h3
+                          style={resolvedTitleColor ? { color: resolvedTitleColor } : undefined}
+                          className="font-heading text-xl font-bold text-navy-900 leading-snug min-h-[3rem] flex items-start"
+                        >
+                          {bundle.title}
+                        </h3>
+
+                        <p
+                          style={resolvedDescColor ? { color: resolvedDescColor } : undefined}
+                          className="text-xs text-ink-soft line-clamp-2 leading-relaxed min-h-[2.5rem]"
+                        >
+                          {bundle.subtitle}
+                        </p>
                       </div>
-                    </div>
-
-                  {/* Bottom Half: Course Metadata, Title, Avatars & Enrol CTA */}
-                  <div className="p-6 flex flex-col justify-between flex-1 space-y-4">
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-xs text-ink-soft">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#0B4D4E]">
-                          Dual Qualification
-                        </span>
-                        <span className="flex items-center gap-1 font-medium text-[11px]">
-                          <Icon name="clock" size={12} />
-                          {bundle.duration}
-                        </span>
-                      </div>
-
-                      <h3 className="font-heading text-xl font-bold text-navy-900 leading-snug min-h-[3rem] flex items-start">
-                        {bundle.title}
-                      </h3>
-
-                      <p className="text-xs text-ink-soft line-clamp-2 leading-relaxed min-h-[2.5rem]">
-                        {bundle.subtitle}
-                      </p>
-                    </div>
 
                     {/* Avatar Stack Proof & Action Link matching Image 2 */}
                     <div className="flex items-center justify-between pt-3 border-t border-line/80">

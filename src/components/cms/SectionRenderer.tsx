@@ -734,6 +734,19 @@ export const SectionRenderer: React.FC<Props> = ({
         <FeaturedCourses
           headline={section.headline}
           subheadline={section.subheadline}
+          headlineFontFamily={section.headlineFontFamily}
+          headlineFontSize={section.headlineFontSize}
+          headlineFontWeight={section.headlineFontWeight}
+          headlineFontStyle={section.headlineFontStyle}
+          headlineColor={section.headlineColor}
+          headlineTransform={section.headlineTransform}
+          headlineAlign={section.headlineAlign}
+          subheadlineFontFamily={section.subheadlineFontFamily}
+          subheadlineFontSize={section.subheadlineFontSize}
+          subheadlineFontWeight={section.subheadlineFontWeight}
+          subheadlineFontStyle={section.subheadlineFontStyle}
+          subheadlineColor={section.subheadlineColor}
+          subheadlineAlign={section.subheadlineAlign}
           buttonText={section.buttonText}
           buttonLink={section.buttonLink}
           bgColor={section.bgColor as any}
@@ -742,6 +755,10 @@ export const SectionRenderer: React.FC<Props> = ({
           courseLimit={section.courseLimit}
           categoryFilter={section.courseCategoryFilter}
           courses={courses}
+          isEditor={isEditor}
+          selectedElementKey={selectedElementKey}
+          selectedElementItemIndex={selectedElementItemIndex}
+          onSelectElement={onSelectElement}
         />
       );
 
@@ -781,6 +798,19 @@ export const SectionRenderer: React.FC<Props> = ({
         <HomeFAQ
           headline={section.headline}
           subheadline={section.subheadline}
+          headlineFontFamily={section.headlineFontFamily}
+          headlineFontSize={section.headlineFontSize}
+          headlineFontWeight={section.headlineFontWeight}
+          headlineFontStyle={section.headlineFontStyle}
+          headlineColor={section.headlineColor}
+          headlineTransform={section.headlineTransform}
+          headlineAlign={section.headlineAlign}
+          subheadlineFontFamily={section.subheadlineFontFamily}
+          subheadlineFontSize={section.subheadlineFontSize}
+          subheadlineFontWeight={section.subheadlineFontWeight}
+          subheadlineFontStyle={section.subheadlineFontStyle}
+          subheadlineColor={section.subheadlineColor}
+          subheadlineAlign={section.subheadlineAlign}
           items={section.items}
           bgColor={section.bgColor as any}
           columns={(section.columns === 1 ? 2 : section.columns) as 2 | 3 | 4 | undefined}

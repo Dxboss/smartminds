@@ -11,7 +11,7 @@ import {
   resolveTypography,
   resolveSubheadlineTypography,
 } from "@/components/ui/typographyUtils";
-import { resolveSectionBg } from "@/components/ui/sectionBg";
+import { resolveSectionBg, resolveItemColor } from "@/components/ui/sectionBg";
 
 export interface StudentIDBenefitsSectionProps {
   headline?: string;
@@ -175,59 +175,26 @@ export const StudentIDBenefitsSection: React.FC<StudentIDBenefitsSectionProps> =
 
             <div className="space-y-4 pt-2">
               {activeBenefits.map((item, idx) => {
+                const resolvedBg = resolveItemColor(item.cardBg);
+                const resolvedBorder = resolveItemColor(item.cardBorder);
+                const resolvedTitleCol = resolveItemColor(item.titleColor);
+                const resolvedDescCol = resolveItemColor(item.descColor);
+
                 const cardStyle: React.CSSProperties = {
-                  backgroundColor: item.cardBg
-                    ? item.cardBg === "white"
-                      ? "#ffffff"
-                      : item.cardBg === "navy"
-                      ? "#23216B"
-                      : item.cardBg === "gold_subtle"
-                      ? "#F3E58A"
-                      : item.cardBg === "paper"
-                      ? "#FAF8F3"
-                      : undefined
-                    : undefined,
-                  borderColor: item.cardBorder
-                    ? item.cardBorder === "none"
-                      ? "transparent"
-                      : item.cardBorder === "gold"
-                      ? "#D9B84A"
-                      : item.cardBorder === "navy"
-                      ? "#23216B"
-                      : undefined
-                    : undefined,
+                  backgroundColor: resolvedBg || undefined,
+                  borderColor: resolvedBorder || (item.cardBorder === "none" ? "transparent" : undefined),
                   borderRadius:
                     item.cardRadius === "none" ? "0" : item.cardRadius === "sm" ? "6px" : item.cardRadius === "xl" ? "20px" : undefined,
                 };
 
                 const titleStyle: React.CSSProperties = {
-                  color: item.titleColor
-                    ? item.titleColor === "white"
-                      ? "#ffffff"
-                      : item.titleColor === "navy"
-                      ? "#23216B"
-                      : item.titleColor === "gold"
-                      ? "#B78A2E"
-                      : item.titleColor === "ink_soft"
-                      ? "#5A5A6E"
-                      : undefined
-                    : undefined,
+                  color: resolvedTitleCol || undefined,
                   fontSize: item.titleSize === "sm" ? "14px" : item.titleSize === "lg" ? "18px" : item.titleSize === "xl" ? "20px" : undefined,
                   fontWeight: item.titleWeight === "normal" ? 400 : item.titleWeight === "medium" ? 500 : item.titleWeight === "semibold" ? 600 : item.titleWeight === "bold" ? 700 : undefined,
                 };
 
                 const descStyle: React.CSSProperties = {
-                  color: item.descColor
-                    ? item.descColor === "white"
-                      ? "#ffffff"
-                      : item.descColor === "navy"
-                      ? "#23216B"
-                      : item.descColor === "gold"
-                      ? "#B78A2E"
-                      : item.descColor === "ink_soft"
-                      ? "#5A5A6E"
-                      : undefined
-                    : undefined,
+                  color: resolvedDescCol || undefined,
                 };
 
                 return (

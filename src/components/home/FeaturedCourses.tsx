@@ -14,8 +14,13 @@ import { calculatePricing, formatCurrency } from "@/content/pricing";
 import { globalSettings } from "@/content/globals";
 import { defaultPlan6Months } from "@/content/plans";
 import { Course } from "@/content/types";
-import { resolveSectionBg, SectionBgColor } from "@/components/ui/sectionBg";
+import { resolveSectionBg, SectionBgColor, resolveItemColor } from "@/components/ui/sectionBg";
 import { OrangeWaveAccent } from "@/components/ui/OrangeWaveAccent";
+import { EditableElementWrapper } from "@/components/admin/EditableElementWrapper";
+import {
+  resolveTypography,
+  resolveSubheadlineTypography,
+} from "@/components/ui/typographyUtils";
 
 export interface FeaturedCoursesProps {
   headline?: string;
@@ -28,6 +33,34 @@ export interface FeaturedCoursesProps {
   courseLimit?: number;
   categoryFilter?: string;
   courses?: Course[];
+  headlineFontFamily?: string;
+  headlineFontSize?: string;
+  headlineFontWeight?: string;
+  headlineFontStyle?: string;
+  headlineColor?: string;
+  headlineTransform?: string;
+  headlineAlign?: string;
+  subheadlineFontFamily?: string;
+  subheadlineFontSize?: string;
+  subheadlineFontWeight?: string;
+  subheadlineFontStyle?: string;
+  subheadlineColor?: string;
+  subheadlineAlign?: string;
+  isEditor?: boolean;
+  selectedElementKey?: string | null;
+  selectedElementItemIndex?: number | null;
+  onSelectElement?: (
+    elementKey:
+      | "headline"
+      | "subheadline"
+      | "badge"
+      | "button"
+      | "secondaryButton"
+      | "image"
+      | "item"
+      | "bg",
+    itemIndex?: number
+  ) => void;
 }
 
 const CATEGORY_TABS = [
@@ -49,10 +82,54 @@ export const FeaturedCourses: React.FC<FeaturedCoursesProps> = ({
   courseLimit,
   categoryFilter,
   courses: propCourses,
+  headlineFontFamily,
+  headlineFontSize,
+  headlineFontWeight,
+  headlineFontStyle,
+  headlineColor,
+  headlineTransform,
+  headlineAlign,
+  subheadlineFontFamily,
+  subheadlineFontSize,
+  subheadlineFontWeight,
+  subheadlineFontStyle,
+  subheadlineColor,
+  subheadlineAlign,
+  isEditor,
+  selectedElementKey,
+  selectedElementItemIndex,
+  onSelectElement,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState("all");
 
   const { isDark } = resolveSectionBg(bgColor, "white");
+
+  const { className: hlClass, style: hlStyle } = resolveTypography({
+    fontFamily: headlineFontFamily as any,
+    fontSize: headlineFontSize as any,
+    fontWeight: headlineFontWeight as any,
+    fontStyle: headlineFontStyle as any,
+    color: headlineColor,
+    align: headlineAlign as any,
+    transform: headlineTransform as any,
+    isDark,
+    defaultFamily: "heading",
+    defaultSize: "2xl",
+    defaultWeight: "extrabold",
+  });
+
+  const { className: subClass, style: subStyle } = resolveSubheadlineTypography({
+    fontFamily: subheadlineFontFamily as any,
+    fontSize: subheadlineFontSize as any,
+    fontWeight: subheadlineFontWeight as any,
+    fontStyle: subheadlineFontStyle as any,
+    color: subheadlineColor,
+    align: subheadlineAlign as any,
+    isDark,
+    defaultFamily: "body",
+    defaultSize: "md",
+    defaultWeight: "normal",
+  });
 
   const effectiveCourses = propCourses && propCourses.length > 0 ? propCourses : courses;
 
@@ -140,24 +217,39 @@ export const FeaturedCourses: React.FC<FeaturedCoursesProps> = ({
       <Container>
         {/* Section Header: Centered with Orange Wave Accent matching Inspiration */}
         <div className="text-center max-w-2xl mx-auto mb-10">
-          <div className="inline-block relative">
-            <h2 className="font-heading text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-tight">
-              {headline === "Popular Courses" ? (
-                <>
-                  <span className="text-[#FF5722]">Popular</span>{" "}
-                  <span className="text-[#0B4D4E]">Courses</span>
-                </>
-              ) : (
-                <span className="text-[#0B4D4E]">{headline}</span>
-              )}
-            </h2>
-            <div className="flex justify-center mt-2">
-              <OrangeWaveAccent width={150} height={20} className="text-[#FF5722]" />
+          <EditableElementWrapper
+            isEditor={isEditor}
+            isSelected={isEditor && selectedElementKey === "headline"}
+            label="Courses Headline"
+            onClick={() => onSelectElement?.("headline")}
+          >
+            <div className="inline-block relative">
+              <h2 style={hlStyle} className={`${hlClass} tracking-tight leading-tight`}>
+                {headline === "Popular Courses" ? (
+                  <>
+                    <span className="text-[#FF5722]">Popular</span>{" "}
+                    <span className="text-[#0B4D4E]">Courses</span>
+                  </>
+                ) : (
+                  <span>{headline}</span>
+                )}
+              </h2>
+              <div className="flex justify-center mt-2">
+                <OrangeWaveAccent width={150} height={20} className="text-[#FF5722]" />
+              </div>
             </div>
-          </div>
-          <p className="text-base sm:text-lg text-ink-soft mt-3 leading-relaxed">
-            {subheadline}
-          </p>
+          </EditableElementWrapper>
+
+          <EditableElementWrapper
+            isEditor={isEditor}
+            isSelected={isEditor && selectedElementKey === "subheadline"}
+            label="Courses Subtitle"
+            onClick={() => onSelectElement?.("subheadline")}
+          >
+            <p style={subStyle} className={`mt-3 leading-relaxed ${subClass}`}>
+              {subheadline}
+            </p>
+          </EditableElementWrapper>
         </div>
 
         {/* Category Filter Tabs: Responsive horizontal pills (hidden if already filtered to a specific discipline by CMS) */}
@@ -199,13 +291,21 @@ export const FeaturedCourses: React.FC<FeaturedCoursesProps> = ({
 
         {/* Centered View All Button matching Target Image 2 */}
         <div className="text-center mt-12">
-          <Link
-            href={buttonLink || "/courses"}
-            className="inline-flex items-center justify-center px-8 py-3.5 rounded-full border border-teal-300 text-[#0B4D4E] hover:bg-teal-50 hover:border-teal-500 font-heading font-bold text-sm tracking-wide transition-all shadow-xs"
+          <EditableElementWrapper
+            isEditor={isEditor}
+            isSelected={isEditor && selectedElementKey === "button"}
+            label="Courses Button"
+            onClick={() => onSelectElement?.("button")}
+            className="inline-block"
           >
-            <span>View All Courses</span>
-            <Icon name="arrow-right" size={15} className="ml-2 text-[#0B4D4E]" />
-          </Link>
+            <Link
+              href={buttonLink || "/courses"}
+              className="inline-flex items-center justify-center px-8 py-3.5 rounded-full border border-teal-300 text-[#0B4D4E] hover:bg-teal-50 hover:border-teal-500 font-heading font-bold text-sm tracking-wide transition-all shadow-xs"
+            >
+              <span>{buttonText || "View All Courses"}</span>
+              <Icon name="arrow-right" size={15} className="ml-2 text-[#0B4D4E]" />
+            </Link>
+          </EditableElementWrapper>
         </div>
       </Container>
     </Section>
