@@ -15,12 +15,7 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function HomePage() {
-  try {
-    const { pullLatestFromNeon } = await import("@/lib/persistedData");
-    await pullLatestFromNeon();
-  } catch {}
-
+export default function HomePage() {
   const sections = getPublishedCmsPageSections("/");
   const liveCourses = getLiveCourses();
 

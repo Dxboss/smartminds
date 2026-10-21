@@ -19,7 +19,7 @@ const cspHeader = `
 const nextConfig: NextConfig = {
   /* config options here */
   cacheComponents: true,
-  partialPrefetching: true,
+  partialPrefetching: false,
   experimental: {
     serverActions: {
       bodySizeLimit: "20mb",
