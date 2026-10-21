@@ -90,6 +90,10 @@ export interface Course {
   seo_description: string;
   published: boolean;
   target_audience?: "adult" | "minor_tutoring" | "all";
+  banner_theme?: "classic" | "navy_hero" | "emerald" | "warm" | "slate" | "custom";
+  banner_bg_color?: string;
+  banner_text_color?: string;
+  accent_color?: string;
   levels: CourseLevel[];
 }
 

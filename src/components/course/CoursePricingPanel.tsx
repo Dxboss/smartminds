@@ -4,7 +4,11 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { Course, CourseLevel, PaymentPlanTemplate } from "@/content/types";
 import { globalSettings } from "@/content/globals";
-import { defaultPlan6Months } from "@/content/plans";
+import {
+  defaultPlan6Months,
+  getSpreadMonthsForLevel,
+  isLevel5OrAbove,
+} from "@/content/plans";
 import { calculatePricing, formatCurrency } from "@/content/pricing";
 import { Tag } from "@/components/ui/Tag";
 import { Icon } from "@/components/ui/Icon";
@@ -19,16 +23,52 @@ export const CoursePricingPanel: React.FC<CoursePricingPanelProps> = ({
   course,
   selectedLevel,
 }) => {
-  const plans =
-    selectedLevel.plans.length > 0 ? selectedLevel.plans : [defaultPlan6Months];
+  const expectedMonths = React.useMemo(
+    () => getSpreadMonthsForLevel(selectedLevel.level_label),
+    [selectedLevel.level_label]
+  );
+
+  const plans = React.useMemo(() => {
+    const deposit =
+      selectedLevel.plans && selectedLevel.plans[0]?.deposit_value !== undefined
+        ? selectedLevel.plans[0].deposit_value
+        : 100;
+
+    const existingMap = new Map<number, PaymentPlanTemplate>();
+    (selectedLevel.plans || []).forEach((p) => {
+      existingMap.set(p.months, p);
+    });
+
+    return expectedMonths.map((m) => {
+      const existing = existingMap.get(m);
+      if (existing) {
+        return {
+          ...existing,
+          deposit_value: existing.deposit_value ?? deposit,
+        };
+      }
+      return {
+        id: `plan-${m}m`,
+        name: `${m} Monthly Payments`,
+        months: m,
+        deposit_type: "fixed" as const,
+        deposit_value: deposit,
+        grace_days: 7,
+        after_grace: "pause_access" as const,
+      };
+    });
+  }, [selectedLevel, expectedMonths]);
+
   const [selectedPlanIndex, setSelectedPlanIndex] = useState(0);
   const [paymentMode, setPaymentMode] = useState<"full" | "instalments">(
     "full"
   );
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
 
+  // Safely clamp active plan if level changed and plan count/months differs
+  const safePlanIndex = Math.min(selectedPlanIndex, Math.max(0, plans.length - 1));
   const activePlan: PaymentPlanTemplate =
-    plans[selectedPlanIndex] || plans[0] || defaultPlan6Months;
+    plans[safePlanIndex] || plans[0] || defaultPlan6Months;
   const pricing = calculatePricing(selectedLevel, activePlan, globalSettings);
 
   const isFundedOnly = course.funding === "funded";

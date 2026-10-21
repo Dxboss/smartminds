@@ -16,7 +16,13 @@ import {
 } from "@/app/admin/actions";
 import { type FacultyRecord, DEFAULT_COLLEGE_FACULTIES } from "@/content/faculties";
 import { ColorPalettePicker } from "./ColorPalettePicker";
-import { COLLEGE_COLOR_PALETTES, isDarkHex } from "@/components/ui/sectionBg";
+import { COLLEGE_COLOR_PALETTES, isDarkHex, resolveItemColor } from "@/components/ui/sectionBg";
+import {
+  getSpreadMonthsForLevel,
+  generatePaymentPlansForLevel,
+  isLevel5OrAbove,
+  getLevelNumber,
+} from "@/content/plans";
 
 interface CoursesManagerViewProps {
   courses: Course[];
@@ -37,11 +43,19 @@ export function CoursesManagerView({
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [editTab, setEditTab] = useState<
-    "general" | "pricing" | "curriculum" | "outcomes" | "specs" | "faqs"
+    "general" | "pricing" | "curriculum" | "outcomes" | "specs" | "style" | "faqs"
   >("general");
   const [selectedLevelIdx, setSelectedLevelIdx] = useState(0);
   const [editLevels, setEditLevels] = useState<CourseLevel[]>([]);
   const [editLevelLabel, setEditLevelLabel] = useState("");
+
+  // Course Page Styling & Theme State
+  const [editBannerTheme, setEditBannerTheme] = useState<
+    "classic" | "navy_hero" | "emerald" | "warm" | "slate" | "custom"
+  >("classic");
+  const [editBannerBgColor, setEditBannerBgColor] = useState("");
+  const [editBannerTextColor, setEditBannerTextColor] = useState("");
+  const [editAccentColor, setEditAccentColor] = useState("");
 
   // Wix-style Media Library State
   const [mediaLibrary, setMediaLibrary] = useState<{ label: string; url: string }[]>([
@@ -427,6 +441,12 @@ export function CoursesManagerView({
     setEditSupportModelText(course.support_model_text || "Named British Assessor");
     setExpandedUnitIdx(null);
 
+    // Course Page Styling & Theme
+    setEditBannerTheme(course.banner_theme || "classic");
+    setEditBannerBgColor(course.banner_bg_color || "");
+    setEditBannerTextColor(course.banner_text_color || "");
+    setEditAccentColor(course.accent_color || "");
+
     if (course.image) {
       setMediaLibrary((prev) => {
         if (prev.some((m) => m.url === course.image)) return prev;
@@ -450,9 +470,27 @@ export function CoursesManagerView({
 
     return levelsArr.map((lvl, i) => {
       if (i !== idx) return lvl;
+      const targetLabel = editLevelLabel.trim() || lvl.level_label || `Level ${i + 1}`;
+      const depVal = isNaN(parsedDeposit) ? 150 : parsedDeposit;
+      const spreadMonths = getSpreadMonthsForLevel(targetLabel);
+
+      // Dynamically generate all 4 plans for this level based on whether it is < Level 5 or >= Level 5
+      const dynamicPlans = spreadMonths.map((m) => {
+        const existing = lvl.plans?.find((p) => p.months === m);
+        return {
+          id: existing?.id || `plan-${m}m`,
+          name: `${m} Monthly Payments`,
+          months: m,
+          deposit_type: "fixed" as const,
+          deposit_value: depVal,
+          grace_days: 7,
+          after_grace: "pause_access" as const,
+        };
+      });
+
       return {
         ...lvl,
-        level_label: editLevelLabel.trim() || lvl.level_label || `Level ${i + 1}`,
+        level_label: targetLabel,
         price_gbp: parsedPrice,
         regular_price_gbp,
         full_pay_discount_percent: isNaN(parsedDiscount) ? null : Math.max(0, Math.min(100, parsedDiscount)),
@@ -460,24 +498,7 @@ export function CoursesManagerView({
         guided_learning_hours: parsedGlh,
         units: editUnits,
         entry_requirements: editRequirements,
-        plans:
-          lvl.plans && lvl.plans.length > 0
-            ? lvl.plans.map((p, pIdx) =>
-                pIdx === 0 && !isNaN(parsedDeposit)
-                  ? { ...p, deposit_value: parsedDeposit }
-                  : p
-              )
-            : [
-                {
-                  id: "plan-6m",
-                  name: "6 Monthly Instalments",
-                  months: 6,
-                  deposit_type: "fixed" as const,
-                  deposit_value: isNaN(parsedDeposit) ? 150 : parsedDeposit,
-                  grace_days: 7,
-                  after_grace: "pause_access" as const,
-                },
-              ],
+        plans: dynamicPlans,
       };
     });
   };
@@ -512,6 +533,8 @@ export function CoursesManagerView({
     const updated = syncCurrentLevel(editLevels, selectedLevelIdx);
     const nextNum = updated.length + 1;
     const newLvlLabel = `Level ${nextNum}`;
+    const dynamicPlans = generatePaymentPlansForLevel(newLvlLabel, 150);
+
     const newLvl: CourseLevel = {
       course_id: selectedCourse.id,
       level_label: newLvlLabel,
@@ -527,17 +550,7 @@ export function CoursesManagerView({
       units: [
         { code: `MOD-${nextNum.toString().padStart(2, "0")}`, title: "Core Principles and Practical Applications" },
       ],
-      plans: [
-        {
-          id: `plan-${Date.now().toString().slice(-4)}`,
-          name: "6 Monthly Instalments",
-          months: 6,
-          deposit_type: "fixed",
-          deposit_value: 150,
-          grace_days: 7,
-          after_grace: "pause_access",
-        },
-      ],
+      plans: dynamicPlans,
     };
 
     const newLevelsList = [...updated, newLvl];
@@ -694,6 +707,10 @@ export function CoursesManagerView({
           intake_text: editIntakeText.trim() || undefined,
           assessment_model_text: editAssessmentModelText.trim() || undefined,
           support_model_text: editSupportModelText.trim() || undefined,
+          banner_theme: editBannerTheme,
+          banner_bg_color: editBannerBgColor.trim() || undefined,
+          banner_text_color: editBannerTextColor.trim() || undefined,
+          accent_color: editAccentColor.trim() || undefined,
         });
 
         if (result.success && result.course) {
@@ -1340,6 +1357,19 @@ export function CoursesManagerView({
               >
                 <Icon name="info" size={14} />
                 <span>Requirements & FAQs ({editFaqs.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setEditTab("style")}
+                className={`px-3 py-1.5 rounded-sm transition-colors flex items-center gap-1.5 ${
+                  editTab === "style"
+                    ? "bg-navy-900 text-white"
+                    : "text-ink-soft hover:bg-paper hover:text-navy-900"
+                }`}
+              >
+                <Icon name="sparkles" size={14} />
+                <span>Page Styling & Theme</span>
               </button>
             </div>
 
@@ -2348,21 +2378,38 @@ export function CoursesManagerView({
                   </div>
 
                   {/* Monthly instalment preview table */}
-                  <div className="bg-paper p-4 rounded-sm border border-line space-y-2">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-navy-900 block">
-                      Instalment Schedule Options (Calculated for {editLevelLabel || "Tuition"})
-                    </span>
+                  <div className="bg-paper p-4 rounded-sm border border-line space-y-3">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div>
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-navy-900 block">
+                          Instalment Schedule Options (Calculated for {editLevelLabel || "Tuition"})
+                        </span>
+                        <span className="text-[11px] text-ink-soft">
+                          {isLevel5OrAbove(editLevelLabel)
+                            ? "Level 5+ Qualification: Extended 6, 10, 12, and 14 months spread automatically active."
+                            : "Levels 1–4 Qualification: Standard 3, 6, 10, and 12 months spread automatically active."}
+                        </span>
+                      </div>
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm bg-navy-900 text-gold-300 text-[11px] font-bold shadow-xs">
+                        <Icon name="sparkles" size={12} className="text-gold-400" />
+                        <span>{isLevel5OrAbove(editLevelLabel) ? "Level 5+ Spread (6, 10, 12, 14m)" : "Standard Spread (3, 6, 10, 12m)"}</span>
+                      </span>
+                    </div>
+
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                      {[3, 6, 10, 12].map((m) => {
+                      {getSpreadMonthsForLevel(editLevelLabel).map((m) => {
                         const fee = parseFloat(editPrice) || 0;
                         const dep = parseFloat(editDeposit) || 0;
                         const rem = Math.max(0, fee - dep);
                         const monthly = Math.round(rem / m);
                         return (
-                          <div key={m} className="p-2.5 bg-white border border-line rounded-sm text-center">
-                            <span className="block font-semibold text-ink-soft">{m} Months</span>
-                            <strong className="block text-navy-900 text-sm">{formatCurrency(monthly)}/mo</strong>
-                            <span className="text-[10px] text-emerald-700 font-semibold">0% Interest</span>
+                          <div key={m} className="p-3 bg-white border border-line rounded-sm text-center shadow-xs space-y-1">
+                            <span className="block font-bold text-navy-900 text-xs">{m} Months</span>
+                            <strong className="block text-navy-900 text-base font-heading font-bold">{formatCurrency(monthly)}/mo</strong>
+                            <span className="text-[10px] text-emerald-700 font-bold block">0% Interest</span>
+                            <span className="text-[10px] text-ink-soft block pt-1 border-t border-line/60">
+                              Deposit £{dep.toLocaleString()} + {m} × £{monthly.toLocaleString()}
+                            </span>
                           </div>
                         );
                       })}
@@ -2869,6 +2916,223 @@ export function CoursesManagerView({
                       )}
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* TAB 7: PAGE STYLING & THEME */}
+              {editTab === "style" && (
+                <div className="space-y-6">
+                  <div className="bg-paper p-3.5 rounded-sm border border-line space-y-3">
+                    <div className="flex items-center justify-between pb-2 border-b border-line/60">
+                      <div>
+                        <strong className="text-xs font-bold text-navy-900 flex items-center gap-1.5">
+                          <Icon name="sparkles" size={14} className="text-gold-500" />
+                          <span>Course Page Banner &amp; Color Theme</span>
+                        </strong>
+                        <p className="text-[11px] text-ink-soft">
+                          Customize the visual appearance, hero banner background, and accents for this individual course page.
+                        </p>
+                      </div>
+                      <span className="text-[10px] font-mono text-ink-soft uppercase bg-white px-2 py-0.5 rounded border border-line">
+                        Individual Styling
+                      </span>
+                    </div>
+
+                    {/* Quick Preset Buttons */}
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-navy-900 mb-1.5">
+                        Quick Theme Presets:
+                      </label>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {[
+                          { label: "Classic Paper", bg: "", text: "", accent: "", desc: "Default Tactile Paper" },
+                          { label: "Royal Navy Hero", bg: "#23216B", text: "#FFFFFF", accent: "#D9B84A", desc: "Prestigious Dark Hero" },
+                          { label: "Deep Forest", bg: "#064E3B", text: "#FFFFFF", accent: "#D9B84A", desc: "Clinical & Healthcare" },
+                          { label: "Twilight Indigo", bg: "#34318F", text: "#FFFFFF", accent: "#F3E58A", desc: "Collegiate Blue" },
+                          { label: "Midnight Slate", bg: "#0B132B", text: "#FFFFFF", accent: "#D9B84A", desc: "Executive Dark" },
+                          { label: "Fresh Mint", bg: "#E8F4F1", text: "#1B1B2B", accent: "#059669", desc: "Gentle Mint Pastel" },
+                          { label: "Golden Cream", bg: "#FBF6E2", text: "#1B1B2B", accent: "#B78A2E", desc: "Warm Ivory Tint" },
+                          { label: "Warm Sand", bg: "#F7F4EE", text: "#1B1B2B", accent: "#23216B", desc: "Earthy Neutral" },
+                        ].map((preset, pIdx) => {
+                          const isActive =
+                            (preset.bg === "" && !editBannerBgColor) ||
+                            editBannerBgColor === preset.bg;
+                          return (
+                            <button
+                              key={pIdx}
+                              type="button"
+                              onClick={() => {
+                                setEditBannerBgColor(preset.bg);
+                                setEditBannerTextColor(preset.text);
+                                setEditAccentColor(preset.accent);
+                              }}
+                              className={`p-2.5 rounded-sm border text-left transition-all cursor-pointer ${
+                                isActive
+                                  ? "border-navy-900 bg-white font-bold text-navy-900 shadow-xs ring-1 ring-navy-900"
+                                  : "border-line bg-white hover:bg-paper text-ink"
+                              }`}
+                            >
+                              <div className="flex items-center gap-1.5 mb-1">
+                                <span
+                                  className="w-3.5 h-3.5 rounded-full border border-black/15 shrink-0"
+                                  style={{ backgroundColor: preset.bg || "#FAF8F3" }}
+                                />
+                                <span className="text-xs truncate">{preset.label}</span>
+                              </div>
+                              <span className="text-[10px] text-ink-soft block truncate">{preset.desc}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Detailed Palette Pickers */}
+                    <div className="pt-2 border-t border-line/60 space-y-4">
+                      <div>
+                        <ColorPalettePicker
+                          value={editBannerBgColor || "auto"}
+                          onChange={(val) => setEditBannerBgColor(val === "auto" ? "" : val)}
+                          label="Banner / Header Background Color"
+                          showAutoOption={true}
+                          defaultColor="auto"
+                          allowCustomHex={true}
+                        />
+                        <span className="text-[10px] text-ink-soft block mt-1">
+                          Auto uses default parchment paper. Picking dark colors (Navy, Forest, Slate) automatically adjusts typography to high-contrast white.
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-line/60">
+                        <ColorPalettePicker
+                          value={editBannerTextColor || "auto"}
+                          onChange={(val) => setEditBannerTextColor(val === "auto" ? "" : val)}
+                          label="Headline & Title Text Color"
+                          compact={true}
+                          showAutoOption={true}
+                          defaultColor="auto"
+                        />
+                        <ColorPalettePicker
+                          value={editAccentColor || "auto"}
+                          onChange={(val) => setEditAccentColor(val === "auto" ? "" : val)}
+                          label="Accent / Star / Badge Color"
+                          compact={true}
+                          showAutoOption={true}
+                          defaultColor="auto"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Live Mini Banner Preview */}
+                  {(() => {
+                    const previewBg = resolveItemColor(editBannerBgColor);
+                    const isDark = previewBg ? isDarkHex(previewBg) : false;
+                    const previewTextColor = resolveItemColor(editBannerTextColor);
+                    const previewAccent = resolveItemColor(editAccentColor) || (isDark ? "#D9B84A" : "#23216B");
+
+                    return (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="block text-[11px] font-bold text-navy-900 uppercase tracking-wider">
+                            Live Page Hero Preview:
+                          </label>
+                          <span className="text-[10px] text-ink-soft">
+                            Real-time simulation of public course page header
+                          </span>
+                        </div>
+
+                        <div
+                          className={`p-5 rounded-lg border transition-all ${
+                            previewBg
+                              ? isDark
+                                ? "border-white/20 text-white shadow-md"
+                                : "border-line text-ink shadow-xs"
+                              : "bg-paper border-line text-ink"
+                          }`}
+                          style={previewBg ? { backgroundColor: previewBg } : undefined}
+                        >
+                          {/* Breadcrumb Preview */}
+                          <div className={`flex items-center gap-1.5 text-[10px] mb-3 ${isDark ? "text-white/60" : "text-ink-soft"}`}>
+                            <span>Home</span>
+                            <span>&rsaquo;</span>
+                            <span>Qualifications</span>
+                            <span>&rsaquo;</span>
+                            <span className={isDark ? "text-white font-semibold" : "text-navy-900 font-semibold"}>
+                              {editTitle || "Course Title Preview"}
+                            </span>
+                          </div>
+
+                          {/* Accreditation Badge */}
+                          <div className="flex items-center gap-2 mb-3">
+                            <span
+                              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-xs text-[10px] font-bold shadow-2xs ${
+                                isDark
+                                  ? "bg-white/15 text-white border border-white/20"
+                                  : "bg-navy-900 text-white"
+                              }`}
+                            >
+                              <Icon name="shield-check" size={11} style={{ color: previewAccent }} />
+                              <span>{editType === "regulated" ? "Ofqual Regulated (RQF)" : "CPD Accredited"}</span>
+                            </span>
+
+                            {editAwardingBody && (
+                              <span
+                                className={`text-[10px] font-semibold px-2 py-0.5 rounded-xs border ${
+                                  isDark ? "bg-white/10 text-white border-white/20" : "bg-white text-navy-900 border-line"
+                                }`}
+                              >
+                                {editAwardingBody}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Title & Summary */}
+                          <div className="space-y-1 mb-4">
+                            <h4
+                              style={previewTextColor ? { color: previewTextColor } : isDark ? { color: "#FFFFFF" } : undefined}
+                              className={`text-xl font-heading font-bold leading-tight ${
+                                !previewTextColor && !isDark ? "text-navy-900" : ""
+                              }`}
+                            >
+                              {editTitle || "Professional Qualification Title"}
+                            </h4>
+                            <p
+                              style={
+                                previewTextColor
+                                  ? { color: previewTextColor, opacity: 0.85 }
+                                  : isDark
+                                  ? { color: "rgba(255,255,255,0.8)" }
+                                  : undefined
+                              }
+                              className={`text-xs line-clamp-2 ${!previewTextColor && !isDark ? "text-ink-soft" : ""}`}
+                            >
+                              {editSummary || "Comprehensive syllabus overview with tutor-led mentorship and vocational practice."}
+                            </p>
+                          </div>
+
+                          {/* Delivery Mini Pills */}
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10px]">
+                            <div className={`p-2 rounded border ${isDark ? "bg-white/10 border-white/15 text-white" : "bg-white border-line"}`}>
+                              <span className={`block text-[9px] uppercase font-mono ${isDark ? "text-white/60" : "text-ink-soft"}`}>Delivery</span>
+                              <strong className="block truncate">{editDelivery === "classroom" ? "Physical Campus" : "Live Online"}</strong>
+                            </div>
+                            <div className={`p-2 rounded border ${isDark ? "bg-white/10 border-white/15 text-white" : "bg-white border-line"}`}>
+                              <span className={`block text-[9px] uppercase font-mono ${isDark ? "text-white/60" : "text-ink-soft"}`}>Intake</span>
+                              <strong className="block truncate">{editIntakeText || "Rolling"}</strong>
+                            </div>
+                            <div className={`p-2 rounded border ${isDark ? "bg-white/10 border-white/15 text-white" : "bg-white border-line"}`}>
+                              <span className={`block text-[9px] uppercase font-mono ${isDark ? "text-white/60" : "text-ink-soft"}`}>Assessment</span>
+                              <strong className="block truncate">100% Portfolio</strong>
+                            </div>
+                            <div className={`p-2 rounded border ${isDark ? "bg-white/10 border-white/15 text-white" : "bg-white border-line"}`}>
+                              <span className={`block text-[9px] uppercase font-mono ${isDark ? "text-white/60" : "text-ink-soft"}`}>Support</span>
+                              <strong className="block truncate">Named Assessor</strong>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
             </div>

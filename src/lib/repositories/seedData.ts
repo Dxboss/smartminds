@@ -1367,6 +1367,12 @@ export interface HeaderNavConfig {
   ctaButtonIconPosition?: "left" | "right";
   ctaButtonRadius?: "none" | "sm" | "md" | "full";
   ctaButtonSize?: "sm" | "md" | "lg";
+  headerBgColor?: string;
+  headerTextColor?: string;
+  headerActiveLinkColor?: string;
+  headerFontFamily?: "heading" | "body";
+  announcementBgColor?: string;
+  announcementTextColor?: string;
   navLinks: NavLinkItem[];
 }
 
@@ -1409,6 +1415,12 @@ export const defaultHeaderNavConfig: HeaderNavConfig = {
   whatsappNumber: "07932 034 548",
   ctaButtonText: "Get free advice",
   ctaButtonLink: "/book",
+  headerBgColor: "",
+  headerTextColor: "",
+  headerActiveLinkColor: "",
+  headerFontFamily: "body",
+  announcementBgColor: "#D9B84A",
+  announcementTextColor: "#FFFFFF",
   navLinks: [
     {
       id: "nav-1",

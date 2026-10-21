@@ -213,19 +213,25 @@ export async function authenticateUser(formData: {
         };
       }
 
+      const resolvedRole =
+        persistedCred.email.toLowerCase() === "millie@smartmindstraining.co.uk"
+          ? ("owner_admin" as const)
+          : (persistedCred.role as any);
+
       await setSessionCookie({
         id: persistedCred.id,
         email: persistedCred.email,
         name: persistedCred.name,
-        role: persistedCred.role as any,
-        learnerId: persistedCred.learnerId,
+        role: resolvedRole,
+        learnerId: resolvedRole === "student" ? persistedCred.learnerId : undefined,
         mustChangePassword: persistedCred.mustChangePassword ?? false,
       });
 
       let redirectUrl = "/admin";
-      if (persistedCred.role === "student") redirectUrl = "/student";
-      if (persistedCred.role === "tutor") redirectUrl = "/staff";
-      if (persistedCred.role === "super_admin") redirectUrl = "/super";
+      if (resolvedRole === "student") redirectUrl = "/student";
+      if (resolvedRole === "tutor") redirectUrl = "/staff";
+      if (resolvedRole === "super_admin") redirectUrl = "/super";
+      if (resolvedRole === "owner_admin" || resolvedRole === "admin_staff") redirectUrl = "/admin";
       return {
         success: true,
         redirectUrl,

@@ -72,3 +72,57 @@ export const level5PaymentPlans: PaymentPlanTemplate[] = [
   defaultPlan14Months,
 ];
 
+/**
+ * Extracts the numeric qualification level from a level label (e.g. "Level 5 Diploma" -> 5).
+ * Defaults to 3 if not specified or unparseable.
+ */
+export function getLevelNumber(label?: string): number {
+  if (!label) return 3;
+  const match = label.match(/\b(?:level|lvl|nvq|rqf)?\s*(\d+)\b/i);
+  if (match && match[1]) {
+    const num = parseInt(match[1], 10);
+    if (!isNaN(num)) return num;
+  }
+  const anyDigits = label.match(/\d+/);
+  if (anyDigits) {
+    const num = parseInt(anyDigits[0], 10);
+    if (!isNaN(num)) return num;
+  }
+  return 3;
+}
+
+/**
+ * Checks if qualification level is Level 5 or above (Level 5, 6, 7).
+ */
+export function isLevel5OrAbove(label?: string): boolean {
+  return getLevelNumber(label) >= 5;
+}
+
+/**
+ * Returns dynamic instalment spread months:
+ * - Lower than Level 5 (Levels 1, 2, 3, 4, etc.): 3, 6, 10, 12 months.
+ * - Level 5 and above (Levels 5, 6, 7, etc.): 6, 10, 12, 14 months.
+ */
+export function getSpreadMonthsForLevel(label?: string): number[] {
+  return isLevel5OrAbove(label) ? [6, 10, 12, 14] : [3, 6, 10, 12];
+}
+
+/**
+ * Generates the 4 dynamic PaymentPlanTemplates for a qualification level with specified deposit.
+ */
+export function generatePaymentPlansForLevel(
+  label?: string,
+  depositValue = 100
+): PaymentPlanTemplate[] {
+  const monthsList = getSpreadMonthsForLevel(label);
+  return monthsList.map((months) => ({
+    id: `plan-${months}m`,
+    name: `${months} Monthly Payments`,
+    months,
+    deposit_type: "fixed" as const,
+    deposit_value: depositValue,
+    grace_days: 7,
+    after_grace: "pause_access" as const,
+  }));
+}
+

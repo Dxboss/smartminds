@@ -7122,6 +7122,112 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                 </div>
               </div>
 
+              {/* Header Navigation Styling & Appearance */}
+              <div className="p-3.5 bg-paper rounded-sm border border-line space-y-3.5">
+                <div className="flex items-center justify-between pb-1 border-b border-line/60">
+                  <strong className="text-xs font-bold text-navy-900 flex items-center gap-1.5">
+                    <Icon name="sparkles" size={14} className="text-gold-500" />
+                    <span>Header Styling & Typography</span>
+                  </strong>
+                  <span className="text-[10px] font-mono text-ink-soft uppercase">
+                    Theme & Colors
+                  </span>
+                </div>
+
+                {/* Header Background Color */}
+                <div>
+                  <ColorPalettePicker
+                    value={headerNav.headerBgColor || "auto"}
+                    onChange={(val) =>
+                      setHeaderNav({
+                        ...headerNav,
+                        headerBgColor: val === "auto" ? "" : val,
+                      })
+                    }
+                    label="Header Bar Background Color"
+                    showAutoOption={true}
+                    defaultColor="auto"
+                    allowCustomHex={true}
+                  />
+                  <span className="text-[10px] text-ink-soft block mt-1">
+                    Auto uses college light teal on homepage and crisp white across inner qualification pages.
+                  </span>
+                </div>
+
+                {/* Nav Links Text Color & Active/Hover Color */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-line/60">
+                  <ColorPalettePicker
+                    value={headerNav.headerTextColor || "auto"}
+                    onChange={(val) =>
+                      setHeaderNav({
+                        ...headerNav,
+                        headerTextColor: val === "auto" ? "" : val,
+                      })
+                    }
+                    label="Navigation Links Text Color"
+                    compact={true}
+                    showAutoOption={true}
+                    defaultColor="auto"
+                  />
+                  <ColorPalettePicker
+                    value={headerNav.headerActiveLinkColor || "auto"}
+                    onChange={(val) =>
+                      setHeaderNav({
+                        ...headerNav,
+                        headerActiveLinkColor: val === "auto" ? "" : val,
+                      })
+                    }
+                    label="Active Link & Accent Color"
+                    compact={true}
+                    showAutoOption={true}
+                    defaultColor="auto"
+                  />
+                </div>
+
+                {/* Navigation Font Family */}
+                <div className="pt-2 border-t border-line/60">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-navy-900 mb-1.5">
+                    Menu Font Family & Style
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setHeaderNav({
+                          ...headerNav,
+                          headerFontFamily: "body",
+                        })
+                      }
+                      className={`py-2 px-2.5 rounded-sm border text-xs font-semibold text-left transition-all cursor-pointer ${
+                        (headerNav.headerFontFamily || "body") === "body"
+                          ? "border-navy-900 bg-white font-bold text-navy-900 shadow-xs"
+                          : "border-line bg-paper/60 text-ink-soft hover:bg-white"
+                      }`}
+                    >
+                      <span className="block font-sans text-xs">Humanist Sans</span>
+                      <span className="text-[10px] font-normal text-ink-soft block">Source Sans 3 (Standard)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setHeaderNav({
+                          ...headerNav,
+                          headerFontFamily: "heading",
+                        })
+                      }
+                      className={`py-2 px-2.5 rounded-sm border text-xs font-semibold text-left transition-all cursor-pointer ${
+                        headerNav.headerFontFamily === "heading"
+                          ? "border-navy-900 bg-white font-bold text-navy-900 shadow-xs"
+                          : "border-line bg-paper/60 text-ink-soft hover:bg-white"
+                      }`}
+                    >
+                      <span className="block font-heading uppercase tracking-wider text-xs">Editorial Condensed</span>
+                      <span className="text-[10px] font-normal text-ink-soft block">Saira Condensed (Bold)</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               {/* 2. Top Announcement Bar Settings */}
               {(() => {
                 const getEffectiveAnnouncements = (): AnnouncementItem[] => {
@@ -7225,6 +7331,24 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                         />
                         <span>Master Active</span>
                       </label>
+                    </div>
+
+                    {/* Announcement Bar Color Picker */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-b border-line/60 pb-3">
+                      <ColorPalettePicker
+                        value={headerNav.announcementBgColor || "#D9B84A"}
+                        onChange={(val) => setHeaderNav({ ...headerNav, announcementBgColor: val })}
+                        label="Ticker Background Color"
+                        compact={true}
+                        defaultColor="#D9B84A"
+                      />
+                      <ColorPalettePicker
+                        value={headerNav.announcementTextColor || "#FFFFFF"}
+                        onChange={(val) => setHeaderNav({ ...headerNav, announcementTextColor: val })}
+                        label="Ticker Text Color"
+                        compact={true}
+                        defaultColor="#FFFFFF"
+                      />
                     </div>
 
                     <div className="space-y-2.5 max-h-96 overflow-y-auto pr-0.5">

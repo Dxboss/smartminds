@@ -17,6 +17,7 @@ import {
   AnnouncementItem,
 } from "@/lib/repositories/seedData";
 import { resolveCustomButtonClasses } from "@/components/ui/buttonCustomizer";
+import { resolveItemColor, isDarkHex } from "@/components/ui/sectionBg";
 
 export interface HeaderProps {
   config?: HeaderNavConfig;
@@ -159,17 +160,32 @@ export const Header: React.FC<HeaderProps> = ({
     return null;
   }
 
+  const customHeaderBg = resolveItemColor(effectiveConfig.headerBgColor);
+  const isHeaderDark = customHeaderBg ? isDarkHex(customHeaderBg) : false;
+  const customNavTextColor = resolveItemColor(effectiveConfig.headerTextColor);
+  const customActiveColor = resolveItemColor(effectiveConfig.headerActiveLinkColor);
+  const customAnnouncementBg = resolveItemColor(effectiveConfig.announcementBgColor) || "#D9B84A";
+  const customAnnouncementText = resolveItemColor(effectiveConfig.announcementTextColor) || "#FFFFFF";
+  const isNavHeading = effectiveConfig.headerFontFamily === "heading";
+
   return (
     <header
-      className={`sticky top-0 z-40 backdrop-blur-md border-b border-line shadow-subtle transition-all ${
-        pathname === "/" ? "bg-[#E8F4F1]/95" : "bg-white/95"
+      className={`sticky top-0 z-40 backdrop-blur-md border-b shadow-subtle transition-all ${
+        customHeaderBg
+          ? isHeaderDark ? "border-white/10" : "border-line"
+          : pathname === "/" ? "bg-[#E8F4F1]/95 border-line" : "bg-white/95 border-line"
       }`}
+      style={customHeaderBg ? { backgroundColor: customHeaderBg } : undefined}
     >
       {/* 1. Dynamic Top Announcement Ticker */}
       {effectiveConfig.announcementActive && activeAnnouncements.length > 0 && (
         <aside
           aria-label="College Announcements"
-          className="bg-gold-500 text-white py-2 text-xs font-bold tracking-wide border-b border-black/10 overflow-hidden relative cursor-default select-none"
+          className="py-2 text-xs font-bold tracking-wide border-b border-black/10 overflow-hidden relative cursor-default select-none"
+          style={{
+            backgroundColor: customAnnouncementBg,
+            color: customAnnouncementText,
+          }}
         >
           <div className="flex animate-marquee hover:[animation-play-state:paused] whitespace-nowrap will-change-transform">
             {[0, 1, 2, 3].map((cycleIdx: number) => (
@@ -184,26 +200,30 @@ export const Header: React.FC<HeaderProps> = ({
                         {item.badge}
                       </span>
                     ) : (
-                      <Icon name="sparkles" size={13} className="text-white shrink-0" />
+                      <Icon name="sparkles" size={13} style={{ color: customAnnouncementText }} className="shrink-0" />
                     )}
-                    <span>{item.text}</span>
+                    <span style={{ color: customAnnouncementText }}>{item.text}</span>
                     {item.link && (
                       !isEditor ? (
                         <Link
                           href={item.link}
-                          className="underline hover:text-white/80 font-black ml-1.5 inline-flex items-center gap-0.5 cursor-pointer text-white"
+                          style={{ color: customAnnouncementText }}
+                          className="underline hover:opacity-80 font-black ml-1.5 inline-flex items-center gap-0.5 cursor-pointer"
                         >
                           <span>Learn more</span>
-                          <Icon name="arrow-right" size={11} className="text-white" />
+                          <Icon name="arrow-right" size={11} style={{ color: customAnnouncementText }} />
                         </Link>
                       ) : (
-                        <span className="underline font-black ml-1.5 inline-flex items-center gap-0.5 opacity-90 cursor-default text-white">
+                        <span
+                          style={{ color: customAnnouncementText }}
+                          className="underline font-black ml-1.5 inline-flex items-center gap-0.5 opacity-90 cursor-default"
+                        >
                           <span>Learn more</span>
-                          <Icon name="arrow-right" size={11} className="text-white" />
+                          <Icon name="arrow-right" size={11} style={{ color: customAnnouncementText }} />
                         </span>
                       )
                     )}
-                    <span className="text-white/50 text-[10px] mx-3 font-black">•</span>
+                    <span style={{ color: customAnnouncementText, opacity: 0.5 }} className="text-[10px] mx-3 font-black">•</span>
                   </div>
                 ))}
               </div>
@@ -257,23 +277,40 @@ export const Header: React.FC<HeaderProps> = ({
                       }
                       aria-expanded={isDropdownActive}
                       aria-haspopup="true"
-                      className={`flex items-center gap-1.5 text-base font-semibold transition-colors py-2 relative cursor-pointer ${
-                        isActive
-                          ? "text-navy-900 font-bold"
-                          : "text-ink-soft hover:text-navy-900"
+                      style={{
+                        color: isActive
+                          ? customActiveColor || (isHeaderDark ? "#D9B84A" : undefined)
+                          : customNavTextColor || (isHeaderDark ? "rgba(255,255,255,0.88)" : undefined),
+                      }}
+                      className={`flex items-center gap-1.5 transition-colors py-2 relative cursor-pointer ${
+                        isNavHeading ? "font-heading text-lg font-bold uppercase tracking-wider" : "text-base font-semibold"
+                      } ${
+                        !customNavTextColor && !isHeaderDark
+                          ? isActive
+                            ? "text-navy-900 font-bold"
+                            : "text-ink-soft hover:text-navy-900"
+                          : "hover:opacity-80"
                       }`}
                     >
                       <span>{item.label}</span>
                       <Icon
                         name="chevron-down"
                         size={13}
-                        className={`transition-transform duration-200 text-ink-soft group-hover/nav:text-navy-900 ${
+                        style={{
+                          color: isActive
+                            ? customActiveColor || (isHeaderDark ? "#D9B84A" : undefined)
+                            : customNavTextColor || (isHeaderDark ? "rgba(255,255,255,0.7)" : undefined),
+                        }}
+                        className={`transition-transform duration-200 ${
+                          !customNavTextColor && !isHeaderDark ? "text-ink-soft group-hover/nav:text-navy-900" : ""
+                        } ${
                           isDropdownActive ? "rotate-180" : ""
                         }`}
                       />
                       {isActive && (
                         <span
-                          className="absolute bottom-0 inset-x-0 h-0.5 bg-gold-500 rounded-full"
+                          className="absolute bottom-0 inset-x-0 h-0.5 rounded-full"
+                          style={{ backgroundColor: customActiveColor || "#D9B84A" }}
                           aria-hidden="true"
                         />
                       )}
@@ -365,10 +402,19 @@ export const Header: React.FC<HeaderProps> = ({
               return isEditor ? (
                 <span
                   key={item.href}
-                  className={`text-base font-semibold py-2 cursor-default ${
-                    isActive
-                      ? "text-navy-900 font-bold"
-                      : "text-ink-soft hover:text-navy-900"
+                  style={{
+                    color: isActive
+                      ? customActiveColor || (isHeaderDark ? "#D9B84A" : undefined)
+                      : customNavTextColor || (isHeaderDark ? "rgba(255,255,255,0.88)" : undefined),
+                  }}
+                  className={`py-2 cursor-default ${
+                    isNavHeading ? "font-heading text-lg font-bold uppercase tracking-wider" : "text-base font-semibold"
+                  } ${
+                    !customNavTextColor && !isHeaderDark
+                      ? isActive
+                        ? "text-navy-900 font-bold"
+                        : "text-ink-soft hover:text-navy-900"
+                      : ""
                   }`}
                 >
                   {item.label}
@@ -377,16 +423,26 @@ export const Header: React.FC<HeaderProps> = ({
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`text-base font-semibold transition-colors py-2 relative ${
-                    isActive
-                      ? "text-navy-900 font-bold"
-                      : "text-ink-soft hover:text-navy-900"
+                  style={{
+                    color: isActive
+                      ? customActiveColor || (isHeaderDark ? "#D9B84A" : undefined)
+                      : customNavTextColor || (isHeaderDark ? "rgba(255,255,255,0.88)" : undefined),
+                  }}
+                  className={`transition-colors py-2 relative ${
+                    isNavHeading ? "font-heading text-lg font-bold uppercase tracking-wider" : "text-base font-semibold"
+                  } ${
+                    !customNavTextColor && !isHeaderDark
+                      ? isActive
+                        ? "text-navy-900 font-bold"
+                        : "text-ink-soft hover:text-navy-900"
+                      : "hover:opacity-80"
                   }`}
                 >
                   {item.label}
                   {isActive && (
                     <span
-                      className="absolute bottom-0 inset-x-0 h-0.5 bg-gold-500 rounded-full"
+                      className="absolute bottom-0 inset-x-0 h-0.5 rounded-full"
+                      style={{ backgroundColor: customActiveColor || "#D9B84A" }}
                       aria-hidden="true"
                     />
                   )}
@@ -591,7 +647,11 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2.5 rounded-sm text-navy-900 hover:bg-paper border border-line min-h-[44px] min-w-[44px] flex items-center justify-center transition-colors"
+              className={`p-2.5 rounded-sm min-h-[44px] min-w-[44px] flex items-center justify-center transition-colors border ${
+                isHeaderDark
+                  ? "text-white hover:bg-white/10 border-white/20"
+                  : "text-navy-900 hover:bg-paper border-line"
+              }`}
               aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
               aria-expanded={mobileMenuOpen}
               aria-controls="mobile-navigation"
