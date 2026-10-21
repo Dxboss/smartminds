@@ -229,45 +229,53 @@ export async function pullLatestFromNeon(): Promise<boolean> {
           ...(dbStore.cmsPagesDraftData || {}),
         },
         faculties:
-          Array.isArray(dbStore.faculties) && dbStore.faculties.length > 0
+          Array.isArray(dbStore.faculties)
             ? dbStore.faculties
             : store.faculties,
         learners:
-          Array.isArray(dbStore.learners) && dbStore.learners.length > 0
+          Array.isArray(dbStore.learners)
             ? dbStore.learners
             : store.learners,
         subscribers:
-          Array.isArray(dbStore.subscribers) && dbStore.subscribers.length > 0
+          Array.isArray(dbStore.subscribers)
             ? dbStore.subscribers
             : store.subscribers,
         cohorts:
-          Array.isArray(dbStore.cohorts) && dbStore.cohorts.length > 0
+          Array.isArray(dbStore.cohorts)
             ? dbStore.cohorts
             : store.cohorts,
         classSessions:
-          Array.isArray(dbStore.classSessions) && dbStore.classSessions.length > 0
+          Array.isArray(dbStore.classSessions)
             ? dbStore.classSessions
             : store.classSessions,
         paymentRecords:
-          Array.isArray(dbStore.paymentRecords) && dbStore.paymentRecords.length > 0
+          Array.isArray(dbStore.paymentRecords)
             ? dbStore.paymentRecords
             : store.paymentRecords,
+        paymentSchedules:
+          Array.isArray(dbStore.paymentSchedules)
+            ? dbStore.paymentSchedules
+            : store.paymentSchedules,
         enrolments:
-          Array.isArray(dbStore.enrolments) && dbStore.enrolments.length > 0
+          Array.isArray(dbStore.enrolments)
             ? dbStore.enrolments
             : store.enrolments,
         enquiries:
-          Array.isArray(dbStore.enquiries) && dbStore.enquiries.length > 0
+          Array.isArray(dbStore.enquiries)
             ? dbStore.enquiries
             : store.enquiries,
         bookings:
-          Array.isArray(dbStore.bookings) && dbStore.bookings.length > 0
+          Array.isArray(dbStore.bookings)
             ? dbStore.bookings
             : store.bookings,
         blogPosts:
-          Array.isArray(dbStore.blogPosts) && dbStore.blogPosts.length > 0
+          Array.isArray(dbStore.blogPosts)
             ? dbStore.blogPosts
             : store.blogPosts,
+        userCredentials:
+          Array.isArray(dbStore.userCredentials)
+            ? dbStore.userCredentials
+            : store.userCredentials,
       };
 
       const filePath = getStoreFilePath();
@@ -982,12 +990,9 @@ export function syncPersistedRecords(force: boolean = false): void {
     } = require("@/lib/repositories/seedData");
 
     const store = loadPersistedRecords();
-    if (store.learners && store.learners.length > 0) {
-      for (const pl of store.learners) {
-        if (!seedLearners.some((l: Learner) => l.id === pl.id)) {
-          seedLearners.push(pl);
-        }
-      }
+    seedLearners.length = 0;
+    if (store.learners && Array.isArray(store.learners)) {
+      seedLearners.push(...store.learners);
     }
 
     if (store.userCredentials && store.userCredentials.length > 0) {
@@ -1014,29 +1019,19 @@ export function syncPersistedRecords(force: boolean = false): void {
       }
     }
 
-    if (store.enrolments && store.enrolments.length > 0) {
-      for (const pe of store.enrolments) {
-        if (!seedEnrolments.some((e: Enrolment) => e.id === pe.id)) {
-          seedEnrolments.push(pe);
-        }
-      }
+    seedEnrolments.length = 0;
+    if (store.enrolments && Array.isArray(store.enrolments)) {
+      seedEnrolments.push(...store.enrolments);
     }
-    if (store.paymentRecords && store.paymentRecords.length > 0) {
-      for (const pp of store.paymentRecords) {
-        if (!seedPaymentRecords.some((p: PaymentRecord) => p.id === pp.id)) {
-          seedPaymentRecords.unshift(pp);
-        }
-      }
+
+    seedPaymentRecords.length = 0;
+    if (store.paymentRecords && Array.isArray(store.paymentRecords)) {
+      seedPaymentRecords.push(...store.paymentRecords);
     }
-    if (store.paymentSchedules && store.paymentSchedules.length > 0) {
-      for (const ps of store.paymentSchedules) {
-        const existingIdx = seedPaymentSchedules.findIndex((s: PaymentScheduleItem) => s.id === ps.id);
-        if (existingIdx >= 0) {
-          seedPaymentSchedules[existingIdx] = { ...seedPaymentSchedules[existingIdx], ...ps };
-        } else {
-          seedPaymentSchedules.push(ps);
-        }
-      }
+
+    seedPaymentSchedules.length = 0;
+    if (store.paymentSchedules && Array.isArray(store.paymentSchedules)) {
+      seedPaymentSchedules.push(...store.paymentSchedules);
     }
 
     if (store.blockedDays && Array.isArray(store.blockedDays)) {
@@ -1214,6 +1209,7 @@ export function deleteUserFromStore(userIdOrEmail: string): boolean {
       const filePath = getStoreFilePath();
       fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
       syncPersistedRecords(true);
+      syncStoreSnapshotToNeon(store).catch(() => {});
       return true;
     }
     return false;
@@ -1242,6 +1238,7 @@ export function deletePaymentRecordFromStore(paymentId: string): boolean {
     const filePath = getStoreFilePath();
     fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
     syncPersistedRecords(true);
+    syncStoreSnapshotToNeon(store).catch(() => {});
     return true;
   } catch (err) {
     console.error("[persistedData] Failed to delete payment:", err);
@@ -1388,6 +1385,7 @@ export function purgeAllTestRecordsFromStore(): {
     const filePath = getStoreFilePath();
     fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
     syncPersistedRecords(true);
+    syncStoreSnapshotToNeon(store).catch(() => {});
 
     return {
       deletedPayments: initialPayments,
@@ -1558,6 +1556,7 @@ export function wipeAllDemoData(): { success: boolean; message: string } {
 
     const filePath = getStoreFilePath();
     fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+    syncStoreSnapshotToNeon(store).catch(() => {});
 
     try {
       const devLeadsPath = path.join(process.cwd(), "data", "dev_leads.json");

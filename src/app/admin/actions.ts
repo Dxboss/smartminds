@@ -386,16 +386,9 @@ export async function deleteLearnerPermanentlyAction(learnerId: string) {
     const path = await import("path");
     const filePath = path.join(process.cwd(), "data", "persisted_records.json");
     fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
-
-    const seedData = await import("@/lib/repositories/seedData");
-    if (Array.isArray(seedData.seedLearners)) {
-      const idx = seedData.seedLearners.findIndex((l) => l.id === learnerId);
-      if (idx >= 0) seedData.seedLearners.splice(idx, 1);
-    }
-    if (Array.isArray(seedData.seedUsers)) {
-      const idx = seedData.seedUsers.findIndex((u) => u.learnerId === learnerId);
-      if (idx >= 0) seedData.seedUsers.splice(idx, 1);
-    }
+    const { syncPersistedRecords, syncStoreSnapshotToNeon } = await import("@/lib/persistedData");
+    syncPersistedRecords(true);
+    await syncStoreSnapshotToNeon(store);
   } catch (err) {
     console.error("[deleteLearnerPermanentlyAction] Error:", err);
   }
