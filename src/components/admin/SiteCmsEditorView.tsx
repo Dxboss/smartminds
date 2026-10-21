@@ -2,6 +2,7 @@
 
 import React, { useState, useTransition, useEffect, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Icon, IconName } from "@/components/ui/Icon";
 import { SectionRenderer } from "@/components/cms/SectionRenderer";
 import { Header } from "@/components/layout/Header";
@@ -286,6 +287,7 @@ export const SiteCmsEditorView: React.FC<Props> = ({
   liveCourses,
   userRole,
 }) => {
+  const router = useRouter();
   // Dynamic Page list (Core system pages + any custom CMS pages created)
   const [pagesList, setPagesList] = useState<PageItem[]>(() => {
     const list: PageItem[] = [...DEFAULT_PAGES];
@@ -2374,6 +2376,8 @@ export const SiteCmsEditorView: React.FC<Props> = ({
         if (success) {
           try {
             localStorage.removeItem(`smartminds_cms_draft_${activePagePath}`);
+            localStorage.setItem("smartminds_last_published", Date.now().toString());
+            window.dispatchEvent(new Event("smartminds_cms_published"));
           } catch {}
           publishedSnapshotsRef.current[activePagePath] = JSON.stringify(activeSections);
           delete lastSavedDraftSnapshotRef.current[activePagePath];
@@ -2384,6 +2388,7 @@ export const SiteCmsEditorView: React.FC<Props> = ({
           });
           setDraftStatus({ text: "Published to Live", isSaving: false });
           setToastNotice(`"${activePageObj.name}" and site navigation published live successfully!`);
+          router.refresh();
           setTimeout(() => setToastNotice(null), 5000);
         } else {
           alert(errorMessage || "Failed to publish changes. Please refresh and try again.");
@@ -2419,6 +2424,11 @@ export const SiteCmsEditorView: React.FC<Props> = ({
         }
 
         if (success) {
+          router.refresh();
+          try {
+            localStorage.setItem("smartminds_last_published", Date.now().toString());
+            window.dispatchEvent(new Event("smartminds_cms_published"));
+          } catch {}
           setToastNotice("Navigation menu and header updated successfully!");
           setTimeout(() => setToastNotice(null), 5000);
         }
@@ -2433,6 +2443,11 @@ export const SiteCmsEditorView: React.FC<Props> = ({
       try {
         const result = await saveSiteCmsContentAction(globalContent);
         if (result.success) {
+          router.refresh();
+          try {
+            localStorage.setItem("smartminds_last_published", Date.now().toString());
+            window.dispatchEvent(new Event("smartminds_cms_published"));
+          } catch {}
           setToastNotice("College contact details and announcements saved!");
           setTimeout(() => setToastNotice(null), 5000);
         }

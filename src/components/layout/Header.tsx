@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { siteConfig } from "@/content/siteConfig";
 import { useBooking } from "@/context/BookingContext";
 import { useAuth } from "@/context/AuthContext";
@@ -34,6 +34,7 @@ export const Header: React.FC<HeaderProps> = ({
     Record<string, boolean>
   >({});
   const pathname = usePathname();
+  const router = useRouter();
   const { openBooking } = useBooking();
   const { user, isAuthenticated, logout } = useAuth();
   const [mounted, setMounted] = useState(false);
@@ -41,7 +42,21 @@ export const Header: React.FC<HeaderProps> = ({
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    const handleCmsPublished = () => {
+      router.refresh();
+    };
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "smartminds_last_published") {
+        router.refresh();
+      }
+    };
+    window.addEventListener("smartminds_cms_published", handleCmsPublished);
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      window.removeEventListener("smartminds_cms_published", handleCmsPublished);
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, [router]);
 
   const isClientAuth = mounted && isAuthenticated;
 

@@ -82,6 +82,7 @@ export async function POST(req: NextRequest) {
         revalidatePath("/admin/cms");
         revalidatePath(pagePath);
         revalidatePath("/");
+        revalidatePath("/", "layout");
       } catch {}
 
       return NextResponse.json({ success: true, pagePath, publishedAt: new Date().toISOString() });
@@ -100,6 +101,7 @@ export async function POST(req: NextRequest) {
       savePersistentSiteTheme({ headerNav });
       try {
         revalidatePath("/", "layout");
+        revalidatePath("/");
       } catch {}
       return NextResponse.json({ success: true });
     }
@@ -110,6 +112,7 @@ export async function POST(req: NextRequest) {
       savePersistentSiteTheme({ footer: footerConfig });
       try {
         revalidatePath("/", "layout");
+        revalidatePath("/");
       } catch {}
       return NextResponse.json({ success: true });
     }
@@ -121,6 +124,7 @@ export async function POST(req: NextRequest) {
       await syncStoreSnapshotToNeon(store);
       try {
         revalidatePath("/", "layout");
+        revalidatePath("/");
       } catch {}
       return NextResponse.json({ success: true });
     }

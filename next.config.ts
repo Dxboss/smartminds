@@ -21,6 +21,10 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: false,
   experimental: {
+    staleTimes: {
+      dynamic: 0,
+      static: 30,
+    },
     serverActions: {
       bodySizeLimit: "20mb",
     },

@@ -1,5 +1,8 @@
+"use client";
+
 import React from "react";
 import Link from "next/link";
+import { useRouter, usePathname } from "next/navigation";
 
 export interface LogoProps {
   variant?: "full-color" | "white" | "mark-only";
@@ -19,6 +22,8 @@ export const Logo: React.FC<LogoProps> = ({
   siteName = "Smartminds",
   tagline = "Training College",
 }) => {
+  const pathname = usePathname();
+  const router = useRouter();
   const isWhite = variant === "white";
   const defaultLogoSrc = isWhite ? "/images/logo-white.png" : "/images/logo-color.png";
   const isPhotoAsset =
@@ -31,9 +36,21 @@ export const Logo: React.FC<LogoProps> = ({
       logoImageUrl.includes("certificate-moment"));
   const logoSrc = logoImageUrl && !isPhotoAsset ? logoImageUrl : defaultLogoSrc;
 
+  const handleLogoClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (pathname === "/") {
+      e.preventDefault();
+      router.refresh();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } else {
+      router.refresh();
+    }
+  };
+
   return (
     <Link
       href="/"
+      prefetch={false}
+      onClick={handleLogoClick}
       className={`inline-flex items-center gap-2.5 sm:gap-3 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${className}`.trim()}
       aria-label={`${siteName} ${tagline} Home`}
     >
