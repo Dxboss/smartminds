@@ -20,6 +20,7 @@ import { revalidatePath } from "next/cache";
 import { sendEmail } from "@/lib/email";
 import { buildBookingReminderEmail } from "@/lib/emailTemplates";
 import type { BlogPost } from "@/content/blog";
+import type { ColorSwatch } from "@/lib/colorSwatches";
 
 const isTestEnv = process.env.NODE_ENV === "test";
 
@@ -2321,5 +2322,58 @@ export async function clearAllTestPaymentsAction() {
   revalidatePath("/admin");
   revalidatePath("/student");
   return { success: true, ...result };
+}
+
+export async function listColorSwatchesAction() {
+  const { listColorSwatches } = await import("@/lib/persistedData");
+  return listColorSwatches();
+}
+
+export async function saveColorSwatchAction(data: {
+  id?: string;
+  name: string;
+  hex: string;
+  category?: "primary" | "secondary" | "accent" | "custom";
+  isDark?: boolean;
+}): Promise<{ success: boolean; swatch?: ColorSwatch; error?: string }> {
+  const session = await getServerSession();
+  if (
+    !session ||
+    (session.role !== "owner_admin" &&
+      session.role !== "super_admin" &&
+      session.originalRole !== "super_admin")
+  ) {
+    return { success: false, error: "Unauthorized: Only Owner Admin or Super Admin can manage color swatches." };
+  }
+
+  try {
+    const { saveColorSwatch } = await import("@/lib/persistedData");
+    const swatch = saveColorSwatch(data);
+    revalidatePath("/admin/cms");
+    return { success: true, swatch };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Failed to save swatch" };
+  }
+}
+
+export async function deleteColorSwatchAction(swatchId: string): Promise<{ success: boolean; error?: string }> {
+  const session = await getServerSession();
+  if (
+    !session ||
+    (session.role !== "owner_admin" &&
+      session.role !== "super_admin" &&
+      session.originalRole !== "super_admin")
+  ) {
+    return { success: false, error: "Unauthorized: Only Owner Admin or Super Admin can delete color swatches." };
+  }
+
+  try {
+    const { deleteColorSwatch } = await import("@/lib/persistedData");
+    const success = deleteColorSwatch(swatchId);
+    revalidatePath("/admin/cms");
+    return { success };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Failed to delete swatch" };
+  }
 }
 

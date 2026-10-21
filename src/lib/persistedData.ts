@@ -63,7 +63,11 @@ export interface PersistedRecordsStore {
   blogPosts?: BlogPost[];
   faculties?: FacultyRecord[];
   subscribers?: NewsletterSubscriber[];
+  colorSwatches?: ColorSwatch[];
 }
+
+import { type ColorSwatch, DEFAULT_COLOR_SWATCHES } from "./colorSwatches";
+export { type ColorSwatch, DEFAULT_COLOR_SWATCHES };
 
 import { type FacultyRecord, DEFAULT_COLLEGE_FACULTIES } from "@/content/faculties";
 export { type FacultyRecord, DEFAULT_COLLEGE_FACULTIES };
@@ -276,6 +280,10 @@ export async function pullLatestFromNeon(): Promise<boolean> {
           Array.isArray(dbStore.userCredentials)
             ? dbStore.userCredentials
             : store.userCredentials,
+        colorSwatches:
+          Array.isArray(dbStore.colorSwatches) && dbStore.colorSwatches.length > 0
+            ? dbStore.colorSwatches
+            : store.colorSwatches || DEFAULT_COLOR_SWATCHES,
       };
 
       const filePath = getStoreFilePath();
@@ -1967,6 +1975,89 @@ export function toggleNewsletterSubscriberStatus(
 export function exportFullDatabaseBackup(): string {
   const store = loadPersistedRecords();
   return JSON.stringify(store, null, 2);
+}
+
+function computeIsDark(hex: string): boolean {
+  const clean = hex.replace("#", "").trim();
+  if (clean.length === 3) {
+    const r = parseInt(clean[0] + clean[0], 16);
+    const g = parseInt(clean[1] + clean[1], 16);
+    const b = parseInt(clean[2] + clean[2], 16);
+    return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.5;
+  }
+  if (clean.length === 6) {
+    const r = parseInt(clean.slice(0, 2), 16);
+    const g = parseInt(clean.slice(2, 4), 16);
+    const b = parseInt(clean.slice(4, 6), 16);
+    return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.5;
+  }
+  return false;
+}
+
+export function listColorSwatches(): ColorSwatch[] {
+  const store = loadPersistedRecords();
+  if (!store.colorSwatches || !Array.isArray(store.colorSwatches) || store.colorSwatches.length === 0) {
+    return DEFAULT_COLOR_SWATCHES;
+  }
+  return store.colorSwatches;
+}
+
+export function saveColorSwatch(swatch: {
+  id?: string;
+  name: string;
+  hex: string;
+  category?: "primary" | "secondary" | "accent" | "custom";
+  isDark?: boolean;
+}): ColorSwatch {
+  const store = loadPersistedRecords();
+  if (!store.colorSwatches || !Array.isArray(store.colorSwatches) || store.colorSwatches.length === 0) {
+    store.colorSwatches = [...DEFAULT_COLOR_SWATCHES];
+  }
+
+  let cleanHex = swatch.hex.trim();
+  if (!cleanHex.startsWith("#")) cleanHex = "#" + cleanHex;
+
+  const id =
+    swatch.id ||
+    `swatch-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
+  const isDark = typeof swatch.isDark === "boolean" ? swatch.isDark : computeIsDark(cleanHex);
+
+  const existingIdx = store.colorSwatches.findIndex(
+    (s) => s.id === id || s.name.toLowerCase() === swatch.name.trim().toLowerCase()
+  );
+  const newSwatch: ColorSwatch = {
+    id: existingIdx >= 0 ? store.colorSwatches[existingIdx].id : id,
+    name: swatch.name.trim(),
+    hex: cleanHex,
+    category: swatch.category || "custom",
+    isDark,
+    createdAt: new Date().toISOString(),
+  };
+
+  if (existingIdx >= 0) {
+    store.colorSwatches[existingIdx] = newSwatch;
+  } else {
+    store.colorSwatches.push(newSwatch);
+  }
+
+  const filePath = getStoreFilePath();
+  fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+  syncStoreSnapshotToNeon(store).catch(() => {});
+  return newSwatch;
+}
+
+export function deleteColorSwatch(swatchId: string): boolean {
+  const store = loadPersistedRecords();
+  if (!store.colorSwatches) return false;
+  const initialLen = store.colorSwatches.length;
+  store.colorSwatches = store.colorSwatches.filter((s) => s.id !== swatchId);
+  if (store.colorSwatches.length !== initialLen) {
+    const filePath = getStoreFilePath();
+    fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+    syncStoreSnapshotToNeon(store).catch(() => {});
+    return true;
+  }
+  return false;
 }
 
 

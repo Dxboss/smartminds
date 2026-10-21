@@ -37,7 +37,12 @@ import {
   saveFooterConfigAction,
   createNewPageAction,
   deletePageAction,
+  listColorSwatchesAction,
+  saveColorSwatchAction,
+  deleteColorSwatchAction,
 } from "@/app/admin/actions";
+import { DEFAULT_COLOR_SWATCHES, type ColorSwatch } from "@/lib/colorSwatches";
+import { isDarkHex } from "@/components/ui/sectionBg";
 import type { Course } from "@/content/types";
 import { ButtonCustomizerFields } from "./ButtonCustomizerFields";
 import { FocusedElementInspector, getDefaultItemsForSection } from "./FocusedElementInspector";
@@ -647,11 +652,92 @@ export const SiteCmsEditorView: React.FC<Props> = ({
   // Sidebar Controls: Page Content (blocks, inspect, widgets) vs Site Branding (menu, footer, contact)
   const [panelCategory, setPanelCategory] = useState<"page" | "site">("page");
   const [sidebarTab, setSidebarTab] = useState<
-    "blocks" | "inspect" | "widgets" | "menu" | "footer" | "contact"
+    "blocks" | "inspect" | "widgets" | "menu" | "footer" | "contact" | "swatches"
   >("blocks");
   const [inspectorSubTab, setInspectorSubTab] = useState<
     "content" | "style" | "items"
   >("content");
+
+  // Global Brand Color Swatches Manager (Option C: Elementor-style Swatches Kit)
+  const [swatchesList, setSwatchesList] = useState<ColorSwatch[]>(DEFAULT_COLOR_SWATCHES);
+  const [newSwatchName, setNewSwatchName] = useState("");
+  const [newSwatchHex, setNewSwatchHex] = useState("#13416B");
+  const [newSwatchCategory, setNewSwatchCategory] = useState<"primary" | "secondary" | "accent" | "custom">("custom");
+  const [isSavingSwatch, setIsSavingSwatch] = useState(false);
+  const [copiedHex, setCopiedHex] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Initial fetch of persisted swatches from Neon/JSON
+    listColorSwatchesAction()
+      .then((items) => {
+        if (Array.isArray(items) && items.length > 0) {
+          setSwatchesList(items);
+        }
+      })
+      .catch((err) => console.warn("Failed to load color swatches:", err));
+
+    const handleUpdate = (e: any) => {
+      if (Array.isArray(e.detail)) {
+        setSwatchesList(e.detail);
+      }
+    };
+    window.addEventListener("smartminds:swatches-updated", handleUpdate);
+    return () => window.removeEventListener("smartminds:swatches-updated", handleUpdate);
+  }, []);
+
+  const handleCreateGlobalSwatch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSwatchName.trim() || !newSwatchHex.trim()) return;
+    setIsSavingSwatch(true);
+    try {
+      const isDark = isDarkHex(newSwatchHex);
+      const res = await saveColorSwatchAction({
+        name: newSwatchName.trim(),
+        hex: newSwatchHex.trim(),
+        category: newSwatchCategory,
+        isDark,
+      });
+      if (res.success && res.swatch) {
+        const savedSwatch = res.swatch;
+        const updated = [...swatchesList.filter((s) => s.id !== savedSwatch.id), savedSwatch];
+        setSwatchesList(updated);
+        try {
+          localStorage.setItem("smartminds_saved_swatches", JSON.stringify(updated));
+        } catch {}
+        window.dispatchEvent(new CustomEvent("smartminds:swatches-updated", { detail: updated }));
+        setNewSwatchName("");
+        setToastNotice(`Saved "${savedSwatch.name}" (${savedSwatch.hex}) to global swatches`);
+        setTimeout(() => setToastNotice(null), 3000);
+      } else {
+        alert(res.error || "Failed to save swatch");
+      }
+    } catch (err: any) {
+      alert("Error saving swatch: " + (err.message || String(err)));
+    } finally {
+      setIsSavingSwatch(false);
+    }
+  };
+
+  const handleDeleteGlobalSwatch = async (swatchId: string, name: string) => {
+    if (!window.confirm(`Delete the "${name}" brand swatch?`)) return;
+    try {
+      const res = await deleteColorSwatchAction(swatchId);
+      if (res.success) {
+        const updated = swatchesList.filter((s) => s.id !== swatchId);
+        setSwatchesList(updated);
+        try {
+          localStorage.setItem("smartminds_saved_swatches", JSON.stringify(updated));
+        } catch {}
+        window.dispatchEvent(new CustomEvent("smartminds:swatches-updated", { detail: updated }));
+        setToastNotice(`Deleted "${name}" from global swatches`);
+        setTimeout(() => setToastNotice(null), 3000);
+      } else {
+        alert(res.error || "Could not delete swatch");
+      }
+    } catch (err: any) {
+      alert("Error deleting swatch: " + (err.message || String(err)));
+    }
+  };
 
   // Saved Custom Composite Templates (Super Admin Reusable Library)
   const [savedTemplates, setSavedTemplates] = useState<BuilderSection[]>(seedCompositeTemplates);
@@ -3250,7 +3336,7 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                 type="button"
                 onClick={() => {
                   setPanelCategory("page");
-                  if (sidebarTab === "menu" || sidebarTab === "footer" || sidebarTab === "contact") {
+                  if (sidebarTab === "menu" || sidebarTab === "footer" || sidebarTab === "contact" || sidebarTab === "swatches") {
                     setSidebarTab("blocks");
                   }
                 }}
@@ -3329,38 +3415,60 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                 <button
                   type="button"
                   onClick={() => setSidebarTab("menu")}
-                  className={`flex-1 py-2.5 text-center transition-colors border-b-2 flex items-center justify-center gap-1.5 ${
+                  className={`flex-1 py-2 text-center transition-colors border-b-2 flex items-center justify-center gap-1 text-[11px] ${
                     sidebarTab === "menu"
                       ? "border-navy-900 text-navy-900 bg-white font-bold"
                       : "border-transparent text-ink-soft hover:text-navy-900"
                   }`}
+                  title="Header Navigation & Logo"
                 >
-                  <Icon name="sparkles" size={13} />
-                  <span>Header & Logo</span>
+                  <Icon name="sparkles" size={12} />
+                  <span>Header</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setSidebarTab("footer")}
-                  className={`flex-1 py-2.5 text-center transition-colors border-b-2 flex items-center justify-center gap-1.5 ${
+                  className={`flex-1 py-2 text-center transition-colors border-b-2 flex items-center justify-center gap-1 text-[11px] ${
                     sidebarTab === "footer"
                       ? "border-navy-900 text-navy-900 bg-white font-bold"
                       : "border-transparent text-ink-soft hover:text-navy-900"
                   }`}
+                  title="Footer Links & Accreditations"
                 >
-                  <Icon name="file-text" size={13} />
-                  <span>Footer Links</span>
+                  <Icon name="file-text" size={12} />
+                  <span>Footer</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setSidebarTab("contact")}
-                  className={`flex-1 py-2.5 text-center transition-colors border-b-2 flex items-center justify-center gap-1.5 ${
+                  className={`flex-1 py-2 text-center transition-colors border-b-2 flex items-center justify-center gap-1 text-[11px] ${
                     sidebarTab === "contact"
                       ? "border-navy-900 text-navy-900 bg-white font-bold"
                       : "border-transparent text-ink-soft hover:text-navy-900"
                   }`}
+                  title="Global College Details & Legal Reference"
                 >
-                  <Icon name="phone" size={13} />
-                  <span>College Info</span>
+                  <Icon name="phone" size={12} />
+                  <span>Info</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSidebarTab("swatches")}
+                  className={`flex-1 py-2 text-center transition-colors border-b-2 flex items-center justify-center gap-1 text-[11px] ${
+                    sidebarTab === "swatches"
+                      ? "border-navy-900 text-navy-900 bg-white font-bold"
+                      : "border-transparent text-ink-soft hover:text-navy-900"
+                  }`}
+                  title="Brand Color Kit & Swatches"
+                >
+                  <svg className="w-3 h-3 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" />
+                    <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" />
+                    <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" />
+                    <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" />
+                    <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.563-2.512 5.563-5.563C22 6.5 17.5 2 12 2z" />
+                  </svg>
+                  <span>Color Kit</span>
                 </button>
               </>
             )}
@@ -8720,6 +8828,303 @@ export const SiteCmsEditorView: React.FC<Props> = ({
               >
                 Save College Global Information
               </button>
+            </div>
+          )}
+
+          {/* TAB 6: Global Color Swatches & Brand Kit (Option C: Elementor-style Global Swatches) */}
+          {sidebarTab === "swatches" && (
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
+              <div className="border-b border-line pb-2.5">
+                <div className="flex items-center gap-1.5 text-[10px] font-mono text-ink-soft uppercase tracking-wider mb-1">
+                  <svg className="w-3.5 h-3.5 text-gold-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" />
+                    <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" />
+                    <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" />
+                    <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" />
+                    <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.563-2.512 5.563-5.563C22 6.5 17.5 2 12 2z" />
+                  </svg>
+                  <span>Brand Palette & Color Kit</span>
+                </div>
+                <strong className="text-sm font-bold text-navy-900 block">
+                  Global Color Swatches
+                </strong>
+                <p className="text-[11px] text-ink-soft mt-0.5 leading-snug">
+                  Save reusable brand colors once. They instantly appear in the color picker on every section, card, button, and widget across the entire website.
+                </p>
+              </div>
+
+              {/* Client-Requested Oceanic Blue Spotlight */}
+              <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/80 rounded-sm space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-blue-900 flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
+                    Client Brand Color
+                  </span>
+                  <span className="text-[9px] font-mono bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-xs font-bold">
+                    Active & Ready
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-10 h-10 rounded-sm shadow-xs border border-blue-300 flex-shrink-0 flex items-center justify-center"
+                    style={{ backgroundColor: "#13416B" }}
+                    title="#13416B"
+                  >
+                    <span className="text-[9px] font-bold text-white uppercase font-mono">
+                      #13416B
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-bold text-navy-900 truncate">
+                      Oceanic Blue (Client Brand)
+                    </div>
+                    <div className="text-[10px] text-ink-soft">
+                      Available in section backgrounds, button colors, and widget inspectors site-wide.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard?.writeText("#13416B");
+                      setCopiedHex("#13416B");
+                      setTimeout(() => setCopiedHex(null), 2000);
+                    }}
+                    className="px-2 py-1 text-[10px] font-bold bg-white text-navy-900 border border-blue-200 rounded-sm hover:bg-blue-100/50 shadow-2xs"
+                  >
+                    {copiedHex === "#13416B" ? "Copied!" : "Copy Hex"}
+                  </button>
+                </div>
+              </div>
+
+              {/* Form: Add New Global Swatch */}
+              <div className="p-3 bg-white rounded-sm border border-line shadow-xs space-y-3">
+                <div className="flex items-center justify-between border-b border-line pb-1.5">
+                  <span className="text-xs font-bold text-navy-900 flex items-center gap-1.5">
+                    <Icon name="plus" size={13} className="text-navy-900" />
+                    <span>Add New Swatch</span>
+                  </span>
+                  <span className="text-[9px] text-ink-soft font-mono">
+                    Elementor Style
+                  </span>
+                </div>
+
+                <form onSubmit={handleCreateGlobalSwatch} className="space-y-2.5">
+                  <div>
+                    <label className="block text-[10px] font-semibold text-navy-900 uppercase tracking-wider mb-0.5">
+                      Swatch Name
+                    </label>
+                    <input
+                      type="text"
+                      value={newSwatchName}
+                      onChange={(e) => setNewSwatchName(e.target.value)}
+                      placeholder="e.g. Royal Emerald, Sunset Gold, Deep Navy"
+                      className="w-full px-2.5 py-1.5 text-xs border border-line rounded-sm bg-paper focus:bg-white focus:outline-none focus:ring-1 focus:ring-navy-900"
+                      required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-semibold text-navy-900 uppercase tracking-wider mb-0.5">
+                        Color Hex
+                      </label>
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="color"
+                          value={newSwatchHex}
+                          onChange={(e) => setNewSwatchHex(e.target.value)}
+                          className="w-8 h-8 rounded-sm border border-line cursor-pointer p-0.5 bg-white"
+                          title="Click to pick visually"
+                        />
+                        <input
+                          type="text"
+                          value={newSwatchHex}
+                          onChange={(e) => setNewSwatchHex(e.target.value)}
+                          placeholder="#13416B"
+                          className="flex-1 px-2 py-1.5 text-xs font-mono border border-line rounded-sm bg-paper focus:bg-white uppercase"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-semibold text-navy-900 uppercase tracking-wider mb-0.5">
+                        Category
+                      </label>
+                      <select
+                        value={newSwatchCategory}
+                        onChange={(e) => setNewSwatchCategory(e.target.value as any)}
+                        className="w-full px-2 py-1.5 text-xs border border-line rounded-sm bg-paper focus:bg-white cursor-pointer"
+                      >
+                        <option value="custom">Custom (User Created)</option>
+                        <option value="primary">Primary Brand</option>
+                        <option value="secondary">Secondary Accent</option>
+                        <option value="accent">Call to Action</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Real-time WCAG Contrast Preview */}
+                  <div
+                    className="p-2.5 rounded-sm border transition-colors flex items-center justify-between"
+                    style={{
+                      backgroundColor: newSwatchHex,
+                      borderColor: "rgba(0,0,0,0.15)",
+                    }}
+                  >
+                    <span
+                      className={`text-xs font-bold ${
+                        isDarkHex(newSwatchHex) ? "text-white" : "text-ink"
+                      }`}
+                    >
+                      {newSwatchName.trim() || "Preview Swatch"}
+                    </span>
+                    <span
+                      className={`text-[9px] px-1.5 py-0.5 rounded-xs font-mono font-bold ${
+                        isDarkHex(newSwatchHex)
+                          ? "bg-white/20 text-white border border-white/30"
+                          : "bg-black/10 text-ink border border-black/20"
+                      }`}
+                    >
+                      {isDarkHex(newSwatchHex) ? "WCAG: White text" : "WCAG: Dark text"}
+                    </span>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isSavingSwatch || !newSwatchName.trim()}
+                    className="w-full py-2 bg-navy-900 hover:bg-navy-800 disabled:opacity-40 text-white rounded-sm text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5"
+                  >
+                    <Icon name="plus" size={13} />
+                    <span>{isSavingSwatch ? "Saving Swatch..." : "Save Swatch to Global Kit"}</span>
+                  </button>
+                </form>
+              </div>
+
+              {/* Swatches List */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-navy-900">
+                    Saved Brand Swatches ({swatchesList.length})
+                  </span>
+                  <span className="text-[10px] text-ink-soft">
+                    Synchronized across CMS
+                  </span>
+                </div>
+
+                <div className="space-y-1.5">
+                  {swatchesList.map((swatch) => {
+                    const isSystem = swatch.category !== "custom" && swatch.id !== "swatch-oceanic-blue";
+                    const isClientRequested = swatch.id === "swatch-oceanic-blue" || swatch.hex.toLowerCase() === "#13416b";
+                    const isDark = swatch.isDark ?? isDarkHex(swatch.hex);
+
+                    return (
+                      <div
+                        key={swatch.id}
+                        className={`p-2 bg-white rounded-sm border transition-all flex items-center justify-between gap-2 shadow-2xs ${
+                          isClientRequested ? "border-blue-400 bg-blue-50/20" : "border-line hover:border-slate-300"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div
+                            className="w-7 h-7 rounded-sm shadow-2xs flex-shrink-0 border border-black/10 flex items-center justify-center text-[8px] font-bold"
+                            style={{
+                              backgroundColor: swatch.hex,
+                              color: isDark ? "#ffffff" : "#1B1B2B",
+                            }}
+                          >
+                            Aa
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs font-bold text-navy-900 truncate">
+                                {swatch.name}
+                              </span>
+                              {isClientRequested && (
+                                <span className="text-[8px] font-bold uppercase tracking-wider bg-blue-100 text-blue-900 px-1 py-0.2 rounded-xs">
+                                  Client
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 text-[10px] font-mono text-ink-soft">
+                              <span>{swatch.hex}</span>
+                              <span className="text-[9px] uppercase px-1 py-0.1 bg-slate-100 rounded-xs">
+                                {swatch.category || "custom"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard?.writeText(swatch.hex);
+                              setCopiedHex(swatch.id);
+                              setTimeout(() => setCopiedHex(null), 1800);
+                            }}
+                            className="px-1.5 py-1 text-[10px] text-ink-soft hover:text-navy-900 hover:bg-slate-100 rounded-xs transition-colors flex items-center gap-1"
+                            title={`Copy ${swatch.hex}`}
+                          >
+                            <Icon name={copiedHex === swatch.id ? "check" : "copy"} size={11} />
+                            <span>{copiedHex === swatch.id ? "Copied" : "Copy"}</span>
+                          </button>
+
+                          {swatch.category === "custom" && !isClientRequested ? (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteGlobalSwatch(swatch.id, swatch.name)}
+                              className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xs transition-colors"
+                              title={`Delete ${swatch.name}`}
+                            >
+                              <Icon name="close" size={12} />
+                            </button>
+                          ) : (
+                            <span
+                              className="p-1 text-slate-300"
+                              title="Core College Protected Token"
+                            >
+                              <Icon name="shield-check" size={12} />
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* College Accredited Typography Style Guide */}
+              <div className="p-3 bg-paper rounded-sm border border-line space-y-2">
+                <div className="flex items-center justify-between border-b border-line pb-1">
+                  <strong className="text-xs font-bold text-navy-900 flex items-center gap-1.5">
+                    <Icon name="file-text" size={12} className="text-gold-500" />
+                    <span>College Typography Standards</span>
+                  </strong>
+                  <span className="text-[9px] font-mono text-ink-soft">PRD §7.4</span>
+                </div>
+                <p className="text-[10px] text-ink-soft leading-normal">
+                  Typography is strictly coupled with Next.js humanist font tokens to guarantee accreditation compliance and eliminate generic AI-generated aesthetics.
+                </p>
+                <div className="space-y-1.5 text-xs pt-1">
+                  <div className="p-2 bg-white rounded-sm border border-line/80">
+                    <span className="text-[9px] uppercase tracking-wider text-ink-soft block font-mono">
+                      Headings & Display
+                    </span>
+                    <span className="font-heading font-bold text-navy-900 text-sm tracking-wide">
+                      Saira Condensed (600 / 700 Bold)
+                    </span>
+                  </div>
+                  <div className="p-2 bg-white rounded-sm border border-line/80">
+                    <span className="text-[9px] uppercase tracking-wider text-ink-soft block font-mono">
+                      Body & Editorial
+                    </span>
+                    <span className="font-sans text-ink text-xs">
+                      Source Sans 3 (Humanist Sans 400 / 600)
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </aside>
