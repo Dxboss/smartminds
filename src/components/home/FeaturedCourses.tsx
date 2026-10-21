@@ -225,7 +225,7 @@ export const FeaturedCourses: React.FC<FeaturedCoursesProps> = ({
           >
             <div className="inline-block relative">
               <h2 style={hlStyle} className={`${hlClass} tracking-tight leading-tight`}>
-                {headline === "Popular Courses" ? (
+                {headline === "Popular Courses" && (!headlineColor || headlineColor === "auto") ? (
                   <>
                     <span className="text-[#FF5722]">Popular</span>{" "}
                     <span className="text-[#0B4D4E]">Courses</span>

@@ -634,8 +634,15 @@ export interface BuilderSection {
   eyebrow?: string;
   badgeText?: string;
   badgeVariant?: "live" | "navy" | "gold" | "default";
+  badgeColor?: string;
+  badgeBgColor?: string;
+  badgeFontFamily?: "heading" | "body" | "serif";
+  badgeFontSize?: string;
   badgeIcon?: string;
   badgeWeight?: "normal" | "medium" | "semibold" | "bold";
+  trustNoteColor?: string;
+  trustNoteFontFamily?: "heading" | "body" | "serif";
+  trustNoteFontSize?: string;
   headlineAlign?: "left" | "center" | "right";
   headlineTransform?: "normal" | "uppercase";
   subheadlineAlign?: "left" | "center" | "right";
@@ -664,6 +671,17 @@ export interface BuilderSection {
   videoThumbnail?: string;
   videoTitle?: string;
   videoDesc?: string;
+  videoTag?: string;
+  videoTagColor?: string;
+  videoTagBgColor?: string;
+  videoBadge?: string;
+  videoBadgeColor?: string;
+  videoTitleColor?: string;
+  videoTitleFontFamily?: "heading" | "body" | "serif";
+  videoTitleFontSize?: "sm" | "md" | "lg" | "xl";
+  videoTitleFontWeight?: "normal" | "medium" | "semibold" | "bold";
+  videoDescColor?: string;
+  videoDescFontSize?: string;
   items?: BuilderSectionItem[];
   compositeColumns?: CompositeColumn[];
   templateCategory?: string;
@@ -680,6 +698,8 @@ export interface BuilderSection {
   subheadlineColor?: "auto" | "navy" | "white" | "gold" | "ink_soft" | (string & {});
   buttonBgColor?: string;
   buttonTextColor?: string;
+  buttonHoverBgColor?: string;
+  buttonHoverTextColor?: string;
   buttonFontFamily?: "heading" | "body";
   buttonFontWeight?: "normal" | "medium" | "semibold" | "bold" | "extrabold";
   buttonTextTransform?: "normal" | "uppercase";
@@ -690,6 +710,8 @@ export interface BuilderSection {
   buttonEnabled?: boolean;
   secondaryButtonBgColor?: string;
   secondaryButtonTextColor?: string;
+  secondaryButtonHoverBgColor?: string;
+  secondaryButtonHoverTextColor?: string;
   secondaryButtonFontFamily?: "heading" | "body";
   secondaryButtonFontWeight?: "normal" | "medium" | "semibold" | "bold" | "extrabold";
   secondaryButtonTextTransform?: "normal" | "uppercase";
@@ -941,6 +963,8 @@ export const defaultPageBuilderSections: BuilderSection[] = [
     type: "pricing",
     name: "0% Interest Tuition Flexibility",
     enabled: true,
+    badgeText: "Honest, Transparent Pricing",
+    trustNote: "Smartminds instalment plans are direct payment schedules between the learner and the college. No credit checks, no loan agreements, and no third-party lenders.",
     headline: "Flexible ways to pay — no hidden fees, no interest charges",
     subheadline:
       "We believe career qualifications should be accessible. Choose an upfront discount, spread your fees monthly with zero markup, or check whether your course is covered by government funding.",
@@ -1004,9 +1028,12 @@ export const defaultPageBuilderSections: BuilderSection[] = [
     type: "testimonials",
     name: "Student Reviews & Outcomes",
     enabled: true,
+    badgeText: "Learner Experiences",
     headline: "Real stories from qualified graduates",
     subheadline:
       "Read how healthcare workers, aspiring tutors, and career changers achieved their Ofqual-regulated certificates with Smartminds.",
+    videoTag: "Spotlight Video",
+    videoBadge: "Student Stories",
     videoTitle: "Watch learners share their qualification journey",
     videoDesc:
       "Real feedback recorded by our graduates sharing their study experience, tutor support, and career progression.",

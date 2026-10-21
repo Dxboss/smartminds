@@ -696,7 +696,8 @@ interface FocusedElementInspectorProps {
     | "bg"
     | "video"
     | "floatingBadge"
-    | "sealBadge";
+    | "sealBadge"
+    | "trustNote";
   itemIndex?: number | null;
   onBack: () => void;
   updateField: (field: keyof BuilderSection, value: any) => void;
@@ -1361,8 +1362,34 @@ export const FocusedElementInspector: React.FC<FocusedElementInspectorProps> = (
             <div className="p-3.5 bg-paper rounded-sm border border-line space-y-3 shadow-2xs">
               <strong className="text-xs font-bold text-navy-900 flex items-center gap-1.5 border-b border-line pb-2">
                 <Icon name="video" size={13} className="text-navy-900" />
-                <span>Spotlight Video Player</span>
+                <span>Spotlight Video Player Copy & Media</span>
               </strong>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[11px] font-semibold text-navy-900 mb-1">
+                    Tag Pill Label
+                  </label>
+                  <input
+                    type="text"
+                    value={section.videoTag ?? "Spotlight Video"}
+                    onChange={(e) => updateField("videoTag", e.target.value)}
+                    placeholder="e.g. Spotlight Video"
+                    className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white font-medium focus:outline-none focus:border-navy-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-navy-900 mb-1">
+                    Status / Format Badge
+                  </label>
+                  <input
+                    type="text"
+                    value={section.videoBadge ?? "Student Stories"}
+                    onChange={(e) => updateField("videoBadge", e.target.value)}
+                    placeholder="e.g. Student Stories or HD Playback"
+                    className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white font-medium focus:outline-none focus:border-navy-900"
+                  />
+                </div>
+              </div>
               <div>
                 <label className="block text-[11px] font-semibold text-navy-900 mb-1">
                   Video Headline / Title
@@ -1372,7 +1399,7 @@ export const FocusedElementInspector: React.FC<FocusedElementInspectorProps> = (
                   value={section.videoTitle || ""}
                   onChange={(e) => updateField("videoTitle", e.target.value)}
                   placeholder="e.g. Watch learners share their qualification journey"
-                  className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white font-medium focus:outline-none focus:border-navy-900"
+                  className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white font-bold focus:outline-none focus:border-navy-900"
                 />
               </div>
               <div>
@@ -1384,7 +1411,7 @@ export const FocusedElementInspector: React.FC<FocusedElementInspectorProps> = (
                   value={section.videoDesc || ""}
                   onChange={(e) => updateField("videoDesc", e.target.value)}
                   placeholder="Real student feedback..."
-                  className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900"
+                  className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900 leading-relaxed"
                 />
               </div>
               <div>
@@ -1398,6 +1425,43 @@ export const FocusedElementInspector: React.FC<FocusedElementInspectorProps> = (
                   placeholder="https://www.youtube.com/watch?v=..."
                   className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white font-mono focus:outline-none focus:border-navy-900"
                 />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-navy-900 mb-1">
+                  Video Thumbnail Image URL
+                </label>
+                <input
+                  type="text"
+                  value={section.videoThumbnail || ""}
+                  onChange={(e) => updateField("videoThumbnail", e.target.value)}
+                  placeholder="/images/certificate-moment.jpg"
+                  className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white font-mono focus:outline-none focus:border-navy-900"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* 9B. TRUST / INSTALMENT REASSURANCE NOTE CONTENT */}
+          {elementKey === "trustNote" && (
+            <div className="p-3.5 bg-paper rounded-sm border border-line space-y-3.5 shadow-2xs">
+              <strong className="text-xs font-bold text-navy-900 flex items-center gap-1.5 border-b border-line pb-2">
+                <Icon name="shield-check" size={13} className="text-navy-900" />
+                <span>Instalment Plan & Legal Compliance Reassurance Notice</span>
+              </strong>
+              <div>
+                <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                  Notice Copy
+                </label>
+                <textarea
+                  rows={4}
+                  value={section.trustNote || ""}
+                  onChange={(e) => updateField("trustNote", e.target.value)}
+                  placeholder="Smartminds instalment plans are direct payment schedules between the learner and the college. No credit checks, no loan agreements, and no third-party lenders."
+                  className="w-full px-3 py-2 border border-line rounded-sm text-xs leading-relaxed focus:outline-none focus:border-navy-900 bg-white font-medium"
+                />
+                <span className="text-[10px] text-ink-soft block mt-1">
+                  Reassures adult learners and regulatory bodies that payment plans are direct college agreements with zero finance fees or third-party lenders.
+                </span>
               </div>
             </div>
           )}
@@ -1969,12 +2033,38 @@ export const FocusedElementInspector: React.FC<FocusedElementInspectorProps> = (
             <div className="p-3.5 bg-paper rounded-sm border border-line space-y-3.5 shadow-2xs">
               <strong className="text-xs font-bold text-navy-900 flex items-center gap-1.5 border-b border-line pb-2">
                 <Icon name="sparkles" size={13} className="text-gold-500" />
-                <span>Eyebrow Badge Style & Variant</span>
+                <span>Eyebrow Badge Style & Colors</span>
               </strong>
 
+              {/* Badge Text Color */}
               <div>
+                <ColorPalettePicker
+                  value={section.badgeColor || "auto"}
+                  onChange={(val) => updateField("badgeColor", val)}
+                  label="Badge Text / Icon Color"
+                  compact={true}
+                  showAutoOption={true}
+                  defaultColor="auto"
+                  allowCustomHex={true}
+                />
+              </div>
+
+              {/* Badge Background Color */}
+              <div className="pt-2 border-t border-line">
+                <ColorPalettePicker
+                  value={section.badgeBgColor || "auto"}
+                  onChange={(val) => updateField("badgeBgColor", val)}
+                  label="Badge Background Pill Color"
+                  compact={true}
+                  showAutoOption={true}
+                  defaultColor="auto"
+                  allowCustomHex={true}
+                />
+              </div>
+
+              <div className="pt-2 border-t border-line">
                 <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1.5">
-                  Badge Style Variant
+                  Preset Badge Variant
                 </label>
                 <div className="grid grid-cols-2 gap-1.5">
                   {[
@@ -2000,20 +2090,36 @@ export const FocusedElementInspector: React.FC<FocusedElementInspectorProps> = (
                 </div>
               </div>
 
-              <div className="pt-2 border-t border-line">
-                <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-1">
-                  Font Weight
-                </label>
-                <select
-                  value={section.badgeWeight || "semibold"}
-                  onChange={(e) => updateField("badgeWeight", e.target.value)}
-                  className="w-full px-2 py-1.5 text-xs border border-line rounded-xs bg-white font-medium"
-                >
-                  <option value="normal">Normal (400)</option>
-                  <option value="medium">Medium (500)</option>
-                  <option value="semibold">Semibold (600)</option>
-                  <option value="bold">Bold (700)</option>
-                </select>
+              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-line">
+                <div>
+                  <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-1">
+                    Font Family
+                  </label>
+                  <select
+                    value={section.badgeFontFamily || "heading"}
+                    onChange={(e) => updateField("badgeFontFamily", e.target.value as any)}
+                    className="w-full px-2 py-1.5 text-xs border border-line rounded-xs bg-white font-medium"
+                  >
+                    <option value="heading">Editorial Condensed (Saira)</option>
+                    <option value="body">Humanist Sans (Source Sans 3)</option>
+                    <option value="serif">Academic Serif (Playfair)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-1">
+                    Font Weight
+                  </label>
+                  <select
+                    value={section.badgeWeight || "semibold"}
+                    onChange={(e) => updateField("badgeWeight", e.target.value)}
+                    className="w-full px-2 py-1.5 text-xs border border-line rounded-xs bg-white font-medium"
+                  >
+                    <option value="normal">Normal (400)</option>
+                    <option value="medium">Medium (500)</option>
+                    <option value="semibold">Semibold (600)</option>
+                    <option value="bold">Bold (700)</option>
+                  </select>
+                </div>
               </div>
             </div>
           )}
@@ -2033,6 +2139,8 @@ export const FocusedElementInspector: React.FC<FocusedElementInspectorProps> = (
               config={{
                 bgColor: section.buttonBgColor,
                 textColor: section.buttonTextColor,
+                hoverBgColor: section.buttonHoverBgColor,
+                hoverTextColor: section.buttonHoverTextColor,
                 fontFamily: section.buttonFontFamily,
                 fontWeight: section.buttonFontWeight,
                 textTransform: section.buttonTextTransform,
@@ -2045,6 +2153,8 @@ export const FocusedElementInspector: React.FC<FocusedElementInspectorProps> = (
                 const fieldMap: Record<string, keyof BuilderSection> = {
                   bgColor: "buttonBgColor",
                   textColor: "buttonTextColor",
+                  hoverBgColor: "buttonHoverBgColor",
+                  hoverTextColor: "buttonHoverTextColor",
                   fontFamily: "buttonFontFamily",
                   fontWeight: "buttonFontWeight",
                   textTransform: "buttonTextTransform",
@@ -2073,6 +2183,8 @@ export const FocusedElementInspector: React.FC<FocusedElementInspectorProps> = (
               config={{
                 bgColor: section.secondaryButtonBgColor,
                 textColor: section.secondaryButtonTextColor,
+                hoverBgColor: section.secondaryButtonHoverBgColor,
+                hoverTextColor: section.secondaryButtonHoverTextColor,
                 fontFamily: section.secondaryButtonFontFamily,
                 fontWeight: section.secondaryButtonFontWeight,
                 textTransform: section.secondaryButtonTextTransform,
@@ -2085,6 +2197,8 @@ export const FocusedElementInspector: React.FC<FocusedElementInspectorProps> = (
                 const fieldMap: Record<string, keyof BuilderSection> = {
                   bgColor: "secondaryButtonBgColor",
                   textColor: "secondaryButtonTextColor",
+                  hoverBgColor: "secondaryButtonHoverBgColor",
+                  hoverTextColor: "secondaryButtonHoverTextColor",
                   fontFamily: "secondaryButtonFontFamily",
                   fontWeight: "secondaryButtonFontWeight",
                   textTransform: "secondaryButtonTextTransform",
@@ -2222,20 +2336,197 @@ export const FocusedElementInspector: React.FC<FocusedElementInspectorProps> = (
             </div>
           )}
 
-          {/* J. VIDEO STYLE */}
+          {/* J. VIDEO WRITEUPS & CARD STYLE */}
           {elementKey === "video" && (
-            <div className="p-3.5 bg-paper rounded-sm border border-line space-y-3 shadow-2xs">
+            <div className="p-3.5 bg-paper rounded-sm border border-line space-y-4 shadow-2xs">
               <strong className="text-xs font-bold text-navy-900 flex items-center gap-1.5 border-b border-line pb-2">
                 <Icon name="sparkles" size={13} className="text-gold-500" />
-                <span>Spotlight Video Player Styling</span>
+                <span>Video Writeup Colors & Typography</span>
               </strong>
-              <div>
-                <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
-                  Player Frame
+
+              {/* 1. Video Tag Colors */}
+              <div className="space-y-2">
+                <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider">
+                  Video Tag Pill (e.g. Spotlight Video)
                 </label>
-                <p className="text-xs text-ink-soft">
-                  The spotlight player dynamically switches between high-performance click-to-load thumbnail cards and live interactive streaming overlays.
-                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <ColorPalettePicker
+                    value={section.videoTagColor || "auto"}
+                    onChange={(val) => updateField("videoTagColor", val)}
+                    label="Tag Text Color"
+                    compact={true}
+                    showAutoOption={true}
+                    defaultColor="auto"
+                    allowCustomHex={true}
+                  />
+                  <ColorPalettePicker
+                    value={section.videoTagBgColor || "auto"}
+                    onChange={(val) => updateField("videoTagBgColor", val)}
+                    label="Tag Pill Background"
+                    compact={true}
+                    showAutoOption={true}
+                    defaultColor="auto"
+                    allowCustomHex={true}
+                  />
+                </div>
+              </div>
+
+              {/* 2. Video Status Badge Color */}
+              <div className="pt-2 border-t border-line space-y-2">
+                <ColorPalettePicker
+                  value={section.videoBadgeColor || "auto"}
+                  onChange={(val) => updateField("videoBadgeColor", val)}
+                  label="Format Badge Color (e.g. Student Stories / HD Playback)"
+                  compact={true}
+                  showAutoOption={true}
+                  defaultColor="auto"
+                  allowCustomHex={true}
+                />
+              </div>
+
+              {/* 3. Video Title Typography & Color */}
+              <div className="pt-2 border-t border-line space-y-3">
+                <strong className="text-xs font-bold text-navy-900 block">
+                  Video Title Typography & Color
+                </strong>
+                <ColorPalettePicker
+                  value={section.videoTitleColor || "auto"}
+                  onChange={(val) => updateField("videoTitleColor", val)}
+                  label="Title Text Color"
+                  compact={true}
+                  showAutoOption={true}
+                  defaultColor="auto"
+                  allowCustomHex={true}
+                />
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-1">
+                      Font Family
+                    </label>
+                    <select
+                      value={section.videoTitleFontFamily || "heading"}
+                      onChange={(e) => updateField("videoTitleFontFamily", e.target.value as any)}
+                      className="w-full px-2 py-1.5 text-xs border border-line rounded-xs bg-white font-medium"
+                    >
+                      <option value="heading">Editorial Condensed (Saira)</option>
+                      <option value="body">Humanist Sans (Source Sans 3)</option>
+                      <option value="serif">Academic Serif (Playfair)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-1">
+                      Font Size
+                    </label>
+                    <select
+                      value={section.videoTitleFontSize || "xl"}
+                      onChange={(e) => updateField("videoTitleFontSize", e.target.value as any)}
+                      className="w-full px-2 py-1.5 text-xs border border-line rounded-xs bg-white font-medium"
+                    >
+                      <option value="sm">Small (16px)</option>
+                      <option value="md">Medium (18px)</option>
+                      <option value="lg">Large (20px)</option>
+                      <option value="xl">Extra Large (24px)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-1">
+                      Font Weight
+                    </label>
+                    <select
+                      value={section.videoTitleFontWeight || "bold"}
+                      onChange={(e) => updateField("videoTitleFontWeight", e.target.value as any)}
+                      className="w-full px-2 py-1.5 text-xs border border-line rounded-xs bg-white font-medium"
+                    >
+                      <option value="medium">Medium (500)</option>
+                      <option value="semibold">Semibold (600)</option>
+                      <option value="bold">Bold (700)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. Video Caption / Description Typography & Color */}
+              <div className="pt-2 border-t border-line space-y-2">
+                <strong className="text-xs font-bold text-navy-900 block">
+                  Video Caption Typography & Color
+                </strong>
+                <ColorPalettePicker
+                  value={section.videoDescColor || "auto"}
+                  onChange={(val) => updateField("videoDescColor", val)}
+                  label="Caption Text Color"
+                  compact={true}
+                  showAutoOption={true}
+                  defaultColor="auto"
+                  allowCustomHex={true}
+                />
+                <div>
+                  <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-1">
+                    Font Size
+                  </label>
+                  <select
+                    value={section.videoDescFontSize || "xs"}
+                    onChange={(e) => updateField("videoDescFontSize", e.target.value)}
+                    className="w-full px-2 py-1.5 text-xs border border-line rounded-xs bg-white font-medium"
+                  >
+                    <option value="xs">Small Caption (12px)</option>
+                    <option value="sm">Standard Body (14px)</option>
+                    <option value="base">Prominent (16px)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* JB. INSTALMENT NOTICE & COMPLIANCE REASSURANCE STYLE */}
+          {elementKey === "trustNote" && (
+            <div className="p-3.5 bg-paper rounded-sm border border-line space-y-3.5 shadow-2xs">
+              <strong className="text-xs font-bold text-navy-900 flex items-center gap-1.5 border-b border-line pb-2">
+                <Icon name="sparkles" size={13} className="text-gold-500" />
+                <span>Instalment Reassurance Notice Styling</span>
+              </strong>
+
+              <div>
+                <ColorPalettePicker
+                  value={section.trustNoteColor || "auto"}
+                  onChange={(val) => updateField("trustNoteColor", val)}
+                  label="Notice Text Color"
+                  compact={true}
+                  showAutoOption={true}
+                  defaultColor="auto"
+                  allowCustomHex={true}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-line">
+                <div>
+                  <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-1">
+                    Font Family
+                  </label>
+                  <select
+                    value={section.trustNoteFontFamily || "body"}
+                    onChange={(e) => updateField("trustNoteFontFamily", e.target.value as any)}
+                    className="w-full px-2 py-1.5 text-xs border border-line rounded-xs bg-white font-medium"
+                  >
+                    <option value="body">Humanist Sans (Source Sans 3)</option>
+                    <option value="heading">Editorial Condensed (Saira)</option>
+                    <option value="serif">Academic Serif (Playfair)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-1">
+                    Font Size
+                  </label>
+                  <select
+                    value={section.trustNoteFontSize || "sm"}
+                    onChange={(e) => updateField("trustNoteFontSize", e.target.value)}
+                    className="w-full px-2 py-1.5 text-xs border border-line rounded-xs bg-white font-medium"
+                  >
+                    <option value="xs">Small Legal (12px)</option>
+                    <option value="sm">Standard Note (14px)</option>
+                    <option value="base">Prominent Callout (16px)</option>
+                  </select>
+                </div>
               </div>
             </div>
           )}

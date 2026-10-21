@@ -31,6 +31,8 @@ export type ButtonSizePreset = "sm" | "md" | "lg";
 export interface ButtonCustomConfig {
   bgColor?: string;
   textColor?: string;
+  hoverBgColor?: string;
+  hoverTextColor?: string;
   fontFamily?: ButtonFontFamily;
   fontWeight?: ButtonFontWeight;
   textTransform?: ButtonTextTransform;
@@ -236,6 +238,36 @@ export function resolveCustomButtonClasses(
         break;
       }
     }
+  }
+
+  // 2b. Hover Color overrides (client custom hover state)
+  if (config?.hoverBgColor && config.hoverBgColor !== "auto") {
+    let hoverBgHex = config.hoverBgColor;
+    if (!hoverBgHex.startsWith("#") && !hoverBgHex.startsWith("rgb")) {
+      const p = COLLEGE_COLOR_PALETTES.find((cp) => cp.key === hoverBgHex);
+      if (p) hoverBgHex = p.hex;
+      else if (hoverBgHex === "navy") hoverBgHex = "var(--navy-900, #0b3b3c)";
+      else if (hoverBgHex === "gold") hoverBgHex = "var(--gold-500, #ff5722)";
+      else if (hoverBgHex === "white") hoverBgHex = "#ffffff";
+      else if (hoverBgHex === "emerald") hoverBgHex = "#059669";
+    }
+    (inlineStyle as any)["--btn-hover-bg"] = hoverBgHex;
+    (inlineStyle as any)["--btn-hover-border"] = hoverBgHex;
+    if (!classes.includes("btn-custom-hover")) classes.push("btn-custom-hover");
+  }
+
+  if (config?.hoverTextColor && config.hoverTextColor !== "auto") {
+    let hoverTextHex = config.hoverTextColor;
+    if (!hoverTextHex.startsWith("#") && !hoverTextHex.startsWith("rgb")) {
+      const p = COLLEGE_COLOR_PALETTES.find((cp) => cp.key === hoverTextHex);
+      if (p) hoverTextHex = p.hex;
+      else if (hoverTextHex === "white") hoverTextHex = "#ffffff";
+      else if (hoverTextHex === "navy") hoverTextHex = "var(--navy-900, #0b3b3c)";
+      else if (hoverTextHex === "gold") hoverTextHex = "var(--gold-500, #ff5722)";
+      else if (hoverTextHex === "ink") hoverTextHex = "var(--ink, #0f172a)";
+    }
+    (inlineStyle as any)["--btn-hover-text"] = hoverTextHex;
+    if (!classes.includes("btn-custom-hover")) classes.push("btn-custom-hover");
   }
 
   // 3. Typography: Font Family

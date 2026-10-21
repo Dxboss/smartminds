@@ -11,6 +11,7 @@ import { resolveSectionBg, SectionBgColor } from "@/components/ui/sectionBg";
 import {
   resolveTypography,
   resolveSubheadlineTypography,
+  resolveBadgeStyles,
   FontFamilyChoice,
   FontSizeChoice,
   FontWeightChoice,
@@ -34,10 +35,16 @@ export interface FinalCTABandProps {
   headline?: string;
   subheadline?: string;
   badgeText?: string;
+  badgeColor?: string;
+  badgeBgColor?: string;
+  badgeFontFamily?: FontFamilyChoice;
+  badgeWeight?: FontWeightChoice;
   buttonText?: string;
   buttonLink?: string;
   buttonBgColor?: string;
   buttonTextColor?: string;
+  buttonHoverBgColor?: string;
+  buttonHoverTextColor?: string;
   buttonFontFamily?: ButtonFontFamily;
   buttonFontWeight?: ButtonFontWeight;
   buttonTextTransform?: ButtonTextTransform;
@@ -49,6 +56,8 @@ export interface FinalCTABandProps {
   secondaryButtonLink?: string;
   secondaryButtonBgColor?: string;
   secondaryButtonTextColor?: string;
+  secondaryButtonHoverBgColor?: string;
+  secondaryButtonHoverTextColor?: string;
   secondaryButtonFontFamily?: ButtonFontFamily;
   secondaryButtonFontWeight?: ButtonFontWeight;
   secondaryButtonTextTransform?: ButtonTextTransform;
@@ -85,10 +94,16 @@ export const FinalCTABand: React.FC<FinalCTABandProps> = ({
   headline = "Not sure which course? Book a free call.",
   subheadline = "Speak directly with an academic adviser. We will assess your background, confirm entry requirements, check government funding eligibility, and help you select the right payment plan.",
   badgeText = "Personalised Guidance",
+  badgeColor,
+  badgeBgColor,
+  badgeFontFamily,
+  badgeWeight,
   buttonText = "Book a free call",
   buttonLink,
   buttonBgColor,
   buttonTextColor,
+  buttonHoverBgColor,
+  buttonHoverTextColor,
   buttonFontFamily,
   buttonFontWeight,
   buttonTextTransform,
@@ -100,6 +115,8 @@ export const FinalCTABand: React.FC<FinalCTABandProps> = ({
   secondaryButtonLink,
   secondaryButtonBgColor,
   secondaryButtonTextColor,
+  secondaryButtonHoverBgColor,
+  secondaryButtonHoverTextColor,
   secondaryButtonFontFamily,
   secondaryButtonFontWeight,
   secondaryButtonTextTransform,
@@ -131,6 +148,8 @@ export const FinalCTABand: React.FC<FinalCTABandProps> = ({
     {
       bgColor: buttonBgColor,
       textColor: buttonTextColor,
+      hoverBgColor: buttonHoverBgColor,
+      hoverTextColor: buttonHoverTextColor,
       fontFamily: buttonFontFamily,
       fontWeight: buttonFontWeight,
       textTransform: buttonTextTransform,
@@ -148,6 +167,8 @@ export const FinalCTABand: React.FC<FinalCTABandProps> = ({
     {
       bgColor: secondaryButtonBgColor,
       textColor: secondaryButtonTextColor,
+      hoverBgColor: secondaryButtonHoverBgColor,
+      hoverTextColor: secondaryButtonHoverTextColor,
       fontFamily: secondaryButtonFontFamily,
       fontWeight: secondaryButtonFontWeight,
       textTransform: secondaryButtonTextTransform,
@@ -160,6 +181,15 @@ export const FinalCTABand: React.FC<FinalCTABandProps> = ({
     "lg",
     isDark
   );
+
+  const badgeStyleObj = resolveBadgeStyles({
+    variant: isDark ? "gold" : "navy",
+    color: badgeColor,
+    bgColor: badgeBgColor,
+    fontFamily: badgeFontFamily,
+    weight: badgeWeight,
+    isDark,
+  });
 
   const { className: hlClass, style: hlStyle } = resolveTypography({
     fontFamily: headlineFontFamily,
@@ -224,9 +254,9 @@ export const FinalCTABand: React.FC<FinalCTABandProps> = ({
             onClick={() => onSelectElement?.("badge")}
             inline
           >
-            <Eyebrow tone={isDark ? "gold" : "navy"} className="tracking-widest">
+            <span className={badgeStyleObj.className} style={badgeStyleObj.style}>
               {badgeText}
-            </Eyebrow>
+            </span>
           </EditableElementWrapper>
 
           {/* Heading verbatim from PRD 10.1 */}

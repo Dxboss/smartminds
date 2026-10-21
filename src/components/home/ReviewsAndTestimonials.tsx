@@ -12,16 +12,56 @@ import { Tag } from "@/components/ui/Tag";
 import { Button } from "@/components/ui/Button";
 import { formatEmbedUrl, isDirectVideo } from "@/components/cms/SectionRenderer";
 import { resolveSectionBg, SectionBgColor } from "@/components/ui/sectionBg";
+import {
+  resolveTypography,
+  resolveSubheadlineTypography,
+  resolveBadgeStyles,
+  resolveCardContainerStyles,
+  FontFamilyChoice,
+  FontSizeChoice,
+  FontWeightChoice,
+  FontStyleChoice,
+  FontColorChoice,
+} from "@/components/ui/typographyUtils";
+import { resolveItemColor } from "@/components/ui/sectionBg";
 import { EditableElementWrapper } from "@/components/admin/EditableElementWrapper";
-import { resolveCardContainerStyles } from "@/components/ui/typographyUtils";
 
 export interface ReviewsAndTestimonialsProps {
   headline?: string;
   subheadline?: string;
+  badgeText?: string;
+  badgeColor?: string;
+  badgeBgColor?: string;
+  badgeFontFamily?: FontFamilyChoice;
+  badgeWeight?: FontWeightChoice;
+  headlineFontFamily?: FontFamilyChoice;
+  headlineFontSize?: FontSizeChoice;
+  headlineFontWeight?: FontWeightChoice;
+  headlineFontStyle?: FontStyleChoice;
+  headlineColor?: FontColorChoice;
+  headlineTransform?: "normal" | "uppercase";
+  headlineAlign?: "left" | "center" | "right";
+  subheadlineFontFamily?: FontFamilyChoice;
+  subheadlineFontSize?: FontSizeChoice;
+  subheadlineFontWeight?: FontWeightChoice;
+  subheadlineFontStyle?: FontStyleChoice;
+  subheadlineColor?: FontColorChoice;
+  subheadlineAlign?: "left" | "center" | "right";
   videoTitle?: string;
   videoDesc?: string;
   videoThumbnail?: string;
   videoUrl?: string;
+  videoTag?: string;
+  videoTagColor?: string;
+  videoTagBgColor?: string;
+  videoBadge?: string;
+  videoBadgeColor?: string;
+  videoTitleColor?: string;
+  videoTitleFontFamily?: FontFamilyChoice;
+  videoTitleFontSize?: FontSizeChoice;
+  videoTitleFontWeight?: FontWeightChoice;
+  videoDescColor?: string;
+  videoDescFontSize?: string;
   columnRatio?: "50-50" | "60-40" | "70-30" | "40-60" | "33-67";
   bgColor?: SectionBgColor;
   mediaPosition?: "left" | "right";
@@ -47,10 +87,39 @@ export interface ReviewsAndTestimonialsProps {
 export const ReviewsAndTestimonials: React.FC<ReviewsAndTestimonialsProps> = ({
   headline = "Real stories from qualified graduates",
   subheadline = "Read how healthcare workers, aspiring tutors, and career changers achieved their Ofqual-regulated certificates with Smartminds.",
+  badgeText = "Learner Experiences",
+  badgeColor,
+  badgeBgColor,
+  badgeFontFamily,
+  badgeWeight,
+  headlineFontFamily,
+  headlineFontSize,
+  headlineFontWeight,
+  headlineFontStyle,
+  headlineColor,
+  headlineTransform,
+  headlineAlign,
+  subheadlineFontFamily,
+  subheadlineFontSize,
+  subheadlineFontWeight,
+  subheadlineFontStyle,
+  subheadlineColor,
+  subheadlineAlign,
   videoTitle = "Watch learners share their qualification journey",
   videoDesc = "Real feedback recorded by our graduates sharing their study experience, tutor support, and career progression.",
   videoThumbnail = "/images/certificate-moment.jpg",
   videoUrl,
+  videoTag = "Video Spotlight",
+  videoTagColor,
+  videoTagBgColor,
+  videoBadge = "Student Stories",
+  videoBadgeColor,
+  videoTitleColor,
+  videoTitleFontFamily,
+  videoTitleFontSize,
+  videoTitleFontWeight,
+  videoDescColor,
+  videoDescFontSize,
   columnRatio = "60-40",
   bgColor = "paper",
   mediaPosition = "right",
@@ -69,6 +138,42 @@ export const ReviewsAndTestimonials: React.FC<ReviewsAndTestimonialsProps> = ({
   const videoRef = React.useRef<HTMLVideoElement>(null);
 
   const effectiveVideoUrl = (videoUrl && videoUrl.trim()) || "";
+
+  const { className: hlClass, style: hlStyle } = resolveTypography({
+    fontFamily: headlineFontFamily,
+    fontSize: headlineFontSize,
+    fontWeight: headlineFontWeight,
+    fontStyle: headlineFontStyle,
+    color: headlineColor,
+    transform: headlineTransform,
+    align: headlineAlign,
+    isDark,
+    defaultFamily: "heading",
+    defaultSize: "xl",
+    defaultWeight: "bold",
+  });
+
+  const { className: subClass, style: subStyle } = resolveSubheadlineTypography({
+    fontFamily: subheadlineFontFamily,
+    fontSize: subheadlineFontSize,
+    fontWeight: subheadlineFontWeight,
+    fontStyle: subheadlineFontStyle,
+    color: subheadlineColor,
+    align: subheadlineAlign,
+    isDark,
+    defaultFamily: "body",
+    defaultSize: "md",
+    defaultWeight: "normal",
+  });
+
+  const badgeStyleObj = resolveBadgeStyles({
+    variant: isDark ? "gold" : "navy",
+    color: badgeColor,
+    bgColor: badgeBgColor,
+    fontFamily: badgeFontFamily,
+    weight: badgeWeight,
+    isDark,
+  });
 
   const handleTogglePlayPause = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -134,9 +239,17 @@ export const ReviewsAndTestimonials: React.FC<ReviewsAndTestimonialsProps> = ({
         {/* Section Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
           <div>
-            <Eyebrow tone={isDark ? "gold" : "navy"} className="mb-2">
-              Learner Experiences
-            </Eyebrow>
+            <EditableElementWrapper
+              isEditor={isEditor}
+              isSelected={isEditor && selectedElementKey === "badge"}
+              label="Learner Experiences Badge"
+              onClick={() => onSelectElement?.("badge")}
+              className="inline-block mb-2"
+            >
+              <span className={badgeStyleObj.className} style={badgeStyleObj.style}>
+                {badgeText}
+              </span>
+            </EditableElementWrapper>
 
             <EditableElementWrapper
               isEditor={isEditor}
@@ -145,7 +258,7 @@ export const ReviewsAndTestimonials: React.FC<ReviewsAndTestimonialsProps> = ({
               onClick={() => onSelectElement?.("headline")}
               className="mb-2"
             >
-              <Heading level="h2" className={isDark ? "text-white" : "text-navy-900"}>
+              <Heading level="h2" style={hlStyle} className={hlClass}>
                 {headline}
               </Heading>
             </EditableElementWrapper>
@@ -156,7 +269,7 @@ export const ReviewsAndTestimonials: React.FC<ReviewsAndTestimonialsProps> = ({
               label="Subheadline"
               onClick={() => onSelectElement?.("subheadline")}
             >
-              <p className={`text-base sm:text-lg max-w-xl leading-relaxed ${isDark ? "text-paper/85" : "text-ink-soft"}`}>
+              <p style={subStyle} className={subClass}>
                 {subheadline}
               </p>
             </EditableElementWrapper>
@@ -257,16 +370,45 @@ export const ReviewsAndTestimonials: React.FC<ReviewsAndTestimonialsProps> = ({
               >
 
               <div className="flex items-center justify-between mb-4">
-                <Tag variant="navy">Video Spotlight</Tag>
-                <span className="text-xs text-ink-soft font-mono">
-                  Student Stories
+                <span
+                  style={{
+                    color: videoTagColor,
+                    backgroundColor: videoTagBgColor,
+                  }}
+                  className="inline-block px-3 py-1 rounded-sm text-xs font-bold uppercase tracking-wider bg-navy-900 text-gold-300 border border-gold-500/30 shadow-2xs"
+                >
+                  {videoTag}
+                </span>
+                <span
+                  style={{ color: videoBadgeColor }}
+                  className={`text-xs font-mono ${!videoBadgeColor ? (isDark ? "text-paper/70" : "text-ink-soft") : ""}`}
+                >
+                  {videoBadge}
                 </span>
               </div>
 
-              <h3 className="font-heading text-xl font-bold text-navy-900 mb-2">
+              <h3
+                style={{
+                  color: videoTitleColor,
+                  fontFamily: videoTitleFontFamily ? `var(--font-${videoTitleFontFamily})` : undefined,
+                  fontSize: videoTitleFontSize === "xl" ? "1.5rem" : videoTitleFontSize === "lg" ? "1.25rem" : videoTitleFontSize === "sm" ? "1rem" : undefined,
+                  fontWeight: videoTitleFontWeight === "bold" ? 700 : videoTitleFontWeight === "medium" ? 500 : undefined,
+                }}
+                className={`font-heading text-xl font-bold mb-2 ${
+                  !videoTitleColor ? (isDark ? "text-white" : "text-navy-900") : ""
+                }`}
+              >
                 {videoTitle}
               </h3>
-              <p className="text-xs text-ink-soft leading-relaxed mb-5">
+              <p
+                style={{
+                  color: videoDescColor,
+                  fontSize: videoDescFontSize,
+                }}
+                className={`text-xs leading-relaxed mb-5 ${
+                  !videoDescColor ? (isDark ? "text-paper/70" : "text-ink-soft") : ""
+                }`}
+              >
                 {videoDesc}
               </p>
 
@@ -304,7 +446,7 @@ export const ReviewsAndTestimonials: React.FC<ReviewsAndTestimonialsProps> = ({
 
                     <div className="space-y-1.5 text-center">
                       <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold tracking-wide uppercase bg-white/20 text-white backdrop-blur-xs">
-                        Student Story
+                        {videoBadge || "Student Story"}
                       </span>
                       <h4 className="font-heading text-xl font-bold text-white leading-tight">
                         {videoTitle}

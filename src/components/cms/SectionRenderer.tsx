@@ -58,6 +58,7 @@ interface Props {
     | "video"
     | "floatingBadge"
     | "sealBadge"
+    | "trustNote"
     | null;
   selectedElementItemIndex?: number | null;
   onSelectElement?: (
@@ -73,7 +74,8 @@ interface Props {
       | "bg"
       | "video"
       | "floatingBadge"
-      | "sealBadge",
+      | "sealBadge"
+      | "trustNote",
     itemIndex?: number
   ) => void;
 }
@@ -391,26 +393,77 @@ const VideoSpotlightBlock: React.FC<{
               >
 
               <div className="flex items-center justify-between mb-3">
-                <Tag variant={isDark ? "gold" : "navy"}>Spotlight Video</Tag>
                 <span
-                  className={`text-xs font-mono ${
-                    isDark ? "text-gold-300" : "text-ink-soft"
+                  style={{
+                    color: section.videoTagColor,
+                    backgroundColor: section.videoTagBgColor,
+                  }}
+                  className={`inline-block px-2.5 py-0.5 rounded-sm text-xs font-bold uppercase tracking-wider ${
+                    !section.videoTagBgColor
+                      ? isDark
+                        ? "bg-gold-500/20 text-gold-300 border border-gold-500/30"
+                        : "bg-navy-900 text-gold-300"
+                      : ""
                   }`}
                 >
-                  HD Playback
+                  {section.videoTag || "Spotlight Video"}
+                </span>
+                <span
+                  style={{ color: section.videoBadgeColor }}
+                  className={`text-xs font-mono ${
+                    !section.videoBadgeColor
+                      ? isDark
+                        ? "text-gold-300"
+                        : "text-ink-soft"
+                      : ""
+                  }`}
+                >
+                  {section.videoBadge || "HD Playback"}
                 </span>
               </div>
 
               <h3
+                style={{
+                  color: section.videoTitleColor,
+                  fontFamily: section.videoTitleFontFamily
+                    ? `var(--font-${section.videoTitleFontFamily})`
+                    : undefined,
+                  fontSize:
+                    section.videoTitleFontSize === "xl"
+                      ? "1.5rem"
+                      : section.videoTitleFontSize === "lg"
+                      ? "1.25rem"
+                      : section.videoTitleFontSize === "sm"
+                      ? "1rem"
+                      : undefined,
+                  fontWeight:
+                    section.videoTitleFontWeight === "bold"
+                      ? 700
+                      : section.videoTitleFontWeight === "medium"
+                      ? 500
+                      : undefined,
+                }}
                 className={`font-heading text-lg font-bold mb-1 ${
-                  isDark ? "text-white" : "text-navy-900"
+                  !section.videoTitleColor
+                    ? isDark
+                      ? "text-white"
+                      : "text-navy-900"
+                    : ""
                 }`}
               >
                 {section.videoTitle || "Classroom & Assessor Spotlight"}
               </h3>
               <p
+                style={{
+                  color: section.videoDescColor,
+                  fontSize: section.videoDescFontSize,
+                }}
                 className={`text-xs mb-4 leading-relaxed ${
-                  isDark ? "text-paper/70" : "text-ink-soft"
+                  !section.videoDescColor
+                    ? isDark
+                      ? "text-paper/70"
+                      : "text-ink-soft"
+                    : ""
                 }`}
               >
                 {section.videoDesc ||
@@ -537,10 +590,14 @@ export const SectionRenderer: React.FC<Props> = ({
           buttonIconPosition={section.buttonIconPosition}
           buttonRadius={section.buttonRadius}
           buttonSize={section.buttonSize}
+          buttonHoverBgColor={section.buttonHoverBgColor}
+          buttonHoverTextColor={section.buttonHoverTextColor}
           secondaryButtonText={section.secondaryButtonText}
           secondaryButtonLink={section.secondaryButtonLink}
           secondaryButtonBgColor={section.secondaryButtonBgColor}
           secondaryButtonTextColor={section.secondaryButtonTextColor}
+          secondaryButtonHoverBgColor={section.secondaryButtonHoverBgColor}
+          secondaryButtonHoverTextColor={section.secondaryButtonHoverTextColor}
           secondaryButtonFontFamily={section.secondaryButtonFontFamily}
           secondaryButtonFontWeight={section.secondaryButtonFontWeight}
           secondaryButtonTextTransform={section.secondaryButtonTextTransform}
@@ -609,6 +666,11 @@ export const SectionRenderer: React.FC<Props> = ({
         <ChooseYourPath
           headline={section.headline}
           subheadline={section.subheadline}
+          badgeText={section.badgeText}
+          badgeColor={section.badgeColor}
+          badgeBgColor={section.badgeBgColor}
+          badgeFontFamily={section.badgeFontFamily}
+          badgeWeight={section.badgeWeight}
           bgColor={section.bgColor as any}
           columns={(section.columns === 1 ? 2 : section.columns) as 2 | 3 | 4 | undefined}
           items={section.items}
@@ -629,6 +691,8 @@ export const SectionRenderer: React.FC<Props> = ({
           buttonLink={section.buttonLink}
           buttonBgColor={section.buttonBgColor}
           buttonTextColor={section.buttonTextColor}
+          buttonHoverBgColor={section.buttonHoverBgColor}
+          buttonHoverTextColor={section.buttonHoverTextColor}
           buttonFontFamily={section.buttonFontFamily}
           buttonFontWeight={section.buttonFontWeight}
           buttonTextTransform={section.buttonTextTransform}
@@ -684,6 +748,8 @@ export const SectionRenderer: React.FC<Props> = ({
           buttonLink={section.buttonLink}
           buttonBgColor={section.buttonBgColor}
           buttonTextColor={section.buttonTextColor}
+          buttonHoverBgColor={section.buttonHoverBgColor}
+          buttonHoverTextColor={section.buttonHoverTextColor}
           trustNote={section.trustNote}
           trustNoteIcon={section.trustNoteIcon}
           image={section.image}
@@ -718,6 +784,15 @@ export const SectionRenderer: React.FC<Props> = ({
         <PricingFlexibility
           headline={section.headline}
           subheadline={section.subheadline}
+          badgeText={section.badgeText}
+          badgeColor={section.badgeColor}
+          badgeBgColor={section.badgeBgColor}
+          badgeFontFamily={section.badgeFontFamily}
+          badgeWeight={section.badgeWeight}
+          trustNote={section.trustNote}
+          trustNoteColor={section.trustNoteColor}
+          trustNoteFontFamily={section.trustNoteFontFamily}
+          trustNoteFontSize={section.trustNoteFontSize}
           bgColor={section.bgColor as any}
           columns={(section.columns === 1 ? 2 : section.columns) as 2 | 3 | 4 | undefined}
           items={section.items}
@@ -779,10 +854,39 @@ export const SectionRenderer: React.FC<Props> = ({
         <ReviewsAndTestimonials
           headline={section.headline}
           subheadline={section.subheadline}
+          badgeText={section.badgeText}
+          badgeColor={section.badgeColor}
+          badgeBgColor={section.badgeBgColor}
+          badgeFontFamily={section.badgeFontFamily}
+          badgeWeight={section.badgeWeight}
+          headlineFontFamily={section.headlineFontFamily}
+          headlineFontSize={section.headlineFontSize}
+          headlineFontWeight={section.headlineFontWeight}
+          headlineFontStyle={section.headlineFontStyle}
+          headlineColor={section.headlineColor}
+          headlineTransform={section.headlineTransform}
+          headlineAlign={section.headlineAlign}
+          subheadlineFontFamily={section.subheadlineFontFamily}
+          subheadlineFontSize={section.subheadlineFontSize}
+          subheadlineFontWeight={section.subheadlineFontWeight}
+          subheadlineFontStyle={section.subheadlineFontStyle}
+          subheadlineColor={section.subheadlineColor}
+          subheadlineAlign={section.subheadlineAlign}
           videoTitle={section.videoTitle}
           videoDesc={section.videoDesc}
           videoThumbnail={section.videoThumbnail}
           videoUrl={section.videoUrl}
+          videoTag={section.videoTag}
+          videoTagColor={section.videoTagColor}
+          videoTagBgColor={section.videoTagBgColor}
+          videoBadge={section.videoBadge}
+          videoBadgeColor={section.videoBadgeColor}
+          videoTitleColor={section.videoTitleColor}
+          videoTitleFontFamily={section.videoTitleFontFamily}
+          videoTitleFontSize={section.videoTitleFontSize}
+          videoTitleFontWeight={section.videoTitleFontWeight}
+          videoDescColor={section.videoDescColor}
+          videoDescFontSize={section.videoDescFontSize}
           columnRatio={section.columnRatio}
           bgColor={section.bgColor as any}
           mediaPosition={section.mediaPosition}
@@ -839,10 +943,16 @@ export const SectionRenderer: React.FC<Props> = ({
           headline={section.headline}
           subheadline={section.subheadline}
           badgeText={section.badgeText}
+          badgeColor={section.badgeColor}
+          badgeBgColor={section.badgeBgColor}
+          badgeFontFamily={section.badgeFontFamily}
+          badgeWeight={section.badgeWeight}
           buttonText={section.buttonText}
           buttonLink={section.buttonLink}
           buttonBgColor={section.buttonBgColor}
           buttonTextColor={section.buttonTextColor}
+          buttonHoverBgColor={section.buttonHoverBgColor}
+          buttonHoverTextColor={section.buttonHoverTextColor}
           buttonFontFamily={section.buttonFontFamily}
           buttonFontWeight={section.buttonFontWeight}
           buttonTextTransform={section.buttonTextTransform}
@@ -854,6 +964,8 @@ export const SectionRenderer: React.FC<Props> = ({
           secondaryButtonLink={section.secondaryButtonLink}
           secondaryButtonBgColor={section.secondaryButtonBgColor}
           secondaryButtonTextColor={section.secondaryButtonTextColor}
+          secondaryButtonHoverBgColor={section.secondaryButtonHoverBgColor}
+          secondaryButtonHoverTextColor={section.secondaryButtonHoverTextColor}
           secondaryButtonFontFamily={section.secondaryButtonFontFamily}
           secondaryButtonFontWeight={section.secondaryButtonFontWeight}
           secondaryButtonTextTransform={section.secondaryButtonTextTransform}

@@ -88,6 +88,7 @@ import {
   resolveCardContainerStyles,
   resolveTypography,
   resolveSubheadlineTypography,
+  resolveBadgeStyles,
   type FontFamilyChoice,
   type FontSizeChoice,
   type FontWeightChoice,
@@ -109,6 +110,11 @@ import {
 export interface ChooseYourPathProps {
   headline?: string;
   subheadline?: string;
+  badgeText?: string;
+  badgeColor?: string;
+  badgeBgColor?: string;
+  badgeFontFamily?: string;
+  badgeWeight?: string;
   bgColor?: "white" | "paper" | "navy" | "cream";
   columns?: 2 | 3 | 4;
   items?: BuilderSectionItem[];
@@ -129,6 +135,8 @@ export interface ChooseYourPathProps {
   buttonLink?: string;
   buttonBgColor?: ButtonBgPreset | string;
   buttonTextColor?: ButtonTextColorPreset | string;
+  buttonHoverBgColor?: string;
+  buttonHoverTextColor?: string;
   buttonFontFamily?: ButtonFontFamily;
   buttonFontWeight?: ButtonFontWeight;
   buttonTextTransform?: ButtonTextTransform;
@@ -174,10 +182,17 @@ export const ChooseYourPath: React.FC<ChooseYourPathProps> = ({
   subheadlineFontStyle,
   subheadlineColor,
   subheadlineAlign,
+  badgeText = "Explore Sector Pathways",
+  badgeColor,
+  badgeBgColor,
+  badgeFontFamily,
+  badgeWeight,
   buttonText = "View All Categories",
   buttonLink = "/courses",
   buttonBgColor,
   buttonTextColor,
+  buttonHoverBgColor,
+  buttonHoverTextColor,
   buttonFontFamily,
   buttonFontWeight,
   buttonTextTransform,
@@ -193,10 +208,21 @@ export const ChooseYourPath: React.FC<ChooseYourPathProps> = ({
 }) => {
   const isDark = bgColor === "navy";
 
+  const badgeStyleObj = resolveBadgeStyles({
+    variant: "teal",
+    color: badgeColor,
+    bgColor: badgeBgColor,
+    fontFamily: badgeFontFamily as any,
+    weight: badgeWeight as any,
+    isDark,
+  });
+
   const customBtn = resolveCustomButtonClasses(
     {
       bgColor: buttonBgColor,
       textColor: buttonTextColor,
+      hoverBgColor: buttonHoverBgColor,
+      hoverTextColor: buttonHoverTextColor,
       fontFamily: buttonFontFamily,
       fontWeight: buttonFontWeight,
       textTransform: buttonTextTransform,
@@ -266,12 +292,12 @@ export const ChooseYourPath: React.FC<ChooseYourPathProps> = ({
           <EditableElementWrapper
             isEditor={isEditor}
             isSelected={isEditor && selectedElementKey === "badge"}
-            label="Badge"
+            label="Pathways Eyebrow Badge"
             onClick={() => onSelectElement?.("badge")}
             inline
           >
-            <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-teal-50 text-[#0B4D4E] border border-teal-200/70 mb-3 shadow-xs">
-              Explore Sector Pathways
+            <span className={badgeStyleObj.className} style={badgeStyleObj.style}>
+              {badgeText}
             </span>
           </EditableElementWrapper>
 

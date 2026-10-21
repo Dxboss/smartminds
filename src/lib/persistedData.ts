@@ -1999,7 +1999,13 @@ export function listColorSwatches(): ColorSwatch[] {
   if (!store.colorSwatches || !Array.isArray(store.colorSwatches) || store.colorSwatches.length === 0) {
     return DEFAULT_COLOR_SWATCHES;
   }
-  return store.colorSwatches;
+  // Normalize legacy Oceanic Blue naming to client requested "Smart blue"
+  return store.colorSwatches.map((s) => {
+    if ((s.id === "swatch-oceanic-blue" || s.hex.toLowerCase() === "#13416b") && s.name.toLowerCase().includes("oceanic")) {
+      return { ...s, name: "Smart blue" };
+    }
+    return s;
+  });
 }
 
 export async function saveColorSwatch(swatch: {

@@ -158,3 +158,13 @@ body {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* Custom Button Hover State variables (client-selected hover background & text colors) */
+.btn-custom-hover {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+.btn-custom-hover:hover {
+  background-color: var(--btn-hover-bg, var(--btn-bg)) !important;
+  color: var(--btn-hover-text, var(--btn-text)) !important;
+  border-color: var(--btn-hover-border, var(--btn-hover-bg, var(--btn-border))) !important;
+}

@@ -22,6 +22,8 @@ export interface WhyChooseUsProps {
   buttonLink?: string;
   buttonBgColor?: string;
   buttonTextColor?: string;
+  buttonHoverBgColor?: string;
+  buttonHoverTextColor?: string;
   trustNote?: string;
   trustNoteIcon?: string;
   image?: string;
@@ -95,6 +97,8 @@ export const WhyChooseUsSection: React.FC<WhyChooseUsProps> = ({
   buttonLink = "/courses",
   buttonBgColor,
   buttonTextColor,
+  buttonHoverBgColor,
+  buttonHoverTextColor,
   trustNote = "24/7 Hrs Ready to our support team",
   trustNoteIcon = "star",
   image = "/images/hero-student-thumbsup.jpg",
@@ -285,7 +289,7 @@ export const WhyChooseUsSection: React.FC<WhyChooseUsProps> = ({
             >
               <h2
                 style={hlStyle}
-                className={`text-3xl sm:text-4xl lg:text-5xl font-heading font-bold text-navy-900 tracking-tight leading-[1.12] ${hlClass}`}
+                className={`text-3xl sm:text-4xl lg:text-5xl font-heading font-bold tracking-tight leading-[1.12] ${hlClass}`}
               >
                 {headline}
               </h2>
@@ -466,8 +470,12 @@ export const WhyChooseUsSection: React.FC<WhyChooseUsProps> = ({
                       style={{
                         backgroundColor: buttonBgColor || undefined,
                         color: buttonTextColor || undefined,
+                        ...(buttonHoverBgColor ? { ["--btn-hover-bg" as any]: buttonHoverBgColor } : {}),
+                        ...(buttonHoverTextColor ? { ["--btn-hover-text" as any]: buttonHoverTextColor } : {}),
                       }}
-                      className="inline-flex items-center gap-2.5 px-7 py-3.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-heading font-bold text-sm tracking-wider uppercase shadow-md transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 min-h-[44px]"
+                      className={`inline-flex items-center gap-2.5 px-7 py-3.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-heading font-bold text-sm tracking-wider uppercase shadow-md transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 min-h-[44px] ${
+                        buttonHoverBgColor || buttonHoverTextColor ? "btn-custom-hover" : ""
+                      }`}
                     >
                       <span>{buttonText}</span>
                       <Icon name="arrow-right" size={16} />

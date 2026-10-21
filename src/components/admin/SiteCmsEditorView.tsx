@@ -813,6 +813,7 @@ export const SiteCmsEditorView: React.FC<Props> = ({
     | "video"
     | "floatingBadge"
     | "sealBadge"
+    | "trustNote"
     | null
   >(null);
   const [selectedElementItemIndex, setSelectedElementItemIndex] = useState<number | null>(null);
@@ -844,18 +845,24 @@ export const SiteCmsEditorView: React.FC<Props> = ({
         | "bg"
         | "video"
         | "floatingBadge"
-        | "sealBadge";
+        | "sealBadge"
+        | "trustNote";
       label: string;
       sublabel?: string;
       icon: IconName;
       index?: number;
     }[] = [];
 
-    if (sec.badgeText) {
+    if (sec.badgeText || sec.type === "pricing" || sec.type === "cta_banner" || sec.type === "testimonials" || sec.type === "choose_path") {
       list.push({
         key: "badge",
         label: sec.type === "trust_strip" ? "Rating Eyebrow" : "Eyebrow Badge",
-        sublabel: sec.badgeText,
+        sublabel: sec.badgeText || (
+          sec.type === "pricing" ? "Honest, Transparent Pricing" :
+          sec.type === "cta_banner" ? "Personalised Guidance" :
+          sec.type === "testimonials" ? "Learner Experiences" :
+          sec.type === "choose_path" ? "Course Pathways" : undefined
+        ),
         icon: "sparkles",
       });
     }
@@ -950,11 +957,20 @@ export const SiteCmsEditorView: React.FC<Props> = ({
       });
     }
 
-    if (sec.videoUrl) {
+    if (sec.trustNote || sec.type === "pricing") {
+      list.push({
+        key: "trustNote",
+        label: "Instalment Notice / Guarantee",
+        sublabel: (sec.trustNote || "Smartminds instalment plans...").slice(0, 36) + "...",
+        icon: "shield-check",
+      });
+    }
+
+    if (sec.videoUrl || sec.videoTitle || sec.type === "testimonials") {
       list.push({
         key: "video",
         label: "Spotlight Video Player",
-        sublabel: sec.videoTitle || "Video",
+        sublabel: sec.videoTitle || "Learner Stories",
         icon: "video",
       });
     }
@@ -1033,7 +1049,8 @@ export const SiteCmsEditorView: React.FC<Props> = ({
       | "bg"
       | "video"
       | "floatingBadge"
-      | "sealBadge",
+      | "sealBadge"
+      | "trustNote",
     itemIndex?: number
   ) => {
     setSelectedSectionId(sectionId);
@@ -1053,7 +1070,9 @@ export const SiteCmsEditorView: React.FC<Props> = ({
 
     const targetSec = activeSections.find((s) => s.id === sectionId);
     const label =
-      elementKey === "sealBadge"
+      elementKey === "trustNote"
+        ? "Instalment Notice / Legal Reassurance"
+        : elementKey === "sealBadge"
         ? "Watch Video Seal Badge"
         : elementKey === "floatingBadge"
         ? targetSec?.type === "staff_training"
@@ -3740,7 +3759,9 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                         </span>
                       </div>
                       <strong className="text-xs font-bold text-navy-900 block truncate">
-                        {selectedElementKey === "sealBadge"
+                        {selectedElementKey === "trustNote"
+                          ? "Instalment Notice / Legal Reassurance"
+                          : selectedElementKey === "sealBadge"
                           ? "Watch Video Seal Badge"
                           : selectedElementKey === "floatingBadge"
                           ? selectedSection.type === "staff_training"
@@ -8900,7 +8921,7 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                 </p>
               </div>
 
-              {/* Client-Requested Oceanic Blue Spotlight */}
+              {/* Client-Requested Smart blue Spotlight */}
               <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/80 rounded-sm space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-blue-900 flex items-center gap-1">
@@ -8923,7 +8944,7 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-xs font-bold text-navy-900 truncate">
-                      Oceanic Blue (Client Brand)
+                      Smart blue (Client Brand)
                     </div>
                     <div className="text-[10px] text-ink-soft">
                       Available in section backgrounds, button colors, and widget inspectors site-wide.

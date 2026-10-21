@@ -55,10 +55,14 @@ export interface HeroSectionProps {
   buttonIconPosition?: ButtonIconPosition;
   buttonRadius?: ButtonRadius;
   buttonSize?: ButtonSizePreset;
+  buttonHoverBgColor?: string;
+  buttonHoverTextColor?: string;
   secondaryButtonText?: string;
   secondaryButtonLink?: string;
   secondaryButtonBgColor?: string;
   secondaryButtonTextColor?: string;
+  secondaryButtonHoverBgColor?: string;
+  secondaryButtonHoverTextColor?: string;
   secondaryButtonFontFamily?: ButtonFontFamily;
   secondaryButtonFontWeight?: ButtonFontWeight;
   secondaryButtonTextTransform?: ButtonTextTransform;
@@ -132,10 +136,14 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   buttonIconPosition,
   buttonRadius,
   buttonSize,
+  buttonHoverBgColor,
+  buttonHoverTextColor,
   secondaryButtonText = "View all courses",
   secondaryButtonLink = "/courses",
   secondaryButtonBgColor,
   secondaryButtonTextColor,
+  secondaryButtonHoverBgColor,
+  secondaryButtonHoverTextColor,
   secondaryButtonFontFamily,
   secondaryButtonFontWeight,
   secondaryButtonTextTransform,
@@ -190,6 +198,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
     {
       bgColor: buttonBgColor,
       textColor: buttonTextColor,
+      hoverBgColor: buttonHoverBgColor,
+      hoverTextColor: buttonHoverTextColor,
       fontFamily: buttonFontFamily,
       fontWeight: buttonFontWeight,
       textTransform: buttonTextTransform,
@@ -207,6 +217,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
     {
       bgColor: secondaryButtonBgColor,
       textColor: secondaryButtonTextColor,
+      hoverBgColor: secondaryButtonHoverBgColor,
+      hoverTextColor: secondaryButtonHoverTextColor,
       fontFamily: secondaryButtonFontFamily,
       fontWeight: secondaryButtonFontWeight,
       textTransform: secondaryButtonTextTransform,
@@ -393,10 +405,15 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 <div className={isEditor ? "pointer-events-none" : ""}>
                   <Link
                     href={buttonLink || "#popular-courses"}
-                    className="w-full sm:w-auto px-8 py-4 rounded-full bg-[#FF5722] hover:bg-[#e64a19] text-white font-heading font-extrabold text-base tracking-wide flex items-center justify-center gap-2 shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 hover:scale-[1.02] active:scale-95 transition-all duration-200"
+                    className={`w-full sm:w-auto px-8 py-4 font-heading font-extrabold text-base tracking-wide flex items-center justify-center gap-2 shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 hover:scale-[1.02] active:scale-95 transition-all duration-200 ${
+                      primaryBtn.className.includes("btn-custom-hover") || buttonBgColor || buttonTextColor
+                        ? primaryBtn.className
+                        : "rounded-full bg-[#FF5722] hover:bg-[#e64a19] text-white"
+                    }`}
+                    style={primaryBtn.style}
                   >
                     <span>{buttonText || "Explore Courses"}</span>
-                    <Icon name="arrow-right" size={18} />
+                    <Icon name={primaryBtn.icon || "arrow-right"} size={18} />
                   </Link>
                 </div>
               </EditableElementWrapper>
@@ -412,10 +429,15 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                   {secondaryButtonLink && secondaryButtonLink !== "/book" ? (
                     <Link
                       href={secondaryButtonLink}
-                      className="w-full sm:w-auto px-7 py-4 rounded-full bg-white border-2 border-teal-300 hover:border-teal-500 text-[#0B4D4E] hover:bg-teal-50 font-heading font-extrabold text-base tracking-wide flex items-center justify-center gap-2 shadow-xs hover:shadow-md transition-all duration-200"
+                      className={`w-full sm:w-auto px-7 py-4 font-heading font-extrabold text-base tracking-wide flex items-center justify-center gap-2 shadow-xs hover:shadow-md transition-all duration-200 ${
+                        secondaryBtn.className.includes("btn-custom-hover") || secondaryButtonBgColor || secondaryButtonTextColor
+                          ? secondaryBtn.className
+                          : "rounded-full bg-white border-2 border-teal-300 hover:border-teal-500 text-[#0B4D4E] hover:bg-teal-50"
+                      }`}
+                      style={secondaryBtn.style}
                     >
-                      <Icon name="phone" size={17} className="text-[#0B4D4E]" />
-                      <span className="text-[#0B4D4E] font-bold">
+                      <Icon name={secondaryBtn.icon || "phone"} size={17} className={secondaryBtn.style?.color ? undefined : "text-[#0B4D4E]"} />
+                      <span className={secondaryBtn.style?.color ? undefined : "text-[#0B4D4E] font-bold"}>
                         {secondaryButtonText && secondaryButtonText.trim()
                           ? secondaryButtonText
                           : "Speak with an Assessor"}
@@ -425,10 +447,15 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                     <button
                       type="button"
                       onClick={() => openBooking()}
-                      className="w-full sm:w-auto px-7 py-4 rounded-full bg-white border-2 border-teal-300 hover:border-teal-500 text-[#0B4D4E] hover:bg-teal-50 font-heading font-extrabold text-base tracking-wide flex items-center justify-center gap-2 shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer"
+                      className={`w-full sm:w-auto px-7 py-4 font-heading font-extrabold text-base tracking-wide flex items-center justify-center gap-2 shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer ${
+                        secondaryBtn.className.includes("btn-custom-hover") || secondaryButtonBgColor || secondaryButtonTextColor
+                          ? secondaryBtn.className
+                          : "rounded-full bg-white border-2 border-teal-300 hover:border-teal-500 text-[#0B4D4E] hover:bg-teal-50"
+                      }`}
+                      style={secondaryBtn.style}
                     >
-                      <Icon name="phone" size={17} className="text-[#0B4D4E]" />
-                      <span className="text-[#0B4D4E] font-bold">
+                      <Icon name={secondaryBtn.icon || "phone"} size={17} className={secondaryBtn.style?.color ? undefined : "text-[#0B4D4E]"} />
+                      <span className={secondaryBtn.style?.color ? undefined : "text-[#0B4D4E] font-bold"}>
                         {secondaryButtonText && secondaryButtonText.trim()
                           ? secondaryButtonText
                           : "Speak with an Assessor"}

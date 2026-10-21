@@ -25,7 +25,7 @@ export interface ColorPalettePickerProps {
 
 const QUICK_SPECTRUM_SWATCHES = [
   { label: "Royal Navy", hex: "#23216B", key: "navy" },
-  { label: "Oceanic Blue", hex: "#13416B", key: "#13416B" },
+  { label: "Smart blue", hex: "#13416B", key: "#13416B" },
   { label: "Indigo Collegiate", hex: "#34318F", key: "navy_indigo" },
   { label: "College Gold", hex: "#D9B84A", key: "gold" },
   { label: "Warm Honey", hex: "#E8A938", key: "gold_honey" },
@@ -287,7 +287,7 @@ export const ColorPalettePicker: React.FC<ColorPalettePickerProps> = ({
               <div className="grid grid-cols-2 gap-1.5">
                 <input
                   type="text"
-                  placeholder="e.g. Oceanic Blue"
+                  placeholder="e.g. Smart blue"
                   value={newSwatchName}
                   onChange={(e) => setNewSwatchName(e.target.value)}
                   className="px-2 py-1 text-xs border border-line rounded-xs focus:outline-none focus:border-navy-900 font-semibold"
@@ -592,14 +592,14 @@ export const ColorPalettePicker: React.FC<ColorPalettePickerProps> = ({
               Add Color to Global Brand Kit
             </span>
             <p className="text-[10px] text-ink-soft leading-tight">
-              Give this color a name (e.g. &quot;Oceanic Blue&quot;) and hex code. Once saved, it stays available across every section on the site.
+              Give this color a name (e.g. &quot;Smart blue&quot;) and hex code. Once saved, it stays available across every section on the site.
             </p>
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="block text-[9px] font-bold uppercase text-ink-soft mb-0.5">Swatch Name</label>
                 <input
                   type="text"
-                  placeholder="e.g. Oceanic Blue"
+                  placeholder="e.g. Smart blue"
                   value={newSwatchName}
                   onChange={(e) => setNewSwatchName(e.target.value)}
                   className="w-full px-2 py-1 text-xs border border-line rounded-xs focus:outline-none focus:border-navy-900 bg-white font-medium"
@@ -662,7 +662,7 @@ export const ColorPalettePicker: React.FC<ColorPalettePickerProps> = ({
                 <label className="block text-[9px] font-bold uppercase text-ink-soft mb-0.5">Swatch Name</label>
                 <input
                   type="text"
-                  placeholder="e.g. Oceanic Blue"
+                  placeholder="e.g. Smart blue"
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
                   className="w-full px-2 py-1 text-xs border border-line rounded-xs focus:outline-none focus:border-navy-900 bg-white font-medium"

@@ -77,10 +77,14 @@ export const ButtonCustomizerFields: React.FC<ButtonCustomizerFieldsProps> = ({
       {/* Live Preview Widget */}
       <div className="p-3 rounded-sm bg-white border border-line/80 flex flex-col items-center justify-center gap-1.5 text-center shadow-xs">
         <span className="text-[10px] font-mono uppercase tracking-wider text-ink-soft">
-          Live Button Preview
+          Live Button Preview (Hover with cursor to test hover color)
         </span>
         <div className="pt-1">
-          <div className={preview.className} style={preview.style}>
+          <button
+            type="button"
+            className={preview.className}
+            style={preview.style}
+          >
             {preview.icon && preview.iconPosition === "left" && (
               <Icon name={preview.icon} size={15} />
             )}
@@ -88,7 +92,7 @@ export const ButtonCustomizerFields: React.FC<ButtonCustomizerFieldsProps> = ({
             {preview.icon && preview.iconPosition === "right" && (
               <Icon name={preview.icon} size={15} />
             )}
-          </div>
+          </button>
         </div>
       </div>
 
@@ -126,29 +130,74 @@ export const ButtonCustomizerFields: React.FC<ButtonCustomizerFieldsProps> = ({
       {/* Collapsible Styling Panel */}
       {showStylePanel && (
         <div className="pt-3 border-t border-line space-y-3.5 animate-in fade-in-50 duration-150">
-          {/* 1. Button Background Palette & Custom Hue */}
-          <div>
-            <ColorPalettePicker
-              value={config.bgColor || (defaultVariant === "outline" ? "outline-navy" : "navy")}
-              onChange={(val) => onChange("bgColor", val)}
-              label="Button Background Color"
-              compact={true}
-              defaultColor={defaultVariant === "outline" ? "outline-navy" : "navy"}
-              allowCustomHex={true}
-            />
+          {/* Normal State Colors */}
+          <div className="p-2.5 bg-paper/60 rounded-xs border border-line space-y-3">
+            <span className="text-[10px] font-bold text-navy-900 uppercase tracking-wider flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-navy-900" />
+              <span>Normal State Colors</span>
+            </span>
+
+            {/* 1. Button Background Palette & Custom Hue */}
+            <div>
+              <ColorPalettePicker
+                value={config.bgColor || (defaultVariant === "outline" ? "outline-navy" : "navy")}
+                onChange={(val) => onChange("bgColor", val)}
+                label="Button Surface Fill"
+                compact={true}
+                defaultColor={defaultVariant === "outline" ? "outline-navy" : "navy"}
+                allowCustomHex={true}
+              />
+            </div>
+
+            {/* 2. Button Text Color Override */}
+            <div>
+              <ColorPalettePicker
+                value={config.textColor || "auto"}
+                onChange={(val) => onChange("textColor", val === "auto" ? undefined : val)}
+                label="Button Text Color"
+                compact={true}
+                showAutoOption={true}
+                defaultColor="auto"
+                allowCustomHex={true}
+              />
+            </div>
           </div>
 
-          {/* 2. Button Text Color Override */}
-          <div>
-            <ColorPalettePicker
-              value={config.textColor || "auto"}
-              onChange={(val) => onChange("textColor", val === "auto" ? undefined : val)}
-              label="Button Text Color"
-              compact={true}
-              showAutoOption={true}
-              defaultColor="auto"
-              allowCustomHex={true}
-            />
+          {/* Hover State Colors (Client Choice) */}
+          <div className="p-2.5 bg-gold-50/40 rounded-xs border border-gold-300/60 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold text-navy-900 uppercase tracking-wider flex items-center gap-1.5">
+                <Icon name="sparkles" size={11} className="text-gold-500" />
+                <span>Hover State Colors (Client Choice)</span>
+              </span>
+              <span className="text-[9px] text-gold-700 font-semibold bg-gold-200/50 px-1.5 py-0.5 rounded">
+                Interactive State
+              </span>
+            </div>
+
+            <div>
+              <ColorPalettePicker
+                value={config.hoverBgColor || "auto"}
+                onChange={(val) => onChange("hoverBgColor", val === "auto" ? undefined : val)}
+                label="Hover Background Fill"
+                compact={true}
+                showAutoOption={true}
+                defaultColor="auto"
+                allowCustomHex={true}
+              />
+            </div>
+
+            <div>
+              <ColorPalettePicker
+                value={config.hoverTextColor || "auto"}
+                onChange={(val) => onChange("hoverTextColor", val === "auto" ? undefined : val)}
+                label="Hover Text Color"
+                compact={true}
+                showAutoOption={true}
+                defaultColor="auto"
+                allowCustomHex={true}
+              />
+            </div>
           </div>
 
           {/* 3. Typography: Font Family & Text Transform */}

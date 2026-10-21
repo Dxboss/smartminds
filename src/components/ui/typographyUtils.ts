@@ -82,19 +82,26 @@ export function resolveTypography(options: TypographyOptions): ResolvedTypograph
     }
   } else if (colorChoice === "navy") {
     colorClass = "text-navy-900";
+    inlineStyle = { color: "var(--navy-900, #0b3b3c)" };
   } else if (colorChoice === "white") {
     colorClass = "text-white";
+    inlineStyle = { color: "#ffffff" };
   } else if (colorChoice === "gold") {
     colorClass = "text-gold-500";
+    inlineStyle = { color: "var(--gold-500, #ff5722)" };
   } else if (colorChoice === "ink_soft") {
     colorClass = "text-ink-soft";
-  } else if (typeof colorChoice === "string" && colorChoice.startsWith("#")) {
+    inlineStyle = { color: "var(--ink-soft, #475569)" };
+  } else if (typeof colorChoice === "string" && (colorChoice.startsWith("#") || colorChoice.startsWith("rgb"))) {
     inlineStyle = { color: colorChoice };
+    colorClass = "";
   } else {
     const matched = COLLEGE_COLOR_PALETTES.find((p) => p.key === colorChoice);
     if (matched) {
       inlineStyle = { color: matched.hex };
+      colorClass = "";
     } else {
+      inlineStyle = { color: options.isDark ? "#ffffff" : "var(--navy-900, #0b3b3c)" };
       colorClass = options.isDark ? "text-white" : "text-navy-900";
     }
   }
@@ -141,13 +148,17 @@ export function resolveSubheadlineTypography(options: TypographyOptions): Resolv
     colorClass = options.isDark ? "text-paper/85" : "text-ink-soft";
   } else if (colorChoice === "navy") {
     colorClass = "text-navy-900";
+    inlineStyle = { color: "var(--navy-900, #0b3b3c)" };
   } else if (colorChoice === "white") {
     colorClass = "text-white";
+    inlineStyle = { color: "#ffffff" };
   } else if (colorChoice === "gold") {
     colorClass = "text-gold-500";
+    inlineStyle = { color: "var(--gold-500, #ff5722)" };
   } else if (colorChoice === "ink_soft") {
     colorClass = "text-ink-soft";
-  } else if (typeof colorChoice === "string" && colorChoice.startsWith("#")) {
+    inlineStyle = { color: "var(--ink-soft, #475569)" };
+  } else if (typeof colorChoice === "string" && (colorChoice.startsWith("#") || colorChoice.startsWith("rgb"))) {
     inlineStyle = { color: colorChoice };
     colorClass = "";
   } else {
@@ -282,5 +293,139 @@ export function resolveCardContainerStyles(
   const descClass = `text-sm leading-relaxed ${descColor}`.trim();
 
   return { containerClass, containerStyle, titleClass, titleStyle, descClass, descStyle };
+}
+
+export interface BadgeStyleOptions {
+  variant?: "live" | "navy" | "gold" | "default" | string;
+  color?: string;
+  bgColor?: string;
+  fontFamily?: FontFamilyChoice | string;
+  weight?: FontWeightChoice | string;
+  isDark?: boolean;
+}
+
+export function resolveBadgeStyles(options: BadgeStyleOptions): {
+  className: string;
+  style: React.CSSProperties;
+} {
+  const inlineStyle: React.CSSProperties = {};
+  const classes: string[] = [
+    "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold tracking-wide transition-all select-none",
+  ];
+
+  // Custom text color
+  if (options.color && options.color !== "auto") {
+    if (options.color.startsWith("#") || options.color.startsWith("rgb")) {
+      inlineStyle.color = options.color;
+    } else {
+      const p = COLLEGE_COLOR_PALETTES.find((cp) => cp.key === options.color);
+      if (p) inlineStyle.color = p.hex;
+      else if (options.color === "white") inlineStyle.color = "#ffffff";
+      else if (options.color === "navy") inlineStyle.color = "var(--navy-900, #0b3b3c)";
+      else if (options.color === "gold") inlineStyle.color = "var(--gold-500, #ff5722)";
+      else if (options.color === "ink_soft") inlineStyle.color = "var(--ink-soft, #475569)";
+    }
+  }
+
+  // Custom background color
+  if (options.bgColor && options.bgColor !== "auto" && options.bgColor !== "default") {
+    let bgHex = options.bgColor;
+    if (!bgHex.startsWith("#") && !bgHex.startsWith("rgb")) {
+      const p = COLLEGE_COLOR_PALETTES.find((cp) => cp.key === bgHex);
+      if (p) bgHex = p.hex;
+      else if (bgHex === "navy") bgHex = "var(--navy-900, #0b3b3c)";
+      else if (bgHex === "white") bgHex = "#ffffff";
+      else if (bgHex === "gold") bgHex = "var(--gold-500, #ff5722)";
+      else if (bgHex === "paper") bgHex = "var(--paper, #f4f9f9)";
+    }
+    inlineStyle.backgroundColor = bgHex;
+    inlineStyle.borderColor = "transparent";
+    classes.push("border");
+  } else {
+    // Default preset variants
+    switch (options.variant) {
+      case "gold":
+        classes.push(
+          options.isDark
+            ? "bg-gold-500/15 text-gold-300 border border-gold-400/30"
+            : "bg-gold-50 text-gold-700 border border-gold-200"
+        );
+        break;
+      case "live":
+        classes.push("bg-emerald-50 text-emerald-800 border border-emerald-200");
+        break;
+      case "default":
+        classes.push(
+          options.isDark
+            ? "bg-white/10 text-white/90 border border-white/20"
+            : "bg-paper text-ink-soft border border-line"
+        );
+        break;
+      case "navy":
+      default:
+        classes.push(
+          options.isDark
+            ? "bg-gold-500/10 text-gold-300 border border-gold-400/20"
+            : "bg-navy-900/5 text-navy-900 border border-navy-900/15"
+        );
+        break;
+    }
+  }
+
+  if (options.fontFamily === "heading") classes.push("font-heading");
+  else if (options.fontFamily === "body") classes.push("font-body");
+  else if (options.fontFamily === "serif") classes.push("font-serif");
+
+  if (options.weight === "bold") classes.push("font-bold");
+  else if (options.weight === "medium") classes.push("font-medium");
+  else if (options.weight === "normal") classes.push("font-normal");
+
+  return { className: classes.join(" "), style: inlineStyle };
+}
+
+export interface TrustNoteStyleOptions {
+  color?: string;
+  fontFamily?: FontFamilyChoice | string;
+  fontSize?: FontSizeChoice | string;
+  align?: "left" | "center" | "right";
+  isDark?: boolean;
+}
+
+export function resolveTrustNoteStyles(options: TrustNoteStyleOptions): {
+  className: string;
+  style: React.CSSProperties;
+} {
+  const inlineStyle: React.CSSProperties = {};
+  const classes: string[] = ["leading-relaxed transition-all"];
+
+  if (options.color && options.color !== "auto") {
+    if (options.color.startsWith("#") || options.color.startsWith("rgb")) {
+      inlineStyle.color = options.color;
+    } else {
+      const p = COLLEGE_COLOR_PALETTES.find((cp) => cp.key === options.color);
+      if (p) inlineStyle.color = p.hex;
+      else if (options.color === "navy") inlineStyle.color = "var(--navy-900, #0b3b3c)";
+      else if (options.color === "gold") inlineStyle.color = "var(--gold-500, #ff5722)";
+      else if (options.color === "white") inlineStyle.color = "#ffffff";
+      else if (options.color === "ink_soft") inlineStyle.color = "var(--ink-soft, #475569)";
+    }
+  } else {
+    classes.push(options.isDark ? "text-paper/75" : "text-ink-soft");
+  }
+
+  if (options.fontFamily === "heading") classes.push("font-heading");
+  else if (options.fontFamily === "serif") classes.push("font-serif");
+  else classes.push("font-body");
+
+  if (options.fontSize === "sm") classes.push("text-[11px]");
+  else if (options.fontSize === "md") classes.push("text-xs");
+  else if (options.fontSize === "lg") classes.push("text-sm");
+  else classes.push("text-xs");
+
+  if (options.align === "left") classes.push("text-left");
+  else if (options.align === "right") classes.push("text-right");
+  else classes.push("text-center");
+
+  return { className: classes.join(" "), style: inlineStyle };
 }
 

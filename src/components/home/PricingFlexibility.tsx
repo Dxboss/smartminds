@@ -13,11 +13,22 @@ import {
   resolveCardContainerStyles,
   resolveTypography,
   resolveSubheadlineTypography,
+  resolveBadgeStyles,
+  resolveTrustNoteStyles,
 } from "@/components/ui/typographyUtils";
 
 export interface PricingFlexibilityProps {
   headline?: string;
   subheadline?: string;
+  badgeText?: string;
+  badgeColor?: string;
+  badgeBgColor?: string;
+  badgeFontFamily?: string;
+  badgeWeight?: string;
+  trustNote?: string;
+  trustNoteColor?: string;
+  trustNoteFontFamily?: string;
+  trustNoteFontSize?: string;
   bgColor?: "white" | "paper" | "navy" | "cream";
   columns?: 2 | 3 | 4;
   items?: BuilderSectionItem[];
@@ -47,7 +58,8 @@ export interface PricingFlexibilityProps {
       | "image"
       | "item"
       | "bg"
-      | "video",
+      | "video"
+      | "trustNote",
     itemIndex?: number
   ) => void;
 }
@@ -97,6 +109,15 @@ const DEFAULT_PRICING_ITEMS: BuilderSectionItem[] = [
 export const PricingFlexibility: React.FC<PricingFlexibilityProps> = ({
   headline = "Flexible ways to pay — no hidden fees, no interest charges",
   subheadline = "We believe career qualifications should be accessible. Choose an upfront discount, spread your fees monthly with zero markup, or check whether your course is covered by government funding.",
+  badgeText = "Honest, Transparent Pricing",
+  badgeColor,
+  badgeBgColor,
+  badgeFontFamily,
+  badgeWeight,
+  trustNote = "Smartminds instalment plans are direct payment schedules between the learner and the college. No credit checks, no loan agreements, and no third-party lenders.",
+  trustNoteColor,
+  trustNoteFontFamily,
+  trustNoteFontSize,
   bgColor = "paper",
   columns = 3,
   items,
@@ -147,6 +168,23 @@ export const PricingFlexibility: React.FC<PricingFlexibilityProps> = ({
     defaultWeight: "normal",
   });
 
+  const badgeStyleObj = resolveBadgeStyles({
+    variant: isDark ? "gold" : "navy",
+    color: badgeColor,
+    bgColor: badgeBgColor,
+    fontFamily: badgeFontFamily,
+    weight: badgeWeight,
+    isDark,
+  });
+
+  const trustNoteObj = resolveTrustNoteStyles({
+    color: trustNoteColor,
+    fontFamily: trustNoteFontFamily,
+    fontSize: trustNoteFontSize,
+    align: "center",
+    isDark,
+  });
+
   const colClass =
     columns === 2
       ? "grid-cols-1 md:grid-cols-2"
@@ -176,9 +214,9 @@ export const PricingFlexibility: React.FC<PricingFlexibilityProps> = ({
             onClick={() => onSelectElement?.("badge")}
             className="inline-block mb-2"
           >
-            <Eyebrow tone={isDark ? "gold" : "navy"}>
-              Honest, Transparent Pricing
-            </Eyebrow>
+            <span className={badgeStyleObj.className} style={badgeStyleObj.style}>
+              {badgeText}
+            </span>
           </EditableElementWrapper>
 
           <EditableElementWrapper
@@ -337,11 +375,17 @@ export const PricingFlexibility: React.FC<PricingFlexibilityProps> = ({
         </div>
 
         {/* Legal & Compliance reassurance notice */}
-        <p className="text-center text-xs text-ink-soft mt-8 max-w-xl mx-auto leading-relaxed">
-          Smartminds instalment plans are direct payment schedules between the
-          learner and the college. No credit checks, no loan agreements, and no
-          third-party lenders.
-        </p>
+        <EditableElementWrapper
+          isEditor={isEditor}
+          isSelected={isEditor && selectedElementKey === "trustNote"}
+          label="Instalment Notice"
+          onClick={() => onSelectElement?.("trustNote")}
+          className="mt-8 max-w-xl mx-auto text-center"
+        >
+          <p style={trustNoteObj.style} className={trustNoteObj.className}>
+            {trustNote}
+          </p>
+        </EditableElementWrapper>
       </Container>
     </Section>
   );
