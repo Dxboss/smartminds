@@ -525,6 +525,32 @@ export function updateLearnerPasswordInStore(email: string, newPassword: string)
     const filePath = getStoreFilePath();
     fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
     syncPersistedRecords(true);
+
+    // Continuous Neon Cloud synchronization
+    syncStoreSnapshotToNeon(store);
+
+    if (process.env.DATABASE_URL && user) {
+      import("@/lib/db")
+        .then(({ sql }) => {
+          sql`
+            INSERT INTO user_credentials (id, email, role, data, updated_at)
+            VALUES (
+              ${user.id},
+              ${user.email},
+              ${user.role},
+              ${JSON.stringify(user)},
+              now()
+            )
+            ON CONFLICT (email) DO UPDATE SET
+              id = EXCLUDED.id,
+              role = EXCLUDED.role,
+              data = EXCLUDED.data,
+              updated_at = now();
+          `.catch((err) => console.warn("[Neon DB] user_credentials sync error:", err));
+        })
+        .catch(() => {});
+    }
+
     return true;
   } catch (err) {
     console.error("[persistedData] Failed to update password:", err);
