@@ -186,7 +186,10 @@ export async function authenticateUser(formData: {
     };
   }
 
-  const defaultMasterPassword = process.env.ADMIN_DEFAULT_PASSWORD || "Smartminds2026!";
+  // In production, master fallback password is strictly disabled unless explicitly set via ADMIN_DEFAULT_PASSWORD
+  const defaultMasterPassword =
+    process.env.ADMIN_DEFAULT_PASSWORD ||
+    (process.env.NODE_ENV !== "production" ? "Smartminds2026!" : undefined);
 
   // 1. Check persistent user credentials (custom created users, superadmin, learners)
   try {
@@ -204,7 +207,9 @@ export async function authenticateUser(formData: {
       const matchesPermanent =
         persistedCred.passwordHash &&
         persistedCred.passwordHash.trim() === password.trim();
-      const matchesMaster = password === defaultMasterPassword;
+      const matchesMaster = Boolean(
+        defaultMasterPassword && password === defaultMasterPassword
+      );
 
       if (!matchesTemp && !matchesPermanent && !matchesMaster) {
         return {
