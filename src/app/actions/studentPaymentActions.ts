@@ -141,40 +141,47 @@ export async function payInstalmentWithStripeAction(
   // 1. Live Stripe Checkout Flow
   const stripe = getStripeClient();
   if (stripe && origin) {
-    const checkoutSession = await stripe.checkout.sessions.create({
-      customer_email: session.email,
-      mode: "payment",
-      success_url: `${origin}/student/payments?session_id={CHECKOUT_SESSION_ID}&paid=1`,
-      cancel_url: `${origin}/student/payments?cancelled=1`,
-      line_items: [
-        {
-          price_data: {
-            currency: "gbp",
-            unit_amount: Math.round(item.amountGbp * 100),
-            product_data: {
-              name: `${enrolment?.courseTitle || "Course"} — Instalment ${item.instalmentNumber} of ${item.totalInstalments}`,
-              description: `Tuition instalment payment for ${session.name}`,
+    try {
+      const checkoutSession = await stripe.checkout.sessions.create({
+        customer_email: session.email,
+        mode: "payment",
+        success_url: `${origin}/student/payments?session_id={CHECKOUT_SESSION_ID}&paid=1`,
+        cancel_url: `${origin}/student/payments?cancelled=1`,
+        line_items: [
+          {
+            price_data: {
+              currency: "gbp",
+              unit_amount: Math.round(item.amountGbp * 100),
+              product_data: {
+                name: `${enrolment?.courseTitle || "Course"} — Instalment ${item.instalmentNumber} of ${item.totalInstalments}`,
+                description: `Tuition instalment payment for ${session.name}`,
+              },
             },
+            quantity: 1,
           },
-          quantity: 1,
+        ],
+        metadata: {
+          type: "instalment",
+          scheduleItemId: item.id,
+          learnerId: learnerId,
+          enrolmentId: item.enrolmentId,
+          fullName: session.name,
+          email: session.email,
+          courseTitle: enrolment?.courseTitle || "Course",
         },
-      ],
-      metadata: {
-        type: "instalment",
-        scheduleItemId: item.id,
-        learnerId: learnerId,
-        enrolmentId: item.enrolmentId,
-        fullName: session.name,
-        email: session.email,
-        courseTitle: enrolment?.courseTitle || "Course",
-      },
-    });
+      });
 
-    return {
-      success: true,
-      receiptReference: checkoutSession.id,
-      checkoutUrl: checkoutSession.url || undefined,
-    };
+      return {
+        success: true,
+        receiptReference: checkoutSession.id,
+        checkoutUrl: checkoutSession.url || undefined,
+      };
+    } catch (err: any) {
+      console.error("[Stripe Instalment Exception]:", err?.message || err);
+      throw new Error(
+        "Unable to initialize card checkout. Please contact student accounts or try bank transfer."
+      );
+    }
   }
 
   // 2. Demo Instant Approval Simulation

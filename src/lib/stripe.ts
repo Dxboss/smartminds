@@ -9,8 +9,15 @@ let stripeSingleton: Stripe | null = null;
 export function getStripeClient(): Stripe | null {
   const rawKey = process.env.STRIPE_SECRET_KEY;
   if (!rawKey) return null;
-  const secretKey = rawKey.trim().replace(/^["']|["']$/g, "").trim();
+  let secretKey = rawKey.trim().replace(/^["']|["']$/g, "").trim();
   if (!secretKey) return null;
+
+  // Auto-correct accidental device / keyboard auto-capitalization (e.g. "Rk_live_" or "Sk_live_")
+  if (secretKey.startsWith("Rk_") || secretKey.startsWith("Sk_")) {
+    secretKey = secretKey.charAt(0).toLowerCase() + secretKey.slice(1);
+  } else if (secretKey.startsWith("RK_") || secretKey.startsWith("SK_")) {
+    secretKey = secretKey.slice(0, 2).toLowerCase() + secretKey.slice(2);
+  }
 
   if (!stripeSingleton) {
     stripeSingleton = new Stripe(secretKey, {

@@ -594,10 +594,21 @@ export async function createStripeCheckoutAction(input: {
       checkoutUrl: session.url || undefined,
     };
   } catch (err: any) {
-    console.error("[Stripe Checkout Exception]:", err);
+    console.error("[Stripe Checkout Exception]:", err?.message || err);
+
+    // SECURITY: Strictly scrub any sensitive key, token, or internal exception data before sending to client
+    let safeError = "Unable to connect to the card checkout gateway. Please contact admissions or try again shortly.";
+    const rawMsg = String(err?.message || "");
+
+    if (err?.type === "StripeCardError") {
+      safeError = err.message;
+    } else if (rawMsg.includes("cannot currently make live charges") || rawMsg.includes("account_invalid")) {
+      safeError = "The college payment gateway is currently undergoing verification. Please contact admissions directly.";
+    }
+
     return {
       hasStripe: false,
-      error: err.message || "Failed to initialize Stripe checkout gateway.",
+      error: safeError,
     };
   }
 }
