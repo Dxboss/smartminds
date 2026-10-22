@@ -7,12 +7,13 @@ let stripeSingleton: Stripe | null = null;
  * Returns null if the secret key is not set.
  */
 export function getStripeClient(): Stripe | null {
-  const secretKey = process.env.STRIPE_SECRET_KEY?.trim();
+  const rawKey = process.env.STRIPE_SECRET_KEY;
+  if (!rawKey) return null;
+  const secretKey = rawKey.trim().replace(/^["']|["']$/g, "").trim();
   if (!secretKey) return null;
 
   if (!stripeSingleton) {
     stripeSingleton = new Stripe(secretKey, {
-      apiVersion: "2025-02-24.acacia" as any,
       appInfo: {
         name: "Smartminds Training College",
         version: "1.0.0",

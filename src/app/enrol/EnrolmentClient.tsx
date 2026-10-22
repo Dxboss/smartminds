@@ -397,6 +397,11 @@ export const EnrolmentClient: React.FC<Props> = ({
           return;
         }
 
+        if (stripeRes.error) {
+          setErrorMsg(`Payment Gateway: ${stripeRes.error}`);
+          return;
+        }
+
         // 2. Otherwise process instant enrolment simulation
         const result = await processSelfEnrolmentAction({
           courseId: currentCourse.id,

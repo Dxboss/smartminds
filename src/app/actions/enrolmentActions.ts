@@ -509,7 +509,7 @@ export async function createStripeCheckoutAction(input: {
   childYearGroup?: string;
   trainingLocation?: string;
   origin: string;
-}): Promise<{ hasStripe: boolean; checkoutUrl?: string; message?: string }> {
+}): Promise<{ hasStripe: boolean; checkoutUrl?: string; message?: string; error?: string }> {
   const stripe = getStripeClient();
   if (!stripe) {
     return {
@@ -595,7 +595,10 @@ export async function createStripeCheckoutAction(input: {
     };
   } catch (err: any) {
     console.error("[Stripe Checkout Exception]:", err);
-    throw new Error(err.message || "Failed to initialize Stripe checkout.");
+    return {
+      hasStripe: false,
+      error: err.message || "Failed to initialize Stripe checkout gateway.",
+    };
   }
 }
 
