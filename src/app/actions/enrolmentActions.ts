@@ -30,6 +30,7 @@ import {
   buildAdminPaymentAlertEmail,
 } from "@/lib/emailTemplates";
 import { validateCoupon, calculateDiscountedPricing } from "@/lib/coupons";
+import { getStripeClient, isStripeConfigured } from "@/lib/stripe";
 
 export interface EnrolmentFormInput {
   courseId: string;
@@ -53,6 +54,8 @@ export interface EnrolmentFormInput {
   childName?: string;
   childYearGroup?: string;
   trainingLocation?: string;
+  stripeSessionId?: string;
+  stripePaymentIntentId?: string;
 }
 
 const fullPayPlanTemplate: PaymentPlanTemplate = {
@@ -259,10 +262,11 @@ export async function processSelfEnrolmentAction(input: EnrolmentFormInput) {
     courseTitle: course.title,
     amountGbp: amountCharged,
     method: "stripe",
-    reference: receiptRef,
+    reference: input.stripePaymentIntentId || receiptRef,
     status: "paid",
     paidAt: new Date().toISOString(),
     notes: paymentPlanLabel,
+    stripeSessionId: input.stripeSessionId,
   };
   seedPaymentRecords.push(paymentRecord);
 
@@ -500,10 +504,14 @@ export async function createStripeCheckoutAction(input: {
   preferredSession?: "afternoon" | "evening";
   couponCode?: string;
   paymentOption: "full" | "instalments";
+  learnerType?: "myself" | "child";
+  childName?: string;
+  childYearGroup?: string;
+  trainingLocation?: string;
   origin: string;
 }): Promise<{ hasStripe: boolean; checkoutUrl?: string; message?: string }> {
-  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-  if (!stripeSecretKey || stripeSecretKey.trim().length === 0) {
+  const stripe = getStripeClient();
+  if (!stripe) {
     return {
       hasStripe: false,
       message: "Stripe key is not set. Instant enrolment simulation active.",
@@ -523,79 +531,225 @@ export async function createStripeCheckoutAction(input: {
     input.paymentOption
   );
 
-  const pricing = calculatePricing(level, selectedPlan, globalSettings);
+  let pricing = calculatePricing(level, selectedPlan, globalSettings);
+  if (input.couponCode) {
+    const couponValidation = validateCoupon(input.couponCode);
+    if (couponValidation.valid && couponValidation.coupon) {
+      pricing = calculateDiscountedPricing(pricing, couponValidation.coupon);
+    }
+  }
+
   const amountCharged =
     input.paymentOption === "full" ? pricing.fullPayPrice : pricing.deposit;
   const unitAmountPence = Math.round(amountCharged * 100);
 
-  const successUrl = new URL(`${input.origin}/enrol/success`);
-  successUrl.searchParams.set("session_id", "{CHECKOUT_SESSION_ID}");
-  successUrl.searchParams.set("courseId", course.id);
-  successUrl.searchParams.set("levelLabel", level.level_label);
-  successUrl.searchParams.set("fullName", input.fullName);
-  successUrl.searchParams.set("email", input.email);
-  successUrl.searchParams.set("phone", input.phone);
-  successUrl.searchParams.set("paymentOption", input.paymentOption);
-  successUrl.searchParams.set("planId", input.planId);
-  if (input.dob) successUrl.searchParams.set("dob", input.dob);
-  if (input.address) successUrl.searchParams.set("address", input.address);
-  if (input.postcode) successUrl.searchParams.set("postcode", input.postcode);
-  if (input.preferredSession) successUrl.searchParams.set("preferredSession", input.preferredSession);
-  if (input.couponCode) successUrl.searchParams.set("couponCode", input.couponCode);
-
-  const params = new URLSearchParams();
-  params.append("success_url", successUrl.toString());
-  params.append("cancel_url", `${input.origin}/enrol?course=${course.id}&cancelled=1`);
-  params.append("customer_email", input.email.trim().toLowerCase());
-  // Note: Modern Stripe accounts manage payment methods dynamically via Stripe Dashboard (Cards, Apple Pay, Google Pay)
-  params.append("mode", "payment");
-  params.append("line_items[0][price_data][currency]", "gbp");
-  params.append("line_items[0][price_data][unit_amount]", unitAmountPence.toString());
-  params.append(
-    "line_items[0][price_data][product_data][name]",
-    `${course.title} (${level.level_label})`
-  );
-
-  // Stripe session metadata for record keeping and auditing
-  params.append("metadata[courseId]", course.id);
-  params.append("metadata[fullName]", input.fullName);
-  params.append("metadata[email]", input.email);
-  if (input.dob) params.append("metadata[dob]", input.dob);
-  if (input.address) params.append("metadata[address]", input.address);
-  if (input.postcode) params.append("metadata[postcode]", input.postcode);
-  params.append(
-    "line_items[0][price_data][product_data][description]",
-    input.paymentOption === "full"
-      ? "Full payment (10% upfront discount applied)"
-      : `${selectedPlan.months}-month instalment plan initial deposit`
-  );
-  params.append("line_items[0][quantity]", "1");
+  const successUrl = `${input.origin}/enrol/success?session_id={CHECKOUT_SESSION_ID}`;
+  const cancelUrl = `${input.origin}/enrol?course=${course.id}&cancelled=1`;
 
   try {
-    const response = await fetch("https://api.stripe.com/v1/checkout/sessions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${stripeSecretKey.trim()}`,
-        "Content-Type": "application/x-www-form-urlencoded",
+    const session = await stripe.checkout.sessions.create({
+      customer_email: input.email.trim().toLowerCase(),
+      mode: "payment",
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      line_items: [
+        {
+          price_data: {
+            currency: "gbp",
+            unit_amount: unitAmountPence,
+            product_data: {
+              name: `${course.title} (${level.level_label})`,
+              description:
+                input.paymentOption === "full"
+                  ? "Full payment (10% upfront discount applied)"
+                  : `${selectedPlan.months}-month instalment plan initial deposit`,
+            },
+          },
+          quantity: 1,
+        },
+      ],
+      metadata: {
+        type: "enrolment",
+        courseId: course.id,
+        levelLabel: level.level_label,
+        planId: input.planId,
+        fullName: input.fullName.trim(),
+        email: input.email.trim().toLowerCase(),
+        phone: input.phone.trim(),
+        dob: input.dob || "",
+        address: input.address || "",
+        postcode: input.postcode || "",
+        preferredSession: input.preferredSession || "evening",
+        couponCode: input.couponCode || "",
+        paymentOption: input.paymentOption,
+        learnerType: input.learnerType || "myself",
+        childName: input.childName || "",
+        childYearGroup: input.childYearGroup || "",
+        trainingLocation: input.trainingLocation || "",
       },
-      body: params.toString(),
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("[Stripe API Error]:", errorText);
-      throw new Error(`Stripe API Error: ${errorText}`);
-    }
-
-    const session = await response.json();
     return {
       hasStripe: true,
-      checkoutUrl: session.url,
+      checkoutUrl: session.url || undefined,
     };
-  } catch (err) {
+  } catch (err: any) {
     console.error("[Stripe Checkout Exception]:", err);
-    throw err;
+    throw new Error(err.message || "Failed to initialize Stripe checkout.");
   }
+}
+
+/**
+ * Idempotently fulfills a completed Stripe Checkout session.
+ * Verifies with Stripe API that the session is genuine and payment_status is 'paid'.
+ * Prevents replay attacks and duplicate enrolment records.
+ */
+export async function fulfillStripeCheckoutSession(sessionId: string) {
+  const stripe = getStripeClient();
+  if (!stripe) {
+    throw new Error("Stripe is not configured in this environment.");
+  }
+
+  // 1. Check idempotency: Has this session already been fulfilled?
+  const { seedPaymentRecords, seedLearners } = await import(
+    "@/lib/repositories/seedData"
+  );
+  const { loadPersistedRecords } = await import("@/lib/persistedData");
+  const persisted = loadPersistedRecords();
+
+  const allRecords = [...(persisted.paymentRecords || []), ...seedPaymentRecords];
+  const existingRecord = allRecords.find(
+    (p) => p.stripeSessionId === sessionId || p.reference === sessionId
+  );
+
+  if (existingRecord) {
+    const allLearners = [...(persisted.learners || []), ...seedLearners];
+    const learner = allLearners.find((l) => l.id === existingRecord.learnerId);
+
+    const studentId = learner
+      ? `SM-${new Date(learner.enrolmentDate || Date.now()).getFullYear()}-${learner.id.replace(/\D/g, "").padStart(4, "0")}`
+      : "SM-CONFIRMED";
+
+    return {
+      success: true,
+      alreadyFulfilled: true,
+      studentId,
+      studentEmail: learner?.email || "",
+      studentName: learner ? `${learner.firstName} ${learner.lastName}` : existingRecord.learnerName,
+      courseTitle: existingRecord.courseTitle,
+      levelName: "",
+      amountCharged: existingRecord.amountGbp,
+      receiptRef: existingRecord.reference,
+      paymentOption: "full" as const,
+      portalUrl: "/student",
+      isReturningStudent: false,
+      learnerType: "myself" as const,
+    };
+  }
+
+  // 2. Query Stripe for Session verification
+  const session = await stripe.checkout.sessions.retrieve(sessionId, {
+    expand: ["payment_intent"],
+  });
+
+  if (session.payment_status !== "paid") {
+    throw new Error(
+      `Stripe Checkout Session ${sessionId} has not been paid. Current status: ${session.payment_status}`
+    );
+  }
+
+  const meta = session.metadata || {};
+  if (!meta.courseId || !meta.email || !meta.fullName) {
+    throw new Error("Stripe Checkout Session is missing required enrolment metadata.");
+  }
+
+  const paymentIntentId =
+    typeof session.payment_intent === "object" && session.payment_intent
+      ? session.payment_intent.id
+      : typeof session.payment_intent === "string"
+        ? session.payment_intent
+        : session.id;
+
+  // Check if this was an instalment payment from the student portal
+  if (meta.type === "instalment" && meta.scheduleItemId) {
+    const { updatePaymentScheduleStatusInStore, savePersistedRecord } = await import(
+      "@/lib/persistedData"
+    );
+    const { seedPaymentSchedules } = await import("@/lib/repositories/seedData");
+
+    const sched = seedPaymentSchedules.find((s) => s.id === meta.scheduleItemId);
+    const nowIso = new Date().toISOString();
+    if (sched) {
+      sched.status = "paid";
+      sched.paidAt = nowIso;
+      delete sched.adminQuery;
+      delete sched.reportedTransfer;
+    }
+    updatePaymentScheduleStatusInStore(meta.scheduleItemId, {
+      status: "paid",
+      paidAt: nowIso,
+      adminQuery: undefined,
+      reportedTransfer: undefined,
+    });
+
+    const instalmentRecord: PaymentRecord = {
+      id: `pay-rec-${Date.now()}`,
+      enrolmentId: meta.enrolmentId || (sched?.enrolmentId ?? ""),
+      learnerId: meta.learnerId || (sched?.learnerId ?? ""),
+      learnerName: meta.fullName,
+      courseTitle: meta.courseTitle || "Course Instalment",
+      amountGbp: (session.amount_total ?? 0) / 100,
+      method: "stripe",
+      reference: paymentIntentId,
+      status: "paid",
+      paidAt: nowIso,
+      notes: `Instalment paid via Stripe (${paymentIntentId})`,
+      stripeSessionId: sessionId,
+    };
+    seedPaymentRecords.push(instalmentRecord);
+    savePersistedRecord({ paymentRecord: instalmentRecord });
+
+    return {
+      success: true,
+      studentId: meta.learnerId || "STUDENT-INSTALMENT",
+      studentEmail: meta.email || "",
+      studentName: meta.fullName,
+      courseTitle: meta.courseTitle || "Course Instalment",
+      levelName: "",
+      amountCharged: instalmentRecord.amountGbp,
+      receiptRef: paymentIntentId,
+      paymentOption: "instalments" as const,
+      portalUrl: "/student/payments",
+      isReturningStudent: true,
+      learnerType: "myself" as const,
+    };
+  }
+
+  // Fulfill Course Self-Enrolment
+  const enrolmentResult = await processSelfEnrolmentAction({
+    courseId: meta.courseId,
+    levelLabel: meta.levelLabel || undefined,
+    planId: meta.planId || "full",
+    fullName: meta.fullName,
+    email: meta.email,
+    phone: meta.phone || "07000000000",
+    dob: meta.dob || undefined,
+    address: meta.address || undefined,
+    postcode: meta.postcode || undefined,
+    preferredSession: meta.preferredSession === "afternoon" ? "afternoon" : "evening",
+    couponCode: meta.couponCode || undefined,
+    paymentOption: meta.paymentOption === "full" ? "full" : "instalments",
+    termsAccepted: true,
+    cardNumberLast4: "Stripe",
+    learnerType: (meta.learnerType as any) || "myself",
+    childName: meta.childName || undefined,
+    childYearGroup: meta.childYearGroup || undefined,
+    trainingLocation: meta.trainingLocation || undefined,
+    stripeSessionId: session.id,
+    stripePaymentIntentId: paymentIntentId,
+  });
+
+  return enrolmentResult;
 }
 
 export async function verifyExistingStudentAction(identifier: string) {

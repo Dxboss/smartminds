@@ -131,7 +131,14 @@ export function StudentPaymentsClient({
     setModalError(null);
     startTransition(async () => {
       try {
-        const res = await payInstalmentWithStripeAction(nextUnpaid.id);
+        const res = await payInstalmentWithStripeAction(
+          nextUnpaid.id,
+          window.location.origin
+        );
+        if (res.checkoutUrl) {
+          window.location.href = res.checkoutUrl;
+          return;
+        }
         setStripeSuccessRef(res.receiptReference);
         setIsModalOpen(false);
       } catch (err: unknown) {

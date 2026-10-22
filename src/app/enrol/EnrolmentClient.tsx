@@ -385,6 +385,10 @@ export const EnrolmentClient: React.FC<Props> = ({
           preferredSession,
           couponCode: appliedCoupon?.code,
           paymentOption,
+          learnerType,
+          childName: learnerType === "child" ? childName.trim() : undefined,
+          childYearGroup: learnerType === "child" ? childYearGroup.trim() : undefined,
+          trainingLocation: currentCourse?.training_locations?.length ? selectedLocation : undefined,
           origin: window.location.origin,
         });
 

@@ -121,6 +121,7 @@ export interface PaymentRecord {
   status: "paid" | "refunded";
   paidAt: string;
   notes?: string;
+  stripeSessionId?: string;
 }
 
 export interface PaymentScheduleItem {

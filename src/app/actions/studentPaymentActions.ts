@@ -9,6 +9,7 @@ import {
 } from "@/lib/repositories/seedData";
 import { siteConfig } from "@/content/siteConfig";
 import { formatCurrency } from "@/content/pricing";
+import { getStripeClient } from "@/lib/stripe";
 
 export interface ReportBankTransferInput {
   scheduleItemId: string;
@@ -100,9 +101,14 @@ export async function reportBankTransferAction(input: ReportBankTransferInput) {
 }
 
 /**
- * Pay next instalment with Stripe Card / Apple Pay (Instant Approval).
+ * Pay next instalment with Stripe Card / Apple Pay.
+ * If Stripe is configured, creates a real Stripe Checkout Session.
+ * Otherwise falls back to instant simulation for prototype review.
  */
-export async function payInstalmentWithStripeAction(scheduleItemId: string) {
+export async function payInstalmentWithStripeAction(
+  scheduleItemId: string,
+  origin?: string
+): Promise<{ success: boolean; receiptReference: string; checkoutUrl?: string }> {
   const session = await getServerSession();
   if (!session || session.role !== "student") {
     throw new Error("Only signed-in students can pay an instalment.");
@@ -130,6 +136,48 @@ export async function payInstalmentWithStripeAction(scheduleItemId: string) {
   const { seedPaymentRecords, seedEnrolments } = await import(
     "@/lib/repositories/seedData"
   );
+  const enrolment = seedEnrolments.find((e) => e.id === item.enrolmentId);
+
+  // 1. Live Stripe Checkout Flow
+  const stripe = getStripeClient();
+  if (stripe && origin) {
+    const checkoutSession = await stripe.checkout.sessions.create({
+      customer_email: session.email,
+      mode: "payment",
+      success_url: `${origin}/student/payments?session_id={CHECKOUT_SESSION_ID}&paid=1`,
+      cancel_url: `${origin}/student/payments?cancelled=1`,
+      line_items: [
+        {
+          price_data: {
+            currency: "gbp",
+            unit_amount: Math.round(item.amountGbp * 100),
+            product_data: {
+              name: `${enrolment?.courseTitle || "Course"} — Instalment ${item.instalmentNumber} of ${item.totalInstalments}`,
+              description: `Tuition instalment payment for ${session.name}`,
+            },
+          },
+          quantity: 1,
+        },
+      ],
+      metadata: {
+        type: "instalment",
+        scheduleItemId: item.id,
+        learnerId: learnerId,
+        enrolmentId: item.enrolmentId,
+        fullName: session.name,
+        email: session.email,
+        courseTitle: enrolment?.courseTitle || "Course",
+      },
+    });
+
+    return {
+      success: true,
+      receiptReference: checkoutSession.id,
+      checkoutUrl: checkoutSession.url || undefined,
+    };
+  }
+
+  // 2. Demo Instant Approval Simulation
   const { updatePaymentScheduleStatusInStore, savePersistedRecord } = await import(
     "@/lib/persistedData"
   );
@@ -148,7 +196,6 @@ export async function payInstalmentWithStripeAction(scheduleItemId: string) {
   });
 
   const receiptRef = `REC-${Date.now().toString().slice(-6)}`;
-  const enrolment = seedEnrolments.find((e) => e.id === item.enrolmentId);
   const learner = seedLearners.find((l) => l.id === learnerId);
 
   const newRecord = {

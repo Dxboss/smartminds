@@ -1,11 +1,31 @@
 import React from "react";
+import { connection } from "next/server";
 import { getServerSession } from "@/lib/session";
 import { getPaymentRepo } from "@/lib/repositories";
 import { StudentPaymentsClient } from "@/components/student/StudentPaymentsClient";
+import { fulfillStripeCheckoutSession } from "@/app/actions/enrolmentActions";
 
 export const instant = false;
 
-export default async function StudentPaymentsPage() {
+interface PageProps {
+  searchParams: Promise<{
+    session_id?: string;
+    paid?: string;
+  }>;
+}
+
+export default async function StudentPaymentsPage({ searchParams }: PageProps) {
+  await connection();
+  const params = await searchParams;
+
+  if (params.session_id) {
+    try {
+      await fulfillStripeCheckoutSession(params.session_id);
+    } catch (err) {
+      console.warn("[Student Payments]: Stripe session fulfillment error:", err);
+    }
+  }
+
   const session = await getServerSession();
   if (!session) return null;
 

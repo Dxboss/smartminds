@@ -2,9 +2,13 @@ import { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
-import { processSelfEnrolmentAction } from "@/app/actions/enrolmentActions";
+import {
+  processSelfEnrolmentAction,
+  fulfillStripeCheckoutSession,
+} from "@/app/actions/enrolmentActions";
 import { Icon } from "@/components/ui/Icon";
 import { formatCurrency } from "@/content/pricing";
+import { isStripeConfigured } from "@/lib/stripe";
 
 export const metadata: Metadata = {
   title: "Payment Confirmed & Registration Complete | Smartminds Training College",
@@ -35,27 +39,42 @@ export default async function EnrolSuccessPage({ searchParams }: PageProps) {
   await connection();
   const params = await searchParams;
 
-  if (!params.courseId || !params.fullName || !params.email) {
+  let enrolmentResult: any = null;
+
+  // 1. Live Stripe Flow: Verify session cryptographically via Stripe API
+  if (params.session_id) {
+    try {
+      enrolmentResult = await fulfillStripeCheckoutSession(params.session_id);
+    } catch (err) {
+      console.error("[Stripe Session Verification Error]:", err);
+      redirect("/enrol?error=stripe_verification_failed");
+    }
+  } else if (!isStripeConfigured() && params.courseId && params.fullName && params.email) {
+    // 2. Demo Fallback Simulation: Only permitted when Stripe is not configured
+    enrolmentResult = await processSelfEnrolmentAction({
+      courseId: params.courseId,
+      levelLabel: params.levelLabel,
+      planId: params.planId || "full",
+      fullName: params.fullName,
+      email: params.email,
+      phone: params.phone || "07700900000",
+      dob: params.dob,
+      address: params.address,
+      postcode: params.postcode,
+      preferredSession: params.preferredSession,
+      couponCode: params.couponCode,
+      paymentOption: params.paymentOption || "full",
+      termsAccepted: true,
+      cardNumberLast4: "DemoSimulation",
+    });
+  } else {
+    // Payment bypass attempt or missing parameters
     redirect("/enrol");
   }
 
-  // Finalize enrolment record, set session cookie, and dispatch emails
-  const enrolmentResult = await processSelfEnrolmentAction({
-    courseId: params.courseId,
-    levelLabel: params.levelLabel,
-    planId: params.planId || "full",
-    fullName: params.fullName,
-    email: params.email,
-    phone: params.phone || "07700900000",
-    dob: params.dob,
-    address: params.address,
-    postcode: params.postcode,
-    preferredSession: params.preferredSession,
-    couponCode: params.couponCode,
-    paymentOption: params.paymentOption || "full",
-    termsAccepted: true,
-    cardNumberLast4: "Stripe",
-  });
+  if (!enrolmentResult) {
+    redirect("/enrol");
+  }
 
   return (
     <main className="bg-paper min-h-screen py-16 px-4 sm:px-6 lg:px-8">
