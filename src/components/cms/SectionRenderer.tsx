@@ -59,6 +59,8 @@ interface Props {
     | "floatingBadge"
     | "sealBadge"
     | "trustNote"
+    | "socialProof"
+    | "reassurance"
     | null;
   selectedElementItemIndex?: number | null;
   onSelectElement?: (
@@ -75,7 +77,9 @@ interface Props {
       | "video"
       | "floatingBadge"
       | "sealBadge"
-      | "trustNote",
+      | "trustNote"
+      | "socialProof"
+      | "reassurance",
     itemIndex?: number
   ) => void;
 }
@@ -638,6 +642,27 @@ export const SectionRenderer: React.FC<Props> = ({
           sealPlayColor={section.sealPlayColor}
           sealFontSize={section.sealFontSize}
           sealEnabled={section.sealEnabled}
+          socialProofEnabled={section.socialProofEnabled}
+          avatar1Text={section.avatar1Text}
+          avatar1Bg={section.avatar1Bg}
+          avatar1Color={section.avatar1Color}
+          avatar2Text={section.avatar2Text}
+          avatar2Bg={section.avatar2Bg}
+          avatar2Color={section.avatar2Color}
+          avatar3Text={section.avatar3Text}
+          avatar3Bg={section.avatar3Bg}
+          avatar3Color={section.avatar3Color}
+          socialProofRating={section.socialProofRating}
+          socialProofRatingColor={section.socialProofRatingColor}
+          socialProofStars={section.socialProofStars}
+          socialProofStarColor={section.socialProofStarColor}
+          socialProofText={section.socialProofText}
+          socialProofTextColor={section.socialProofTextColor}
+          reassuranceEnabled={section.reassuranceEnabled}
+          reassuranceText={section.reassuranceText}
+          reassuranceIcon={section.reassuranceIcon}
+          reassuranceTextColor={section.reassuranceTextColor}
+          reassuranceIconColor={section.reassuranceIconColor}
           isEditor={isEditor}
           selectedElementKey={selectedElementKey}
           selectedElementItemIndex={selectedElementItemIndex}

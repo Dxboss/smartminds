@@ -11,7 +11,7 @@ import { Tag } from "@/components/ui/Tag";
 import { Icon } from "@/components/ui/Icon";
 import { ArcMask } from "@/components/ui/ArcMask";
 import { useBooking } from "@/context/BookingContext";
-import { resolveSectionBg, SectionBgColor } from "@/components/ui/sectionBg";
+import { resolveSectionBg, resolveItemColor, SectionBgColor } from "@/components/ui/sectionBg";
 import {
   resolveTypography,
   resolveSubheadlineTypography,
@@ -103,6 +103,29 @@ export interface HeroSectionProps {
   sealPlayColor?: string;
   sealFontSize?: string;
   sealEnabled?: boolean;
+  // Hero Social Proof & Rating
+  socialProofEnabled?: boolean;
+  avatar1Text?: string;
+  avatar1Bg?: string;
+  avatar1Color?: string;
+  avatar2Text?: string;
+  avatar2Bg?: string;
+  avatar2Color?: string;
+  avatar3Text?: string;
+  avatar3Bg?: string;
+  avatar3Color?: string;
+  socialProofRating?: string;
+  socialProofRatingColor?: string;
+  socialProofStars?: number;
+  socialProofStarColor?: string;
+  socialProofText?: string;
+  socialProofTextColor?: string;
+  // Hero Reassurance Perk
+  reassuranceEnabled?: boolean;
+  reassuranceText?: string;
+  reassuranceIcon?: string;
+  reassuranceTextColor?: string;
+  reassuranceIconColor?: string;
   isEditor?: boolean;
   selectedElementKey?: string | null;
   selectedElementItemIndex?: number | null;
@@ -117,6 +140,8 @@ export interface HeroSectionProps {
       | "image"
       | "floatingBadge"
       | "sealBadge"
+      | "socialProof"
+      | "reassurance"
   ) => void;
 }
 
@@ -184,6 +209,27 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   sealPlayColor,
   sealFontSize = "7",
   sealEnabled = true,
+  socialProofEnabled = true,
+  avatar1Text = "EM",
+  avatar1Bg = "#0B4D4E",
+  avatar1Color = "#FFFFFF",
+  avatar2Text = "KA",
+  avatar2Bg = "#FF5722",
+  avatar2Color = "#FFFFFF",
+  avatar3Text = "+2k",
+  avatar3Bg = "#23216B",
+  avatar3Color = "#FFFFFF",
+  socialProofRating = "4.9/5",
+  socialProofRatingColor = "#0B4D4E",
+  socialProofStars = 5,
+  socialProofStarColor = "#F59E0B",
+  socialProofText = "2,500+ Working Adults Certified",
+  socialProofTextColor = "#0B4D4E",
+  reassuranceEnabled = true,
+  reassuranceText = "0% Interest Monthly Plans Available",
+  reassuranceIcon = "check",
+  reassuranceTextColor = "#0B4D4E",
+  reassuranceIconColor = "#047857",
   isEditor = false,
   selectedElementKey,
   selectedElementItemIndex,
@@ -193,6 +239,28 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   const { openBooking } = useBooking();
   const isImageLeft = mediaPosition === "left";
   const { bgClass, isDark, style: bgStyle } = resolveSectionBg(bgColor, "paper");
+
+  // "auto" / unknown values fall back to the original design colour
+  const pickColor = (val: string | undefined, fallback: string) =>
+    resolveItemColor(val) || fallback;
+
+  const resolvedAvatar1Bg = pickColor(avatar1Bg, "#0B4D4E");
+  const resolvedAvatar1Color = pickColor(avatar1Color, "#FFFFFF");
+  const resolvedAvatar2Bg = pickColor(avatar2Bg, "#FF5722");
+  const resolvedAvatar2Color = pickColor(avatar2Color, "#FFFFFF");
+  const resolvedAvatar3Bg = pickColor(avatar3Bg, "#23216B");
+  const resolvedAvatar3Color = pickColor(avatar3Color, "#FFFFFF");
+
+  const resolvedRatingColor = pickColor(socialProofRatingColor, "#0B4D4E");
+  const resolvedStarColor = pickColor(socialProofStarColor, "#F59E0B");
+  const resolvedProofTextColor = pickColor(socialProofTextColor, "#0B4D4E");
+
+  const resolvedReassuranceText = reassuranceText || "0% Interest Monthly Plans Available";
+  const resolvedReassuranceIcon = reassuranceIcon || "check";
+  const resolvedReassuranceTextColor = pickColor(reassuranceTextColor, "#0B4D4E");
+  const resolvedReassuranceIconColor = pickColor(reassuranceIconColor, "#047857");
+
+  const starCount = Math.max(1, Math.min(5, Number(socialProofStars) || 5));
 
   const primaryBtn = resolveCustomButtonClasses(
     {
@@ -466,40 +534,91 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               </EditableElementWrapper>
             </div>
 
-            {/* Reassurance line & Student Avatars proof (Image 1 Onlearn style) */}
-            <div className="pt-2 flex flex-wrap items-center gap-5">
-              <div className="flex items-center gap-2.5">
-                <div className="flex -space-x-2">
-                  <div className="w-8 h-8 rounded-full border-2 border-white bg-[#0B4D4E] text-white text-[11px] font-bold flex items-center justify-center shadow-xs">
-                    EM
-                  </div>
-                  <div className="w-8 h-8 rounded-full border-2 border-white bg-[#FF5722] text-white text-[11px] font-bold flex items-center justify-center shadow-xs">
-                    KA
-                  </div>
-                  <div className="w-8 h-8 rounded-full border-2 border-white bg-navy-900 text-white text-[11px] font-bold flex items-center justify-center shadow-xs">
-                    +2k
-                  </div>
-                </div>
-                <div>
-                  <div className="flex items-center text-amber-500">
-                    {[...Array(5)].map((_, i) => (
-                      <Icon key={i} name="star" size={13} className="fill-amber-400 text-amber-400" />
-                    ))}
-                    <span className="ml-1.5 font-bold text-[#0B4D4E] text-xs">4.9/5</span>
-                  </div>
-                  <span className="text-[#0B4D4E]/70 text-[11px] block leading-none mt-0.5">2,500+ Working Adults Certified</span>
-                </div>
-              </div>
+            {/* Reassurance line & Student Avatars proof */}
+            {(socialProofEnabled !== false || reassuranceEnabled !== false) && (
+              <div className="pt-2 flex flex-wrap items-center gap-5">
+                {socialProofEnabled !== false && (
+                  <EditableElementWrapper
+                    isEditor={isEditor}
+                    isSelected={isEditor && selectedElementKey === "socialProof"}
+                    label="Social Proof & Rating"
+                    onClick={() => onSelectElement?.("socialProof")}
+                    inline
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex -space-x-2">
+                        <div
+                          style={{ backgroundColor: resolvedAvatar1Bg, color: resolvedAvatar1Color }}
+                          className="w-8 h-8 rounded-full border-2 border-white text-[11px] font-bold flex items-center justify-center shadow-xs"
+                        >
+                          {avatar1Text || "EM"}
+                        </div>
+                        <div
+                          style={{ backgroundColor: resolvedAvatar2Bg, color: resolvedAvatar2Color }}
+                          className="w-8 h-8 rounded-full border-2 border-white text-[11px] font-bold flex items-center justify-center shadow-xs"
+                        >
+                          {avatar2Text || "KA"}
+                        </div>
+                        <div
+                          style={{ backgroundColor: resolvedAvatar3Bg, color: resolvedAvatar3Color }}
+                          className="w-8 h-8 rounded-full border-2 border-white text-[11px] font-bold flex items-center justify-center shadow-xs"
+                        >
+                          {avatar3Text || "+2k"}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="flex items-center">
+                          {[...Array(starCount)].map((_, i) => (
+                            <Icon
+                              key={i}
+                              name="star"
+                              size={13}
+                              className="fill-current"
+                              style={{ color: resolvedStarColor, fill: resolvedStarColor }}
+                            />
+                          ))}
+                          <span
+                            style={{ color: resolvedRatingColor }}
+                            className="ml-1.5 font-bold text-xs"
+                          >
+                            {socialProofRating || "4.9/5"}
+                          </span>
+                        </div>
+                        <span
+                          style={{ color: resolvedProofTextColor }}
+                          className="text-[11px] block leading-none mt-0.5 opacity-80"
+                        >
+                          {socialProofText || "2,500+ Working Adults Certified"}
+                        </span>
+                      </div>
+                    </div>
+                  </EditableElementWrapper>
+                )}
 
-              <div className="flex items-center gap-1.5 text-xs text-[#0B4D4E] font-medium">
-                <Icon
-                  name="check"
-                  size={15}
-                  className="text-emerald-700 flex-shrink-0"
-                />
-                <span>0% Interest Monthly Plans Available</span>
+                {reassuranceEnabled !== false && (
+                  <EditableElementWrapper
+                    isEditor={isEditor}
+                    isSelected={isEditor && selectedElementKey === "reassurance"}
+                    label="Reassurance Perk"
+                    onClick={() => onSelectElement?.("reassurance")}
+                    inline
+                  >
+                    <div
+                      style={{ color: resolvedReassuranceTextColor }}
+                      className="flex items-center gap-1.5 text-xs font-medium"
+                    >
+                      <Icon
+                        name={(resolvedReassuranceIcon as any) || "check"}
+                        size={15}
+                        className="flex-shrink-0"
+                        style={{ color: resolvedReassuranceIconColor }}
+                      />
+                      <span>{resolvedReassuranceText}</span>
+                    </div>
+                  </EditableElementWrapper>
+                )}
               </div>
-            </div>
+            )}
           </div>
 
           {/* Media Column: Image 1 Thumbs-Up Student Photography */}

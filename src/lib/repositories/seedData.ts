@@ -734,6 +734,29 @@ export interface BuilderSection {
   metricsBannerTitle?: string;
   metricsBannerSubtitle?: string;
   metricsBannerIcon?: string;
+  // Hero Social Proof & Rating
+  socialProofEnabled?: boolean;
+  avatar1Text?: string;
+  avatar1Bg?: string;
+  avatar1Color?: string;
+  avatar2Text?: string;
+  avatar2Bg?: string;
+  avatar2Color?: string;
+  avatar3Text?: string;
+  avatar3Bg?: string;
+  avatar3Color?: string;
+  socialProofRating?: string;
+  socialProofRatingColor?: string;
+  socialProofStars?: number;
+  socialProofStarColor?: string;
+  socialProofText?: string;
+  socialProofTextColor?: string;
+  // Hero Reassurance Perk
+  reassuranceEnabled?: boolean;
+  reassuranceText?: string;
+  reassuranceIcon?: string;
+  reassuranceTextColor?: string;
+  reassuranceIconColor?: string;
 }
 
 export const defaultPageBuilderSections: BuilderSection[] = [
@@ -760,6 +783,27 @@ export const defaultPageBuilderSections: BuilderSection[] = [
     floatingBadgeSubtitle: "Recordings available 24/7 to rewatch",
     floatingBadgeIcon: "star",
     floatingBadgeEnabled: true,
+    socialProofEnabled: true,
+    avatar1Text: "EM",
+    avatar1Bg: "#0B4D4E",
+    avatar1Color: "#FFFFFF",
+    avatar2Text: "KA",
+    avatar2Bg: "#FF5722",
+    avatar2Color: "#FFFFFF",
+    avatar3Text: "+2k",
+    avatar3Bg: "#23216B",
+    avatar3Color: "#FFFFFF",
+    socialProofRating: "4.9/5",
+    socialProofRatingColor: "#0B4D4E",
+    socialProofStars: 5,
+    socialProofStarColor: "#F59E0B",
+    socialProofText: "2,500+ Working Adults Certified",
+    socialProofTextColor: "#0B4D4E",
+    reassuranceEnabled: true,
+    reassuranceText: "0% Interest Monthly Plans Available",
+    reassuranceIcon: "check",
+    reassuranceTextColor: "#0B4D4E",
+    reassuranceIconColor: "#047857",
   },
   {
     id: "sec-trust-02",

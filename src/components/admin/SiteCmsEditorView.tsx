@@ -814,6 +814,8 @@ export const SiteCmsEditorView: React.FC<Props> = ({
     | "floatingBadge"
     | "sealBadge"
     | "trustNote"
+    | "socialProof"
+    | "reassurance"
     | null
   >(null);
   const [selectedElementItemIndex, setSelectedElementItemIndex] = useState<number | null>(null);
@@ -846,7 +848,9 @@ export const SiteCmsEditorView: React.FC<Props> = ({
         | "video"
         | "floatingBadge"
         | "sealBadge"
-        | "trustNote";
+        | "trustNote"
+        | "socialProof"
+        | "reassurance";
       label: string;
       sublabel?: string;
       icon: IconName;
@@ -936,6 +940,21 @@ export const SiteCmsEditorView: React.FC<Props> = ({
         label: "Watch Video Seal Badge",
         sublabel: sec.sealText || "• WATCH VIDEO • EXPLORE COURSES •",
         icon: "video",
+      });
+    }
+
+    if (sec.type === "hero") {
+      list.push({
+        key: "socialProof",
+        label: "Social Proof & Rating",
+        sublabel: `${sec.socialProofRating || "4.9/5"} • ${sec.socialProofText || "2,500+ Working Adults Certified"}`,
+        icon: "users",
+      });
+      list.push({
+        key: "reassurance",
+        label: "Reassurance Perk",
+        sublabel: sec.reassuranceText || "0% Interest Monthly Plans Available",
+        icon: "check-circle",
       });
     }
 
@@ -1050,7 +1069,9 @@ export const SiteCmsEditorView: React.FC<Props> = ({
       | "video"
       | "floatingBadge"
       | "sealBadge"
-      | "trustNote",
+      | "trustNote"
+      | "socialProof"
+      | "reassurance",
     itemIndex?: number
   ) => {
     setSelectedSectionId(sectionId);
@@ -1074,6 +1095,10 @@ export const SiteCmsEditorView: React.FC<Props> = ({
         ? "Instalment Notice / Legal Reassurance"
         : elementKey === "sealBadge"
         ? "Watch Video Seal Badge"
+        : elementKey === "socialProof"
+        ? "Social Proof & Rating"
+        : elementKey === "reassurance"
+        ? "Reassurance Perk"
         : elementKey === "floatingBadge"
         ? targetSec?.type === "staff_training"
           ? "Corporate Partners Metrics Banner"
@@ -3763,6 +3788,10 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                           ? "Instalment Notice / Legal Reassurance"
                           : selectedElementKey === "sealBadge"
                           ? "Watch Video Seal Badge"
+                          : selectedElementKey === "socialProof"
+                          ? "Social Proof & Rating"
+                          : selectedElementKey === "reassurance"
+                          ? "Reassurance Perk"
                           : selectedElementKey === "floatingBadge"
                           ? selectedSection.type === "staff_training"
                             ? "Corporate Partners Metrics Banner"

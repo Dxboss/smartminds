@@ -697,7 +697,9 @@ interface FocusedElementInspectorProps {
     | "video"
     | "floatingBadge"
     | "sealBadge"
-    | "trustNote";
+    | "trustNote"
+    | "socialProof"
+    | "reassurance";
   itemIndex?: number | null;
   onBack: () => void;
   updateField: (field: keyof BuilderSection, value: any) => void;
@@ -987,6 +989,167 @@ export const FocusedElementInspector: React.FC<FocusedElementInspectorProps> = (
                   </div>
                 </>
               )}
+            </div>
+          )}
+
+          {/* 1C. HERO SOCIAL PROOF (AVATARS + RATING) */}
+          {elementKey === "socialProof" && (
+            <div className="p-3.5 bg-paper rounded-sm border border-line space-y-3.5 shadow-2xs">
+              <div className="flex items-center justify-between border-b border-line pb-2">
+                <strong className="text-xs font-bold text-navy-900 flex items-center gap-1.5">
+                  <Icon name="users" size={13} className="text-navy-900" />
+                  <span>Social proof and rating</span>
+                </strong>
+                <label className="inline-flex items-center gap-1.5 cursor-pointer text-[11px] font-semibold text-navy-900">
+                  <input
+                    type="checkbox"
+                    checked={section.socialProofEnabled !== false}
+                    onChange={(e) => updateField("socialProofEnabled", e.target.checked)}
+                    className="rounded border-line text-navy-900 focus:ring-0"
+                  />
+                  <span>Show</span>
+                </label>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                  Avatar initials
+                </label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {([
+                    ["avatar1Text", "EM"],
+                    ["avatar2Text", "KA"],
+                    ["avatar3Text", "+2k"],
+                  ] as const).map(([field, def]) => (
+                    <input
+                      key={field}
+                      type="text"
+                      maxLength={4}
+                      value={(section[field] as string | undefined) ?? def}
+                      onChange={(e) => updateField(field, e.target.value)}
+                      placeholder={def}
+                      className="w-full px-2 py-1.5 border border-line rounded-sm text-xs bg-white font-bold text-center focus:outline-none focus:border-navy-900"
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                    Rating text
+                  </label>
+                  <input
+                    type="text"
+                    value={section.socialProofRating ?? "4.9/5"}
+                    onChange={(e) => updateField("socialProofRating", e.target.value)}
+                    placeholder="4.9/5"
+                    className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white font-bold focus:outline-none focus:border-navy-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                    Stars shown
+                  </label>
+                  <select
+                    value={String(section.socialProofStars ?? 5)}
+                    onChange={(e) => updateField("socialProofStars", Number(e.target.value))}
+                    className="w-full px-2 py-1.5 text-xs border border-line rounded-sm bg-white font-medium"
+                  >
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                  Caption under rating
+                </label>
+                <input
+                  type="text"
+                  value={section.socialProofText ?? "2,500+ Working Adults Certified"}
+                  onChange={(e) => updateField("socialProofText", e.target.value)}
+                  placeholder="e.g. 2,500+ Working Adults Certified"
+                  className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white font-medium focus:outline-none focus:border-navy-900"
+                />
+                <span className="text-[10px] text-ink-soft block mt-0.5">
+                  Only publish figures you can evidence. Colours are in the Style tab.
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* 1D. HERO REASSURANCE PERK */}
+          {elementKey === "reassurance" && (
+            <div className="p-3.5 bg-paper rounded-sm border border-line space-y-3.5 shadow-2xs">
+              <div className="flex items-center justify-between border-b border-line pb-2">
+                <strong className="text-xs font-bold text-navy-900 flex items-center gap-1.5">
+                  <Icon name="check-circle" size={13} className="text-navy-900" />
+                  <span>Reassurance perk</span>
+                </strong>
+                <label className="inline-flex items-center gap-1.5 cursor-pointer text-[11px] font-semibold text-navy-900">
+                  <input
+                    type="checkbox"
+                    checked={section.reassuranceEnabled !== false}
+                    onChange={(e) => updateField("reassuranceEnabled", e.target.checked)}
+                    className="rounded border-line text-navy-900 focus:ring-0"
+                  />
+                  <span>Show</span>
+                </label>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                  Perk text
+                </label>
+                <input
+                  type="text"
+                  value={section.reassuranceText ?? "0% Interest Monthly Plans Available"}
+                  onChange={(e) => updateField("reassuranceText", e.target.value)}
+                  placeholder="e.g. 0% Interest Monthly Plans Available"
+                  className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white font-medium focus:outline-none focus:border-navy-900"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1.5">
+                  Icon
+                </label>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {([
+                    ["check", "Tick"],
+                    ["check-circle", "Circle tick"],
+                    ["shield-check", "Shield"],
+                    ["credit-card", "Card"],
+                    ["clock", "Clock"],
+                    ["calendar", "Calendar"],
+                    ["star", "Star"],
+                    ["award", "Award"],
+                  ] as const).map(([name, label]) => {
+                    const active = (section.reassuranceIcon || "check") === name;
+                    return (
+                      <button
+                        key={name}
+                        type="button"
+                        onClick={() => updateField("reassuranceIcon", name)}
+                        className={`flex flex-col items-center justify-center p-2 rounded-xs border text-[10px] transition-all cursor-pointer ${
+                          active
+                            ? "bg-navy-900 text-gold-300 border-navy-900 shadow-xs"
+                            : "bg-white text-ink-soft border-line hover:border-navy-900/40"
+                        }`}
+                      >
+                        <Icon name={name} size={16} className={active ? "text-gold-500" : "text-navy-900"} />
+                        <span className="mt-1 truncate max-w-full font-medium">{label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <span className="text-[10px] text-ink-soft block mt-1">Colours are in the Style tab.</span>
+              </div>
             </div>
           )}
 
@@ -2686,6 +2849,66 @@ export const FocusedElementInspector: React.FC<FocusedElementInspectorProps> = (
                   <option value="8">8px (Emphasized)</option>
                   <option value="9">9px (Large Bold)</option>
                 </select>
+              </div>
+            </div>
+          )}
+
+          {/* M. HERO SOCIAL PROOF COLOURS */}
+          {elementKey === "socialProof" && (
+            <div className="p-3.5 bg-paper rounded-sm border border-line space-y-4 shadow-2xs">
+              <strong className="text-xs font-bold text-navy-900 flex items-center gap-1.5 border-b border-line pb-2">
+                <Icon name="sparkles" size={13} className="text-gold-500" />
+                <span>Social proof colours</span>
+              </strong>
+              {([
+                ["avatar1Bg", "Avatar 1 background", "#0B4D4E"],
+                ["avatar1Color", "Avatar 1 text", "#FFFFFF"],
+                ["avatar2Bg", "Avatar 2 background", "#FF5722"],
+                ["avatar2Color", "Avatar 2 text", "#FFFFFF"],
+                ["avatar3Bg", "Avatar 3 background", "#23216B"],
+                ["avatar3Color", "Avatar 3 text", "#FFFFFF"],
+                ["socialProofStarColor", "Star colour", "#F59E0B"],
+                ["socialProofRatingColor", "Rating text colour", "#0B4D4E"],
+                ["socialProofTextColor", "Caption colour", "#0B4D4E"],
+              ] as const).map(([field, label, def], i) => (
+                <div key={field} className={i > 0 ? "pt-2 border-t border-line" : ""}>
+                  <ColorPalettePicker
+                    value={(section[field] as string | undefined) || def}
+                    onChange={(val) => updateField(field, val)}
+                    label={label}
+                    compact={true}
+                    defaultColor={def}
+                    allowCustomHex={true}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* N. HERO REASSURANCE COLOURS */}
+          {elementKey === "reassurance" && (
+            <div className="p-3.5 bg-paper rounded-sm border border-line space-y-4 shadow-2xs">
+              <strong className="text-xs font-bold text-navy-900 flex items-center gap-1.5 border-b border-line pb-2">
+                <Icon name="sparkles" size={13} className="text-gold-500" />
+                <span>Reassurance colours</span>
+              </strong>
+              <ColorPalettePicker
+                value={section.reassuranceTextColor || "#0B4D4E"}
+                onChange={(val) => updateField("reassuranceTextColor", val)}
+                label="Text colour"
+                compact={true}
+                defaultColor="#0B4D4E"
+                allowCustomHex={true}
+              />
+              <div className="pt-2 border-t border-line">
+                <ColorPalettePicker
+                  value={section.reassuranceIconColor || "#047857"}
+                  onChange={(val) => updateField("reassuranceIconColor", val)}
+                  label="Icon colour"
+                  compact={true}
+                  defaultColor="#047857"
+                  allowCustomHex={true}
+                />
               </div>
             </div>
           )}
