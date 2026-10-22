@@ -293,13 +293,16 @@ export const DynamicAccreditationBadge: React.FC<{
   onSelect,
   index,
 }) => {
+  const [imgError, setImgError] = React.useState(false);
   const isDark = variant === "dark";
   const iconLower = (item.icon || item.title || "").toLowerCase();
 
   let badgeNode: React.ReactNode = null;
 
-  // If item matches one of the standard UK awarding vectors and has no custom image override
-  if (!item.image) {
+  // If item matches one of the standard UK awarding vectors and has no custom image override (or image is missing/broken)
+  const isPhantomOrFailed = !item.image || imgError || item.image.includes("1792616860201") || item.image.includes("cpd-logo");
+
+  if (isPhantomOrFailed) {
     if (iconLower.includes("ofqual")) {
       badgeNode = <OfqualLogo variant={variant} badgeStyle={badgeStyle} />;
     } else if (iconLower.includes("tquk")) {
@@ -326,12 +329,13 @@ export const DynamicAccreditationBadge: React.FC<{
         )}
         title={item.title}
       >
-        {item.image ? (
+        {item.image && !imgError ? (
           <div className="h-5 w-auto max-w-[80px] flex items-center justify-center flex-shrink-0">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={item.image}
               alt={item.title}
+              onError={() => setImgError(true)}
               className="max-h-5 max-w-full object-contain"
             />
           </div>

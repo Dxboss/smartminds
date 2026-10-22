@@ -29,19 +29,21 @@ import {
 import { getPersistentSiteTheme } from "@/lib/siteTheme";
 
 const plusJakartaHeading = Plus_Jakarta_Sans({
-  weight: ["600", "700", "800"],
+  weight: ["600", "700"],
   subsets: ["latin"],
   variable: "--font-heading",
   display: "swap",
-  fallback: ["Inter", "system-ui", "sans-serif"],
+  preload: true,
+  fallback: ["system-ui", "-apple-system", "Segoe UI", "sans-serif"],
 });
 
 const plusJakartaBody = Plus_Jakarta_Sans({
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "600"],
   subsets: ["latin"],
   variable: "--font-body",
   display: "swap",
-  fallback: ["Inter", "system-ui", "sans-serif"],
+  preload: true,
+  fallback: ["system-ui", "-apple-system", "Segoe UI", "sans-serif"],
 });
 
 export const metadata: Metadata = {

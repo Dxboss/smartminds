@@ -359,7 +359,6 @@ export const CoralPromoBanner: React.FC<CoralPromoBannerProps> = ({
                     fill
                     className="object-cover object-center"
                     sizes="(max-width: 768px) 100vw, 450px"
-                    priority
                   />
                 </div>
               </EditableElementWrapper>

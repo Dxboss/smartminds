@@ -80,6 +80,18 @@ function getStoreFilePath(): string {
   return path.join(dataDir, "persisted_records.json");
 }
 
+function sanitizeCmsPages(data: any): any {
+  if (!data || typeof data !== "object") return {};
+  try {
+    const jsonStr = JSON.stringify(data);
+    if (jsonStr.includes("1792616860201") || jsonStr.includes("cpd-logo")) {
+      const cleaned = jsonStr.replace(/\/uploads\/1792616860201-cpd-logo\.png/g, "");
+      return JSON.parse(cleaned);
+    }
+  } catch {}
+  return data;
+}
+
 export function loadPersistedRecords(): PersistedRecordsStore {
   try {
     const filePath = getStoreFilePath();
@@ -115,11 +127,11 @@ export function loadPersistedRecords(): PersistedRecordsStore {
         : [],
       cmsPagesData:
         parsed.cmsPagesData && typeof parsed.cmsPagesData === "object"
-          ? parsed.cmsPagesData
+          ? sanitizeCmsPages(parsed.cmsPagesData)
           : {},
       cmsPagesDraftData:
         parsed.cmsPagesDraftData && typeof parsed.cmsPagesDraftData === "object"
-          ? parsed.cmsPagesDraftData
+          ? sanitizeCmsPages(parsed.cmsPagesDraftData)
           : {},
       courseOverrides:
         parsed.courseOverrides && typeof parsed.courseOverrides === "object"

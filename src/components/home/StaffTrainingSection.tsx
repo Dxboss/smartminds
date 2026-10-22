@@ -182,7 +182,6 @@ export const StaffTrainingSection: React.FC<StaffTrainingSectionProps> = ({
                     fill
                     className="object-cover object-center"
                     sizes="(max-width: 768px) 100vw, 550px"
-                    priority
                   />
                 </div>
 

@@ -279,12 +279,11 @@ export const FeaturedCourses: React.FC<FeaturedCoursesProps> = ({
 
         {/* Visual Course Cards Grid: Responsive Columns (2, 3, 4 on desktop, 2 on tablet, 1 on mobile) */}
         <div className={gridColsClass}>
-          {filteredCourses.map((course, index) => (
+          {filteredCourses.map((course) => (
             <CourseCard
               key={course.id}
               course={course}
               headingLevel="h3"
-              priority={index < (columns || 4)}
             />
           ))}
         </div>

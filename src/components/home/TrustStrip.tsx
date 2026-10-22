@@ -112,8 +112,6 @@ export const TrustStrip: React.FC<TrustStripProps> = ({
                     alt="Certified healthcare graduate"
                     fill
                     sizes="44px"
-                    loading="eager"
-                    priority
                     className="object-cover"
                   />
                 </div>
@@ -123,7 +121,6 @@ export const TrustStrip: React.FC<TrustStripProps> = ({
                     alt="Subject-specialist tutor"
                     fill
                     sizes="44px"
-                    loading="eager"
                     className="object-cover"
                   />
                 </div>
@@ -133,7 +130,6 @@ export const TrustStrip: React.FC<TrustStripProps> = ({
                     alt="Adult online learner"
                     fill
                     sizes="44px"
-                    loading="eager"
                     className="object-cover"
                   />
                 </div>
