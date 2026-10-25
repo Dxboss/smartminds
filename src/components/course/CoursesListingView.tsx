@@ -126,7 +126,7 @@ const CoursesListingContent: React.FC<CoursesListingViewProps> = ({
     if (queryParam) setSearchQuery(queryParam);
   }, [searchParams]);
 
-  // Categories list (consolidated canonical sectors + any custom faculties)
+  // Categories list (consolidated canonical sectors + any custom faculties without duplicates)
   const categories = useMemo(() => {
     const canonical = [
       "All",
@@ -139,20 +139,19 @@ const CoursesListingContent: React.FC<CoursesListingViewProps> = ({
     ];
 
     const extras = new Set<string>();
-    // Collect any course categories not covered by standard sectors
     initialCourses.forEach((c) => {
       if (!canonical.some((s) => s !== "All" && matchesCategory(c, s))) {
         extras.add(c.category);
       }
     });
 
-    // Also include custom CMS faculties if added
     if (initialFaculties && initialFaculties.length > 0) {
       initialFaculties.forEach((f) => {
         const alreadyCovered = canonical.some(
           (s) =>
             s !== "All" &&
-            (s.toLowerCase().includes(f.name.toLowerCase()) ||
+            (matchesCategory({ category: f.name } as any, s) ||
+              s.toLowerCase().includes(f.name.toLowerCase()) ||
               f.name.toLowerCase().includes(s.toLowerCase()))
         );
         if (!alreadyCovered) {
@@ -164,7 +163,98 @@ const CoursesListingContent: React.FC<CoursesListingViewProps> = ({
     return [...canonical, ...Array.from(extras)];
   }, [initialCourses, initialFaculties]);
 
-  const levels = ["All", "Level 2", "Level 3", "Level 4", "Level 5"];
+  const levels = useMemo(() => ["All", "Level 2", "Level 3", "Level 4", "Level 5"], []);
+
+  const frameworkTypes = useMemo(
+    () => [
+      { id: "All", label: "All Frameworks" },
+      { id: "regulated", label: "Regulated (Ofqual RQF)" },
+      { id: "cpd", label: "CPD Professional" },
+      { id: "tutoring", label: "1-on-1 Tutoring" },
+    ],
+    []
+  );
+
+  // 1. Courses matching current Category & Search Query (the base dataset for cascading dependent counts)
+  const categoryCourses = useMemo(() => {
+    return initialCourses.filter((course) => {
+      if (selectedCategory !== "All" && !matchesCategory(course, selectedCategory)) {
+        return false;
+      }
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase().trim();
+        const matchesTitle = (course.title || "").toLowerCase().includes(query);
+        const matchesSummary = (course.summary || "").toLowerCase().includes(query);
+        const matchesCategoryName = (course.category || "").toLowerCase().includes(query);
+        const matchesAwarding = (course.awarding_body || "").toLowerCase().includes(query);
+        const matchesLevel = (course.levels || []).some((l) =>
+          l.level_label.toLowerCase().includes(query)
+        );
+        if (!matchesTitle && !matchesSummary && !matchesCategoryName && !matchesAwarding && !matchesLevel) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [initialCourses, selectedCategory, searchQuery]);
+
+  // 2. Cascading Level counts: how many courses in this category & framework type have each level
+  const levelCounts = useMemo(() => {
+    const counts: Record<string, number> = { All: categoryCourses.length };
+    levels.forEach((lvl) => {
+      if (lvl === "All") return;
+      const count = categoryCourses.filter((c) => {
+        if (selectedType !== "All" && c.type !== selectedType) return false;
+        return (c.levels || []).some((l) =>
+          l.level_label.toLowerCase().includes(lvl.toLowerCase())
+        );
+      }).length;
+      counts[lvl] = count;
+    });
+    return counts;
+  }, [categoryCourses, selectedType, levels]);
+
+  // 3. Cascading Framework Type counts: how many courses in this category & level have each framework type
+  const frameworkCounts = useMemo(() => {
+    const counts: Record<string, number> = { All: categoryCourses.length };
+    frameworkTypes.forEach((t) => {
+      if (t.id === "All") return;
+      const count = categoryCourses.filter((c) => {
+        if (selectedLevel !== "All") {
+          const hasLevel = (c.levels || []).some((l) =>
+            l.level_label.toLowerCase().includes(selectedLevel.toLowerCase())
+          );
+          if (!hasLevel) return false;
+        }
+        return c.type === t.id;
+      }).length;
+      counts[t.id] = count;
+    });
+    return counts;
+  }, [categoryCourses, selectedLevel, frameworkTypes]);
+
+  // Auto-safety check: If active level has 0 available courses in this combination, auto-reset to "All"
+  useEffect(() => {
+    if (selectedLevel !== "All" && (levelCounts[selectedLevel] ?? 0) === 0) {
+      setSelectedLevel("All");
+    }
+  }, [selectedLevel, levelCounts]);
+
+  // Auto-safety check: If active framework has 0 available courses in this combination, auto-reset to "All"
+  useEffect(() => {
+    if (selectedType !== "All" && (frameworkCounts[selectedType] ?? 0) === 0) {
+      setSelectedType("All");
+    }
+  }, [selectedType, frameworkCounts]);
+
+  // Handler for category selection with smart reset of dependent child filters
+  const handleCategorySelect = (cat: string) => {
+    const newCat = selectedCategory === cat && cat !== "All" ? "All" : cat;
+    setSelectedCategory(newCat);
+    // Smart reset: reset level and framework to "All" so the user starts with clean valid choices
+    setSelectedLevel("All");
+    setSelectedType("All");
+  };
 
   // Filtered courses
   const filteredCourses = useMemo(() => {
@@ -295,7 +385,7 @@ const CoursesListingContent: React.FC<CoursesListingViewProps> = ({
             </div>
           </div>
 
-          {/* Horizontal Topic Pills (Image 2 Style) */}
+          {/* Horizontal Topic Pills */}
           <div className="pt-2 flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
             <span className="text-xs text-ink-soft font-semibold mr-1 flex-shrink-0">Topics:</span>
             {categories.map((cat) => {
@@ -304,7 +394,7 @@ const CoursesListingContent: React.FC<CoursesListingViewProps> = ({
                 <button
                   key={cat}
                   type="button"
-                  onClick={() => setSelectedCategory(active && cat !== "All" ? "All" : cat)}
+                  onClick={() => handleCategorySelect(cat)}
                   className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
                     active
                       ? "bg-navy-900 text-white shadow-xs font-bold"
@@ -355,7 +445,7 @@ const CoursesListingContent: React.FC<CoursesListingViewProps> = ({
                         <input
                           type="checkbox"
                           checked={isChecked}
-                          onChange={() => setSelectedCategory(isChecked && cat !== "All" ? "All" : cat)}
+                          onChange={() => handleCategorySelect(cat)}
                           className="rounded text-navy-900 focus:ring-navy-700 w-3.5 h-3.5 cursor-pointer accent-navy-900"
                         />
                         <span className={isChecked ? "font-semibold text-navy-900" : ""}>{cat}</span>
@@ -367,71 +457,102 @@ const CoursesListingContent: React.FC<CoursesListingViewProps> = ({
               </div>
             </div>
 
-            {/* Qualification Level */}
+            {/* Qualification Level (Cascades based on Category & Framework) */}
             <div className="space-y-3 pt-4 border-t border-line/70">
-              <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-navy-900">
-                Level
-              </h3>
+              <div className="flex items-center justify-between">
+                <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-navy-900">
+                  Level
+                </h3>
+                {selectedCategory !== "All" && (
+                  <span className="text-[10px] text-ink-soft/60 italic">In this category</span>
+                )}
+              </div>
               <div className="space-y-2">
                 {levels.map((lvl) => {
                   const isChecked = selectedLevel === lvl;
-                  const count = lvl === "All"
-                    ? initialCourses.length
-                    : initialCourses.filter((c) =>
-                        (c.levels || []).some((l) => l.level_label.toLowerCase().includes(lvl.toLowerCase()))
-                      ).length;
+                  const count = levelCounts[lvl] ?? 0;
+                  const isDisabled = lvl !== "All" && count === 0;
+
                   return (
                     <label
                       key={lvl}
-                      className="flex items-center justify-between text-xs text-ink-soft hover:text-navy-900 cursor-pointer select-none"
+                      className={`flex items-center justify-between text-xs select-none transition-all ${
+                        isDisabled
+                          ? "opacity-35 cursor-not-allowed text-ink-soft/40"
+                          : "cursor-pointer text-ink-soft hover:text-navy-900"
+                      }`}
                     >
                       <div className="flex items-center gap-2">
                         <input
                           type="checkbox"
                           checked={isChecked}
-                          onChange={() => setSelectedLevel(isChecked && lvl !== "All" ? "All" : lvl)}
-                          className="rounded text-navy-900 focus:ring-navy-700 w-3.5 h-3.5 cursor-pointer accent-navy-900"
+                          disabled={isDisabled}
+                          onChange={() => {
+                            if (isDisabled) return;
+                            setSelectedLevel(isChecked && lvl !== "All" ? "All" : lvl);
+                          }}
+                          className={`rounded text-navy-900 focus:ring-navy-700 w-3.5 h-3.5 ${
+                            isDisabled
+                              ? "cursor-not-allowed opacity-30"
+                              : "cursor-pointer accent-navy-900"
+                          }`}
                         />
                         <span className={isChecked ? "font-semibold text-navy-900" : ""}>{lvl}</span>
                       </div>
-                      <span className="text-[11px] text-ink-soft/70">({count})</span>
+                      <span className={`text-[11px] ${isDisabled ? "text-ink-soft/30" : "text-ink-soft/70"}`}>
+                        ({count})
+                      </span>
                     </label>
                   );
                 })}
               </div>
             </div>
 
-            {/* Framework Type */}
+            {/* Framework Type (Cascades based on Category & Level) */}
             <div className="space-y-3 pt-4 border-t border-line/70">
-              <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-navy-900">
-                Framework Type
-              </h3>
+              <div className="flex items-center justify-between">
+                <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-navy-900">
+                  Framework Type
+                </h3>
+                {selectedCategory !== "All" && (
+                  <span className="text-[10px] text-ink-soft/60 italic">In this category</span>
+                )}
+              </div>
               <div className="space-y-2">
-                {[
-                  { id: "All", label: "All Frameworks" },
-                  { id: "regulated", label: "Regulated (Ofqual RQF)" },
-                  { id: "cpd", label: "CPD Professional" },
-                  { id: "tutoring", label: "1-on-1 Tutoring" },
-                ].map((t) => {
+                {frameworkTypes.map((t) => {
                   const isChecked = selectedType === t.id;
-                  const count = t.id === "All"
-                    ? initialCourses.length
-                    : initialCourses.filter((c) => c.type === t.id).length;
+                  const count = frameworkCounts[t.id] ?? 0;
+                  const isDisabled = t.id !== "All" && count === 0;
+
                   return (
                     <label
                       key={t.id}
-                      className="flex items-center justify-between text-xs text-ink-soft hover:text-navy-900 cursor-pointer select-none"
+                      className={`flex items-center justify-between text-xs select-none transition-all ${
+                        isDisabled
+                          ? "opacity-35 cursor-not-allowed text-ink-soft/40"
+                          : "cursor-pointer text-ink-soft hover:text-navy-900"
+                      }`}
                     >
                       <div className="flex items-center gap-2">
                         <input
                           type="checkbox"
                           checked={isChecked}
-                          onChange={() => setSelectedType(isChecked && t.id !== "All" ? "All" : t.id)}
-                          className="rounded text-navy-900 focus:ring-navy-700 w-3.5 h-3.5 cursor-pointer accent-navy-900"
+                          disabled={isDisabled}
+                          onChange={() => {
+                            if (isDisabled) return;
+                            setSelectedType(isChecked && t.id !== "All" ? "All" : t.id);
+                          }}
+                          className={`rounded text-navy-900 focus:ring-navy-700 w-3.5 h-3.5 ${
+                            isDisabled
+                              ? "cursor-not-allowed opacity-30"
+                              : "cursor-pointer accent-navy-900"
+                          }`}
                         />
                         <span className={isChecked ? "font-semibold text-navy-900" : ""}>{t.label}</span>
                       </div>
-                      <span className="text-[11px] text-ink-soft/70">({count})</span>
+                      <span className={`text-[11px] ${isDisabled ? "text-ink-soft/30" : "text-ink-soft/70"}`}>
+                        ({count})
+                      </span>
                     </label>
                   );
                 })}
