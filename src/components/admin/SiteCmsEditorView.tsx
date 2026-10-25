@@ -2860,6 +2860,15 @@ export const SiteCmsEditorView: React.FC<Props> = ({
     setTimeout(() => setToastNotice(null), 3000);
   };
 
+  const clearAllAccreditationBadges = () => {
+    setFooterConfig({
+      ...footerConfig,
+      accreditations: [],
+    });
+    setToastNotice("Cleared all accreditation badges.");
+    setTimeout(() => setToastNotice(null), 3000);
+  };
+
   return (
     <div className="flex flex-col h-screen w-screen bg-slate-100 overflow-hidden fixed inset-0 z-50">
       {/* 1. Elementor / Wix Top Control Bar */}
@@ -8316,480 +8325,1058 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                 </div>
               </div>
 
-              {/* Explore Links List */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider">
-                    Explore Column Links ({footerConfig.exploreLinks.length})
-                  </label>
-                  <button
-                    onClick={() => addFooterLink("explore")}
-                    className="text-xs font-bold text-navy-900 hover:text-gold-700 underline flex items-center gap-1"
-                  >
-                    <Icon name="plus" size={12} />
-                    <span>Add Link</span>
-                  </button>
-                </div>
-                {footerConfig.exploreLinks.map((item, i) => (
-                  <div
-                    key={item.id}
-                    className="p-2 bg-white rounded-sm border border-line shadow-xs space-y-1"
-                  >
-                    <div className="flex items-center justify-between gap-1">
-                      <input
-                        type="text"
-                        value={item.label}
-                        onChange={(e) =>
-                          updateFooterLink("explore", i, "label", e.target.value)
-                        }
-                        className="px-2 py-0.5 text-xs font-bold border border-line rounded-sm flex-1"
-                      />
-                      <button
-                        onClick={() => removeFooterLink("explore", i)}
-                        className="p-1 text-xs hover:bg-rose-50 text-rose-700 rounded-sm"
-                        title="Delete"
-                      >
-                        <Icon name="close" size={12} />
-                      </button>
-                    </div>
-                    <input
-                      type="text"
-                      value={item.href}
-                      onChange={(e) =>
-                        updateFooterLink("explore", i, "href", e.target.value)
-                      }
-                      className="w-full px-2 py-0.5 text-[11px] font-mono border border-line rounded-sm text-ink-soft"
-                    />
-                  </div>
-                ))}
-              </div>
-
-              {/* College Links List */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider">
-                    College & Legal Links ({footerConfig.collegeLinks.length})
-                  </label>
-                  <button
-                    onClick={() => addFooterLink("college")}
-                    className="text-xs font-bold text-navy-900 hover:text-gold-700 underline flex items-center gap-1"
-                  >
-                    <Icon name="plus" size={12} />
-                    <span>Add Link</span>
-                  </button>
-                </div>
-                {footerConfig.collegeLinks.map((item, i) => (
-                  <div
-                    key={item.id}
-                    className="p-2 bg-white rounded-sm border border-line shadow-xs space-y-1"
-                  >
-                    <div className="flex items-center justify-between gap-1">
-                      <input
-                        type="text"
-                        value={item.label}
-                        onChange={(e) =>
-                          updateFooterLink("college", i, "label", e.target.value)
-                        }
-                        className="px-2 py-0.5 text-xs font-bold border border-line rounded-sm flex-1"
-                      />
-                      <button
-                        onClick={() => removeFooterLink("college", i)}
-                        className="p-1 text-xs hover:bg-rose-50 text-rose-700 rounded-sm"
-                        title="Delete"
-                      >
-                        <Icon name="close" size={12} />
-                      </button>
-                    </div>
-                    <input
-                      type="text"
-                      value={item.href}
-                      onChange={(e) =>
-                        updateFooterLink("college", i, "href", e.target.value)
-                      }
-                      className="w-full px-2 py-0.5 text-[11px] font-mono border border-line rounded-sm text-ink-soft"
-                    />
-                  </div>
-                ))}
-              </div>
-
-              {/* Contact Details */}
-              <div className="p-3 bg-paper rounded-sm border border-line space-y-2">
-                <strong className="text-xs font-bold text-navy-900 block">
-                  Footer Contact Column
-                </strong>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div>
-                    <label className="block text-[10px] text-ink-soft mb-0.5">Telephone</label>
-                    <input
-                      type="text"
-                      value={footerConfig.phone}
-                      onChange={(e) =>
-                        setFooterConfig({ ...footerConfig, phone: e.target.value })
-                      }
-                      className="w-full px-2 py-1 border border-line rounded-sm bg-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] text-ink-soft mb-0.5">Email</label>
-                    <input
-                      type="text"
-                      value={footerConfig.email}
-                      onChange={(e) =>
-                        setFooterConfig({ ...footerConfig, email: e.target.value })
-                      }
-                      className="w-full px-2 py-1 border border-line rounded-sm bg-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] text-ink-soft mb-0.5">WhatsApp</label>
-                    <input
-                      type="text"
-                      value={footerConfig.whatsappNumber}
-                      onChange={(e) =>
-                        setFooterConfig({ ...footerConfig, whatsappNumber: e.target.value })
-                      }
-                      className="w-full px-2 py-1 border border-line rounded-sm bg-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] text-ink-soft mb-0.5">Opening Hours</label>
-                    <input
-                      type="text"
-                      value={footerConfig.openingHours}
-                      onChange={(e) =>
-                        setFooterConfig({ ...footerConfig, openingHours: e.target.value })
-                      }
-                      className="w-full px-2 py-1 border border-line rounded-sm bg-white"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Accredited Area - Editable & Stylable Section */}
+              {/* Newsletter Subscription Banner CMS Controls */}
               <div className="p-3.5 bg-paper rounded-sm border border-line space-y-3">
                 <div className="flex items-center justify-between">
                   <strong className="text-xs font-bold text-navy-900 flex items-center gap-1.5">
-                    <Icon name="award" size={14} className="text-emerald-700" />
-                    <span>Accredited Area Styling & Copy</span>
+                    <Icon name="mail" size={14} className="text-[#FF5722]" />
+                    <span>Newsletter Subscription Banner</span>
                   </strong>
-                  <span className="text-[10px] text-emerald-800 font-semibold px-2 py-0.5 rounded-full bg-emerald-100">
-                    One-Line Badges
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFooterConfig({
+                        ...footerConfig,
+                        showNewsletter: footerConfig.showNewsletter === false ? true : false,
+                      })
+                    }
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors ${
+                      footerConfig.showNewsletter !== false
+                        ? "bg-emerald-100 text-emerald-800"
+                        : "bg-slate-200 text-slate-700"
+                    }`}
+                  >
+                    {footerConfig.showNewsletter !== false ? "Visible (ON)" : "Hidden (OFF)"}
+                  </button>
                 </div>
 
-                <div className="space-y-2">
-                  <div>
-                    <label className="block text-[10px] text-ink-soft mb-0.5">
-                      Headline:
-                    </label>
-                    <input
-                      type="text"
-                      value={footerConfig.accreditationHeadline}
-                      onChange={(e) =>
-                        setFooterConfig({
-                          ...footerConfig,
-                          accreditationHeadline: e.target.value,
-                        })
-                      }
-                      className="w-full px-2 py-1 text-xs font-bold border border-line rounded-sm bg-white"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] text-ink-soft mb-0.5">
-                      Subheadline / Supporting Description:
-                    </label>
-                    <textarea
-                      rows={2}
-                      value={footerConfig.accreditationSubtext}
-                      onChange={(e) =>
-                        setFooterConfig({
-                          ...footerConfig,
-                          accreditationSubtext: e.target.value,
-                        })
-                      }
-                      className="w-full px-2 py-1 text-xs border border-line rounded-sm bg-white leading-normal"
-                    />
-                  </div>
-
-                  {/* Surface Background Style */}
-                  <div className="grid grid-cols-2 gap-2 text-xs pt-1">
-                    <div>
-                      <label className="block text-[10px] text-ink-soft mb-1">
-                        Container Background:
-                      </label>
-                      <select
-                        value={footerConfig.accreditationBgStyle || "transparent"}
-                        onChange={(e) =>
-                          setFooterConfig({
-                            ...footerConfig,
-                            accreditationBgStyle: e.target.value as any,
-                          })
-                        }
-                        className="w-full px-2 py-1 text-xs border border-line rounded-sm bg-white"
-                      >
-                        <option value="transparent">Transparent / Blended</option>
-                        <option value="white">White Box Card</option>
-                        <option value="subtle">Subtle Mint Tint</option>
-                        <option value="dark">Dark Navy Luxury Card</option>
-                      </select>
+                {footerConfig.showNewsletter !== false && (
+                  <div className="space-y-2 pt-1 border-t border-line/60">
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <label className="block text-[10px] text-ink-soft mb-0.5">
+                          Eyebrow Tagline
+                        </label>
+                        <input
+                          type="text"
+                          value={footerConfig.newsletterEyebrow ?? "Stay Ahead in Your Career"}
+                          onChange={(e) =>
+                            setFooterConfig({ ...footerConfig, newsletterEyebrow: e.target.value })
+                          }
+                          className="w-full px-2 py-1 text-xs border border-line rounded-sm bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-ink-soft mb-0.5">
+                          Button Text
+                        </label>
+                        <input
+                          type="text"
+                          value={footerConfig.newsletterButtonText ?? "Subscribe Now"}
+                          onChange={(e) =>
+                            setFooterConfig({ ...footerConfig, newsletterButtonText: e.target.value })
+                          }
+                          className="w-full px-2 py-1 text-xs border border-line rounded-sm bg-white font-bold"
+                        />
+                      </div>
                     </div>
 
                     <div>
-                      <label className="block text-[10px] text-ink-soft mb-1">
-                        Badge Card Shape & Style:
+                      <label className="block text-[10px] text-ink-soft mb-0.5">
+                        Main Headline
                       </label>
-                      <select
-                        value={footerConfig.accreditationBadgeStyle || "solid-white"}
+                      <input
+                        type="text"
+                        value={footerConfig.newsletterHeadline ?? "Subscribe to our Newsletter"}
                         onChange={(e) =>
-                          setFooterConfig({
-                            ...footerConfig,
-                            accreditationBadgeStyle: e.target.value as any,
-                          })
+                          setFooterConfig({ ...footerConfig, newsletterHeadline: e.target.value })
                         }
-                        className="w-full px-2 py-1 text-xs border border-line rounded-sm bg-white"
-                      >
-                        <option value="solid-white">Solid White Card (Default)</option>
-                        <option value="flat">Flat Outlined</option>
-                        <option value="pill">Rounded Pills</option>
-                      </select>
+                        className="w-full px-2 py-1 text-xs font-bold border border-line rounded-sm bg-white"
+                      />
                     </div>
-                  </div>
 
-                  {/* Alignment / Layout */}
-                  <div>
-                    <label className="block text-[10px] text-ink-soft mb-1">
-                      Layout Alignment:
-                    </label>
-                    <div className="grid grid-cols-2 gap-1.5 p-1 bg-white rounded-sm border border-line">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setFooterConfig({
-                            ...footerConfig,
-                            accreditationLayout: "row",
-                          })
+                    <div>
+                      <label className="block text-[10px] text-ink-soft mb-0.5">
+                        Description / Value Offer
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={
+                          footerConfig.newsletterSubtext ??
+                          "Get the latest qualification updates, exclusive fee discounts, and accredited career resources directly in your inbox."
                         }
-                        className={`py-1 px-2 text-xs rounded-xs flex items-center justify-center gap-1 ${
-                          (footerConfig.accreditationLayout || "row") === "row"
-                            ? "bg-navy-900 text-white font-bold"
-                            : "text-ink-soft hover:bg-slate-100"
-                        }`}
-                      >
-                        <span>Side-by-Side (One Line)</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setFooterConfig({
-                            ...footerConfig,
-                            accreditationLayout: "stacked",
-                          })
+                        onChange={(e) =>
+                          setFooterConfig({ ...footerConfig, newsletterSubtext: e.target.value })
                         }
-                        className={`py-1 px-2 text-xs rounded-xs flex items-center justify-center gap-1 ${
-                          footerConfig.accreditationLayout === "stacked"
-                            ? "bg-navy-900 text-white font-bold"
-                            : "text-ink-soft hover:bg-slate-100"
-                        }`}
-                      >
-                        <span>Stacked Centered</span>
-                      </button>
+                        className="w-full px-2 py-1 text-xs border border-line rounded-sm bg-white leading-normal"
+                      />
                     </div>
-                  </div>
-                </div>
 
-                {/* Badges List Manager */}
-                <div className="pt-2 border-t border-line space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold text-navy-900 uppercase tracking-wider">
-                      Awarding Body Logos ({(footerConfig.accreditations || []).length})
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={resetAccreditationBadges}
-                        className="text-[10px] text-ink-soft hover:text-navy-900 underline"
-                        title="Reset to 5 default UK regulated bodies"
-                      >
-                        Reset Defaults
-                      </button>
-                      <button
-                        type="button"
-                        onClick={addAccreditationBadge}
-                        className="text-xs font-bold text-navy-900 hover:text-gold-700 underline flex items-center gap-1"
-                      >
-                        <Icon name="plus" size={12} />
-                        <span>Add Badge</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    {(footerConfig.accreditations || []).map((badge, idx) => (
-                      <div
-                        key={badge.id || idx}
-                        className="p-2.5 bg-white rounded-sm border border-line shadow-xs space-y-2"
-                      >
-                        <div className="flex items-center justify-between gap-1 border-b border-line/60 pb-1.5">
-                          <span className="text-[10px] font-bold text-navy-900 flex items-center gap-1">
-                            <span className="w-4 h-4 rounded-full bg-navy-100 text-navy-900 flex items-center justify-center text-[9px]">
-                              {idx + 1}
-                            </span>
-                            <span>{badge.title || `Badge #${idx + 1}`}</span>
-                          </span>
-
-                          <div className="flex items-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() => moveAccreditationBadge(idx, "up")}
-                              disabled={idx === 0}
-                              className="p-1 text-slate-500 hover:text-navy-900 disabled:opacity-30"
-                              title="Move left/up"
-                            >
-                              <Icon name="chevron-up" size={12} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => moveAccreditationBadge(idx, "down")}
-                              disabled={
-                                idx ===
-                                (footerConfig.accreditations?.length || 0) - 1
+                    {/* Newsletter Card Color Styling */}
+                    <div className="p-2.5 bg-white rounded-sm border border-line space-y-2 text-xs">
+                      <span className="block text-[10px] font-bold text-navy-900 uppercase tracking-wider">
+                        Newsletter Card Colors
+                      </span>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[9px] text-ink-soft mb-0.5">
+                            Card Background
+                          </label>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="color"
+                              value={footerConfig.newsletterBgColor || "#FFFFFF"}
+                              onChange={(e) =>
+                                setFooterConfig({ ...footerConfig, newsletterBgColor: e.target.value })
                               }
-                              className="p-1 text-slate-500 hover:text-navy-900 disabled:opacity-30"
-                              title="Move right/down"
-                            >
-                              <Icon name="chevron-down" size={12} />
-                            </button>
+                              className="w-6 h-6 p-0 border border-line rounded-xs cursor-pointer"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Auto theme"
+                              value={footerConfig.newsletterBgColor || ""}
+                              onChange={(e) =>
+                                setFooterConfig({ ...footerConfig, newsletterBgColor: e.target.value })
+                              }
+                              className="flex-1 px-1.5 py-0.5 text-[11px] font-mono border border-line rounded-sm"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[9px] text-ink-soft mb-0.5">
+                            Heading & Text
+                          </label>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="color"
+                              value={footerConfig.newsletterTextColor || "#0B4D4E"}
+                              onChange={(e) =>
+                                setFooterConfig({ ...footerConfig, newsletterTextColor: e.target.value })
+                              }
+                              className="w-6 h-6 p-0 border border-line rounded-xs cursor-pointer"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Auto theme"
+                              value={footerConfig.newsletterTextColor || ""}
+                              onChange={(e) =>
+                                setFooterConfig({ ...footerConfig, newsletterTextColor: e.target.value })
+                              }
+                              className="flex-1 px-1.5 py-0.5 text-[11px] font-mono border border-line rounded-sm"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[9px] text-ink-soft mb-0.5">
+                            Button Background
+                          </label>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="color"
+                              value={footerConfig.newsletterButtonBgColor || "#0B4D4E"}
+                              onChange={(e) =>
+                                setFooterConfig({
+                                  ...footerConfig,
+                                  newsletterButtonBgColor: e.target.value,
+                                })
+                              }
+                              className="w-6 h-6 p-0 border border-line rounded-xs cursor-pointer"
+                            />
+                            <input
+                              type="text"
+                              placeholder="#0B4D4E"
+                              value={footerConfig.newsletterButtonBgColor || ""}
+                              onChange={(e) =>
+                                setFooterConfig({
+                                  ...footerConfig,
+                                  newsletterButtonBgColor: e.target.value,
+                                })
+                              }
+                              className="flex-1 px-1.5 py-0.5 text-[11px] font-mono border border-line rounded-sm"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[9px] text-ink-soft mb-0.5">
+                            Button Text Color
+                          </label>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="color"
+                              value={footerConfig.newsletterButtonTextColor || "#FFFFFF"}
+                              onChange={(e) =>
+                                setFooterConfig({
+                                  ...footerConfig,
+                                  newsletterButtonTextColor: e.target.value,
+                                })
+                              }
+                              className="w-6 h-6 p-0 border border-line rounded-xs cursor-pointer"
+                            />
+                            <input
+                              type="text"
+                              placeholder="#FFFFFF"
+                              value={footerConfig.newsletterButtonTextColor || ""}
+                              onChange={(e) =>
+                                setFooterConfig({
+                                  ...footerConfig,
+                                  newsletterButtonTextColor: e.target.value,
+                                })
+                              }
+                              className="flex-1 px-1.5 py-0.5 text-[11px] font-mono border border-line rounded-sm"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Column Typography & Link Styles */}
+              <div className="p-3.5 bg-paper rounded-sm border border-line space-y-3">
+                <strong className="text-xs font-bold text-navy-900 flex items-center gap-1.5">
+                  <Icon name="edit" size={14} className="text-navy-900" />
+                  <span>Column Titles & Links Typography</span>
+                </strong>
+
+                <div className="space-y-2.5">
+                  {/* Column Title Font Family, Size & Weight */}
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <label className="block text-[9px] text-ink-soft mb-0.5">
+                        Title Font Family
+                      </label>
+                      <select
+                        value={footerConfig.columnTitleFontFamily || "heading"}
+                        onChange={(e) =>
+                          setFooterConfig({
+                            ...footerConfig,
+                            columnTitleFontFamily: e.target.value as "heading" | "body",
+                          })
+                        }
+                        className="w-full px-2 py-1 text-xs border border-line rounded-sm bg-white"
+                      >
+                        <option value="heading">Saira Condensed (Heading)</option>
+                        <option value="body">Source Sans 3 (Body)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[9px] text-ink-soft mb-0.5">
+                        Title Size
+                      </label>
+                      <select
+                        value={footerConfig.columnTitleFontSize || "lg"}
+                        onChange={(e) =>
+                          setFooterConfig({
+                            ...footerConfig,
+                            columnTitleFontSize: e.target.value as any,
+                          })
+                        }
+                        className="w-full px-2 py-1 text-xs border border-line rounded-sm bg-white"
+                      >
+                        <option value="sm">Small (14px)</option>
+                        <option value="md">Medium (16px)</option>
+                        <option value="lg">Large (18px - Default)</option>
+                        <option value="xl">Extra Large (20px)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[9px] text-ink-soft mb-0.5">
+                        Title Weight
+                      </label>
+                      <select
+                        value={footerConfig.columnTitleFontWeight || "bold"}
+                        onChange={(e) =>
+                          setFooterConfig({
+                            ...footerConfig,
+                            columnTitleFontWeight: e.target.value as any,
+                          })
+                        }
+                        className="w-full px-2 py-1 text-xs border border-line rounded-sm bg-white"
+                      >
+                        <option value="normal">Normal</option>
+                        <option value="semibold">Semi Bold</option>
+                        <option value="bold">Bold (Default)</option>
+                        <option value="extrabold">Extra Bold</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[9px] text-ink-soft mb-0.5">
+                        Letter Case
+                      </label>
+                      <select
+                        value={footerConfig.columnTitleTextTransform || "uppercase"}
+                        onChange={(e) =>
+                          setFooterConfig({
+                            ...footerConfig,
+                            columnTitleTextTransform: e.target.value as any,
+                          })
+                        }
+                        className="w-full px-2 py-1 text-xs border border-line rounded-sm bg-white"
+                      >
+                        <option value="uppercase">UPPERCASE (Default)</option>
+                        <option value="capitalize">Capitalize Words</option>
+                        <option value="none">Normal Case</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Colors for Column Titles & Links */}
+                  <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-line/60">
+                    <div>
+                      <label className="block text-[9px] text-ink-soft mb-0.5">
+                        Column Titles Color
+                      </label>
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="color"
+                          value={footerConfig.columnTitleColor || "#0B4D4E"}
+                          onChange={(e) =>
+                            setFooterConfig({ ...footerConfig, columnTitleColor: e.target.value })
+                          }
+                          className="w-6 h-6 p-0 border border-line rounded-xs cursor-pointer"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Auto palette"
+                          value={footerConfig.columnTitleColor || ""}
+                          onChange={(e) =>
+                            setFooterConfig({ ...footerConfig, columnTitleColor: e.target.value })
+                          }
+                          className="flex-1 px-1.5 py-0.5 text-[11px] font-mono border border-line rounded-sm"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[9px] text-ink-soft mb-0.5">
+                        Links Text Color
+                      </label>
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="color"
+                          value={footerConfig.linkColor || "#5A5A6E"}
+                          onChange={(e) =>
+                            setFooterConfig({ ...footerConfig, linkColor: e.target.value })
+                          }
+                          className="w-6 h-6 p-0 border border-line rounded-xs cursor-pointer"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Auto theme"
+                          value={footerConfig.linkColor || ""}
+                          onChange={(e) =>
+                            setFooterConfig({ ...footerConfig, linkColor: e.target.value })
+                          }
+                          className="flex-1 px-1.5 py-0.5 text-[11px] font-mono border border-line rounded-sm"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Explore Links Column */}
+              <div className="p-3.5 bg-paper rounded-sm border border-line space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <strong className="text-xs font-bold text-navy-900">
+                      Explore Column
+                    </strong>
+                    <span className="text-[10px] text-ink-soft">
+                      ({footerConfig.exploreLinks.length} links)
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFooterConfig({
+                          ...footerConfig,
+                          showExploreColumn:
+                            footerConfig.showExploreColumn === false ? true : false,
+                        })
+                      }
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors ${
+                        footerConfig.showExploreColumn !== false
+                          ? "bg-emerald-100 text-emerald-800"
+                          : "bg-slate-200 text-slate-700"
+                      }`}
+                    >
+                      {footerConfig.showExploreColumn !== false ? "Visible" : "Hidden"}
+                    </button>
+                    <button
+                      onClick={() => addFooterLink("explore")}
+                      className="text-xs font-bold text-navy-900 hover:text-gold-700 underline flex items-center gap-0.5"
+                    >
+                      <Icon name="plus" size={12} />
+                      <span>Add</span>
+                    </button>
+                  </div>
+                </div>
+
+                {footerConfig.showExploreColumn !== false && (
+                  <div className="space-y-2 pt-1 border-t border-line/60">
+                    <div>
+                      <label className="block text-[10px] text-ink-soft mb-0.5">
+                        Column Title Header
+                      </label>
+                      <input
+                        type="text"
+                        value={footerConfig.exploreColumnTitle ?? "Explore"}
+                        onChange={(e) =>
+                          setFooterConfig({ ...footerConfig, exploreColumnTitle: e.target.value })
+                        }
+                        className="w-full px-2 py-1 text-xs font-bold border border-line rounded-sm bg-white"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5 pt-1">
+                      {footerConfig.exploreLinks.map((item, i) => (
+                        <div
+                          key={item.id}
+                          className="p-2 bg-white rounded-sm border border-line shadow-xs space-y-1"
+                        >
+                          <div className="flex items-center justify-between gap-1">
+                            <input
+                              type="text"
+                              value={item.label}
+                              onChange={(e) =>
+                                updateFooterLink("explore", i, "label", e.target.value)
+                              }
+                              className="px-2 py-0.5 text-xs font-bold border border-line rounded-sm flex-1"
+                            />
                             <button
-                              type="button"
-                              onClick={() => removeAccreditationBadge(idx)}
-                              className="p-1 text-rose-600 hover:bg-rose-50 rounded-xs"
-                              title="Remove badge"
+                              onClick={() => removeFooterLink("explore", i)}
+                              className="p-1 text-xs hover:bg-rose-50 text-rose-700 rounded-sm"
+                              title="Delete Link"
                             >
                               <Icon name="close" size={12} />
                             </button>
                           </div>
+                          <input
+                            type="text"
+                            value={item.href}
+                            onChange={(e) =>
+                              updateFooterLink("explore", i, "href", e.target.value)
+                            }
+                            className="w-full px-2 py-0.5 text-[11px] font-mono border border-line rounded-sm text-ink-soft"
+                          />
                         </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
 
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                          <div>
-                            <label className="block text-[9px] text-ink-soft mb-0.5">
-                              Main Title:
-                            </label>
-                            <input
-                              type="text"
-                              value={badge.title}
-                              onChange={(e) =>
-                                updateAccreditationBadge(
-                                  idx,
-                                  "title",
-                                  e.target.value
-                                )
-                              }
-                              className="w-full px-1.5 py-0.5 text-xs font-bold border border-line rounded-sm bg-white"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-[9px] text-ink-soft mb-0.5">
-                              Subtitle / Tag:
-                            </label>
-                            <input
-                              type="text"
-                              value={badge.desc || ""}
-                              onChange={(e) =>
-                                updateAccreditationBadge(
-                                  idx,
-                                  "desc",
-                                  e.target.value
-                                )
-                              }
-                              className="w-full px-1.5 py-0.5 text-xs border border-line rounded-sm bg-white"
-                              placeholder="e.g. Regulated"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                          <div>
-                            <label className="block text-[9px] text-ink-soft mb-0.5">
-                              Logo Vector Preset:
-                            </label>
-                            <select
-                              value={badge.icon || "award"}
-                              onChange={(e) =>
-                                updateAccreditationBadge(
-                                  idx,
-                                  "icon",
-                                  e.target.value
-                                )
-                              }
-                              className="w-full px-1.5 py-0.5 text-xs border border-line rounded-sm bg-white"
-                            >
-                              <option value="ofqual">Ofqual (Crown)</option>
-                              <option value="tquk">TQUK (Diamond)</option>
-                              <option value="cpd">The CPD Group (Shield)</option>
-                              <option value="health">Skills for Health (Cross)</option>
-                              <option value="ukrlp">UKRLP (Checkbox Stamp)</option>
-                              <option value="award">Standard Award / Star</option>
-                              <option value="custom">Custom Uploaded Logo</option>
-                            </select>
-                          </div>
-
-                          <div>
-                            <label className="block text-[9px] text-ink-soft mb-0.5">
-                              Verification Link (Optional):
-                            </label>
-                            <input
-                              type="text"
-                              value={badge.link || ""}
-                              onChange={(e) =>
-                                updateAccreditationBadge(
-                                  idx,
-                                  "link",
-                                  e.target.value
-                                )
-                              }
-                              className="w-full px-1.5 py-0.5 text-[11px] font-mono border border-line rounded-sm bg-white"
-                              placeholder="https://..."
-                            />
-                          </div>
-                        </div>
-
-                        {badge.icon === "custom" && (
-                          <div className="pt-1 flex items-center gap-2">
-                            <input
-                              type="text"
-                              value={badge.image || ""}
-                              onChange={(e) =>
-                                updateAccreditationBadge(
-                                  idx,
-                                  "image",
-                                  e.target.value
-                                )
-                              }
-                              placeholder="Image URL (/images/...)"
-                              className="flex-1 px-1.5 py-0.5 text-[11px] border border-line rounded-sm bg-white"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setMediaTargetField({
-                                  type: "accreditationBadge",
-                                  badgeIdx: idx,
-                                });
-                                setMediaModalOpen(true);
-                              }}
-                              className="px-2 py-0.5 bg-navy-900 text-white rounded-sm text-[10px] font-bold whitespace-nowrap"
-                            >
-                              Choose Media
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    ))}
+              {/* College Links Column */}
+              <div className="p-3.5 bg-paper rounded-sm border border-line space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <strong className="text-xs font-bold text-navy-900">
+                      College Links Column
+                    </strong>
+                    <span className="text-[10px] text-ink-soft">
+                      ({footerConfig.collegeLinks.length} links)
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFooterConfig({
+                          ...footerConfig,
+                          showCollegeColumn:
+                            footerConfig.showCollegeColumn === false ? true : false,
+                        })
+                      }
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors ${
+                        footerConfig.showCollegeColumn !== false
+                          ? "bg-emerald-100 text-emerald-800"
+                          : "bg-slate-200 text-slate-700"
+                      }`}
+                    >
+                      {footerConfig.showCollegeColumn !== false ? "Visible" : "Hidden"}
+                    </button>
+                    <button
+                      onClick={() => addFooterLink("college")}
+                      className="text-xs font-bold text-navy-900 hover:text-gold-700 underline flex items-center gap-0.5"
+                    >
+                      <Icon name="plus" size={12} />
+                      <span>Add</span>
+                    </button>
                   </div>
                 </div>
+
+                {footerConfig.showCollegeColumn !== false && (
+                  <div className="space-y-2 pt-1 border-t border-line/60">
+                    <div>
+                      <label className="block text-[10px] text-ink-soft mb-0.5">
+                        Column Title Header
+                      </label>
+                      <input
+                        type="text"
+                        value={footerConfig.collegeColumnTitle ?? "College"}
+                        onChange={(e) =>
+                          setFooterConfig({ ...footerConfig, collegeColumnTitle: e.target.value })
+                        }
+                        className="w-full px-2 py-1 text-xs font-bold border border-line rounded-sm bg-white"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5 pt-1">
+                      {footerConfig.collegeLinks.map((item, i) => (
+                        <div
+                          key={item.id}
+                          className="p-2 bg-white rounded-sm border border-line shadow-xs space-y-1"
+                        >
+                          <div className="flex items-center justify-between gap-1">
+                            <input
+                              type="text"
+                              value={item.label}
+                              onChange={(e) =>
+                                updateFooterLink("college", i, "label", e.target.value)
+                              }
+                              className="px-2 py-0.5 text-xs font-bold border border-line rounded-sm flex-1"
+                            />
+                            <button
+                              onClick={() => removeFooterLink("college", i)}
+                              className="p-1 text-xs hover:bg-rose-50 text-rose-700 rounded-sm"
+                              title="Delete Link"
+                            >
+                              <Icon name="close" size={12} />
+                            </button>
+                          </div>
+                          <input
+                            type="text"
+                            value={item.href}
+                            onChange={(e) =>
+                              updateFooterLink("college", i, "href", e.target.value)
+                            }
+                            className="w-full px-2 py-0.5 text-[11px] font-mono border border-line rounded-sm text-ink-soft"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Contact Details Column */}
+              <div className="p-3.5 bg-paper rounded-sm border border-line space-y-3">
+                <div className="flex items-center justify-between">
+                  <strong className="text-xs font-bold text-navy-900 flex items-center gap-1.5">
+                    <Icon name="phone" size={14} className="text-[#0B4D4E]" />
+                    <span>Contact Column Details</span>
+                  </strong>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFooterConfig({
+                        ...footerConfig,
+                        showContactColumn:
+                          footerConfig.showContactColumn === false ? true : false,
+                      })
+                    }
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors ${
+                      footerConfig.showContactColumn !== false
+                        ? "bg-emerald-100 text-emerald-800"
+                        : "bg-slate-200 text-slate-700"
+                    }`}
+                  >
+                    {footerConfig.showContactColumn !== false ? "Visible" : "Hidden"}
+                  </button>
+                </div>
+
+                {footerConfig.showContactColumn !== false && (
+                  <div className="space-y-2 pt-1 border-t border-line/60">
+                    <div>
+                      <label className="block text-[10px] text-ink-soft mb-0.5">
+                        Column Title Header
+                      </label>
+                      <input
+                        type="text"
+                        value={footerConfig.contactColumnTitle ?? "Contact"}
+                        onChange={(e) =>
+                          setFooterConfig({ ...footerConfig, contactColumnTitle: e.target.value })
+                        }
+                        className="w-full px-2 py-1 text-xs font-bold border border-line rounded-sm bg-white"
+                      />
+                    </div>
+
+                    <div className="space-y-2 text-xs pt-1">
+                      {/* Phone */}
+                      <div className="p-2 bg-white rounded-sm border border-line">
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-[10px] font-bold text-navy-900">Telephone</label>
+                          <label className="flex items-center gap-1 text-[9px] text-ink-soft cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={footerConfig.showPhone !== false}
+                              onChange={(e) =>
+                                setFooterConfig({ ...footerConfig, showPhone: e.target.checked })
+                              }
+                              className="accent-navy-900"
+                            />
+                            <span>Show</span>
+                          </label>
+                        </div>
+                        <input
+                          type="text"
+                          value={footerConfig.phone}
+                          onChange={(e) =>
+                            setFooterConfig({ ...footerConfig, phone: e.target.value })
+                          }
+                          className="w-full px-2 py-1 border border-line rounded-sm bg-white text-xs"
+                        />
+                      </div>
+
+                      {/* Email */}
+                      <div className="p-2 bg-white rounded-sm border border-line">
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-[10px] font-bold text-navy-900">Email Address</label>
+                          <label className="flex items-center gap-1 text-[9px] text-ink-soft cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={footerConfig.showEmail !== false}
+                              onChange={(e) =>
+                                setFooterConfig({ ...footerConfig, showEmail: e.target.checked })
+                              }
+                              className="accent-navy-900"
+                            />
+                            <span>Show</span>
+                          </label>
+                        </div>
+                        <input
+                          type="text"
+                          value={footerConfig.email}
+                          onChange={(e) =>
+                            setFooterConfig({ ...footerConfig, email: e.target.value })
+                          }
+                          className="w-full px-2 py-1 border border-line rounded-sm bg-white text-xs"
+                        />
+                      </div>
+
+                      {/* WhatsApp */}
+                      <div className="p-2 bg-white rounded-sm border border-line">
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-[10px] font-bold text-navy-900">WhatsApp Hotline</label>
+                          <label className="flex items-center gap-1 text-[9px] text-ink-soft cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={footerConfig.showWhatsapp !== false}
+                              onChange={(e) =>
+                                setFooterConfig({ ...footerConfig, showWhatsapp: e.target.checked })
+                              }
+                              className="accent-navy-900"
+                            />
+                            <span>Show</span>
+                          </label>
+                        </div>
+                        <input
+                          type="text"
+                          value={footerConfig.whatsappNumber}
+                          onChange={(e) =>
+                            setFooterConfig({ ...footerConfig, whatsappNumber: e.target.value })
+                          }
+                          className="w-full px-2 py-1 border border-line rounded-sm bg-white text-xs"
+                        />
+                      </div>
+
+                      {/* Opening Hours */}
+                      <div className="p-2 bg-white rounded-sm border border-line">
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-[10px] font-bold text-navy-900">Opening Hours</label>
+                          <label className="flex items-center gap-1 text-[9px] text-ink-soft cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={footerConfig.showOpeningHours !== false}
+                              onChange={(e) =>
+                                setFooterConfig({
+                                  ...footerConfig,
+                                  showOpeningHours: e.target.checked,
+                                })
+                              }
+                              className="accent-navy-900"
+                            />
+                            <span>Show</span>
+                          </label>
+                        </div>
+                        <input
+                          type="text"
+                          value={footerConfig.openingHours}
+                          onChange={(e) =>
+                            setFooterConfig({ ...footerConfig, openingHours: e.target.value })
+                          }
+                          className="w-full px-2 py-1 border border-line rounded-sm bg-white text-xs"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Accredited Area - Editable, Stylable & Truly Deletable */}
+              <div className="p-3.5 bg-paper rounded-sm border border-line space-y-3">
+                <div className="flex items-center justify-between">
+                  <strong className="text-xs font-bold text-navy-900 flex items-center gap-1.5">
+                    <Icon name="award" size={14} className="text-emerald-700" />
+                    <span>Accreditations & Regulated Bodies</span>
+                  </strong>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFooterConfig({
+                        ...footerConfig,
+                        showAccreditations:
+                          footerConfig.showAccreditations === false ? true : false,
+                      })
+                    }
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors ${
+                      footerConfig.showAccreditations !== false
+                        ? "bg-emerald-100 text-emerald-800"
+                        : "bg-slate-200 text-slate-700"
+                    }`}
+                  >
+                    {footerConfig.showAccreditations !== false ? "Visible (ON)" : "Hidden (OFF)"}
+                  </button>
+                </div>
+
+                {footerConfig.showAccreditations !== false && (
+                  <div className="space-y-2 pt-1 border-t border-line/60">
+                    <div>
+                      <label className="block text-[10px] text-ink-soft mb-0.5">
+                        Headline
+                      </label>
+                      <input
+                        type="text"
+                        value={footerConfig.accreditationHeadline}
+                        onChange={(e) =>
+                          setFooterConfig({
+                            ...footerConfig,
+                            accreditationHeadline: e.target.value,
+                          })
+                        }
+                        className="w-full px-2 py-1 text-xs font-bold border border-line rounded-sm bg-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] text-ink-soft mb-0.5">
+                        Subheadline / Supporting Description
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={footerConfig.accreditationSubtext}
+                        onChange={(e) =>
+                          setFooterConfig({
+                            ...footerConfig,
+                            accreditationSubtext: e.target.value,
+                          })
+                        }
+                        className="w-full px-2 py-1 text-xs border border-line rounded-sm bg-white leading-normal"
+                      />
+                    </div>
+
+                    {/* Headline Color & Container Style */}
+                    <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+                      <div>
+                        <label className="block text-[10px] text-ink-soft mb-1">
+                          Headline Color:
+                        </label>
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="color"
+                            value={footerConfig.accreditationTextColor || "#0B4D4E"}
+                            onChange={(e) =>
+                              setFooterConfig({
+                                ...footerConfig,
+                                accreditationTextColor: e.target.value,
+                              })
+                            }
+                            className="w-6 h-6 p-0 border border-line rounded-xs cursor-pointer"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Auto theme"
+                            value={footerConfig.accreditationTextColor || ""}
+                            onChange={(e) =>
+                              setFooterConfig({
+                                ...footerConfig,
+                                accreditationTextColor: e.target.value,
+                              })
+                            }
+                            className="flex-1 px-1.5 py-0.5 text-[11px] font-mono border border-line rounded-sm"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] text-ink-soft mb-1">
+                          Badge Card Shape:
+                        </label>
+                        <select
+                          value={footerConfig.accreditationBadgeStyle || "solid-white"}
+                          onChange={(e) =>
+                            setFooterConfig({
+                              ...footerConfig,
+                              accreditationBadgeStyle: e.target.value as any,
+                            })
+                          }
+                          className="w-full px-2 py-1 text-xs border border-line rounded-sm bg-white"
+                        >
+                          <option value="solid-white">Solid White Card (Default)</option>
+                          <option value="flat">Flat Outlined</option>
+                          <option value="pill">Rounded Pills</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Container Surface Style */}
+                    <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+                      <div>
+                        <label className="block text-[10px] text-ink-soft mb-1">
+                          Container Background:
+                        </label>
+                        <select
+                          value={footerConfig.accreditationBgStyle || "transparent"}
+                          onChange={(e) =>
+                            setFooterConfig({
+                              ...footerConfig,
+                              accreditationBgStyle: e.target.value as any,
+                            })
+                          }
+                          className="w-full px-2 py-1 text-xs border border-line rounded-sm bg-white"
+                        >
+                          <option value="transparent">Transparent / Blended</option>
+                          <option value="white">White Box Card</option>
+                          <option value="subtle">Subtle Mint Tint</option>
+                          <option value="dark">Dark Navy Luxury Card</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] text-ink-soft mb-1">
+                          Layout Alignment:
+                        </label>
+                        <select
+                          value={footerConfig.accreditationLayout || "row"}
+                          onChange={(e) =>
+                            setFooterConfig({
+                              ...footerConfig,
+                              accreditationLayout: e.target.value as any,
+                            })
+                          }
+                          className="w-full px-2 py-1 text-xs border border-line rounded-sm bg-white"
+                        >
+                          <option value="row">Side-by-Side (Single Line)</option>
+                          <option value="stacked">Stacked Centered</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Badges List Manager + Action Buttons */}
+                    <div className="pt-2 border-t border-line space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-semibold text-navy-900 uppercase tracking-wider">
+                          Badges ({(footerConfig.accreditations || []).length})
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={clearAllAccreditationBadges}
+                            className="text-[10px] text-rose-700 hover:text-rose-900 font-semibold px-1.5 py-0.5 rounded-xs hover:bg-rose-50"
+                            title="Remove all badges from the footer"
+                          >
+                            Delete All
+                          </button>
+                          <button
+                            type="button"
+                            onClick={resetAccreditationBadges}
+                            className="text-[10px] text-ink-soft hover:text-navy-900 underline"
+                            title="Reset to 5 default UK regulated bodies"
+                          >
+                            Reset Defaults
+                          </button>
+                          <button
+                            type="button"
+                            onClick={addAccreditationBadge}
+                            className="text-xs font-bold text-navy-900 hover:text-gold-700 underline flex items-center gap-0.5"
+                          >
+                            <Icon name="plus" size={12} />
+                            <span>Add</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {(footerConfig.accreditations || []).length === 0 ? (
+                        <div className="p-3 bg-white border border-dashed border-line rounded-sm text-center">
+                          <p className="text-xs text-ink-soft">
+                            All badges deleted. The accreditation bar is currently empty.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={resetAccreditationBadges}
+                            className="mt-1.5 text-xs font-bold text-navy-900 hover:text-navy-700 underline"
+                          >
+                            Restore 5 UK Official Badges
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {(footerConfig.accreditations || []).map((badge, idx) => (
+                            <div
+                              key={badge.id || idx}
+                              className="p-2.5 bg-white rounded-sm border border-line shadow-xs space-y-2"
+                            >
+                              <div className="flex items-center justify-between gap-1 border-b border-line/60 pb-1.5">
+                                <span className="text-[10px] font-bold text-navy-900 flex items-center gap-1">
+                                  <span className="w-4 h-4 rounded-full bg-navy-100 text-navy-900 flex items-center justify-center text-[9px]">
+                                    {idx + 1}
+                                  </span>
+                                  <span>{badge.title || `Badge #${idx + 1}`}</span>
+                                </span>
+
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => moveAccreditationBadge(idx, "up")}
+                                    disabled={idx === 0}
+                                    className="p-1 text-slate-500 hover:text-navy-900 disabled:opacity-30"
+                                    title="Move left/up"
+                                  >
+                                    <Icon name="chevron-up" size={12} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => moveAccreditationBadge(idx, "down")}
+                                    disabled={
+                                      idx === (footerConfig.accreditations?.length || 0) - 1
+                                    }
+                                    className="p-1 text-slate-500 hover:text-navy-900 disabled:opacity-30"
+                                    title="Move right/down"
+                                  >
+                                    <Icon name="chevron-down" size={12} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeAccreditationBadge(idx)}
+                                    className="p-1 text-rose-600 hover:bg-rose-50 rounded-xs"
+                                    title="Delete badge"
+                                  >
+                                    <Icon name="close" size={12} />
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-2 text-xs">
+                                <div>
+                                  <label className="block text-[9px] text-ink-soft mb-0.5">
+                                    Main Title:
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={badge.title}
+                                    onChange={(e) =>
+                                      updateAccreditationBadge(idx, "title", e.target.value)
+                                    }
+                                    className="w-full px-1.5 py-0.5 text-xs font-bold border border-line rounded-sm bg-white"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="block text-[9px] text-ink-soft mb-0.5">
+                                    Subtitle / Tag:
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={badge.desc || ""}
+                                    onChange={(e) =>
+                                      updateAccreditationBadge(idx, "desc", e.target.value)
+                                    }
+                                    className="w-full px-1.5 py-0.5 text-xs border border-line rounded-sm bg-white"
+                                    placeholder="e.g. Regulated"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-2 text-xs">
+                                <div>
+                                  <label className="block text-[9px] text-ink-soft mb-0.5">
+                                    Logo Vector Preset:
+                                  </label>
+                                  <select
+                                    value={badge.icon || "award"}
+                                    onChange={(e) =>
+                                      updateAccreditationBadge(idx, "icon", e.target.value)
+                                    }
+                                    className="w-full px-1.5 py-0.5 text-xs border border-line rounded-sm bg-white"
+                                  >
+                                    <option value="ofqual">Ofqual (Crown)</option>
+                                    <option value="tquk">TQUK (Diamond)</option>
+                                    <option value="cpd">The CPD Group (Shield)</option>
+                                    <option value="health">Skills for Health (Cross)</option>
+                                    <option value="ukrlp">UKRLP (Checkbox Stamp)</option>
+                                    <option value="award">Standard Award / Star</option>
+                                    <option value="custom">Custom Uploaded Logo</option>
+                                  </select>
+                                </div>
+
+                                <div>
+                                  <label className="block text-[9px] text-ink-soft mb-0.5">
+                                    Verification Link (Optional):
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={badge.link || ""}
+                                    onChange={(e) =>
+                                      updateAccreditationBadge(idx, "link", e.target.value)
+                                    }
+                                    className="w-full px-1.5 py-0.5 text-[11px] font-mono border border-line rounded-sm bg-white"
+                                    placeholder="https://..."
+                                  />
+                                </div>
+                              </div>
+
+                              {badge.icon === "custom" && (
+                                <div className="pt-1 flex items-center gap-2">
+                                  <input
+                                    type="text"
+                                    value={badge.image || ""}
+                                    onChange={(e) =>
+                                      updateAccreditationBadge(idx, "image", e.target.value)
+                                    }
+                                    placeholder="Image URL (/images/...)"
+                                    className="flex-1 px-1.5 py-0.5 text-[11px] border border-line rounded-sm bg-white"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setMediaTargetField({
+                                        type: "accreditationBadge",
+                                        badgeIdx: idx,
+                                      });
+                                      setMediaModalOpen(true);
+                                    }}
+                                    className="px-2 py-0.5 bg-navy-900 text-white rounded-sm text-[10px] font-bold whitespace-nowrap"
+                                  >
+                                    Choose Media
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Legal Line & Copyright */}
@@ -8798,9 +9385,22 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                   Legal Line & Copyright Notice
                 </strong>
                 <div>
-                  <label className="block text-[10px] text-ink-soft mb-0.5">
-                    Company Registered Legal Line:
-                  </label>
+                  <div className="flex items-center justify-between mb-0.5">
+                    <label className="text-[10px] text-ink-soft">
+                      Company Registered Legal Line
+                    </label>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="color"
+                        value={footerConfig.legalLineTextColor || "#1B1B2B"}
+                        onChange={(e) =>
+                          setFooterConfig({ ...footerConfig, legalLineTextColor: e.target.value })
+                        }
+                        className="w-4 h-4 p-0 border border-line rounded-xs cursor-pointer"
+                        title="Text Color"
+                      />
+                    </div>
+                  </div>
                   <textarea
                     rows={2}
                     value={footerConfig.legalLine}
@@ -8811,9 +9411,22 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] text-ink-soft mb-0.5">
-                    Copyright Notice:
-                  </label>
+                  <div className="flex items-center justify-between mb-0.5">
+                    <label className="text-[10px] text-ink-soft">
+                      Copyright Notice
+                    </label>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="color"
+                        value={footerConfig.copyrightTextColor || "#5A5A6E"}
+                        onChange={(e) =>
+                          setFooterConfig({ ...footerConfig, copyrightTextColor: e.target.value })
+                        }
+                        className="w-4 h-4 p-0 border border-line rounded-xs cursor-pointer"
+                        title="Text Color"
+                      />
+                    </div>
+                  </div>
                   <input
                     type="text"
                     value={footerConfig.copyrightText}

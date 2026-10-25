@@ -436,7 +436,19 @@ export const AccreditationBadgeRow: React.FC<{
     ? `flex flex-wrap items-center gap-2 sm:gap-2.5 ${className}`
     : `flex items-center gap-2 sm:gap-2.5 flex-nowrap overflow-x-auto scrollbar-none py-1 ${className}`;
 
-  if (items && items.length > 0) {
+  // If items was explicitly passed (even as empty array), respect user's configured list
+  if (items !== undefined) {
+    if (items.length === 0) {
+      if (isEditor) {
+        return (
+          <div className="py-2 px-3 text-xs text-ink-soft/70 border border-dashed border-line rounded-sm italic">
+            No accreditation badges configured. Use &ldquo;Add Badge&rdquo; or &ldquo;Reset Defaults&rdquo; in the CMS.
+          </div>
+        );
+      }
+      return null;
+    }
+
     return (
       <div className={containerClass}>
         {items.map((item, idx) => (
@@ -460,6 +472,7 @@ export const AccreditationBadgeRow: React.FC<{
     );
   }
 
+  // Fallback only if items prop is completely undefined
   return (
     <div className={containerClass}>
       <OfqualLogo variant={variant} badgeStyle={badgeStyle} />

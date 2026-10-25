@@ -1536,13 +1536,52 @@ export interface FooterConfig {
   bioText: string;
   badge1: string;
   badge2: string;
+
+  // Newsletter Section
+  showNewsletter?: boolean;
+  newsletterEyebrow?: string;
+  newsletterHeadline?: string;
+  newsletterSubtext?: string;
+  newsletterButtonText?: string;
+  newsletterBgColor?: string;
+  newsletterTextColor?: string;
+  newsletterButtonBgColor?: string;
+  newsletterButtonTextColor?: string;
+
+  // Columns & Headings
+  showExploreColumn?: boolean;
+  exploreColumnTitle?: string;
+  showCollegeColumn?: boolean;
+  collegeColumnTitle?: string;
+  showContactColumn?: boolean;
+  contactColumnTitle?: string;
+  columnTitleColor?: string;
+  columnTitleFontFamily?: "heading" | "body";
+  columnTitleFontSize?: "sm" | "md" | "lg" | "xl";
+  columnTitleFontWeight?: "normal" | "semibold" | "bold" | "extrabold";
+  columnTitleTextTransform?: "none" | "uppercase" | "capitalize";
+
+  // Links Typography & Colors
+  linkColor?: string;
+  linkHoverColor?: string;
+  linkFontSize?: "xs" | "sm" | "md";
+
   exploreLinks: { id: string; label: string; href: string }[];
   collegeLinks: { id: string; label: string; href: string }[];
+
+  // Contact items & toggles
+  showPhone?: boolean;
+  showEmail?: boolean;
+  showWhatsapp?: boolean;
+  showOpeningHours?: boolean;
   phone: string;
   email: string;
   whatsappNumber: string;
   openingHours: string;
   headOfficeAddress: string;
+
+  // Accreditations
+  showAccreditations?: boolean;
   accreditationHeadline: string;
   accreditationSubtext: string;
   accreditations?: AccreditationBadgeItemConfig[];
@@ -1551,10 +1590,14 @@ export interface FooterConfig {
   accreditationTextColor?: string;
   accreditationBadgeStyle?: "solid-white" | "flat" | "pill";
   accreditationLayout?: "row" | "stacked";
+
+  // Footer Theme & Background
   footerTheme?: "light" | "dark";
   footerBgColor?: string;
   legalLine: string;
   copyrightText: string;
+  legalLineTextColor?: string;
+  copyrightTextColor?: string;
 }
 
 export const DEFAULT_ACCREDITATION_BADGES: AccreditationBadgeItemConfig[] = [
@@ -1575,6 +1618,21 @@ export const defaultFooterConfig: FooterConfig = {
     "UK professional training provider delivering 100% online distance learning with certified tutors and assessors for Ofqual-regulated qualifications, CPD courses, and private tutoring.",
   badge1: "Live Online Classes",
   badge2: "UK Registered Provider",
+  showNewsletter: true,
+  newsletterEyebrow: "Stay Ahead in Your Career",
+  newsletterHeadline: "Subscribe to our Newsletter",
+  newsletterSubtext:
+    "Get the latest qualification updates, exclusive fee discounts, and accredited career resources directly in your inbox.",
+  newsletterButtonText: "Subscribe Now",
+  showExploreColumn: true,
+  exploreColumnTitle: "Explore",
+  showCollegeColumn: true,
+  collegeColumnTitle: "College",
+  showContactColumn: true,
+  contactColumnTitle: "Contact",
+  columnTitleFontFamily: "heading",
+  columnTitleFontWeight: "bold",
+  columnTitleTextTransform: "uppercase",
   exploreLinks: [
     { id: "f-1", label: "All Qualifications", href: "/courses" },
     { id: "f-2", label: "CPD Short Courses", href: "/cpd" },
@@ -1590,11 +1648,16 @@ export const defaultFooterConfig: FooterConfig = {
     { id: "f-9", label: "Terms & Conditions", href: "/terms" },
     { id: "f-10", label: "Refund Policy", href: "/refunds" },
   ],
+  showPhone: true,
+  showEmail: true,
+  showWhatsapp: true,
+  showOpeningHours: true,
   phone: "01452 225 225",
   email: "help@smartmindstraining.co.uk",
   whatsappNumber: "07932 034 548",
   openingHours: "Mon – Thurs: 9:30 AM – 5:30 PM | Fri: Online Sessions",
   headOfficeAddress: "62 High Street, Aveley, South Ockendon, RM15 4BX",
+  showAccreditations: true,
   accreditationHeadline: "Accreditations & Awarding Organisations",
   accreditationSubtext:
     "Recognised British qualifications delivered through regulated frameworks.",
