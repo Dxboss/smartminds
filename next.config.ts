@@ -21,6 +21,8 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: false,
   experimental: {
+    // @ts-ignore
+    agentUpgrade: "security",
     staleTimes: {
       dynamic: 0,
       static: 30,
