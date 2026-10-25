@@ -20,9 +20,19 @@ export const StreamOnlyPlayer: React.FC<Props> = ({
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
 
+  const isIframeEmbed = Boolean(
+    videoUrl &&
+      (videoUrl.includes("videodelivery.net") ||
+        videoUrl.includes("cloudflarestream.com") ||
+        videoUrl.includes("zoom.us/rec/") ||
+        videoUrl.includes("vimeo.com") ||
+        videoUrl.includes("youtube.com"))
+  );
+
   const isDirectPlayable = Boolean(
     videoUrl &&
       videoUrl.trim() !== "" &&
+      !isIframeEmbed &&
       (videoUrl.endsWith(".mp4") ||
         videoUrl.endsWith(".webm") ||
         videoUrl.endsWith(".ogg") ||
@@ -38,7 +48,14 @@ export const StreamOnlyPlayer: React.FC<Props> = ({
       >
         {isPlaying ? (
           <div className="w-full h-full flex items-center justify-center bg-black relative">
-            {isDirectPlayable ? (
+            {isIframeEmbed ? (
+              <iframe
+                src={videoUrl}
+                className="w-full h-full border-0"
+                allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+                allowFullScreen
+              />
+            ) : isDirectPlayable ? (
               <video
                 className="w-full h-full object-cover"
                 controls

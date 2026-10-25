@@ -1,85 +1,55 @@
 import { NextRequest, NextResponse } from "next/server";
-import crypto from "crypto";
-import { seedSessions, seedClasses } from "@/lib/repositories/seedData";
-
-/**
- * Validates Zoom Webhook signature per official Zoom documentation:
- * HMAC-SHA256 of `v0:${timestamp}:${rawBody}` compared against `x-zm-signature`.
- */
-function verifyZoomWebhookSignature(
-  req: NextRequest,
-  rawBody: string,
-  secretToken: string
-): boolean {
-  const zmSignature = req.headers.get("x-zm-signature");
-  const zmTimestamp = req.headers.get("x-zm-request-timestamp");
-
-  if (!zmSignature || !zmTimestamp) {
-    return false;
-  }
-
-  // Reject requests older than 5 minutes to prevent replay attacks
-  const timestampNum = parseInt(zmTimestamp, 10);
-  const nowSeconds = Math.floor(Date.now() / 1000);
-  if (isNaN(timestampNum) || Math.abs(nowSeconds - timestampNum) > 300) {
-    return false;
-  }
-
-  const message = `v0:${zmTimestamp}:${rawBody}`;
-  const hash = crypto.createHmac("sha256", secretToken).update(message).digest("hex");
-  const expectedSignature = `v0=${hash}`;
-
-  try {
-    return crypto.timingSafeEqual(
-      Buffer.from(expectedSignature),
-      Buffer.from(zmSignature)
-    );
-  } catch {
-    return false;
-  }
-}
+import { seedSessions, seedClasses, seedEnrolments, seedLearners } from "@/lib/repositories/seedData";
+import {
+  verifyAnyZoomWebhookSignature,
+  handleZoomUrlValidationChallenge,
+} from "@/lib/zoom";
+import {
+  uploadToCloudflareStreamFromUrl,
+  isCloudflareStreamConfigured,
+} from "@/lib/cloudflareStream";
+import { sendEmail } from "@/lib/email";
+import { generateNewRecordingNotificationEmail } from "@/lib/emailTemplates";
+import { isDbConfigured, sql } from "@/lib/db";
 
 /**
  * Zoom Cloud Recording & Webhook Handler for Smartminds Training College.
- * 
- * 1. Responds to Zoom endpoint validation challenges (HMAC SHA-256 encryptedToken).
- * 2. Ingests `recording.completed` webhooks and automatically links recording playback
- *    URLs to student and tutor classroom archives.
- * 3. Restricts simulation endpoints strictly to non-production environments.
+ *
+ * 1. Responds to Zoom endpoint validation challenges (HMAC SHA-256 encryptedToken)
+ *    supporting dual Zoom accounts.
+ * 2. Ingests `recording.completed` webhooks and verifies HMAC-SHA256 signature.
+ * 3. Automatically offloads the raw MP4 into Cloudflare Stream (with zero-download
+ *    protection and domain restriction to smartmindstraining.co.uk).
+ * 4. Persists the streaming playback URL into the database.
+ * 5. Dispatches an automated email notification to all enrolled cohort learners.
  */
 export async function POST(req: NextRequest) {
   try {
     const rawBody = await req.text();
     const body = rawBody ? JSON.parse(rawBody) : {};
 
-    const secretToken =
-      process.env.ZOOM_WEBHOOK_SECRET_TOKEN ||
-      (process.env.NODE_ENV === "production"
-        ? null
-        : "smartminds_zoom_webhook_secret_2026");
-
     // 1. Zoom Endpoint URL Validation Challenge
     if (body.event === "endpoint.url_validation") {
       const plainToken = body.payload?.plainToken;
-      if (!secretToken) {
+      if (!plainToken) {
         return NextResponse.json(
-          { error: "ZOOM_WEBHOOK_SECRET_TOKEN is not configured." },
+          { error: "Missing plainToken in URL validation challenge." },
+          { status: 400 }
+        );
+      }
+
+      const challengeResponse = handleZoomUrlValidationChallenge(plainToken);
+      if (!challengeResponse) {
+        return NextResponse.json(
+          { error: "Zoom webhook secret is not configured on server." },
           { status: 500 }
         );
       }
 
-      const encryptedToken = crypto
-        .createHmac("sha256", secretToken)
-        .update(plainToken)
-        .digest("hex");
-
-      return NextResponse.json({
-        plainToken,
-        encryptedToken,
-      });
+      return NextResponse.json(challengeResponse);
     }
 
-    // 2. Simulation Action Check
+    // 2. Simulation Action Check (strictly non-production)
     if (body.action === "simulate_recording") {
       if (process.env.NODE_ENV === "production") {
         return NextResponse.json(
@@ -91,18 +61,14 @@ export async function POST(req: NextRequest) {
 
     // 3. Zoom Recording Completed Event
     if (body.event === "recording.completed" || body.action === "simulate_recording") {
-      // If it's a real webhook event in production, verify HMAC signature
+      // In production, verify HMAC signature across configured Zoom accounts
       if (body.event === "recording.completed") {
-        if (!secretToken) {
-          console.error("[Zoom Webhook] ZOOM_WEBHOOK_SECRET_TOKEN not set in production.");
-          return NextResponse.json(
-            { error: "Webhook secret token is not configured on server." },
-            { status: 500 }
-          );
-        }
+        const sigHeader = req.headers.get("x-zm-signature");
+        const tsHeader = req.headers.get("x-zm-request-timestamp");
 
-        const isSignatureValid = verifyZoomWebhookSignature(req, rawBody, secretToken);
-        if (!isSignatureValid) {
+        const isValid = verifyAnyZoomWebhookSignature(sigHeader, tsHeader, rawBody);
+        if (!isValid) {
+          console.warn("[Zoom Webhook] Signature verification failed.");
           return NextResponse.json(
             { error: "Invalid webhook signature." },
             { status: 401 }
@@ -113,23 +79,50 @@ export async function POST(req: NextRequest) {
       const recordingObject = body.payload?.object || body.object || {};
       const topic = recordingObject.topic || "Online Training Webinar";
       const startTime = recordingObject.start_time || new Date().toISOString();
-      const duration = recordingObject.duration || 120;
+      const duration = recordingObject.duration || 60;
+      const meetingId = String(recordingObject.id || recordingObject.uuid || "");
 
-      // Extract MP4 playback or stream URL
+      // Extract raw MP4 download URL from Zoom
       const mp4File = (recordingObject.recording_files || []).find(
         (f: { file_type?: string }) => f.file_type === "MP4"
       );
-      const recordingUrl =
-        mp4File?.play_url ||
+      const rawDownloadUrl =
         mp4File?.download_url ||
-        recordingObject.share_url ||
-        `https://smartmindstraining.co.uk/recordings/stream/${Date.now()}`;
+        mp4File?.play_url ||
+        recordingObject.share_url;
 
-      // Associate recording with matching class cohort or default care cohort
+      // Associate recording with matching class cohort
       const matchedClass =
         seedClasses.find((c) =>
           topic.toLowerCase().includes(c.name.toLowerCase().slice(0, 15))
         ) || seedClasses[0];
+
+      let effectivePlaybackUrl =
+        recordingObject.share_url ||
+        mp4File?.play_url ||
+        `https://smartmindstraining.co.uk/recordings/stream/${Date.now()}`;
+
+      let cloudflareUid: string | undefined = undefined;
+
+      // Offload to Cloudflare Stream if configured (Zero-download & domain-restricted)
+      if (isCloudflareStreamConfigured() && rawDownloadUrl) {
+        try {
+          console.log(`[Zoom Webhook] Offloading recording "${topic}" to Cloudflare Stream...`);
+          const cfResult = await uploadToCloudflareStreamFromUrl({
+            videoUrl: rawDownloadUrl,
+            title: topic,
+            cohortName: matchedClass?.name,
+          });
+
+          if (cfResult?.iframeUrl) {
+            effectivePlaybackUrl = cfResult.iframeUrl;
+            cloudflareUid = cfResult.uid;
+            console.log(`[Zoom Webhook] Cloudflare Stream ready with UID: ${cfResult.uid}`);
+          }
+        } catch (streamErr) {
+          console.error("[Zoom Webhook] Cloudflare Stream offload error, falling back to Zoom URL:", streamErr);
+        }
+      }
 
       const newSessionId = `sess-zoom-${Date.now()}`;
       const newSession = {
@@ -139,15 +132,71 @@ export async function POST(req: NextRequest) {
         scheduledAt: startTime,
         durationMinutes: duration,
         zoomLink: matchedClass?.zoomLink,
-        recordingUrl,
+        recordingUrl: effectivePlaybackUrl,
+        cloudflareStreamUid: cloudflareUid,
         attendanceTracked: true,
       };
 
+      // Add to in-memory store
       seedSessions.unshift(newSession);
+
+      // Persist to Neon DB if configured
+      if (isDbConfigured) {
+        try {
+          await sql`
+            INSERT INTO system_store (key, value, updated_at)
+            VALUES (${`recording_${newSessionId}`}, ${JSON.stringify(newSession)}, now())
+            ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now();
+          `;
+        } catch (dbErr) {
+          console.warn("[Zoom Webhook DB Sync Notice]:", dbErr);
+        }
+      }
+
+      // Automated Student Notification Pipeline: Dispatch Resend emails to all enrolled learners in this cohort
+      try {
+        const enrolledLearnerIds = seedEnrolments
+          .filter((e) => e.classId === newSession.classId && e.status === "active")
+          .map((e) => e.learnerId);
+
+        const recipients = seedLearners.filter((l) =>
+          enrolledLearnerIds.includes(l.id)
+        );
+
+        const formattedDate = new Date(startTime).toLocaleDateString("en-GB", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        });
+
+        for (const learner of recipients) {
+          const emailTemplate = generateNewRecordingNotificationEmail({
+            studentName: `${learner.firstName} ${learner.lastName}`,
+            courseTitle: matchedClass?.name || "Diploma Qualification",
+            sessionTitle: topic,
+            sessionDate: formattedDate,
+            portalUrl: "https://smartmindstraining.co.uk/student/recordings",
+          });
+
+          await sendEmail({
+            to: learner.email,
+            subject: emailTemplate.subject,
+            html: emailTemplate.html,
+            text: emailTemplate.text,
+            department: "students",
+          });
+        }
+
+        console.log(
+          `[Zoom Webhook] Successfully notified ${recipients.length} enrolled student(s) of new recording.`
+        );
+      } catch (notifyErr) {
+        console.error("[Zoom Webhook Notification Error]:", notifyErr);
+      }
 
       return NextResponse.json({
         success: true,
-        message: "Zoom recording ingested and added to classroom archives successfully.",
+        message: "Zoom recording ingested, streamed, and notifications sent.",
         session: newSession,
       });
     }
@@ -181,7 +230,7 @@ export async function GET(req: NextRequest) {
       classId: matchedClass.id,
       title: `${matchedClass.name} — Live Class Replay`,
       scheduledAt: new Date().toISOString(),
-      durationMinutes: 90,
+      durationMinutes: 60,
       zoomLink: matchedClass.zoomLink,
       recordingUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
       attendanceTracked: true,

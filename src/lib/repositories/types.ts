@@ -75,6 +75,7 @@ export interface ClassSession {
   durationMinutes: number;
   zoomLink?: string;
   recordingUrl?: string;
+  cloudflareStreamUid?: string;
   attendanceTracked?: boolean;
 }
 

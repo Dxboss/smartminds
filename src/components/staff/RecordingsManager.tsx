@@ -2,7 +2,10 @@
 
 import React, { useState } from "react";
 import { Icon } from "@/components/ui/Icon";
-import { updateSessionRecordingAction } from "@/app/staff/actions";
+import {
+  updateSessionRecordingAction,
+  getRecordingAdminDownloadUrlAction,
+} from "@/app/staff/actions";
 
 export interface RecordingSessionItem {
   id: string;
@@ -22,6 +25,19 @@ export const RecordingsManager: React.FC<Props> = ({ initialSessions }) => {
   const [tempUrl, setTempUrl] = useState("");
   const [savingId, setSavingId] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  const handleAdminDownload = async (sessionId: string) => {
+    try {
+      const res = await getRecordingAdminDownloadUrlAction(sessionId);
+      if (res.success && res.downloadUrl) {
+        window.open(res.downloadUrl, "_blank");
+      } else {
+        alert("No direct download URL available for this session.");
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Error getting download URL");
+    }
+  };
 
   const startEdit = (session: RecordingSessionItem) => {
     setEditingId(session.id);
@@ -125,26 +141,38 @@ export const RecordingsManager: React.FC<Props> = ({ initialSessions }) => {
                     </div>
                   </div>
 
-                  <div className="shrink-0 flex items-center gap-3">
-                    {!isEditing ? (
-                      <button
-                        type="button"
-                        onClick={() => startEdit(session)}
-                        className="px-3.5 py-2 rounded-[6px] border border-[var(--navy-900)] text-xs font-bold text-[var(--navy-900)] hover:bg-[var(--navy-900)] hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--gold-500)]"
-                      >
-                        {hasRecording ? "Edit stream link" : "Add stream link"}
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setEditingId(null)}
-                        className="px-3 py-2 text-xs font-medium text-[var(--ink-soft)] hover:text-[var(--ink)]"
-                      >
-                        Cancel
-                      </button>
-                    )}
+                    <div className="shrink-0 flex items-center gap-2">
+                      {hasRecording && (
+                        <button
+                          type="button"
+                          onClick={() => handleAdminDownload(session.id)}
+                          className="px-3 py-2 rounded-[6px] border border-[var(--line)] bg-[var(--paper)] hover:bg-white text-xs font-semibold text-[var(--navy-900)] flex items-center gap-1.5 transition-colors cursor-pointer"
+                          title="Admin: download raw MP4 backup for college archiving"
+                        >
+                          <Icon name="download" size={13} className="text-[var(--navy-900)]" />
+                          <span>Backup</span>
+                        </button>
+                      )}
+
+                      {!isEditing ? (
+                        <button
+                          type="button"
+                          onClick={() => startEdit(session)}
+                          className="px-3.5 py-2 rounded-[6px] border border-[var(--navy-900)] text-xs font-bold text-[var(--navy-900)] hover:bg-[var(--navy-900)] hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--gold-500)] cursor-pointer"
+                        >
+                          {hasRecording ? "Edit stream link" : "Add stream link"}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setEditingId(null)}
+                          className="px-3 py-2 text-xs font-medium text-[var(--ink-soft)] hover:text-[var(--ink)] cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
 
                 {isEditing && (
                   <form

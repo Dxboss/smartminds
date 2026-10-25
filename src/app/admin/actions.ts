@@ -1123,13 +1123,16 @@ export async function recordBankTransferAction(data: {
   return { success: true, record };
 }
 
-export async function exportLedgerCsvAction() {
+export async function exportLedgerCsvAction(options?: {
+  reportType?: "balances_owing" | "transactions" | "instalment_schedules";
+  timeframe?: "all" | "daily" | "weekly" | "monthly" | "annually";
+}) {
   const session = await getServerSession();
   assertOwnerAuthorized(session);
 
   const { getPaymentRepo } = await import("@/lib/repositories");
   const repo = getPaymentRepo();
-  const csvData = await repo.exportLedgerCsv(session!);
+  const csvData = await repo.exportLedgerCsv(session!, options);
 
   return { success: true, csvData };
 }

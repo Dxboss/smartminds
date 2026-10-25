@@ -6,6 +6,7 @@ import {
   updateSessionScheduleAction,
   toggleAttendanceAction,
   sendClassSessionReminderAction,
+  createAutomatedZoomMeetingAction,
 } from "@/app/staff/actions";
 import { Learner } from "@/lib/repositories/types";
 
@@ -38,6 +39,8 @@ export const ClassSessionEditor: React.FC<Props> = ({
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isReminding, setIsReminding] = useState(false);
   const [reminderFeedback, setReminderFeedback] = useState<string | null>(null);
+  const [isGeneratingZoom, setIsGeneratingZoom] = useState(false);
+  const [zoomFeedback, setZoomFeedback] = useState<string | null>(null);
 
   const handleSendReminder = async () => {
     setIsReminding(true);
@@ -69,6 +72,24 @@ export const ClassSessionEditor: React.FC<Props> = ({
       alert(err instanceof Error ? err.message : "Failed to update schedule");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleGenerateZoomMeeting = async () => {
+    setIsGeneratingZoom(true);
+    setZoomFeedback(null);
+    try {
+      const res = await createAutomatedZoomMeetingAction(sessionId);
+      if (res.success && res.joinUrl) {
+        setZoomLink(res.joinUrl);
+        setZoomFeedback(res.message || "Zoom meeting generated with cloud recording.");
+      } else {
+        setZoomFeedback(res.message || "Could not generate Zoom meeting automatically.");
+      }
+    } catch (err) {
+      setZoomFeedback(err instanceof Error ? err.message : "Error connecting to Zoom API");
+    } finally {
+      setIsGeneratingZoom(false);
     }
   };
 
@@ -115,6 +136,13 @@ export const ClassSessionEditor: React.FC<Props> = ({
           </div>
         )}
 
+        {zoomFeedback && (
+          <div className="p-3 bg-paper border border-line rounded-sm text-xs text-navy-900 flex items-center gap-2 font-medium shadow-2xs">
+            <Icon name="info" size={16} className="text-gold-600 shrink-0" />
+            <span>{zoomFeedback}</span>
+          </div>
+        )}
+
         <form onSubmit={handleSaveSchedule} className="space-y-4 text-xs">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
@@ -132,9 +160,21 @@ export const ClassSessionEditor: React.FC<Props> = ({
             </div>
 
             <div className="space-y-1.5">
-              <label htmlFor="zoom-link" className="font-semibold text-navy-900 block">
-                Zoom Meeting URL (Recurring Cohort Link)
-              </label>
+              <div className="flex items-center justify-between">
+                <label htmlFor="zoom-link" className="font-semibold text-navy-900 block">
+                  Zoom Meeting URL (Cohort Link)
+                </label>
+                <button
+                  type="button"
+                  onClick={handleGenerateZoomMeeting}
+                  disabled={isGeneratingZoom}
+                  className="text-[11px] font-bold text-navy-900 hover:text-gold-700 flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                  title="Generate automated meeting with Cloud Recording using dual-account pool"
+                >
+                  <Icon name="sparkles" size={12} className="text-gold-500" />
+                  <span>{isGeneratingZoom ? "Connecting..." : "⚡ Auto-Generate via Zoom"}</span>
+                </button>
+              </div>
               <input
                 id="zoom-link"
                 type="url"
@@ -144,15 +184,28 @@ export const ClassSessionEditor: React.FC<Props> = ({
                 className="w-full px-3 py-2 rounded-sm border border-line bg-paper focus:bg-white text-navy-900 font-mono text-[11px]"
                 required
               />
-              <label className="flex items-center gap-2 pt-1 text-[11px] text-navy-900 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={updateCohortRecurringLink}
-                  onChange={(e) => setUpdateCohortRecurringLink(e.target.checked)}
-                  className="rounded-xs border-line text-navy-900 focus:ring-gold-500"
-                />
-                <span>Save as default recurring Zoom link for all sessions in this cohort</span>
-              </label>
+              <div className="flex items-center justify-between pt-1">
+                <label className="flex items-center gap-2 text-[11px] text-navy-900 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={updateCohortRecurringLink}
+                    onChange={(e) => setUpdateCohortRecurringLink(e.target.checked)}
+                    className="rounded-xs border-line text-navy-900 focus:ring-gold-500"
+                  />
+                  <span>Save as default recurring Zoom link</span>
+                </label>
+                {zoomLink && (
+                  <a
+                    href={zoomLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-navy-900 hover:underline"
+                  >
+                    <Icon name="video" size={12} className="text-navy-900" />
+                    <span>Launch Room &rarr;</span>
+                  </a>
+                )}
+              </div>
             </div>
 
             <div className="space-y-1.5 pt-1">

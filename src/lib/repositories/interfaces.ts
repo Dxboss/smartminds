@@ -64,6 +64,14 @@ export interface EnrolmentRepo {
   ): Promise<Enrolment>;
 }
 
+export type CsvReportType = "balances_owing" | "transactions" | "instalment_schedules";
+export type CsvTimeframe = "all" | "daily" | "weekly" | "monthly" | "annually";
+
+export interface ExportCsvOptions {
+  reportType?: CsvReportType;
+  timeframe?: CsvTimeframe;
+}
+
 export interface PaymentRepo {
   getLedger(
     actor: SessionUser,
@@ -106,7 +114,7 @@ export interface PaymentRepo {
     }
   ): Promise<PaymentScheduleItem>;
   getCollegeBankSettings(actor: SessionUser): Promise<PaymentGatewaySettings>;
-  exportLedgerCsv(actor: SessionUser): Promise<string>;
+  exportLedgerCsv(actor: SessionUser, options?: ExportCsvOptions): Promise<string>;
 }
 
 export interface TaskRepo {

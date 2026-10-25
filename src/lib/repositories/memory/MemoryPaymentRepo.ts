@@ -1,4 +1,4 @@
-import { PaymentRepo } from "../interfaces";
+import { PaymentRepo, ExportCsvOptions, CsvTimeframe, CsvReportType } from "../interfaces";
 import {
   LedgerSummary,
   LearnerPaymentPlanSummary,
@@ -466,7 +466,10 @@ export class MemoryPaymentRepo implements PaymentRepo {
     return { ...collegePaymentGatewaySettings };
   }
 
-  async exportLedgerCsv(actor: SessionUser): Promise<string> {
+  async exportLedgerCsv(
+    actor: SessionUser,
+    options?: ExportCsvOptions
+  ): Promise<string> {
     this.assertNoAdminOrTutorAccess(actor);
 
     if (actor.role !== "owner_admin" && actor.role !== "super_admin") {
@@ -475,31 +478,245 @@ export class MemoryPaymentRepo implements PaymentRepo {
       );
     }
 
-    const headers = [
-      "Payment ID",
-      "Learner ID",
-      "Learner Name",
-      "Course Title",
-      "Amount GBP",
-      "Method",
-      "Reference",
-      "Status",
-      "Date Paid",
+    const reportType = options?.reportType || "balances_owing";
+    const timeframe = options?.timeframe || "all";
+
+    const isDateInTimeframe = (dateStr?: string): boolean => {
+      if (timeframe === "all" || !dateStr) return true;
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return true;
+
+      const now = new Date();
+      if (timeframe === "daily") {
+        return (
+          d.getFullYear() === now.getFullYear() &&
+          d.getMonth() === now.getMonth() &&
+          d.getDate() === now.getDate()
+        );
+      }
+      if (timeframe === "weekly") {
+        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        return d >= oneWeekAgo && d <= now;
+      }
+      if (timeframe === "monthly") {
+        return (
+          d.getFullYear() === now.getFullYear() &&
+          d.getMonth() === now.getMonth()
+        );
+      }
+      if (timeframe === "annually") {
+        return d.getFullYear() === now.getFullYear();
+      }
+      return true;
+    };
+
+    const timeframeLabel =
+      timeframe === "daily"
+        ? "Today (Daily)"
+        : timeframe === "weekly"
+        ? "Past 7 Days (Weekly)"
+        : timeframe === "monthly"
+        ? "Current Month (Monthly)"
+        : timeframe === "annually"
+        ? "Current Year (Annually)"
+        : "All Time";
+
+    const nowFormatted = new Date().toLocaleString("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    // 1. REPORT TYPE: BALANCES OWING & DEBTORS (DEFAULT)
+    if (reportType === "balances_owing") {
+      const allPlans = await this.getAllLearnerPaymentPlans(actor);
+
+      // Filter plans if timeframe is specified
+      const filteredPlans = allPlans.filter((p) => {
+        if (timeframe === "all") return true;
+        // Check if has a payment in period or due in period
+        const hasPaymentInPeriod = p.history.some((h) =>
+          isDateInTimeframe(h.paidAt)
+        );
+        const hasDueInPeriod = p.schedule.some((s) =>
+          isDateInTimeframe(s.dueDate)
+        );
+        return hasPaymentInPeriod || hasDueInPeriod;
+      });
+
+      const totalInvoiced = filteredPlans.reduce(
+        (sum, p) => sum + p.totalAmountGbp,
+        0
+      );
+      const totalCollected = filteredPlans.reduce(
+        (sum, p) => sum + p.totalPaidGbp,
+        0
+      );
+      const totalOwing = filteredPlans.reduce(
+        (sum, p) => sum + p.balanceRemainingGbp,
+        0
+      );
+
+      const metadataLines = [
+        `# SMARTMINDS TRAINING COLLEGE — LEARNER BALANCES & DEBTORS REPORT`,
+        `# Report Period: ${timeframeLabel} | Export Date: ${nowFormatted}`,
+        `# Summary: Enrolled Learners: ${filteredPlans.length} | Total Invoiced: £${totalInvoiced.toFixed(2)} | Total Collected: £${totalCollected.toFixed(2)} | Total Outstanding Debt: £${totalOwing.toFixed(2)}`,
+        `# Note: Figures derived from live database enrolment ledgers and Stripe transaction reconciliations.`,
+      ];
+
+      const headers = [
+        "Student ID",
+        "Student Name",
+        "Email Address",
+        "Phone Number",
+        "Course Title",
+        "Level",
+        "Payment Plan",
+        "Total Tuition Fee (GBP)",
+        "Total Paid So Far (GBP)",
+        "Outstanding Balance Remaining (GBP)",
+        "Account Standing",
+        "Next Payment Due Date",
+        "Next Payment Due (GBP)",
+        "Enrolment ID",
+      ];
+
+      const rows = filteredPlans.map((p) => {
+        const standing =
+          p.status === "settled"
+            ? "Fully Settled"
+            : p.status === "overdue"
+            ? "OVERDUE (Grace Action Required)"
+            : p.status === "due"
+            ? "Payment Due Soon"
+            : "Up to Date (Active)";
+
+        const planDescription = p.planMonths
+          ? `${p.planMonths}-Month Monthly Instalment Plan (0% Interest)`
+          : "Full Upfront Payment";
+
+        return [
+          p.learnerId || "N/A",
+          `"${(p.learnerName || "").replace(/"/g, '""')}"`,
+          `"${(p.learnerEmail || "").replace(/"/g, '""')}"`,
+          `"${(p.learnerPhone || "").replace(/"/g, '""')}"`,
+          `"${p.courseTitle.replace(/"/g, '""')}"`,
+          `"${p.levelLabel || ""}"`,
+          `"${planDescription}"`,
+          p.totalAmountGbp.toFixed(2),
+          p.totalPaidGbp.toFixed(2),
+          p.balanceRemainingGbp.toFixed(2),
+          `"${standing}"`,
+          p.nextDueDate || "None",
+          p.nextDueAmountGbp !== undefined ? p.nextDueAmountGbp.toFixed(2) : "0.00",
+          p.enrolmentId,
+        ];
+      });
+
+      return [
+        ...metadataLines,
+        headers.join(","),
+        ...rows.map((row) => row.join(",")),
+      ].join("\n");
+    }
+
+    // 2. REPORT TYPE: TRANSACTION RECEIPTS (CASH INFLOW)
+    if (reportType === "transactions") {
+      const filteredRecords = this.records.filter((r) =>
+        isDateInTimeframe(r.paidAt)
+      );
+
+      const totalReceived = filteredRecords
+        .filter((r) => r.status === "paid")
+        .reduce((sum, r) => sum + r.amountGbp, 0);
+
+      const metadataLines = [
+        `# SMARTMINDS TRAINING COLLEGE — TRANSACTION RECEIPTS LEDGER`,
+        `# Report Period: ${timeframeLabel} | Export Date: ${nowFormatted}`,
+        `# Summary: Total Transactions: ${filteredRecords.length} | Total Received: £${totalReceived.toFixed(2)}`,
+      ];
+
+      const headers = [
+        "Payment ID",
+        "Date Paid",
+        "Student ID",
+        "Student Name",
+        "Course Title",
+        "Amount Received (GBP)",
+        "Payment Method",
+        "Payment Reference / Transaction ID",
+        "Status",
+      ];
+
+      const rows = filteredRecords.map((r) => [
+        r.id,
+        r.paidAt,
+        r.learnerId,
+        `"${r.learnerName.replace(/"/g, '""')}"`,
+        `"${r.courseTitle.replace(/"/g, '""')}"`,
+        r.amountGbp.toFixed(2),
+        r.method.toUpperCase(),
+        `"${r.reference.replace(/"/g, '""')}"`,
+        r.status.toUpperCase(),
+      ]);
+
+      return [
+        ...metadataLines,
+        headers.join(","),
+        ...rows.map((row) => row.join(",")),
+      ].join("\n");
+    }
+
+    // 3. REPORT TYPE: INSTALMENT SCHEDULES BREAKDOWN
+    const filteredSchedules = this.schedules.filter((s) =>
+      isDateInTimeframe(s.dueDate)
+    );
+
+    const metadataLines = [
+      `# SMARTMINDS TRAINING COLLEGE — INSTALMENT SCHEDULES & DUE DATES REPORT`,
+      `# Report Period: ${timeframeLabel} | Export Date: ${nowFormatted}`,
+      `# Summary: Total Instalment Records: ${filteredSchedules.length}`,
     ];
 
-    const rows = this.records.map((r) => [
-      r.id,
-      r.learnerId,
-      `"${r.learnerName.replace(/"/g, '""')}"`,
-      `"${r.courseTitle.replace(/"/g, '""')}"`,
-      r.amountGbp.toFixed(2),
-      r.method,
-      r.reference,
-      r.status,
-      r.paidAt,
-    ]);
+    const headers = [
+      "Schedule ID",
+      "Student ID",
+      "Student Name",
+      "Instalment",
+      "Amount Due (GBP)",
+      "Due Date",
+      "Grace Expiry Date",
+      "Status",
+      "Date Settled",
+      "Enrolment ID",
+    ];
 
-    return [headers.join(","), ...rows.map((row) => row.join(","))].join("\n");
+    const rows = filteredSchedules.map((s) => {
+      const learner = seedLearners.find((l) => l.id === s.learnerId);
+      const studentName = learner ? `${learner.firstName} ${learner.lastName}` : s.learnerId;
+
+      return [
+        s.id,
+        s.learnerId,
+        `"${studentName.replace(/"/g, '""')}"`,
+        `Instalment ${s.instalmentNumber} of ${s.totalInstalments}`,
+        s.amountGbp.toFixed(2),
+        s.dueDate,
+        s.graceExpiryDate,
+        s.status.toUpperCase(),
+        s.paidAt || "Pending",
+        s.enrolmentId,
+      ];
+    });
+
+    return [
+      ...metadataLines,
+      headers.join(","),
+      ...rows.map((row) => row.join(",")),
+    ].join("\n");
   }
 }
+
 

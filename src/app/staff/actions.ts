@@ -24,6 +24,8 @@ import {
   savePersistedCohort,
   savePersistedClassSession,
 } from "@/lib/persistedData";
+import { createZoomMeetingForClass, isZoomConfigured } from "@/lib/zoom";
+import { getCloudflareStreamAdminDownloadUrl } from "@/lib/cloudflareStream";
 
 // In-memory attendance map: `${sessionId}_${learnerId}` -> boolean
 const sessionAttendance: Record<string, boolean> = {};
@@ -413,3 +415,106 @@ export async function completeTutorTaskAction(taskId: string) {
   revalidatePath("/staff/tasks");
   return { success: true };
 }
+
+/**
+ * Creates an automated Zoom meeting for a class session using the dual-account pool.
+ * Automatically enables cloud recording, generates student join link and tutor start link.
+ */
+export async function createAutomatedZoomMeetingAction(sessionId: string) {
+  const session = await getServerSession();
+  if (
+    !session ||
+    (session.role !== "tutor" &&
+      session.role !== "owner_admin" &&
+      session.role !== "super_admin")
+  ) {
+    throw new Error("Unauthorized: Staff session required.");
+  }
+
+  const s = seedSessions.find((item) => item.id === sessionId);
+  if (!s) throw new Error(`Session ${sessionId} not found.`);
+
+  const cls = seedClasses.find((c) => c.id === s.classId);
+
+  if (!isZoomConfigured()) {
+    return {
+      success: false,
+      isConfigured: false,
+      message:
+        "Zoom API credentials are not yet configured on the server. Please paste a meeting URL manually.",
+    };
+  }
+
+  const meetingTopic = `${cls?.name || "Smartminds Cohort"} — ${s.title}`;
+  const meeting = await createZoomMeetingForClass({
+    topic: meetingTopic,
+    startTime: s.scheduledAt,
+    durationMinutes: s.durationMinutes || 60,
+    sessionTiming: cls?.sessionTiming,
+  });
+
+  if (!meeting) {
+    return {
+      success: false,
+      isConfigured: true,
+      message:
+        "Failed to generate Zoom meeting via Zoom API. Please verify account permissions or paste URL manually.",
+    };
+  }
+
+  // Update session record
+  s.zoomLink = meeting.joinUrl;
+  savePersistedClassSession(s);
+
+  // Update cohort recurring link if applicable
+  if (cls) {
+    cls.zoomLink = meeting.joinUrl;
+    savePersistedCohort(cls);
+  }
+
+  revalidatePath("/staff");
+  revalidatePath(`/staff/classes/${s.classId}`);
+  revalidatePath("/student");
+  revalidatePath("/student/courses");
+
+  return {
+    success: true,
+    isConfigured: true,
+    meetingId: meeting.meetingId,
+    joinUrl: meeting.joinUrl,
+    startUrl: meeting.startUrl,
+    message: `Zoom meeting generated successfully on ${meeting.accountId}. Cloud recording enabled.`,
+  };
+}
+
+/**
+ * Superadmin-only action to generate a direct MP4 backup download link for college archiving.
+ */
+export async function getRecordingAdminDownloadUrlAction(sessionId: string) {
+  const session = await getServerSession();
+  if (
+    !session ||
+    (session.role !== "owner_admin" && session.role !== "super_admin")
+  ) {
+    throw new Error("Unauthorized: Superadmin access required to download raw archives.");
+  }
+
+  const s = seedSessions.find((item) => item.id === sessionId);
+  if (!s) throw new Error(`Session ${sessionId} not found.`);
+
+  const streamUid = (s as any).cloudflareStreamUid;
+
+  if (streamUid) {
+    const downloadUrl = await getCloudflareStreamAdminDownloadUrl(streamUid);
+    if (downloadUrl) {
+      return { success: true, downloadUrl };
+    }
+  }
+
+  // Fallback to recordingUrl
+  return {
+    success: true,
+    downloadUrl: s.recordingUrl || null,
+  };
+}
+

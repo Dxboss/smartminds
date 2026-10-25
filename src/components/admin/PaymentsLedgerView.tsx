@@ -95,6 +95,15 @@ export function PaymentsLedgerView({
     "stripe"
   );
 
+  // Export CSV Modal State
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [selectedReportType, setSelectedReportType] = useState<
+    "balances_owing" | "transactions" | "instalment_schedules"
+  >("balances_owing");
+  const [selectedTimeframe, setSelectedTimeframe] = useState<
+    "all" | "daily" | "weekly" | "monthly" | "annually"
+  >("all");
+
   const getCourseFee = (cId: string) => {
     if (cId === "children-young-people-workforce") return 1450;
     if (cId === "award-in-education-and-training") return 495;
@@ -634,10 +643,16 @@ export function PaymentsLedgerView({
     });
   };
 
-  const handleExportCsv = () => {
+  const handleExportCsv = (
+    reportType: "balances_owing" | "transactions" | "instalment_schedules" = selectedReportType,
+    timeframe: "all" | "daily" | "weekly" | "monthly" | "annually" = selectedTimeframe
+  ) => {
     startTransition(async () => {
       try {
-        const result = await exportLedgerCsvAction();
+        const result = await exportLedgerCsvAction({
+          reportType,
+          timeframe,
+        });
         if (result.success && result.csvData) {
           const blob = new Blob([result.csvData], {
             type: "text/csv;charset=utf-8;",
@@ -645,9 +660,15 @@ export function PaymentsLedgerView({
           const url = URL.createObjectURL(blob);
           const link = document.createElement("a");
           link.href = url;
+          const reportSuffix =
+            reportType === "balances_owing"
+              ? "balances-debtors"
+              : reportType === "transactions"
+              ? "transactions-receipts"
+              : "instalment-schedules";
           link.setAttribute(
             "download",
-            `smartminds-payments-ledger-${
+            `smartminds-${reportSuffix}-${timeframe}-${
               new Date().toISOString().split("T")[0]
             }.csv`
           );
@@ -655,7 +676,10 @@ export function PaymentsLedgerView({
           link.click();
           document.body.removeChild(link);
           URL.revokeObjectURL(url);
-          setFeedbackNotice("Ledger exported to CSV successfully.");
+          setIsExportModalOpen(false);
+          setFeedbackNotice(
+            `Financial report (${reportSuffix} • ${timeframe}) exported to CSV successfully.`
+          );
           setTimeout(() => setFeedbackNotice(null), 4000);
         }
       } catch (err: unknown) {
@@ -690,12 +714,13 @@ export function PaymentsLedgerView({
             <span>Enrol Student & Take Payment</span>
           </button>
           <button
-            onClick={handleExportCsv}
+            onClick={() => setIsExportModalOpen(true)}
             disabled={isPending}
-            className="px-4 py-2.5 rounded-sm border border-line bg-paper text-navy-900 text-sm font-semibold hover:bg-white hover:border-navy-700 transition-colors inline-flex items-center gap-2 shadow-sm"
+            className="px-4 py-2.5 rounded-sm border border-line bg-paper text-navy-900 text-sm font-semibold hover:bg-white hover:border-navy-700 transition-colors inline-flex items-center gap-2 shadow-sm cursor-pointer"
+            title="Download formatted reports for accounting, debts owed, and tax audits"
           >
             <Icon name="download" size={16} />
-            <span>Export CSV</span>
+            <span>Export CSV Reports</span>
           </button>
           <button
             onClick={() => {
@@ -2388,6 +2413,172 @@ export function PaymentsLedgerView({
                 className="px-4 py-2 bg-navy-900 text-white rounded-sm text-xs font-bold hover:bg-navy-700 transition-colors shadow-sm disabled:opacity-50"
               >
                 {isPending ? "Sending Query..." : "Send Query & Alert Student"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Export Financial & Debtors Report Modal */}
+      {isExportModalOpen && (
+        <div className="fixed inset-0 z-50 bg-navy-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-md border border-line shadow-card max-w-xl w-full p-6 space-y-6 animate-fade-in">
+            <div className="flex items-center justify-between border-b border-line pb-4">
+              <div className="space-y-1">
+                <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-navy-900 text-gold-300 text-[11px] font-semibold">
+                  <Icon name="download" size={13} />
+                  <span>College Financial Reports</span>
+                </div>
+                <h3 className="font-heading text-xl font-bold text-navy-900">
+                  Export Financial & Debtors Report
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsExportModalOpen(false)}
+                className="text-ink-soft hover:text-navy-900 p-1 cursor-pointer"
+              >
+                <Icon name="x" size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-5 text-xs">
+              {/* Step 1: Select Report Focus */}
+              <div className="space-y-2">
+                <label className="block text-[11px] font-bold text-navy-900 uppercase tracking-wider">
+                  1. Select Report Focus
+                </label>
+                <div className="space-y-2">
+                  {[
+                    {
+                      id: "balances_owing" as const,
+                      title: "Learner Balances & Outstanding Debt (Debtors Ledger)",
+                      badge: "Recommended for Admin",
+                      badgeClass: "bg-gold-500/20 text-navy-900 border-gold-500/30",
+                      description:
+                        "Displays total tuition fees, amounts paid, exact balance owed, instalment plan, next payment due date, and student phone/email.",
+                    },
+                    {
+                      id: "transactions" as const,
+                      title: "Cash-Flow Transaction Receipts Ledger",
+                      badge: "Bank & Stripe Audit",
+                      badgeClass: "bg-navy-900/10 text-navy-900 border-navy-900/20",
+                      description:
+                        "Audit log of every incoming transaction, Stripe reference ID, BACS bank transfer confirmations, and payment timestamps.",
+                    },
+                    {
+                      id: "instalment_schedules" as const,
+                      title: "Instalment Schedules & Due Dates Breakdown",
+                      badge: "Timetable Reconciliation",
+                      badgeClass: "bg-slate-100 text-slate-800 border-slate-300",
+                      description:
+                        "Detailed row-by-row breakdown of all scheduled monthly instalments, due dates, grace period expiry, and status.",
+                    },
+                  ].map((rep) => {
+                    const isSelected = selectedReportType === rep.id;
+                    return (
+                      <div
+                        key={rep.id}
+                        onClick={() => setSelectedReportType(rep.id)}
+                        className={`p-3 rounded-sm border transition-all cursor-pointer ${
+                          isSelected
+                            ? "bg-paper border-navy-900 shadow-2xs"
+                            : "bg-white border-line hover:border-navy-900/30"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="flex items-center gap-2 cursor-pointer font-bold text-navy-900 text-xs">
+                            <input
+                              type="radio"
+                              name="reportType"
+                              value={rep.id}
+                              checked={isSelected}
+                              onChange={() => setSelectedReportType(rep.id)}
+                              className="text-navy-900 focus:ring-0"
+                            />
+                            <span>{rep.title}</span>
+                          </label>
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-xs border ${rep.badgeClass}`}
+                          >
+                            {rep.badge}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-ink-soft pl-5">
+                          {rep.description}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Step 2: Select Timeframe Period */}
+              <div className="space-y-2">
+                <label className="block text-[11px] font-bold text-navy-900 uppercase tracking-wider">
+                  2. Select Reporting Period
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                  {[
+                    { id: "all" as const, label: "All Time", desc: "Complete History" },
+                    { id: "daily" as const, label: "Today", desc: "Daily Cash" },
+                    { id: "weekly" as const, label: "This Week", desc: "Past 7 Days" },
+                    { id: "monthly" as const, label: "This Month", desc: "Current Month" },
+                    { id: "annually" as const, label: "This Year", desc: "Annual / Tax" },
+                  ].map((tf) => {
+                    const isSelected = selectedTimeframe === tf.id;
+                    return (
+                      <button
+                        key={tf.id}
+                        type="button"
+                        onClick={() => setSelectedTimeframe(tf.id)}
+                        className={`p-2.5 rounded-sm border text-center transition-all cursor-pointer flex flex-col items-center justify-center ${
+                          isSelected
+                            ? "bg-navy-900 text-white border-navy-900 shadow-xs"
+                            : "bg-paper text-navy-900 border-line hover:bg-white hover:border-navy-900/30"
+                        }`}
+                      >
+                        <span className="font-bold text-xs">{tf.label}</span>
+                        <span
+                          className={`text-[10px] ${
+                            isSelected ? "text-gold-300" : "text-ink-soft"
+                          }`}
+                        >
+                          {tf.desc}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Informational callout */}
+              <div className="p-3 bg-paper border border-line rounded-sm text-[11px] text-ink-soft flex items-start gap-2">
+                <Icon name="info" size={15} className="text-navy-900 shrink-0 mt-0.5" />
+                <span>
+                  The exported CSV file is fully formatted for Microsoft Excel, Apple Numbers, and Google Sheets. It includes metadata summary headers, tuition breakdown, and customer identifiers.
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-4 border-t border-line">
+              <button
+                type="button"
+                onClick={() => setIsExportModalOpen(false)}
+                className="px-4 py-2 border border-line rounded-sm text-xs font-semibold text-ink-soft hover:bg-paper cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => handleExportCsv(selectedReportType, selectedTimeframe)}
+                className="px-5 py-2.5 bg-navy-900 text-white rounded-sm text-xs font-bold hover:bg-navy-700 transition-colors shadow-sm disabled:opacity-50 inline-flex items-center gap-2 cursor-pointer"
+              >
+                <Icon name="download" size={15} />
+                <span>
+                  {isPending ? "Generating CSV Report..." : "Download CSV Report"}
+                </span>
               </button>
             </div>
           </div>

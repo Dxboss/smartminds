@@ -1645,5 +1645,81 @@ ${siteConfig.contact.address}
   return { subject, html, text };
 }
 
+/**
+ * 15. Automated Live Class Recording Available Notification
+ * Dispatched to enrolled cohort learners when Zoom + Cloudflare finishes processing a recording.
+ */
+export function generateNewRecordingNotificationEmail(data: {
+  studentName: string;
+  courseTitle: string;
+  sessionTitle: string;
+  sessionDate: string;
+  portalUrl?: string;
+}): { subject: string; html: string; text: string } {
+  const baseUrl = getBaseUrl();
+  const portalLink = data.portalUrl || `${baseUrl}/student/recordings`;
+  const subject = `New Class Recording Ready: ${data.sessionTitle} - ${data.courseTitle}`;
+
+  const bodyHtml = `
+    <p style="margin: 0 0 16px 0; font-size: 15px; color: #1B1B2B; line-height: 1.5;">
+      Dear <strong>${data.studentName}</strong>,
+    </p>
+    <p style="margin: 0 0 16px 0; font-size: 14px; color: #5A5A6E; line-height: 1.5;">
+      The video recording for your recent interactive live class on <strong>${data.courseTitle}</strong> is now processed and ready to watch inside your Student Portal.
+    </p>
+
+    <!-- Session Details Box -->
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin: 20px 0; background-color: #FAF8F3; border: 1px solid #E6E1D5; border-radius: 6px; overflow: hidden; font-size: 13px;">
+      <tr>
+        <td style="padding: 12px 16px; font-weight: 600; color: #5A5A6E; border-bottom: 1px solid #E6E1D5; width: 35%;">Session Title:</td>
+        <td style="padding: 12px 16px; font-weight: 700; color: #23216B; border-bottom: 1px solid #E6E1D5;">${data.sessionTitle}</td>
+      </tr>
+      <tr>
+        <td style="padding: 12px 16px; font-weight: 600; color: #5A5A6E; border-bottom: 1px solid #E6E1D5;">Class Date:</td>
+        <td style="padding: 12px 16px; font-weight: 600; color: #1B1B2B; border-bottom: 1px solid #E6E1D5;">${data.sessionDate}</td>
+      </tr>
+      <tr>
+        <td style="padding: 12px 16px; font-weight: 600; color: #5A5A6E;">Delivery Format:</td>
+        <td style="padding: 12px 16px; font-weight: 600; color: #23216B;">Protected Stream (High Definition)</td>
+      </tr>
+    </table>
+
+    <div style="background-color: #F8FAFC; border-left: 3px solid #D9B84A; padding: 12px 16px; margin: 20px 0; border-radius: 4px;">
+      <p style="margin: 0; font-size: 12px; color: #5A5A6E; line-height: 1.4;">
+        <strong style="color: #23216B;">Study Notice:</strong> Recordings are watermarked and provided exclusively for your personal qualification study. Streaming is available 24/7 across all devices.
+      </p>
+    </div>
+  `;
+
+  const html = wrapBrandedEmailHtml({
+    preheader: `Your class recording for ${data.sessionTitle} is now available in your portal.`,
+    heading: "Class Recording Ready",
+    badgeText: "Study Material Available",
+    bodyHtml,
+    ctaText: "Watch Class Recording",
+    ctaUrl: portalLink,
+  });
+
+  const text = `Dear ${data.studentName},
+
+The video recording for your recent interactive live class on ${data.courseTitle} is now processed and ready to watch inside your Student Portal.
+
+SESSION DETAILS:
+• Session Title: ${data.sessionTitle}
+• Date: ${data.sessionDate}
+• Delivery: Protected HD Stream
+
+Watch now: ${portalLink}
+
+Warm regards,
+Academic Support & Tutor Team
+Smartminds Training College
+${siteConfig.contact.email} | ${siteConfig.contact.phone}
+`;
+
+  return { subject, html, text };
+}
+
+
 
 
