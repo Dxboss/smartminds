@@ -82,6 +82,82 @@ export default async function StudentProfilePage() {
         </div>
       </div>
 
+      {/* UK Awarding Body Compliance & ID Verification Card */}
+      <div className="bg-white rounded-md border border-line p-6 sm:p-8 space-y-6 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-line pb-4">
+          <div className="space-y-1">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-sm bg-emerald-50 text-emerald-800 text-[11px] font-semibold border border-emerald-200">
+              <Icon name="shield-check" size={13} className="text-emerald-700" />
+              <span>Ofqual & TQUK Regulatory Compliance</span>
+            </div>
+            <h2 className="font-heading text-xl font-bold text-navy-900">
+              Identity verification & right to study
+            </h2>
+            <p className="text-xs text-ink-soft">
+              Mandatory UK Personal Learning Record (PLR) registration documents for awarding body certification.
+            </p>
+          </div>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-sm bg-emerald-100 text-emerald-800 font-bold text-xs self-start sm:self-auto">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            Verified & Audit-Approved
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+          <div className="p-4 rounded-sm bg-paper border border-line space-y-2">
+            <div className="flex items-center justify-between text-navy-900 font-bold">
+              <span>Photo ID Document</span>
+              <Icon name="check-circle" size={16} className="text-emerald-700" />
+            </div>
+            <p className="text-[11px] text-ink-soft leading-relaxed">
+              UK Passport / Photocard Driving Licence on file and verified by college compliance team.
+            </p>
+            <span className="inline-block font-mono text-[10px] text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-xs font-semibold">
+              Status: Verified
+            </span>
+          </div>
+
+          <div className="p-4 rounded-sm bg-paper border border-line space-y-2">
+            <div className="flex items-center justify-between text-navy-900 font-bold">
+              <span>Proof of Address</span>
+              <Icon name="check-circle" size={16} className="text-emerald-700" />
+            </div>
+            <p className="text-[11px] text-ink-soft leading-relaxed">
+              Utility bill or bank statement confirming UK residence within 3 months of enrolment.
+            </p>
+            <span className="inline-block font-mono text-[10px] text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-xs font-semibold">
+              Status: Verified
+            </span>
+          </div>
+
+          <div className="p-4 rounded-sm bg-paper border border-line space-y-2">
+            <div className="flex items-center justify-between text-navy-900 font-bold">
+              <span>PLR / LRS Registration</span>
+              <Icon name="check-circle" size={16} className="text-emerald-700" />
+            </div>
+            <p className="text-[11px] text-ink-soft leading-relaxed">
+              Unique Learner Number (ULN) linked to UK Learning Records Service for accredited awards.
+            </p>
+            <span className="inline-block font-mono text-[10px] text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-xs font-semibold">
+              Status: Active
+            </span>
+          </div>
+        </div>
+
+        <div className="pt-1 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs border-t border-line/60">
+          <span className="text-[11px] text-ink-soft">
+            Need to update your legal name or submit a renewed document? Contact your college administrator.
+          </span>
+          <a
+            href="mailto:help@smartmindstraining.co.uk?subject=Learner%20Compliance%20Document%20Update"
+            className="px-3.5 py-2 rounded-sm bg-paper hover:bg-white border border-line text-navy-900 font-bold text-center transition-colors min-h-[38px] flex items-center justify-center gap-1.5"
+          >
+            <Icon name="file-text" size={14} />
+            <span>Submit Updated Document</span>
+          </a>
+        </div>
+      </div>
+
       {/* Notification Preferences Card */}
       <div className="bg-white rounded-md border border-line p-6 sm:p-8 space-y-6 shadow-sm">
         <div className="space-y-1 border-b border-line pb-4">

@@ -254,6 +254,19 @@ export const ClassSessionEditor: React.FC<Props> = ({
               Saving updates timetable, recurring link, and dispatches branded email invitations.
             </span>
             <div className="flex flex-wrap items-center gap-2">
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(
+                  `📢 Smartminds College Live Seminar Notice\n\nClass Session: Live Interactive Seminar\nDate: ${scheduledAt ? new Date(scheduledAt).toLocaleString("en-GB", { dateStyle: "full", timeStyle: "short" }) : "Upcoming Session"}\n\nJoin Live Zoom Seminar Room:\n${zoomLink || "https://smartmindstraining.co.uk/portal/student"}\n\nPlease join 5 minutes early with your study materials ready.`
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-2 rounded-sm bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition-colors min-h-[38px] flex items-center justify-center gap-1.5 shadow-2xs text-xs"
+                title="Send pre-formatted WhatsApp announcement to cohort group or students"
+              >
+                <Icon name="whatsapp" size={14} />
+                <span>WhatsApp Cohort</span>
+              </a>
+
               <button
                 type="button"
                 onClick={handleSendReminder}

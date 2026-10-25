@@ -637,9 +637,10 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                     src={effectiveHeroImg}
                     alt="Adult learner smiling while attending live online class with notes and laptop"
                     fill
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 480px"
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 480px"
                     priority
                     loading="eager"
+                    quality={80}
                     className="object-cover object-center"
                   />
                 </div>
