@@ -64,6 +64,7 @@ export interface PersistedRecordsStore {
   faculties?: FacultyRecord[];
   subscribers?: NewsletterSubscriber[];
   colorSwatches?: ColorSwatch[];
+  siteTheme?: any;
 }
 
 import { type ColorSwatch, DEFAULT_COLOR_SWATCHES } from "./colorSwatches";
@@ -156,6 +157,10 @@ export function loadPersistedRecords(): PersistedRecordsStore {
           : undefined,
       blogPosts: Array.isArray(parsed.blogPosts) ? parsed.blogPosts : undefined,
       subscribers: Array.isArray(parsed.subscribers) ? parsed.subscribers : [],
+      siteTheme:
+        parsed.siteTheme && typeof parsed.siteTheme === "object"
+          ? parsed.siteTheme
+          : undefined,
     };
   } catch (err) {
     console.error("[persistedData] Failed to load store:", err);
