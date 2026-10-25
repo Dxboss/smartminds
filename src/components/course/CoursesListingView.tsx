@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Course } from "@/content/types";
 import { CourseCard } from "@/components/course/CourseCard";
 import { Container } from "@/components/ui/Container";
@@ -19,7 +20,84 @@ interface CoursesListingViewProps {
   onSelectElement?: (elementKey: "headline" | "subheadline") => void;
 }
 
-export const CoursesListingView: React.FC<CoursesListingViewProps> = ({
+/**
+ * Intelligent category matcher that bridges faculty names (from CMS/faculties.ts)
+ * with course category labels (from courses.ts).
+ */
+export function matchesCategory(course: Course, targetCategory: string): boolean {
+  if (!targetCategory || targetCategory === "All") return true;
+
+  const target = targetCategory.toLowerCase().trim();
+  const cat = (course.category || "").toLowerCase().trim();
+
+  // 1. Direct or partial equality
+  if (cat === target || cat.includes(target) || target.includes(cat)) return true;
+
+  // 2. Health & Social Care (Adult Care, Healthcare, Social Care)
+  if (
+    (target.includes("health") || target.includes("care") || target.includes("social")) &&
+    (cat.includes("health") || cat.includes("care") || cat.includes("social") || cat.includes("adult"))
+  ) {
+    return true;
+  }
+
+  // 3. Childcare & Early Years (Early Years Educator, Nursery, Children & Young People)
+  if (
+    (target.includes("child") || target.includes("early years") || target.includes("nursery")) &&
+    (cat.includes("child") || cat.includes("early years") || cat.includes("nursery") || cat.includes("young people"))
+  ) {
+    return true;
+  }
+
+  // 4. Education, Teaching & Training (AET, CAVA, Assessor, IQA, Education)
+  if (
+    (target.includes("education") || target.includes("teach") || target.includes("train") || target.includes("assessor")) &&
+    (cat.includes("education") || cat.includes("teach") || cat.includes("train") || cat.includes("assessor") || cat.includes("iqa"))
+  ) {
+    return true;
+  }
+
+  // 5. Business, Administration & Management
+  if (
+    (target.includes("business") || target.includes("admin") || target.includes("management") || target.includes("office")) &&
+    (cat.includes("business") || cat.includes("admin") || cat.includes("management") || cat.includes("office"))
+  ) {
+    return true;
+  }
+
+  // 6. CPD & Compliance / Short Courses
+  if (
+    target.includes("cpd") ||
+    target.includes("compliance") ||
+    target.includes("continuing professional")
+  ) {
+    return (
+      course.type === "cpd" ||
+      cat.includes("cpd") ||
+      cat.includes("compliance") ||
+      cat.includes("continuing professional")
+    );
+  }
+
+  // 7. Academic Tutoring / Private Tutoring
+  if (
+    target.includes("tutor") ||
+    target.includes("academic") ||
+    target.includes("gcse") ||
+    target.includes("kids")
+  ) {
+    return (
+      course.type === "tutoring" ||
+      cat.includes("tutor") ||
+      cat.includes("academic") ||
+      cat.includes("gcse")
+    );
+  }
+
+  return false;
+}
+
+const CoursesListingContent: React.FC<CoursesListingViewProps> = ({
   initialCourses,
   initialFaculties,
   customHeadline,
@@ -27,19 +105,63 @@ export const CoursesListingView: React.FC<CoursesListingViewProps> = ({
   isEditor,
   onSelectElement,
 }) => {
+  const searchParams = useSearchParams();
+
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [selectedType, setSelectedType] = useState<string>("All");
   const [selectedLevel, setSelectedLevel] = useState<string>("All");
   const [searchQuery, setSearchQuery] = useState<string>("");
 
-  // Categories list (merges configured faculties with active courses)
+  // Sync with URL query parameters (e.g. /courses?category=Health+%26+Social+Care&level=Level+3)
+  useEffect(() => {
+    if (!searchParams) return;
+    const catParam = searchParams.get("category");
+    const typeParam = searchParams.get("type");
+    const levelParam = searchParams.get("level");
+    const queryParam = searchParams.get("q") || searchParams.get("search");
+
+    if (catParam) setSelectedCategory(catParam);
+    if (typeParam) setSelectedType(typeParam);
+    if (levelParam) setSelectedLevel(levelParam);
+    if (queryParam) setSearchQuery(queryParam);
+  }, [searchParams]);
+
+  // Categories list (consolidated canonical sectors + any custom faculties)
   const categories = useMemo(() => {
-    const set = new Set<string>();
+    const canonical = [
+      "All",
+      "Health & Social Care",
+      "Childcare & Early Years",
+      "Education & Teaching",
+      "Business & Management",
+      "CPD & Compliance",
+      "Academic Tutoring",
+    ];
+
+    const extras = new Set<string>();
+    // Collect any course categories not covered by standard sectors
+    initialCourses.forEach((c) => {
+      if (!canonical.some((s) => s !== "All" && matchesCategory(c, s))) {
+        extras.add(c.category);
+      }
+    });
+
+    // Also include custom CMS faculties if added
     if (initialFaculties && initialFaculties.length > 0) {
-      initialFaculties.forEach((f) => set.add(f.name));
+      initialFaculties.forEach((f) => {
+        const alreadyCovered = canonical.some(
+          (s) =>
+            s !== "All" &&
+            (s.toLowerCase().includes(f.name.toLowerCase()) ||
+              f.name.toLowerCase().includes(s.toLowerCase()))
+        );
+        if (!alreadyCovered) {
+          extras.add(f.name);
+        }
+      });
     }
-    initialCourses.forEach((c) => set.add(c.category));
-    return ["All", ...Array.from(set)];
+
+    return [...canonical, ...Array.from(extras)];
   }, [initialCourses, initialFaculties]);
 
   const levels = ["All", "Level 2", "Level 3", "Level 4", "Level 5"];
@@ -47,31 +169,38 @@ export const CoursesListingView: React.FC<CoursesListingViewProps> = ({
   // Filtered courses
   const filteredCourses = useMemo(() => {
     return initialCourses.filter((course) => {
-      // Category filter
-      if (selectedCategory !== "All" && course.category !== selectedCategory) {
+      // Category filter with intelligent matching
+      if (selectedCategory !== "All" && !matchesCategory(course, selectedCategory)) {
         return false;
       }
 
-      // Type filter
+      // Framework Type filter
       if (selectedType !== "All" && course.type !== selectedType) {
         return false;
       }
 
-      // Level filter
+      // Qualification Level filter
       if (selectedLevel !== "All") {
-        const hasLevel = course.levels.some((l) =>
+        const hasLevel = (course.levels || []).some((l) =>
           l.level_label.toLowerCase().includes(selectedLevel.toLowerCase())
         );
         if (!hasLevel) return false;
       }
 
-      // Search query filter
+      // Search query filter (matches title, summary, category, awarding body, and level labels)
       if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
-        const matchesTitle = course.title.toLowerCase().includes(query);
-        const matchesSummary = course.summary.toLowerCase().includes(query);
-        const matchesCategory = course.category.toLowerCase().includes(query);
-        if (!matchesTitle && !matchesSummary && !matchesCategory) return false;
+        const query = searchQuery.toLowerCase().trim();
+        const matchesTitle = (course.title || "").toLowerCase().includes(query);
+        const matchesSummary = (course.summary || "").toLowerCase().includes(query);
+        const matchesCategoryName = (course.category || "").toLowerCase().includes(query);
+        const matchesAwarding = (course.awarding_body || "").toLowerCase().includes(query);
+        const matchesLevel = (course.levels || []).some((l) =>
+          l.level_label.toLowerCase().includes(query)
+        );
+
+        if (!matchesTitle && !matchesSummary && !matchesCategoryName && !matchesAwarding && !matchesLevel) {
+          return false;
+        }
       }
 
       return true;
@@ -175,7 +304,7 @@ export const CoursesListingView: React.FC<CoursesListingViewProps> = ({
                 <button
                   key={cat}
                   type="button"
-                  onClick={() => setSelectedCategory(cat)}
+                  onClick={() => setSelectedCategory(active && cat !== "All" ? "All" : cat)}
                   className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
                     active
                       ? "bg-navy-900 text-white shadow-xs font-bold"
@@ -189,7 +318,7 @@ export const CoursesListingView: React.FC<CoursesListingViewProps> = ({
           </div>
         </div>
 
-        {/* 2-Column Catalogue Layout (Image 2: Left Multi-facet Sidebar + Right 3-Col Grid) */}
+        {/* 2-Column Catalogue Layout (Left Multi-facet Sidebar + Right 3-Col Grid) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Left Multi-Facet Filter Sidebar */}
           <aside className="lg:col-span-3 bg-white rounded-2xl border border-line p-5 shadow-subtle space-y-6 sticky top-24">
@@ -215,7 +344,7 @@ export const CoursesListingView: React.FC<CoursesListingViewProps> = ({
                 {categories.map((cat) => {
                   const count = cat === "All"
                     ? initialCourses.length
-                    : initialCourses.filter((c) => c.category === cat).length;
+                    : initialCourses.filter((c) => matchesCategory(c, cat)).length;
                   const isChecked = selectedCategory === cat;
                   return (
                     <label
@@ -226,7 +355,7 @@ export const CoursesListingView: React.FC<CoursesListingViewProps> = ({
                         <input
                           type="checkbox"
                           checked={isChecked}
-                          onChange={() => setSelectedCategory(cat)}
+                          onChange={() => setSelectedCategory(isChecked && cat !== "All" ? "All" : cat)}
                           className="rounded text-navy-900 focus:ring-navy-700 w-3.5 h-3.5 cursor-pointer accent-navy-900"
                         />
                         <span className={isChecked ? "font-semibold text-navy-900" : ""}>{cat}</span>
@@ -249,7 +378,7 @@ export const CoursesListingView: React.FC<CoursesListingViewProps> = ({
                   const count = lvl === "All"
                     ? initialCourses.length
                     : initialCourses.filter((c) =>
-                        c.levels.some((l) => l.level_label.toLowerCase().includes(lvl.toLowerCase()))
+                        (c.levels || []).some((l) => l.level_label.toLowerCase().includes(lvl.toLowerCase()))
                       ).length;
                   return (
                     <label
@@ -260,7 +389,7 @@ export const CoursesListingView: React.FC<CoursesListingViewProps> = ({
                         <input
                           type="checkbox"
                           checked={isChecked}
-                          onChange={() => setSelectedLevel(lvl)}
+                          onChange={() => setSelectedLevel(isChecked && lvl !== "All" ? "All" : lvl)}
                           className="rounded text-navy-900 focus:ring-navy-700 w-3.5 h-3.5 cursor-pointer accent-navy-900"
                         />
                         <span className={isChecked ? "font-semibold text-navy-900" : ""}>{lvl}</span>
@@ -282,20 +411,27 @@ export const CoursesListingView: React.FC<CoursesListingViewProps> = ({
                   { id: "All", label: "All Frameworks" },
                   { id: "regulated", label: "Regulated (Ofqual RQF)" },
                   { id: "cpd", label: "CPD Professional" },
+                  { id: "tutoring", label: "1-on-1 Tutoring" },
                 ].map((t) => {
                   const isChecked = selectedType === t.id;
+                  const count = t.id === "All"
+                    ? initialCourses.length
+                    : initialCourses.filter((c) => c.type === t.id).length;
                   return (
                     <label
                       key={t.id}
-                      className="flex items-center gap-2 text-xs text-ink-soft hover:text-navy-900 cursor-pointer select-none"
+                      className="flex items-center justify-between text-xs text-ink-soft hover:text-navy-900 cursor-pointer select-none"
                     >
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => setSelectedType(t.id)}
-                        className="rounded text-navy-900 focus:ring-navy-700 w-3.5 h-3.5 cursor-pointer accent-navy-900"
-                      />
-                      <span className={isChecked ? "font-semibold text-navy-900" : ""}>{t.label}</span>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => setSelectedType(isChecked && t.id !== "All" ? "All" : t.id)}
+                          className="rounded text-navy-900 focus:ring-navy-700 w-3.5 h-3.5 cursor-pointer accent-navy-900"
+                        />
+                        <span className={isChecked ? "font-semibold text-navy-900" : ""}>{t.label}</span>
+                      </div>
+                      <span className="text-[11px] text-ink-soft/70">({count})</span>
                     </label>
                   );
                 })}
@@ -341,7 +477,7 @@ export const CoursesListingView: React.FC<CoursesListingViewProps> = ({
                   />
                 ))}
               </div>
-            ) : selectedCategory !== "All" && initialCourses.filter((c) => c.category === selectedCategory).length === 0 ? (
+            ) : selectedCategory !== "All" && initialCourses.filter((c) => matchesCategory(c, selectedCategory)).length === 0 ? (
               /* Dedicated Faculty Opening Soon Empty State */
               <div className="bg-white rounded-2xl border border-line p-10 md:p-14 text-center max-w-lg mx-auto space-y-4 shadow-xs">
                 <div className="w-14 h-14 rounded-full bg-gold-50 text-gold-700 mx-auto flex items-center justify-center border border-gold-200 shadow-2xs">
@@ -394,5 +530,19 @@ export const CoursesListingView: React.FC<CoursesListingViewProps> = ({
         </div>
       </Container>
     </div>
+  );
+};
+
+export const CoursesListingView: React.FC<CoursesListingViewProps> = (props) => {
+  return (
+    <Suspense
+      fallback={
+        <div className="bg-paper min-h-[50vh] flex items-center justify-center text-ink-soft text-sm">
+          Loading courses...
+        </div>
+      }
+    >
+      <CoursesListingContent {...props} />
+    </Suspense>
   );
 };

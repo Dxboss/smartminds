@@ -1808,6 +1808,19 @@ export const SectionRenderer: React.FC<Props> = ({
       );
     }
 
+    case "courses_listing": {
+      return (
+        <CoursesListingView
+          initialCourses={courses || []}
+          initialFaculties={DEFAULT_COLLEGE_FACULTIES}
+          customHeadline={section.headline}
+          customSubheadline={section.subheadline}
+          isEditor={isEditor}
+          onSelectElement={onSelectElement as any}
+        />
+      );
+    }
+
     case "cpd_listing": {
       const cpdCourses = (courses || []).filter((c) => c.type === "cpd" && c.published);
 
