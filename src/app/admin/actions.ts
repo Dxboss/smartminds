@@ -2325,11 +2325,10 @@ export async function clearAllTestPaymentsAction() {
   const session = await getServerSession();
   if (
     !session ||
-    (session.role !== "owner_admin" &&
-      session.role !== "super_admin" &&
+    (session.role !== "super_admin" &&
       session.originalRole !== "super_admin")
   ) {
-    throw new Error("Unauthorized: Only Owner Admin or Super Admin can clear test payments.");
+    throw new Error("Unauthorized: Only Super Admin has access to clear test payments.");
   }
 
   const { purgeAllTestRecordsFromStore } = await import("@/lib/persistedData");

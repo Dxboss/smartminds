@@ -732,16 +732,18 @@ export function PaymentsLedgerView({
             <Icon name="check-circle" size={16} />
             <span>Record BACS Transfer</span>
           </button>
-          <button
-            type="button"
-            onClick={handleClearAllTestPayments}
-            disabled={isPending}
-            className="px-3.5 py-2.5 rounded-sm border border-red-300 bg-red-50 text-red-800 text-sm font-semibold hover:bg-red-100 transition-colors inline-flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
-            title="Purge all test payments, schedules, and test student enrolments"
-          >
-            <Icon name="trash" size={15} />
-            <span>Clear Test Ledger</span>
-          </button>
+          {userRole === "super_admin" && (
+            <button
+              type="button"
+              onClick={handleClearAllTestPayments}
+              disabled={isPending}
+              className="px-3.5 py-2.5 rounded-sm border border-red-300 bg-red-50 text-red-800 text-sm font-semibold hover:bg-red-100 transition-colors inline-flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
+              title="Purge all test payments, schedules, and test student enrolments (Super Admin Only)"
+            >
+              <Icon name="trash" size={15} />
+              <span>Clear Test Ledger</span>
+            </button>
+          )}
         </div>
       </div>
 
