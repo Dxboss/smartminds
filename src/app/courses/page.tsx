@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { getCourseRepo } from "@/lib/repositories";
 import { CoursesListingView } from "@/components/course/CoursesListingView";
-import { getPersistedFaculties, getPublishedCmsPageSections } from "@/lib/persistedData";
+import { getPersistedFaculties, getPublishedCmsPageSections, pullLatestFromNeon } from "@/lib/persistedData";
 import { SectionRenderer } from "@/components/cms/SectionRenderer";
 
 export const metadata: Metadata = {
@@ -17,6 +17,10 @@ export const metadata: Metadata = {
 };
 
 export default async function CoursesPage() {
+  try {
+    await pullLatestFromNeon();
+  } catch {}
+
   const customSections = getPublishedCmsPageSections("/courses");
   const courseRepo = getCourseRepo();
   const allCourses = await courseRepo.listCourses();

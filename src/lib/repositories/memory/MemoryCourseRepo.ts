@@ -6,6 +6,7 @@ import {
   getLiveCourses,
   savePersistedCourse,
   deletePersistedCourse,
+  pullLatestFromNeon,
 } from "@/lib/persistedData";
 
 export class MemoryCourseRepo implements CourseRepo {
@@ -24,60 +25,69 @@ export class MemoryCourseRepo implements CourseRepo {
   }
 
   async listCourses(): Promise<Course[]> {
+    try {
+      await pullLatestFromNeon();
+    } catch {}
     this.hydrateFromStore();
     return [...this.courseList];
   }
 
   async getCourseBySlug(slug: string): Promise<Course | null> {
+    try {
+      await pullLatestFromNeon();
+    } catch {}
     this.hydrateFromStore();
     const found = this.courseList.find((c) => c.slug === slug);
     return found ? { ...found } : null;
   }
 
   async getCourseById(id: string): Promise<Course | null> {
+    try {
+      await pullLatestFromNeon();
+    } catch {}
     this.hydrateFromStore();
     const found = this.courseList.find((c) => c.id === id);
     return found ? { ...found } : null;
   }
 
   async updateCourse(actor: SessionUser, updated: Course): Promise<Course> {
-    if (actor.role !== "owner_admin" && actor.role !== "super_admin") {
+    if (actor.role !== "owner_admin" && actor.role !== "super_admin" && actor.role !== "admin_staff") {
       throw new PermissionDeniedError(
-        "Only owner or super admin can edit courses and curriculum."
+        "Administrative privileges required to edit courses."
       );
     }
     const idx = this.courseList.findIndex((c) => c.id === updated.id);
     if (idx >= 0) {
       this.courseList[idx] = { ...updated };
-      savePersistedCourse(this.courseList[idx]);
+      await savePersistedCourse(this.courseList[idx]);
       return this.courseList[idx];
     }
     this.courseList.push({ ...updated });
-    savePersistedCourse(updated);
+    await savePersistedCourse(updated);
     return updated;
   }
 
   async createCourse(actor: SessionUser, newCourse: Course): Promise<Course> {
-    if (actor.role !== "owner_admin" && actor.role !== "super_admin") {
+    if (actor.role !== "owner_admin" && actor.role !== "super_admin" && actor.role !== "admin_staff") {
       throw new PermissionDeniedError(
-        "Only owner or super admin can create new courses."
+        "Administrative privileges required to create new courses."
       );
     }
     this.courseList.push({ ...newCourse });
-    savePersistedCourse(newCourse);
+    await savePersistedCourse(newCourse);
     return newCourse;
   }
 
   async deleteCourse(actor: SessionUser, id: string): Promise<boolean> {
-    if (actor.role !== "owner_admin" && actor.role !== "super_admin") {
+    if (actor.role !== "owner_admin" && actor.role !== "super_admin" && actor.role !== "admin_staff") {
       throw new PermissionDeniedError(
-        "Only owner or super admin can delete or unpublish courses."
+        "Administrative privileges required to delete courses."
       );
     }
     const idx = this.courseList.findIndex((c) => c.id === id);
     if (idx >= 0) {
       this.courseList.splice(idx, 1);
-      deletePersistedCourse(id);
+      await deletePersistedCourse(id);
       return true;
     }
     return false;

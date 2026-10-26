@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { Suspense } from "react";
 import { getServerSession } from "@/lib/session";
-import { getLiveCourses, getCohortSchedule } from "@/lib/persistedData";
+import { getLiveCourses, getCohortSchedule, pullLatestFromNeon } from "@/lib/persistedData";
 import { EnrolmentClient } from "./EnrolmentClient";
 
 export const metadata: Metadata = {
@@ -22,6 +22,10 @@ interface PageProps {
 }
 
 export default async function EnrolPage({ searchParams }: PageProps) {
+  try {
+    await pullLatestFromNeon();
+  } catch {}
+
   const params = await searchParams;
   const initialCourseId = params.course;
   const initialLevelLabel = params.level;

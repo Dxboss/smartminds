@@ -107,6 +107,7 @@ export function loadPersistedRecords(): PersistedRecordsStore {
         courseOverrides: {},
         cohorts: [],
         classSessions: [],
+        faculties: [...DEFAULT_COLLEGE_FACULTIES],
       };
     }
     const raw = fs.readFileSync(filePath, "utf-8");
@@ -161,6 +162,10 @@ export function loadPersistedRecords(): PersistedRecordsStore {
         parsed.siteTheme && typeof parsed.siteTheme === "object"
           ? parsed.siteTheme
           : undefined,
+      faculties:
+        Array.isArray(parsed.faculties) && parsed.faculties.length > 0
+          ? parsed.faculties
+          : [...DEFAULT_COLLEGE_FACULTIES],
     };
   } catch (err) {
     console.error("[persistedData] Failed to load store:", err);
@@ -215,9 +220,17 @@ export async function syncStoreSnapshotToNeon(store: PersistedRecordsStore): Pro
  * Pulls master snapshot from Neon PostgreSQL if local file is missing/empty or out of sync.
  * Guarantees that Hostinger deployments and local environments restore instantly after git push.
  */
-export async function pullLatestFromNeon(): Promise<boolean> {
+let lastNeonPullTimestamp = 0;
+const NEON_PULL_TTL_MS = 10000; // 10 seconds cache to avoid DB storming across concurrent components
+
+export async function pullLatestFromNeon(force = false): Promise<boolean> {
   if (process.env.NEXT_PHASE === "phase-production-build") {
     return false;
+  }
+
+  const now = Date.now();
+  if (!force && now - lastNeonPullTimestamp < NEON_PULL_TTL_MS) {
+    return true;
   }
 
   try {
@@ -250,9 +263,11 @@ export async function pullLatestFromNeon(): Promise<boolean> {
           ...(dbStore.cmsPagesDraftData || {}),
         },
         faculties:
-          Array.isArray(dbStore.faculties)
+          Array.isArray(dbStore.faculties) && dbStore.faculties.length > 0
             ? dbStore.faculties
-            : store.faculties,
+            : (Array.isArray(store.faculties) && store.faculties.length > 0
+              ? store.faculties
+              : [...DEFAULT_COLLEGE_FACULTIES]),
         learners:
           Array.isArray(dbStore.learners)
             ? dbStore.learners
@@ -307,6 +322,7 @@ export async function pullLatestFromNeon(): Promise<boolean> {
       const filePath = getStoreFilePath();
       fs.writeFileSync(filePath, JSON.stringify(mergedStore, null, 2));
       syncPersistedRecords(true);
+      lastNeonPullTimestamp = Date.now();
       return true;
     }
     return false;
@@ -832,7 +848,7 @@ export function getPersistedCmsDraft(
   }
 }
 
-export function savePersistedCourse(course: any): void {
+export async function savePersistedCourse(course: any): Promise<void> {
   try {
     const store = loadPersistedRecords();
     if (!store.courseOverrides) store.courseOverrides = {};
@@ -840,14 +856,16 @@ export function savePersistedCourse(course: any): void {
     const filePath = getStoreFilePath();
     fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
     syncPersistedRecords(true);
+    lastNeonPullTimestamp = Date.now();
 
-    // Continuous Neon Cloud synchronization
-    syncStoreSnapshotToNeon(store);
+    // Continuous Neon Cloud synchronization - fully awaited
+    await syncStoreSnapshotToNeon(store);
 
     if (process.env.DATABASE_URL) {
-      import("@/lib/db")
-        .then(({ sql }) => {
-          sql`
+      try {
+        const { isDbConfigured, sql } = await import("@/lib/db");
+        if (isDbConfigured) {
+          await sql`
             INSERT INTO course_catalog (id, title, data, updated_at)
             VALUES (
               ${course.id},
@@ -859,16 +877,18 @@ export function savePersistedCourse(course: any): void {
               title = EXCLUDED.title,
               data = EXCLUDED.data,
               updated_at = now();
-          `.catch((err) => console.warn("[Neon DB] course_catalog sync error:", err));
-        })
-        .catch(() => {});
+          `;
+        }
+      } catch (err) {
+        console.warn("[Neon DB] course_catalog sync error:", err);
+      }
     }
   } catch (err) {
     console.error("[persistedData] Failed to save course override:", err);
   }
 }
 
-export function deletePersistedCourse(courseId: string): void {
+export async function deletePersistedCourse(courseId: string): Promise<void> {
   try {
     const store = loadPersistedRecords();
     if (store.courseOverrides && store.courseOverrides[courseId]) {
@@ -876,18 +896,20 @@ export function deletePersistedCourse(courseId: string): void {
       const filePath = getStoreFilePath();
       fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
       syncPersistedRecords(true);
+      lastNeonPullTimestamp = Date.now();
 
       // Continuous Neon Cloud synchronization
-      syncStoreSnapshotToNeon(store);
+      await syncStoreSnapshotToNeon(store);
 
       if (process.env.DATABASE_URL) {
-        import("@/lib/db")
-          .then(({ sql }) => {
-            sql`DELETE FROM course_catalog WHERE id = ${courseId}`.catch((err) =>
-              console.warn("[Neon DB] course_catalog delete error:", err)
-            );
-          })
-          .catch(() => {});
+        try {
+          const { isDbConfigured, sql } = await import("@/lib/db");
+          if (isDbConfigured) {
+            await sql`DELETE FROM course_catalog WHERE id = ${courseId}`;
+          }
+        } catch (err) {
+          console.warn("[Neon DB] course_catalog delete error:", err);
+        }
       }
     }
   } catch (err) {
@@ -1799,6 +1821,9 @@ export function getPersistedFaculties(): FacultyRecord[] {
 
 export async function saveFacultyToStore(faculty: FacultyRecord): Promise<FacultyRecord[]> {
   try {
+    try {
+      await pullLatestFromNeon();
+    } catch {}
     const store = loadPersistedRecords();
     if (!store.faculties || !Array.isArray(store.faculties) || store.faculties.length === 0) {
       store.faculties = [...DEFAULT_COLLEGE_FACULTIES];
@@ -1846,6 +1871,9 @@ export async function saveFacultyToStore(faculty: FacultyRecord): Promise<Facult
 
 export async function deleteFacultyFromStore(facultyId: string): Promise<FacultyRecord[]> {
   try {
+    try {
+      await pullLatestFromNeon();
+    } catch {}
     const store = loadPersistedRecords();
     if (!store.faculties || !Array.isArray(store.faculties) || store.faculties.length === 0) {
       store.faculties = [...DEFAULT_COLLEGE_FACULTIES];

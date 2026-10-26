@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import Link from "next/link";
 import { formatCurrency } from "@/content";
-import { getLiveCourses, getPublishedCmsPageSections } from "@/lib/persistedData";
+import { getLiveCourses, getPublishedCmsPageSections, pullLatestFromNeon } from "@/lib/persistedData";
 import { SectionRenderer } from "@/components/cms/SectionRenderer";
 import { Container } from "@/components/ui/Container";
 import { Heading } from "@/components/ui/Heading";
@@ -26,7 +26,11 @@ export const metadata: Metadata = {
   },
 };
 
-export default function CPDPage() {
+export default async function CPDPage() {
+  try {
+    await pullLatestFromNeon();
+  } catch {}
+
   const allCourses = getLiveCourses();
   const cpdCourses = allCourses.filter((c) => c.type === "cpd" && c.published);
 

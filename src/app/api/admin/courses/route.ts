@@ -61,19 +61,45 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "update_course" && courseId && updates) {
-      const store = loadPersistedRecords();
-      if (!store.courseOverrides) store.courseOverrides = {};
-      store.courseOverrides[courseId] = {
-        ...(store.courseOverrides[courseId] || {}),
-        ...updates,
-      };
-
-      await syncStoreSnapshotToNeon(store);
+      const { savePersistedCourse, getLiveCourses } = await import("@/lib/persistedData");
+      const current = getLiveCourses().find((c) => c.id === courseId);
+      const merged = { ...(current || {}), ...updates, id: courseId };
+      await savePersistedCourse(merged);
 
       try {
         revalidatePath("/admin/courses");
         revalidatePath("/courses");
+        if (merged.slug) revalidatePath(`/courses/${merged.slug}`);
         revalidatePath(`/courses/${courseId}`);
+        revalidatePath("/enrol");
+        revalidatePath("/");
+      } catch {}
+
+      return NextResponse.json({ success: true, courseId, course: merged });
+    }
+
+    if (action === "create_course" && body.course) {
+      const { savePersistedCourse } = await import("@/lib/persistedData");
+      await savePersistedCourse(body.course);
+
+      try {
+        revalidatePath("/admin/courses");
+        revalidatePath("/courses");
+        revalidatePath("/enrol");
+        revalidatePath("/");
+      } catch {}
+
+      return NextResponse.json({ success: true, course: body.course });
+    }
+
+    if (action === "delete_course" && courseId) {
+      const { deletePersistedCourse } = await import("@/lib/persistedData");
+      await deletePersistedCourse(courseId);
+
+      try {
+        revalidatePath("/admin/courses");
+        revalidatePath("/courses");
+        revalidatePath("/enrol");
         revalidatePath("/");
       } catch {}
 

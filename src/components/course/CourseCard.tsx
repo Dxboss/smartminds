@@ -212,22 +212,26 @@ export const CourseCard: React.FC<CourseCardProps> = ({
           </div>
         ) : pricing ? (
           <div className="min-w-0 pr-1">
-            <span className="font-heading font-extrabold text-xl sm:text-2xl text-[#FF5722] leading-none block whitespace-nowrap">
-              {formatCurrency(pricing.fullPayPrice)}
-            </span>
-            <div className="flex items-center gap-1.5 mt-1 text-[11px] leading-tight">
-              {pricing.hasPriceSlash ? (
-                <span className="line-through text-ink-soft/70 font-medium whitespace-nowrap">
+            <div className="flex items-baseline gap-1.5 flex-wrap">
+              <span className="font-heading font-extrabold text-xl sm:text-2xl text-[#FF5722] leading-none block whitespace-nowrap">
+                {course.levels.length > 1 ? "From " : ""}
+                {formatCurrency(pricing.sellingPrice)}
+              </span>
+              {pricing.hasPriceSlash && (
+                <span className="line-through text-ink-soft/70 text-xs font-medium whitespace-nowrap">
                   {formatCurrency(pricing.regularPrice)}
                 </span>
-              ) : pricing.saving > 0 ? (
-                <span className="line-through text-ink-soft/70 font-medium whitespace-nowrap">
-                  {formatCurrency(pricing.total)}
-                </span>
-              ) : null}
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 mt-1 text-[11px] leading-tight text-ink-soft flex-wrap">
               {pricing.monthly > 0 && (
-                <span className="text-[10px] text-ink-soft/80 font-medium whitespace-nowrap">
-                  {(pricing.hasPriceSlash || pricing.saving > 0) ? "• " : ""}£{Math.round(pricing.monthly)}/mo
+                <span className="text-[10px] text-ink-soft/90 font-medium whitespace-nowrap">
+                  £{Math.round(pricing.monthly)}/mo (0% APR)
+                </span>
+              )}
+              {pricing.saving > 0 && (
+                <span className="text-[10px] text-emerald-700 font-bold whitespace-nowrap bg-emerald-50 px-1.5 py-0.5 rounded-xs border border-emerald-200" title={`Save ${formatCurrency(pricing.saving)} when paying in full`}>
+                  {formatCurrency(pricing.fullPayPrice)} upfront
                 </span>
               )}
             </div>

@@ -188,15 +188,12 @@ const CoursesListingContent: React.FC<CoursesListingViewProps> = ({
 
     if (initialFaculties && initialFaculties.length > 0) {
       initialFaculties.forEach((f) => {
-        const alreadyCovered = canonical.some(
-          (s) =>
-            s !== "All" &&
-            (matchesCategory({ category: f.name } as any, s) ||
-              s.toLowerCase().includes(f.name.toLowerCase()) ||
-              f.name.toLowerCase().includes(s.toLowerCase()))
+        if (!f.name) return;
+        const alreadyExists = canonical.some(
+          (s) => s.toLowerCase() === f.name.trim().toLowerCase()
         );
-        if (!alreadyCovered) {
-          extras.add(f.name);
+        if (!alreadyExists) {
+          extras.add(f.name.trim());
         }
       });
     }

@@ -163,7 +163,10 @@ export function CoursesManagerView({
 
   const [isPending, startTransition] = useTransition();
 
-  const isOwner = userRole === "owner_admin" || userRole === "super_admin";
+  const isOwner =
+    userRole === "owner_admin" ||
+    userRole === "super_admin" ||
+    userRole === "admin_staff";
 
   // Standalone Academic Faculties State
   const [faculties, setFaculties] = useState<FacultyRecord[]>(
@@ -462,7 +465,8 @@ export function CoursesManagerView({
 
   const syncCurrentLevel = (levelsArr: CourseLevel[], idx: number): CourseLevel[] => {
     if (!levelsArr[idx]) return levelsArr;
-    const parsedPrice = parseFloat(editPrice) || levelsArr[idx].price_gbp;
+    const rawParsedPrice = parseFloat(editPrice);
+    const parsedPrice = !isNaN(rawParsedPrice) ? rawParsedPrice : levelsArr[idx].price_gbp;
     const parsedRegular = parseFloat(editRegularPrice);
     const regular_price_gbp = !isNaN(parsedRegular) && parsedRegular > 0 ? parsedRegular : null;
     const parsedDeposit = parseFloat(editDeposit);
@@ -676,7 +680,24 @@ export function CoursesManagerView({
           ? editCustomFacultyText.trim()
           : editCategory;
 
-        const result = await updateCourseDetailsAction(selectedCourse.id, {
+        // Auto-register faculty if it's new
+        if (
+          finalCategory &&
+          !faculties.some((f) => f.name.toLowerCase() === finalCategory.toLowerCase())
+        ) {
+          try {
+            const facRes = await saveFacultyAction({
+              name: finalCategory,
+              description: `Faculty of ${finalCategory}`,
+              status: "active",
+            });
+            if (facRes.success && facRes.faculties) {
+              setFaculties(facRes.faculties);
+            }
+          } catch {}
+        }
+
+        const updatePayload = {
           title: editTitle.trim(),
           summary: editSummary.trim(),
           description: editDescription.trim() || editSummary.trim(),
@@ -712,17 +733,48 @@ export function CoursesManagerView({
           banner_bg_color: editBannerBgColor.trim() || undefined,
           banner_text_color: editBannerTextColor.trim() || undefined,
           accent_color: editAccentColor.trim() || undefined,
-        });
+        };
 
-        if (result.success && result.course) {
+        let savedCourse: any = null;
+
+        // 1. Primary: Dedicated REST API
+        try {
+          const apiRes = await fetch("/api/admin/courses", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "update_course",
+              courseId: selectedCourse.id,
+              updates: updatePayload,
+            }),
+          });
+          if (apiRes.ok) {
+            const json = await apiRes.json();
+            if (json.success && json.course) {
+              savedCourse = json.course;
+            }
+          }
+        } catch {}
+
+        // 2. Secondary fallback: Server Action
+        if (!savedCourse) {
+          const result = await updateCourseDetailsAction(selectedCourse.id, updatePayload);
+          if (result.success && result.course) {
+            savedCourse = result.course;
+          }
+        }
+
+        if (savedCourse) {
           setCourses((prev) =>
-            prev.map((c) => (c.id === result.course.id ? result.course : c))
+            prev.map((c) => (c.id === savedCourse.id ? savedCourse : c))
           );
           setIsEditModalOpen(false);
           setToastMessage(
-            `Qualification details for "${result.course.title}" updated successfully.`
+            `Qualification details for "${savedCourse.title}" updated successfully.`
           );
           setTimeout(() => setToastMessage(null), 5000);
+        } else {
+          setModalError("Unable to save course changes. Please try again.");
         }
       } catch (err: unknown) {
         setModalError(
@@ -846,15 +898,61 @@ export function CoursesManagerView({
 
     startTransition(async () => {
       try {
-        const result = await createCourseAction(newCourseObj);
-        if (result.success && result.course) {
-          setCourses((prev) => [result.course, ...prev]);
+        // Auto-register faculty if it's new
+        if (
+          finalNewCategory &&
+          !faculties.some((f) => f.name.toLowerCase() === finalNewCategory.toLowerCase())
+        ) {
+          try {
+            const facRes = await saveFacultyAction({
+              name: finalNewCategory,
+              description: `Faculty of ${finalNewCategory}`,
+              status: "active",
+            });
+            if (facRes.success && facRes.faculties) {
+              setFaculties(facRes.faculties);
+            }
+          } catch {}
+        }
+
+        let createdCourse: any = null;
+
+        // 1. Primary: Dedicated REST API
+        try {
+          const apiRes = await fetch("/api/admin/courses", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "create_course",
+              course: newCourseObj,
+            }),
+          });
+          if (apiRes.ok) {
+            const json = await apiRes.json();
+            if (json.success && json.course) {
+              createdCourse = json.course;
+            }
+          }
+        } catch {}
+
+        // 2. Secondary fallback: Server Action
+        if (!createdCourse) {
+          const result = await createCourseAction(newCourseObj);
+          if (result.success && result.course) {
+            createdCourse = result.course;
+          }
+        }
+
+        if (createdCourse) {
+          setCourses((prev) => [createdCourse, ...prev]);
           setIsAddModalOpen(false);
           setNewTitle("");
           setNewSummary("");
           setNewRegularPrice("1650");
-          setToastMessage(`Course "${newCourseObj.title}" added to catalogue.`);
+          setToastMessage(`Course "${createdCourse.title}" added to catalogue.`);
           setTimeout(() => setToastMessage(null), 5000);
+        } else {
+          setModalError("Unable to add course. Please try again.");
         }
       } catch (err: unknown) {
         setModalError(
@@ -876,8 +974,25 @@ export function CoursesManagerView({
     setDeletingId(courseId);
     startTransition(async () => {
       try {
-        const result = await deleteCourseAction(courseId);
-        if (result.success) {
+        let deleted = false;
+        try {
+          const apiRes = await fetch("/api/admin/courses", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "delete_course", courseId }),
+          });
+          if (apiRes.ok) {
+            const json = await apiRes.json();
+            if (json.success) deleted = true;
+          }
+        } catch {}
+
+        if (!deleted) {
+          const result = await deleteCourseAction(courseId);
+          if (result.success) deleted = true;
+        }
+
+        if (deleted) {
           setCourses((prev) => prev.filter((c) => c.id !== courseId));
           setToastMessage(`"${courseTitle}" removed from catalogue.`);
           setTimeout(() => setToastMessage(null), 5000);

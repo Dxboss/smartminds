@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getPublishedCmsPageSections, getLiveCourses } from "@/lib/persistedData";
+import { getPublishedCmsPageSections, getLiveCourses, pullLatestFromNeon } from "@/lib/persistedData";
 import { SectionRenderer } from "@/components/cms/SectionRenderer";
 
 export const metadata: Metadata = {
@@ -15,7 +15,11 @@ export const metadata: Metadata = {
   },
 };
 
-export default function HomePage() {
+export default async function HomePage() {
+  try {
+    await pullLatestFromNeon();
+  } catch {}
+
   const sections = getPublishedCmsPageSections("/");
   const liveCourses = getLiveCourses();
 

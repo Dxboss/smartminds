@@ -3,7 +3,7 @@ import { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { getLiveBlogPosts, getLiveCourses } from "@/lib/persistedData";
+import { getLiveBlogPosts, getLiveCourses, pullLatestFromNeon } from "@/lib/persistedData";
 import { Container } from "@/components/ui/Container";
 import { Section } from "@/components/ui/Section";
 import { Heading } from "@/components/ui/Heading";
@@ -71,6 +71,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function BlogPostPage({ params }: PageProps) {
   const { slug } = await params;
+  try {
+    await pullLatestFromNeon();
+  } catch {}
   const posts = getLiveBlogPosts();
   const post = posts.find((p) => p.slug === slug);
 
@@ -356,7 +359,7 @@ export default async function BlogPostPage({ params }: PageProps) {
                             Tuition
                           </span>
                           <span className="font-heading font-bold text-2xl text-navy-900 block leading-tight">
-                            {formatCurrency(coursePricing.fullPayPrice)}
+                            {formatCurrency(coursePricing.sellingPrice)}
                           </span>
                           {coursePricing.months > 1 && (
                             <span className="text-xs text-navy-700 font-semibold block">

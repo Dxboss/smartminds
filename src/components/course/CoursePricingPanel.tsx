@@ -179,9 +179,9 @@ export const CoursePricingPanel: React.FC<CoursePricingPanelProps> = ({
                 </div>
               ) : pricing.saving > 0 && paymentMode === "full" ? (
                 <div className="inline-flex items-baseline gap-1 text-ink-soft">
-                  <span className="text-xs">Standard:</span>
-                  <span className="text-base line-through font-semibold text-ink-soft/80">
-                    {formatCurrency(pricing.total)}
+                  <span className="text-xs font-semibold">Standard Tuition:</span>
+                  <span className="text-sm font-semibold text-ink-soft">
+                    {formatCurrency(pricing.sellingPrice)}
                   </span>
                 </div>
               ) : null}
@@ -189,9 +189,11 @@ export const CoursePricingPanel: React.FC<CoursePricingPanelProps> = ({
 
             <div className="text-xs text-ink-soft flex items-center justify-between pt-1">
               <span>
-                {paymentMode === "full"
-                  ? "Pay in full upfront (Includes 10% cash discount)"
-                  : "Selling price (Spread over 0% interest monthly plans)"}
+                {paymentMode === "full" && pricing.saving > 0
+                  ? `Pay in full upfront (${selectedLevel.full_pay_discount_percent ?? globalSettings.default_full_pay_discount_percent}% discount on standard ${formatCurrency(pricing.sellingPrice)} fee)`
+                  : paymentMode === "full"
+                  ? `Standard tuition fee: ${formatCurrency(pricing.sellingPrice)}`
+                  : `Standard tuition fee: ${formatCurrency(pricing.sellingPrice)} (Spread over 0% interest monthly plans)`}
               </span>
               <span className="text-[11px] font-mono text-navy-900 font-bold uppercase">
                 {selectedLevel.level_label}
@@ -248,8 +250,8 @@ export const CoursePricingPanel: React.FC<CoursePricingPanelProps> = ({
                   </span>
                 )}
                 {pricing.saving > 0 && (
-                  <span className="text-xs line-through text-ink-soft">
-                    Selling: {formatCurrency(pricing.total)}
+                  <span className="text-xs font-semibold text-ink-soft">
+                    Standard fee: {formatCurrency(pricing.sellingPrice)}
                   </span>
                 )}
               </div>
@@ -259,7 +261,7 @@ export const CoursePricingPanel: React.FC<CoursePricingPanelProps> = ({
                   <span>
                     {pricing.hasPriceSlash
                       ? `Total saving: ${formatCurrency(pricing.regularPrice - pricing.fullPayPrice)} with special price & upfront discount`
-                      : `You save ${formatCurrency(pricing.saving)} with upfront settlement`}
+                      : `You save ${formatCurrency(pricing.saving)} (${selectedLevel.full_pay_discount_percent ?? globalSettings.default_full_pay_discount_percent}% off) with upfront settlement`}
                   </span>
                 </div>
               )}
@@ -451,11 +453,18 @@ export const CoursePricingPanel: React.FC<CoursePricingPanelProps> = ({
           </span>
           <div className="flex items-baseline gap-1.5 flex-wrap">
             <span className="font-heading font-bold text-lg text-navy-900 leading-none">
-              {isFundedOnly ? "Funded (£0.00)" : formatCurrency(pricing.fullPayPrice)}
+              {isFundedOnly
+                ? "Funded (£0.00)"
+                : formatCurrency(pricing.sellingPrice)}
             </span>
             {!isFundedOnly && pricing.hasPriceSlash && (
               <span className="text-xs line-through text-ink-soft">
                 {formatCurrency(pricing.regularPrice)}
+              </span>
+            )}
+            {!isFundedOnly && pricing.saving > 0 && (
+              <span className="text-[11px] text-emerald-700 font-semibold">
+                ({formatCurrency(pricing.fullPayPrice)} upfront)
               </span>
             )}
           </div>

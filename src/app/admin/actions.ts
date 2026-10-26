@@ -1146,7 +1146,7 @@ export async function updateCoursePricingAction(
   regularPriceGbp?: number | null
 ) {
   const session = await getServerSession();
-  assertOwnerAuthorized(session);
+  assertAdminAuthorized(session);
 
   const { getCourseRepo } = await import("@/lib/repositories");
   const repo = getCourseRepo();
@@ -1186,7 +1186,7 @@ export async function updateCourseDetailsAction(
   updates: Record<string, any>
 ) {
   const session = await getServerSession();
-  assertOwnerAuthorized(session);
+  assertAdminAuthorized(session);
 
   const { getCourseRepo } = await import("@/lib/repositories");
   const repo = getCourseRepo();
@@ -1312,7 +1312,7 @@ export async function createAdminTaskAction(data: {
 
 export async function createCourseAction(courseData: any) {
   const session = await getServerSession();
-  assertOwnerAuthorized(session);
+  assertAdminAuthorized(session);
 
   const { getCourseRepo } = await import("@/lib/repositories");
   const repo = getCourseRepo();
@@ -1332,7 +1332,7 @@ export async function createCourseAction(courseData: any) {
 
 export async function deleteCourseAction(courseId: string) {
   const session = await getServerSession();
-  assertOwnerAuthorized(session);
+  assertAdminAuthorized(session);
 
   const { getCourseRepo } = await import("@/lib/repositories");
   const repo = getCourseRepo();

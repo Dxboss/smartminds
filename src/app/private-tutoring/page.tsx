@@ -6,7 +6,7 @@ import { Eyebrow } from "@/components/ui/Eyebrow";
 import { Tag } from "@/components/ui/Tag";
 import { Icon } from "@/components/ui/Icon";
 import { PrivateTutoringForm } from "@/components/forms/PrivateTutoringForm";
-import { getPublishedCmsPageSections, getLiveCourses } from "@/lib/persistedData";
+import { getPublishedCmsPageSections, getLiveCourses, pullLatestFromNeon } from "@/lib/persistedData";
 import { SectionRenderer } from "@/components/cms/SectionRenderer";
 
 export const metadata: Metadata = {
@@ -24,7 +24,11 @@ export const metadata: Metadata = {
   },
 };
 
-export default function PrivateTutoringPage() {
+export default async function PrivateTutoringPage() {
+  try {
+    await pullLatestFromNeon();
+  } catch {}
+
   const customSections = getPublishedCmsPageSections("/private-tutoring");
   if (customSections && customSections.length > 0) {
     const liveCourses = getLiveCourses();
