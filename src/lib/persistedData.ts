@@ -202,13 +202,19 @@ export async function syncStoreSnapshotToNeon(store: PersistedRecordsStore): Pro
     if (!isDbConfigured) return false;
 
     await ensureDbTablesExist();
-    await sql`
-      INSERT INTO system_store (key, value, updated_at)
-      VALUES ('master_records_store', ${JSON.stringify(store)}, now())
-      ON CONFLICT (key) DO UPDATE SET
-        value = EXCLUDED.value,
-        updated_at = now();
-    `;
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Neon syncStoreSnapshot timeout")), 4000)
+    );
+    await Promise.race([
+      sql`
+        INSERT INTO system_store (key, value, updated_at)
+        VALUES ('master_records_store', ${JSON.stringify(store)}, now())
+        ON CONFLICT (key) DO UPDATE SET
+          value = EXCLUDED.value,
+          updated_at = now();
+      `,
+      timeout,
+    ]);
     return true;
   } catch (err) {
     console.warn("[Neon DB] Notice: system_store sync:", err);
@@ -239,9 +245,15 @@ export async function pullLatestFromNeon(force = false): Promise<boolean> {
 
     await ensureDbTablesExist();
 
-    const rows: any = await sql`
-      SELECT value FROM system_store WHERE key = 'master_records_store' LIMIT 1
-    `;
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Neon pullLatest timeout")), 3500)
+    );
+    const rows: any = await Promise.race([
+      sql`
+        SELECT value FROM system_store WHERE key = 'master_records_store' LIMIT 1
+      `,
+      timeout,
+    ]);
 
     if (rows && rows.length > 0 && rows[0]?.value) {
       const dbStore = rows[0].value as PersistedRecordsStore;
@@ -854,7 +866,11 @@ export async function savePersistedCourse(course: any): Promise<void> {
     if (!store.courseOverrides) store.courseOverrides = {};
     store.courseOverrides[course.id] = course;
     const filePath = getStoreFilePath();
-    fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+    try {
+      fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+    } catch (fileErr) {
+      console.warn("[persistedData] Local file write warning:", fileErr);
+    }
     syncPersistedRecords(true);
     lastNeonPullTimestamp = Date.now();
 
@@ -1860,7 +1876,11 @@ export async function saveFacultyToStore(faculty: FacultyRecord): Promise<Facult
     }
 
     const filePath = getStoreFilePath();
-    fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+    try {
+      fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+    } catch (fileErr) {
+      console.warn("[persistedData] Local file write warning:", fileErr);
+    }
     await syncStoreSnapshotToNeon(store);
     return store.faculties;
   } catch (err) {

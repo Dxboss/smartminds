@@ -1171,12 +1171,7 @@ export async function updateCoursePricingAction(
   try {
     revalidatePath("/admin/courses");
     revalidatePath("/courses");
-    revalidatePath(`/courses/${course.slug}`);
-    revalidatePath("/enrol");
-    revalidatePath("/");
-    revalidatePath("/admin/cms");
-    revalidatePath("/cpd");
-    revalidatePath("/book");
+    if (course.slug) revalidatePath(`/courses/${course.slug}`);
   } catch {}
   return { success: true, course: updated };
 }
@@ -1211,15 +1206,10 @@ export async function updateCourseDetailsAction(
   try {
     revalidatePath("/admin/courses");
     revalidatePath("/courses");
-    revalidatePath(`/courses/${existing.slug}`);
+    if (existing.slug) revalidatePath(`/courses/${existing.slug}`);
     if (merged.slug && merged.slug !== existing.slug) {
       revalidatePath(`/courses/${merged.slug}`);
     }
-    revalidatePath("/enrol");
-    revalidatePath("/");
-    revalidatePath("/admin/cms");
-    revalidatePath("/cpd");
-    revalidatePath("/book");
   } catch {}
   return { success: true, course: updated };
 }

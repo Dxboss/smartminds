@@ -41,8 +41,6 @@ export async function POST(req: NextRequest) {
       try {
         revalidatePath("/admin/courses");
         revalidatePath("/courses");
-        revalidatePath("/enrol");
-        revalidatePath("/");
       } catch {}
 
       return NextResponse.json({ success: true, faculties: updatedFaculties });
@@ -53,8 +51,6 @@ export async function POST(req: NextRequest) {
       try {
         revalidatePath("/admin/courses");
         revalidatePath("/courses");
-        revalidatePath("/enrol");
-        revalidatePath("/");
       } catch {}
 
       return NextResponse.json({ success: true, faculties: updatedFaculties });
@@ -70,9 +66,6 @@ export async function POST(req: NextRequest) {
         revalidatePath("/admin/courses");
         revalidatePath("/courses");
         if (merged.slug) revalidatePath(`/courses/${merged.slug}`);
-        revalidatePath(`/courses/${courseId}`);
-        revalidatePath("/enrol");
-        revalidatePath("/");
       } catch {}
 
       return NextResponse.json({ success: true, courseId, course: merged });
