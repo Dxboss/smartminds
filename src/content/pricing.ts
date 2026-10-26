@@ -127,6 +127,9 @@ function roundPence(val: number): number {
  * Examples: 445.5 -> £445.50, 1305 -> £1,305.00
  */
 export function formatCurrency(amount: number): string {
+  if (typeof amount !== "number" || isNaN(amount) || !isFinite(amount)) {
+    return "£0.00";
+  }
   return new Intl.NumberFormat("en-GB", {
     style: "currency",
     currency: "GBP",

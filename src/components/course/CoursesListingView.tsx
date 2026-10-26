@@ -180,15 +180,15 @@ const CoursesListingContent: React.FC<CoursesListingViewProps> = ({
     ];
 
     const extras = new Set<string>();
-    initialCourses.forEach((c) => {
-      if (!canonical.some((s) => s !== "All" && matchesCategory(c, s))) {
-        extras.add(c.category);
+    (initialCourses || []).forEach((c) => {
+      if (c && c.category && !canonical.some((s) => s !== "All" && matchesCategory(c, s))) {
+        extras.add(c.category.trim());
       }
     });
 
     if (initialFaculties && initialFaculties.length > 0) {
       initialFaculties.forEach((f) => {
-        if (!f.name) return;
+        if (!f?.name) return;
         const alreadyExists = canonical.some(
           (s) => s.toLowerCase() === f.name.trim().toLowerCase()
         );
@@ -215,7 +215,8 @@ const CoursesListingContent: React.FC<CoursesListingViewProps> = ({
 
   // 1. Courses matching current Category & Search Query (the base dataset for cascading dependent counts)
   const categoryCourses = useMemo(() => {
-    return initialCourses.filter((course) => {
+    return (initialCourses || []).filter((course) => {
+      if (!course) return false;
       if (selectedCategory !== "All" && !matchesCategory(course, selectedCategory)) {
         return false;
       }
@@ -226,7 +227,7 @@ const CoursesListingContent: React.FC<CoursesListingViewProps> = ({
         const matchesCategoryName = (course.category || "").toLowerCase().includes(query);
         const matchesAwarding = (course.awarding_body || "").toLowerCase().includes(query);
         const matchesLevel = (course.levels || []).some((l) =>
-          l.level_label.toLowerCase().includes(query)
+          (l?.level_label || "").toLowerCase().includes(query)
         );
         if (!matchesTitle && !matchesSummary && !matchesCategoryName && !matchesAwarding && !matchesLevel) {
           return false;
@@ -244,7 +245,7 @@ const CoursesListingContent: React.FC<CoursesListingViewProps> = ({
       const count = categoryCourses.filter((c) => {
         if (selectedType !== "All" && c.type !== selectedType) return false;
         return (c.levels || []).some((l) =>
-          l.level_label.toLowerCase().includes(lvl.toLowerCase())
+          (l?.level_label || "").toLowerCase().includes(lvl.toLowerCase())
         );
       }).length;
       counts[lvl] = count;
@@ -260,7 +261,7 @@ const CoursesListingContent: React.FC<CoursesListingViewProps> = ({
       const count = categoryCourses.filter((c) => {
         if (selectedLevel !== "All") {
           const hasLevel = (c.levels || []).some((l) =>
-            l.level_label.toLowerCase().includes(selectedLevel.toLowerCase())
+            (l?.level_label || "").toLowerCase().includes(selectedLevel.toLowerCase())
           );
           if (!hasLevel) return false;
         }
@@ -310,7 +311,7 @@ const CoursesListingContent: React.FC<CoursesListingViewProps> = ({
       // Qualification Level filter
       if (selectedLevel !== "All") {
         const hasLevel = (course.levels || []).some((l) =>
-          l.level_label.toLowerCase().includes(selectedLevel.toLowerCase())
+          (l?.level_label || "").toLowerCase().includes(selectedLevel.toLowerCase())
         );
         if (!hasLevel) return false;
       }
@@ -323,7 +324,7 @@ const CoursesListingContent: React.FC<CoursesListingViewProps> = ({
         const matchesCategoryName = (course.category || "").toLowerCase().includes(query);
         const matchesAwarding = (course.awarding_body || "").toLowerCase().includes(query);
         const matchesLevel = (course.levels || []).some((l) =>
-          l.level_label.toLowerCase().includes(query)
+          (l?.level_label || "").toLowerCase().includes(query)
         );
 
         if (!matchesTitle && !matchesSummary && !matchesCategoryName && !matchesAwarding && !matchesLevel) {

@@ -34,7 +34,7 @@ import type { Course } from "@/content/types";
 import { EditableElementWrapper } from "@/components/admin/EditableElementWrapper";
 import { siteConfig } from "@/content/siteConfig";
 import { formatCurrency } from "@/content";
-import { DEFAULT_COLLEGE_FACULTIES } from "@/content/faculties";
+import { DEFAULT_COLLEGE_FACULTIES, type FacultyRecord } from "@/content/faculties";
 import { CoursesListingView } from "@/components/course/CoursesListingView";
 import { GeneralContactForm } from "@/components/forms/GeneralContactForm";
 import { FundedEligibilityForm } from "@/components/forms/FundedEligibilityForm";
@@ -45,6 +45,7 @@ interface Props {
   section: BuilderSection;
   isEditor?: boolean;
   courses?: Course[];
+  faculties?: FacultyRecord[];
   selectedElementKey?:
     | "headline"
     | "subheadline"
@@ -569,6 +570,7 @@ export const SectionRenderer: React.FC<Props> = ({
   section,
   isEditor = false,
   courses,
+  faculties,
   selectedElementKey,
   selectedElementItemIndex,
   onSelectElement,
@@ -1338,13 +1340,16 @@ export const SectionRenderer: React.FC<Props> = ({
 
     case "courses_listing": {
       const listingCourses = courses && courses.length > 0 ? courses : [];
-      const faculties = DEFAULT_COLLEGE_FACULTIES;
+      const listingFaculties =
+        faculties && faculties.length > 0
+          ? faculties
+          : DEFAULT_COLLEGE_FACULTIES;
 
       return (
         <section className="bg-paper min-h-screen">
           <CoursesListingView
             initialCourses={listingCourses}
-            initialFaculties={faculties}
+            initialFaculties={listingFaculties}
             customHeadline={section.headline}
             customSubheadline={section.subheadline}
             isEditor={isEditor}
@@ -1805,19 +1810,6 @@ export const SectionRenderer: React.FC<Props> = ({
             </div>
           </Container>
         </section>
-      );
-    }
-
-    case "courses_listing": {
-      return (
-        <CoursesListingView
-          initialCourses={courses || []}
-          initialFaculties={DEFAULT_COLLEGE_FACULTIES}
-          customHeadline={section.headline}
-          customSubheadline={section.subheadline}
-          isEditor={isEditor}
-          onSelectElement={onSelectElement as any}
-        />
       );
     }
 

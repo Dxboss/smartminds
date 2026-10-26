@@ -106,13 +106,15 @@ export const CourseCard: React.FC<CourseCardProps> = ({
   headingLevel = "h3",
   priority = false,
 }) => {
-  const lowestLevel = course.levels[0];
-  const primaryPlan = lowestLevel?.plans[0] || defaultPlan6Months;
+  const lowestLevel = course.levels?.[0];
+  const primaryPlan = lowestLevel?.plans?.[0] || defaultPlan6Months;
   const pricing = lowestLevel
     ? calculatePricing(lowestLevel, primaryPlan, globalSettings)
     : null;
 
-  const levelLabels = course.levels.map((l) => l.level_label);
+  const levelLabels = (course.levels || [])
+    .map((l) => l?.level_label || "")
+    .filter(Boolean);
   const levelRange =
     levelLabels.length > 1
       ? `${levelLabels[0]} – ${levelLabels[levelLabels.length - 1]}`
@@ -120,6 +122,11 @@ export const CourseCard: React.FC<CourseCardProps> = ({
 
   const HeadingTag = headingLevel;
   const photoSrc = getCourseImage(course);
+  const isCustomOrData =
+    photoSrc.startsWith("data:") ||
+    photoSrc.startsWith("http://") ||
+    photoSrc.startsWith("https://") ||
+    photoSrc.startsWith("/uploads/");
 
   return (
     <article className="group bg-white rounded-2xl border border-line shadow-[0_4px_20px_rgba(0,0,0,0.06)] hover:shadow-xl hover:border-teal-300/80 transition-all duration-300 flex flex-col justify-between overflow-hidden p-3.5 sm:p-4 h-full">
@@ -133,6 +140,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
             priority={priority}
             loading={priority ? "eager" : undefined}
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 380px"
+            unoptimized={isCustomOrData}
             className="object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
           />
 
@@ -214,7 +222,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
           <div className="min-w-0 pr-1">
             <div className="flex items-baseline gap-1.5 flex-wrap">
               <span className="font-heading font-extrabold text-xl sm:text-2xl text-[#FF5722] leading-none block whitespace-nowrap">
-                {course.levels.length > 1 ? "From " : ""}
+                {course.levels && course.levels.length > 1 ? "From " : ""}
                 {formatCurrency(pricing.sellingPrice)}
               </span>
               {pricing.hasPriceSlash && (
