@@ -15,13 +15,15 @@ export const MobileBottomBar: React.FC = () => {
   const { openBooking } = useBooking();
   const pathname = usePathname();
 
-  // Hide mobile action bar inside authenticated portals
+  // Hide generic mobile action bar inside authenticated portals and on individual course pages
+  // (Individual course pages have their own dedicated sticky Enrolment & Pricing action bar)
   if (
     pathname.startsWith("/portal") ||
     pathname.startsWith("/admin") ||
     pathname.startsWith("/staff") ||
     pathname.startsWith("/student") ||
-    pathname.startsWith("/super")
+    pathname.startsWith("/super") ||
+    (pathname.startsWith("/courses/") && pathname !== "/courses")
   ) {
     return null;
   }

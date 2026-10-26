@@ -75,6 +75,22 @@ export const CoursePricingPanel: React.FC<CoursePricingPanelProps> = ({
   const hasFundingOption =
     course.funding === "both" || course.funding === "funded";
 
+  const discountPercent =
+    selectedLevel.full_pay_discount_percent !== null &&
+    selectedLevel.full_pay_discount_percent !== undefined
+      ? selectedLevel.full_pay_discount_percent
+      : globalSettings.default_full_pay_discount_percent;
+
+  const enrolParams = new URLSearchParams({
+    course: course.id,
+    level: selectedLevel.level_label,
+    mode: paymentMode,
+  });
+  if (activePlan?.id) {
+    enrolParams.set("plan", activePlan.id);
+  }
+  const enrolHref = `/enrol?${enrolParams.toString()}`;
+
   const renderContent = () => {
     // 1. If Funded Only: NO pay buttons per PRD 10.4 & Done When criteria
     if (isFundedOnly) {
@@ -380,44 +396,23 @@ export const CoursePricingPanel: React.FC<CoursePricingPanelProps> = ({
 
         {/* Open Enrolment CTA Button */}
         <div className="pt-4 border-t border-line space-y-3">
-          {(() => {
-            const enrolParams = new URLSearchParams({
-              course: course.id,
-              level: selectedLevel.level_label,
-              mode: paymentMode,
-            });
-            if (activePlan?.id) {
-              enrolParams.set("plan", activePlan.id);
-            }
-            const enrolHref = `/enrol?${enrolParams.toString()}`;
-            const discountPercent =
-              selectedLevel.full_pay_discount_percent !== null &&
-              selectedLevel.full_pay_discount_percent !== undefined
-                ? selectedLevel.full_pay_discount_percent
-                : globalSettings.default_full_pay_discount_percent;
+          <Link
+            href={enrolHref}
+            className="w-full inline-flex items-center justify-center min-h-[46px] px-5 rounded-xl bg-gold-500 hover:bg-gold-700 text-white font-heading font-extrabold text-base tracking-wide transition-all text-center shadow-subtle hover:shadow-card"
+          >
+            Enrol &amp; Secure Your Place &rarr;
+          </Link>
 
-            return (
-              <>
-                <Link
-                  href={enrolHref}
-                  className="w-full inline-flex items-center justify-center min-h-[46px] px-5 rounded-xl bg-gold-500 hover:bg-gold-700 text-white font-heading font-extrabold text-base tracking-wide transition-all text-center shadow-subtle hover:shadow-card"
-                >
-                  Enrol &amp; Secure Your Place &rarr;
-                </Link>
+          <BookingCTAButton variant="outline" size="md" className="w-full">
+            Talk to an adviser
+          </BookingCTAButton>
 
-                <BookingCTAButton variant="outline" size="md" className="w-full">
-                  Talk to an adviser
-                </BookingCTAButton>
-
-                <p className="text-center text-[11px] text-ink-soft">
-                  Online enrolment is open. Secure your place now
-                  {discountPercent > 0
-                    ? ` with ${discountPercent}% upfront savings or 0% interest instalments.`
-                    : " with flexible 0% interest instalments."}
-                </p>
-              </>
-            );
-          })()}
+          <p className="text-center text-[11px] text-ink-soft">
+            Online enrolment is open. Secure your place now
+            {discountPercent > 0
+              ? ` with ${discountPercent}% upfront savings or 0% interest instalments.`
+              : " with flexible 0% interest instalments."}
+          </p>
         </div>
       </div>
     );
@@ -425,10 +420,10 @@ export const CoursePricingPanel: React.FC<CoursePricingPanelProps> = ({
 
   return (
     <>
-      {/* Desktop Sticky Panel */}
+      {/* Course Pricing Panel (Sticky on desktop, full-width card on tablet & mobile) */}
       <aside
         aria-label="Course pricing and enrolment options"
-        className="hidden lg:block bg-white rounded-lg border border-line p-6 shadow-subtle sticky top-24 space-y-4"
+        className="bg-white rounded-2xl border border-line p-5 sm:p-6 shadow-subtle lg:sticky lg:top-24 space-y-4"
       >
         <div className="border-b border-line pb-4 flex items-center justify-between">
           <div>
@@ -445,39 +440,65 @@ export const CoursePricingPanel: React.FC<CoursePricingPanelProps> = ({
         {renderContent()}
       </aside>
 
-      {/* Mobile Sticky Bottom Bar per PRD 10.3 */}
-      <div className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-line p-3 shadow-lg flex items-center justify-between gap-3">
-        <div>
-          <span className="text-[10px] uppercase font-mono text-ink-soft block">
-            {selectedLevel.level_label} Pricing
-          </span>
-          <div className="flex items-baseline gap-1.5 flex-wrap">
-            <span className="font-heading font-bold text-lg text-navy-900 leading-none">
-              {isFundedOnly
-                ? "Funded (£0.00)"
-                : formatCurrency(pricing.sellingPrice)}
+      {/* Mobile & Tablet Sticky Bottom Action Bar per PRD 10.3 */}
+      <div className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-line px-4 py-2.5 pb-[calc(0.65rem+env(safe-area-inset-bottom))] shadow-[0_-4px_25px_rgba(0,0,0,0.12)]">
+        <div className="max-w-xl mx-auto flex items-center justify-between gap-3">
+          {/* Price summary - tap to view full breakdown sheet */}
+          <button
+            type="button"
+            onClick={() => setMobileSheetOpen(true)}
+            className="text-left group focus:outline-none"
+            aria-label="View payment breakdown and instalment options"
+          >
+            <span className="text-[10px] uppercase font-mono text-ink-soft flex items-center gap-1">
+              <span>{selectedLevel.level_label}</span>
+              <span className="text-navy-700 underline font-semibold group-hover:text-gold-700">Plans &rarr;</span>
             </span>
-            {!isFundedOnly && pricing.hasPriceSlash && (
-              <span className="text-xs line-through text-ink-soft">
-                {formatCurrency(pricing.regularPrice)}
+            <div className="flex items-baseline gap-1.5 flex-wrap">
+              <span className="font-heading font-extrabold text-lg sm:text-xl text-navy-900 leading-none">
+                {isFundedOnly
+                  ? "Funded (£0.00)"
+                  : paymentMode === "full"
+                  ? formatCurrency(pricing.fullPayPrice)
+                  : `${formatCurrency(pricing.deposit)} dep + ${pricing.months}mo`}
               </span>
+              {!isFundedOnly && pricing.hasPriceSlash && (
+                <span className="text-xs line-through text-ink-soft/75">
+                  {formatCurrency(pricing.regularPrice)}
+                </span>
+              )}
+            </div>
+          </button>
+
+          {/* Action CTAs */}
+          <div className="flex items-center gap-2">
+            {!isFundedOnly && (
+              <button
+                type="button"
+                onClick={() => setMobileSheetOpen(true)}
+                className="hidden sm:inline-flex items-center justify-center min-h-[42px] px-3 rounded-lg border border-line bg-paper text-navy-900 font-heading font-bold text-xs hover:bg-white transition-colors"
+              >
+                Choose Plan
+              </button>
             )}
-            {!isFundedOnly && pricing.saving > 0 && (
-              <span className="text-[11px] text-emerald-700 font-semibold">
-                ({formatCurrency(pricing.fullPayPrice)} upfront)
-              </span>
+
+            {isFundedOnly ? (
+              <Link
+                href="/funding"
+                className="inline-flex items-center justify-center min-h-[44px] px-5 rounded-xl bg-navy-900 hover:bg-navy-700 text-white font-heading font-bold text-sm tracking-wide transition-all shadow-sm active:scale-95"
+              >
+                Check Funding &rarr;
+              </Link>
+            ) : (
+              <Link
+                href={enrolHref}
+                className="inline-flex items-center justify-center min-h-[44px] px-5 sm:px-6 rounded-xl bg-gold-500 hover:bg-gold-700 text-white font-heading font-extrabold text-sm sm:text-base tracking-wide transition-all shadow-subtle hover:shadow-card active:scale-95"
+              >
+                Enrol Now &rarr;
+              </Link>
             )}
           </div>
         </div>
-
-        <button
-          type="button"
-          onClick={() => setMobileSheetOpen(true)}
-          className="min-h-[44px] px-5 rounded-sm bg-navy-900 text-white font-heading font-bold text-sm flex items-center gap-1.5 shadow-sm"
-        >
-          <span>View pricing & plans</span>
-          <Icon name="chevron-down" size={15} />
-        </button>
       </div>
 
       {/* Mobile Bottom Sheet Modal */}
@@ -486,9 +507,13 @@ export const CoursePricingPanel: React.FC<CoursePricingPanelProps> = ({
           role="dialog"
           aria-modal="true"
           aria-label="Course pricing panel"
-          className="lg:hidden fixed inset-0 z-50 flex items-end justify-center bg-ink/60 backdrop-blur-xs"
+          className="lg:hidden fixed inset-0 z-50 flex items-end justify-center bg-ink/60 backdrop-blur-xs animate-in fade-in duration-200"
+          onClick={() => setMobileSheetOpen(false)}
         >
-          <div className="bg-white rounded-t-lg border-t border-line w-full max-h-[85vh] overflow-y-auto p-6 space-y-4 shadow-2xl">
+          <div
+            className="bg-white rounded-t-2xl border-t border-line w-full max-h-[88vh] overflow-y-auto p-5 sm:p-6 space-y-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between pb-3 border-b border-line">
               <div>
                 <span className="text-xs font-mono uppercase tracking-wider text-ink-soft block">

@@ -31,7 +31,7 @@ export const CourseDetailClient: React.FC<CourseDetailClientProps> = ({
   const selectedLevel = course.levels[selectedLevelIndex] || course.levels[0];
 
   return (
-    <div className="bg-paper py-8 md:py-14 pb-24 lg:pb-16 min-h-screen">
+    <div className="bg-paper py-8 md:py-14 pb-32 lg:pb-16 min-h-screen">
       <Container>
         {/* Header Block */}
         <CourseHeader course={course} />
@@ -83,7 +83,7 @@ export const CourseDetailClient: React.FC<CourseDetailClientProps> = ({
           </div>
 
           {/* Right Column: Sticky Pricing Panel per PRD 10.3 & 10.4 */}
-          <div className="lg:col-span-4">
+          <div id="pricing" className="lg:col-span-4 scroll-mt-24">
             {selectedLevel && (
               <CoursePricingPanel
                 course={course}
