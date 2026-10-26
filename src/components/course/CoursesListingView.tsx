@@ -9,7 +9,7 @@ import { Container } from "@/components/ui/Container";
 import { Icon } from "@/components/ui/Icon";
 import { Button } from "@/components/ui/Button";
 
-import type { FacultyRecord } from "@/content/faculties";
+import { type FacultyRecord, DEFAULT_COLLEGE_FACULTIES } from "@/content/faculties";
 
 interface CoursesListingViewProps {
   initialCourses: Course[];
@@ -153,6 +153,39 @@ const CoursesListingContent: React.FC<CoursesListingViewProps> = ({
   const [selectedLevel, setSelectedLevel] = useState<string>("All");
   const [searchQuery, setSearchQuery] = useState<string>("");
 
+  // Categories list sourced directly from faculties configured on Course & Prices
+  const categories = useMemo(() => {
+    const result: string[] = ["All"];
+
+    // 1. Primary source: Academic Faculties from Course & Prices
+    const sourceFaculties =
+      initialFaculties && initialFaculties.length > 0
+        ? initialFaculties
+        : DEFAULT_COLLEGE_FACULTIES;
+
+    sourceFaculties.forEach((f) => {
+      if (!f?.name) return;
+      const name = f.name.trim();
+      if (!result.some((r) => r.toLowerCase() === name.toLowerCase())) {
+        result.push(name);
+      }
+    });
+
+    // 2. Extra course categories that are not covered by any existing faculty
+    (initialCourses || []).forEach((c) => {
+      if (!c?.category) return;
+      const cat = c.category.trim();
+      const matchesAnyFaculty = result.some(
+        (r) => r !== "All" && matchesCategory(c, r)
+      );
+      if (!matchesAnyFaculty && !result.some((r) => r.toLowerCase() === cat.toLowerCase())) {
+        result.push(cat);
+      }
+    });
+
+    return result;
+  }, [initialCourses, initialFaculties]);
+
   // Sync with URL query parameters (e.g. /courses?category=Health+%26+Social+Care&level=Level+3)
   useEffect(() => {
     if (!searchParams) return;
@@ -161,45 +194,18 @@ const CoursesListingContent: React.FC<CoursesListingViewProps> = ({
     const levelParam = searchParams.get("level");
     const queryParam = searchParams.get("q") || searchParams.get("search");
 
-    if (catParam) setSelectedCategory(catParam);
+    if (catParam) {
+      const matched = categories.find(
+        (c) =>
+          c.toLowerCase() === catParam.toLowerCase() ||
+          (c !== "All" && matchesCategory({ category: catParam, title: "", type: "regulated" } as any, c))
+      );
+      setSelectedCategory(matched || catParam);
+    }
     if (typeParam) setSelectedType(typeParam);
     if (levelParam) setSelectedLevel(levelParam);
     if (queryParam) setSearchQuery(queryParam);
-  }, [searchParams]);
-
-  // Categories list (consolidated canonical sectors + any custom faculties without duplicates)
-  const categories = useMemo(() => {
-    const canonical = [
-      "All",
-      "Health & Social Care",
-      "Childcare & Early Years",
-      "Education & Teaching",
-      "Business & Management",
-      "CPD & Compliance",
-      "Academic Tutoring",
-    ];
-
-    const extras = new Set<string>();
-    (initialCourses || []).forEach((c) => {
-      if (c && c.category && !canonical.some((s) => s !== "All" && matchesCategory(c, s))) {
-        extras.add(c.category.trim());
-      }
-    });
-
-    if (initialFaculties && initialFaculties.length > 0) {
-      initialFaculties.forEach((f) => {
-        if (!f?.name) return;
-        const alreadyExists = canonical.some(
-          (s) => s.toLowerCase() === f.name.trim().toLowerCase()
-        );
-        if (!alreadyExists) {
-          extras.add(f.name.trim());
-        }
-      });
-    }
-
-    return [...canonical, ...Array.from(extras)];
-  }, [initialCourses, initialFaculties]);
+  }, [searchParams, categories]);
 
   const levels = useMemo(() => ["All", "Level 2", "Level 3", "Level 4", "Level 5"], []);
 

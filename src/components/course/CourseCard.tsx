@@ -222,7 +222,6 @@ export const CourseCard: React.FC<CourseCardProps> = ({
           <div className="min-w-0 pr-1">
             <div className="flex items-baseline gap-1.5 flex-wrap">
               <span className="font-heading font-extrabold text-xl sm:text-2xl text-[#FF5722] leading-none block whitespace-nowrap">
-                {course.levels && course.levels.length > 1 ? "From " : ""}
                 {formatCurrency(pricing.sellingPrice)}
               </span>
               {pricing.hasPriceSlash && (
