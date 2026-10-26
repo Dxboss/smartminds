@@ -7,6 +7,7 @@ import {
   defaultPlan14Months,
   standardPaymentPlans,
   level5PaymentPlans,
+  tutoringPaymentPlans,
 } from "./plans";
 
 export const courses: Course[] = [
@@ -308,9 +309,9 @@ export const courses: Course[] = [
   {
     id: "course-childcare-ey",
     slug: "diploma-early-years-educator",
-    title: "Level 3 Diploma for the Early Years Educator",
+    title: "Level 3 – Level 5 Diploma for Early Years Educators & Senior Practitioners",
     summary:
-      "Fully recognised Early Years Educator qualification conferring full licence-to-practise status in nurseries and pre-schools.",
+      "Fully recognised Early Years Educator & Senior Practitioner qualification conferring full licence-to-practise status in nurseries and pre-schools.",
     description:
       "Develop deep expertise in child development from birth to 5 years, early years curriculum planning, safeguarding, and partnership working with parents. Combines live theoretical instruction with workplace observational practice.",
     category: "Childcare & Education",
@@ -323,7 +324,7 @@ export const courses: Course[] = [
     assessment_method: "criteria",
     funding: "both",
     funding_notes:
-      "Free funding available via AEB & NSF for eligible applicants, or flexible monthly instalments over 12 months at 0% interest.",
+      "Free funding available via AEB & NSF for eligible applicants, or flexible monthly instalments over 12–14 months at 0% interest.",
     intro_video_url: null,
     free_textbook: true,
     faqs: [
@@ -350,17 +351,17 @@ export const courses: Course[] = [
     ],
     image: "/images/hero-learner.jpg",
     imageAlt: "Early years childcare practitioner in modern education setting",
-    seo_title: "Level 3 Diploma for the Early Years Educator | Smartminds",
+    seo_title: "Level 3 & Level 5 Diploma for Early Years Educators | Smartminds",
     seo_description:
-      "Gain your full licence to practise in nurseries and pre-schools with our Level 3 Early Years Educator diploma.",
+      "Gain your full licence to practise in nurseries and pre-schools with our Level 3 & Level 5 Early Years Educator diplomas.",
     custom_delivery_text: "Blended Learning (Live Classes)",
     published: true,
     levels: [
       {
         course_id: "course-childcare-ey",
         level_label: "Level 3",
-        price_gbp: 1600,
-        regular_price_gbp: 2100,
+        price_gbp: 1450,
+        regular_price_gbp: 1600,
         full_pay_discount_percent: 5,
         duration_text: "6 – 12 months",
         guided_learning_hours: 864,
@@ -391,6 +392,48 @@ export const courses: Course[] = [
           },
         ],
         plans: standardPaymentPlans,
+      },
+      {
+        course_id: "course-childcare-ey",
+        level_label: "Level 5",
+        price_gbp: 2500,
+        regular_price_gbp: 2800,
+        full_pay_discount_percent: 5,
+        duration_text: "12 – 18 months",
+        guided_learning_hours: 1040,
+        entry_requirements: [
+          "Working or volunteering in an early years setting at supervisory or room leader level",
+          "Hold a Level 3 childcare qualification or substantial practical experience",
+          "Enhanced DBS check",
+        ],
+        units: [
+          {
+            code: "EYP-01",
+            title: "Promoting Child Development in Early Years Practice",
+            credits: 8,
+          },
+          {
+            code: "EYP-02",
+            title: "Professional Practice and Leadership in Early Years Settings",
+            credits: 10,
+          },
+          {
+            code: "EYP-03",
+            title: "Safeguarding, Protection and Welfare of Children",
+            credits: 8,
+          },
+          {
+            code: "EYP-04",
+            title: "Promoting Inclusive Practice and Equality in Early Years",
+            credits: 6,
+          },
+          {
+            code: "EYP-05",
+            title: "Working in Partnership with Parents and Multidisciplinary Teams",
+            credits: 8,
+          },
+        ],
+        plans: level5PaymentPlans,
       },
     ],
   },
@@ -1549,9 +1592,18 @@ export const courses: Course[] = [
       "Targeted one-on-one sessions tailored to your child's specific exam board (AQA, Edexcel, OCR). We identify learning gaps, teach core techniques, and provide regular structured progress feedback to parents.",
     category: "Private Tutoring",
     type: "tutoring",
-    delivery: "live_online",
-    attendance_type: "online_only",
+    delivery: "blended",
+    attendance_type: "physical_venue",
     is_private_tutoring: true,
+    custom_delivery_text: "Face-to-Face at Centre & Online",
+    training_locations: [
+      "Gloucester College Centre (Face-to-Face)",
+      "Live 1-on-1 Online Interactive",
+      "Home Study (Upon Request)",
+    ],
+    intake_text: "After-School & Weekend Sessions (Thurs/Fri 4–6pm, Sat 9am–3pm)",
+    assessment_model_text: "Continuous 1-on-1 Progress Review (No Portfolio)",
+    support_model_text: "Dedicated DBS-Checked Subject Tutor",
     session_duration_info:
       "Session lasts 60 mins + 15 mins variable extra time (depending on learner's speed & topic) + self-assessment period of up to 30 mins (free & optional).",
     start_mode: "rolling",
@@ -1619,7 +1671,7 @@ export const courses: Course[] = [
             title: "Number Bonds, Addition, Subtraction & Early Maths Confidence",
           },
         ],
-        plans: standardPaymentPlans,
+        plans: tutoringPaymentPlans,
       },
       {
         course_id: "course-tutoring-children",
@@ -1643,7 +1695,7 @@ export const courses: Course[] = [
             title: "Multiplication Tables, Fractions & Mental Arithmetic",
           },
         ],
-        plans: standardPaymentPlans,
+        plans: tutoringPaymentPlans,
       },
       {
         course_id: "course-tutoring-children",
@@ -1667,7 +1719,7 @@ export const courses: Course[] = [
             title: "Decimals, Percentages & Word Problem Solving",
           },
         ],
-        plans: standardPaymentPlans,
+        plans: tutoringPaymentPlans,
       },
       {
         course_id: "course-tutoring-children",
@@ -1691,7 +1743,7 @@ export const courses: Course[] = [
             title: "Mathematical Reasoning & Problem Solving",
           },
         ],
-        plans: standardPaymentPlans,
+        plans: tutoringPaymentPlans,
       },
       {
         course_id: "course-tutoring-children",
@@ -1715,7 +1767,7 @@ export const courses: Course[] = [
             title: "Algebra Foundations, Geometry & Proportional Reasoning",
           },
         ],
-        plans: standardPaymentPlans,
+        plans: tutoringPaymentPlans,
       },
       {
         course_id: "course-tutoring-children",
@@ -1739,7 +1791,7 @@ export const courses: Course[] = [
             title: "Equations, Graphs, Probability & Scientific Principles",
           },
         ],
-        plans: standardPaymentPlans,
+        plans: tutoringPaymentPlans,
       },
       {
         course_id: "course-tutoring-children",
@@ -1763,7 +1815,7 @@ export const courses: Course[] = [
             title: "Higher & Foundation GCSE Mathematics Transition",
           },
         ],
-        plans: standardPaymentPlans,
+        plans: tutoringPaymentPlans,
       },
       {
         course_id: "course-tutoring-children",
@@ -1787,7 +1839,7 @@ export const courses: Course[] = [
             title: "Grade 7–9 Exam Techniques & Core Curriculum Mastery",
           },
         ],
-        plans: standardPaymentPlans,
+        plans: tutoringPaymentPlans,
       },
       {
         course_id: "course-tutoring-children",
@@ -1811,7 +1863,7 @@ export const courses: Course[] = [
             title: "University Entry & High-Tariff Grade Target Preparation",
           },
         ],
-        plans: standardPaymentPlans,
+        plans: tutoringPaymentPlans,
       },
       {
         course_id: "course-tutoring-children",
@@ -1831,7 +1883,7 @@ export const courses: Course[] = [
             title: "GL Assessment & CEM Examination Technique",
           },
         ],
-        plans: standardPaymentPlans,
+        plans: tutoringPaymentPlans,
       },
       {
         course_id: "course-tutoring-children",
@@ -1850,7 +1902,7 @@ export const courses: Course[] = [
             title: "Adult Literacy & Numeracy Skill Re-entry",
           },
         ],
-        plans: standardPaymentPlans,
+        plans: tutoringPaymentPlans,
       },
     ],
   },

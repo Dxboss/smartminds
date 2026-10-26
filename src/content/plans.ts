@@ -73,6 +73,40 @@ export const level5PaymentPlans: PaymentPlanTemplate[] = [
 ];
 
 /**
+ * Dedicated term-based payment plans for 1-on-1 Children's Tutoring (12-Week Term):
+ * Full Term, 2 Payments (every 6 weeks), or 3 Monthly Payments.
+ */
+export const tutoringPaymentPlans: PaymentPlanTemplate[] = [
+  {
+    id: "plan-1m",
+    name: "Full Term (12 Weeks)",
+    months: 1,
+    deposit_type: "percent",
+    deposit_value: 100,
+    grace_days: 7,
+    after_grace: "pause_access",
+  },
+  {
+    id: "plan-2m",
+    name: "2 Instalments (Every 6 Weeks)",
+    months: 2,
+    deposit_type: "percent",
+    deposit_value: 50,
+    grace_days: 7,
+    after_grace: "pause_access",
+  },
+  {
+    id: "plan-3m",
+    name: "3 Monthly Payments (Term Length)",
+    months: 3,
+    deposit_type: "fixed",
+    deposit_value: 50,
+    grace_days: 7,
+    after_grace: "pause_access",
+  },
+];
+
+/**
  * Extracts the numeric qualification level from a level label (e.g. "Level 5 Diploma" -> 5).
  * Defaults to 3 if not specified or unparseable.
  */

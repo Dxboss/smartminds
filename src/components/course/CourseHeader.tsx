@@ -15,6 +15,11 @@ export const CourseHeader: React.FC<CourseHeaderProps> = ({ course }) => {
   const customTextColor = resolveItemColor(course.banner_text_color);
   const customAccent = resolveItemColor(course.accent_color) || (isDark ? "#D9B84A" : "#23216B");
 
+  const isTutoring =
+    course.is_private_tutoring ||
+    course.type === "tutoring" ||
+    course.id.toLowerCase().includes("tutoring");
+
   return (
     <div
       className={`space-y-5 transition-all ${
@@ -55,6 +60,8 @@ export const CourseHeader: React.FC<CourseHeaderProps> = ({ course }) => {
           <span>
             {course.type === "regulated"
               ? "Ofqual Regulated Qualification (RQF)"
+              : isTutoring
+              ? "1-on-1 Academic Tutoring (Primary to A-Levels)"
               : "CPD Accredited Certificate"}
           </span>
         </span>
@@ -124,7 +131,7 @@ export const CourseHeader: React.FC<CourseHeaderProps> = ({ course }) => {
         </p>
       </div>
 
-      {/* Live Online Delivery Format Specification Bar */}
+      {/* Delivery Format Specification Bar */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
         <div
           className={`p-3.5 rounded-md border shadow-xs ${
@@ -138,7 +145,9 @@ export const CourseHeader: React.FC<CourseHeaderProps> = ({ course }) => {
           </span>
           <strong className={`text-xs sm:text-sm font-heading font-bold block leading-tight truncate ${isDark ? "text-white" : "text-navy-900"}`}>
             {course.custom_delivery_text ||
-              (course.attendance_type === "physical_venue" || course.delivery === "classroom"
+              (isTutoring
+                ? "Centre & Online"
+                : course.attendance_type === "physical_venue" || course.delivery === "classroom"
                 ? "Physical Campus / Venue"
                 : course.delivery === "blended"
                 ? "Blended Learning"
@@ -149,6 +158,8 @@ export const CourseHeader: React.FC<CourseHeaderProps> = ({ course }) => {
           <span className={`text-[11px] mt-0.5 block truncate ${isDark ? "text-white/70" : "text-ink-soft"}`}>
             {course.custom_delivery_text
               ? "Tutor-led interactive schedule"
+              : isTutoring
+              ? "Gloucester Centre or Live 1-on-1 Online"
               : course.attendance_type === "physical_venue" || course.delivery === "classroom"
               ? "On-site face-to-face tuition & lab training"
               : course.delivery === "blended"
@@ -170,10 +181,14 @@ export const CourseHeader: React.FC<CourseHeaderProps> = ({ course }) => {
             Intake & Start
           </span>
           <strong className={`text-xs sm:text-sm font-heading font-bold block leading-tight truncate ${isDark ? "text-white" : "text-navy-900"}`}>
-            {course.intake_text || "Rolling Admissions"}
+            {course.intake_text || (isTutoring ? "After-School & Weekend Sessions" : "Rolling Admissions")}
           </strong>
           <span className={`text-[11px] mt-0.5 block truncate ${isDark ? "text-white/70" : "text-ink-soft"}`}>
-            {course.intake_text ? "Enrolling Active Cohorts" : "Autumn 2026 Cohorts Enrolling"}
+            {course.intake_text
+              ? "Active Cohorts Enrolling"
+              : isTutoring
+              ? "Thurs/Fri 4–6pm & Sat morning/afternoon"
+              : "Autumn 2026 Cohorts Enrolling"}
           </span>
         </div>
 
@@ -188,10 +203,15 @@ export const CourseHeader: React.FC<CourseHeaderProps> = ({ course }) => {
             Assessment Model
           </span>
           <strong className={`text-xs sm:text-sm font-heading font-bold block leading-tight truncate ${isDark ? "text-white" : "text-navy-900"}`}>
-            {course.assessment_model_text || "100% Portfolio Based"}
+            {course.assessment_model_text ||
+              (isTutoring ? "Continuous Progress Review" : "100% Portfolio Based")}
           </strong>
           <span className={`text-[11px] mt-0.5 block truncate ${isDark ? "text-white/70" : "text-ink-soft"}`}>
-            {course.assessment_model_text ? "Coursework & Tutor Review" : "No formal written exams"}
+            {course.assessment_model_text
+              ? course.assessment_model_text
+              : isTutoring
+              ? "Topic drills & past papers (No Portfolio)"
+              : "Coursework & Tutor Review"}
           </span>
         </div>
 
@@ -206,10 +226,15 @@ export const CourseHeader: React.FC<CourseHeaderProps> = ({ course }) => {
             Dedicated Support
           </span>
           <strong className={`text-xs sm:text-sm font-heading font-bold block leading-tight truncate ${isDark ? "text-white" : "text-navy-900"}`}>
-            {course.support_model_text || "Named British Assessor"}
+            {course.support_model_text ||
+              (isTutoring ? "Enhanced DBS-Checked Tutor" : "Named British Assessor")}
           </strong>
           <span className={`text-[11px] mt-0.5 block truncate ${isDark ? "text-white/70" : "text-ink-soft"}`}>
-            {course.support_model_text ? "Assessor-led guidance" : "1-to-1 tutorials & fast marking"}
+            {course.support_model_text
+              ? course.support_model_text
+              : isTutoring
+              ? "Personal 1-on-1 coaching & parent updates"
+              : "1-to-1 tutorials & fast marking"}
           </span>
         </div>
       </div>

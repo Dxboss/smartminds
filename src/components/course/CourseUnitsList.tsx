@@ -76,6 +76,31 @@ const getUnitDetails = (code: string, title: string) => {
     };
   }
 
+  if (
+    code.startsWith("TUT") ||
+    code.includes("Y1") ||
+    code.includes("Y4") ||
+    code.includes("Y5") ||
+    code.includes("Y6") ||
+    code.includes("Y7") ||
+    code.includes("Y8") ||
+    code.includes("Y9") ||
+    code.includes("GCSE") ||
+    code.includes("11P") ||
+    code.includes("AL")
+  ) {
+    return {
+      mandatory: true,
+      glh: 15,
+      outcomes: [
+        "Identify and target core knowledge gaps in alignment with the National Curriculum and Exam Board standards.",
+        "Master structured problem-solving, comprehension techniques, and exam mark-scheme precision.",
+        "Complete weekly exam-style exercises with line-by-line tutor marking and immediate constructive feedback.",
+      ],
+      evidence: "Interactive exercises, exam board past papers, and continuous progress reviews (No workplace portfolio)",
+    };
+  }
+
   // Default British RQF unit structure
   return {
     mandatory: true,
@@ -105,6 +130,10 @@ export const CourseUnitsList: React.FC<CourseUnitsListProps> = ({
     0
   );
 
+  const isTutoring =
+    selectedLevel.course_id.toLowerCase().includes("tutoring") ||
+    selectedLevel.units.some((u) => u.code.startsWith("TUT"));
+
   return (
     <section aria-labelledby="syllabus-units-heading" className="space-y-6">
       {/* Editorial Section Header */}
@@ -112,14 +141,18 @@ export const CourseUnitsList: React.FC<CourseUnitsListProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2">
           <div>
             <span className="text-[11px] font-mono uppercase tracking-wider text-gold-700 font-bold block mb-1">
-              Ofqual Regulated Qualification Framework (RQF)
+              {isTutoring
+                ? "National Curriculum Framework & Exam Boards"
+                : "Ofqual Regulated Qualification Framework (RQF)"}
             </span>
             <Heading
               level="h2"
               id="syllabus-units-heading"
               className="text-navy-900 text-2xl sm:text-3xl"
             >
-              Unit-by-unit syllabus breakdown
+              {isTutoring
+                ? "Curriculum & syllabus breakdown"
+                : "Unit-by-unit syllabus breakdown"}
             </Heading>
           </div>
           <div className="text-right flex items-center gap-3">
@@ -133,7 +166,9 @@ export const CourseUnitsList: React.FC<CourseUnitsListProps> = ({
         </div>
 
         <p className="text-xs sm:text-sm text-ink-soft leading-relaxed mt-3">
-          To achieve your accredited {selectedLevel.level_label} qualification, you will complete the structured units below. Each unit is delivered through live evening lectures, tutor-guided learning materials, and portfolio evidence submissions.
+          {isTutoring
+            ? `During your child's 12-week ${selectedLevel.level_label} tutoring term, our specialist DBS-checked teachers cover the syllabus modules below. Sessions are delivered face-to-face at the Gloucester College Centre or live 1-on-1 online with weekly structured feedback for parents.`
+            : `To achieve your accredited ${selectedLevel.level_label} qualification, you will complete the structured units below. Each unit is delivered through live evening lectures, tutor-guided learning materials, and portfolio evidence submissions.`}
         </p>
       </div>
 
@@ -141,20 +176,28 @@ export const CourseUnitsList: React.FC<CourseUnitsListProps> = ({
       <div className="p-4 rounded-md bg-paper border border-line flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-sm bg-navy-900 text-white flex items-center justify-center shrink-0">
-            <Icon name="shield-check" size={16} />
+            <Icon name={isTutoring ? "book-open" : "shield-check"} size={16} />
           </div>
           <div>
             <strong className="text-navy-900 block font-semibold">
-              100% Coursework & Portfolio Assessment — Zero Written Examinations
+              {isTutoring
+                ? "Continuous 1-on-1 Diagnostic Assessment — Zero Written Examinations"
+                : "100% Coursework & Portfolio Assessment — Zero Written Examinations"}
             </strong>
             <span className="text-ink-soft text-[11px]">
-              Assessed through workplace evidence, reflective logs, and tutor discussions.
+              {isTutoring
+                ? "Progress measured continuously through weekly interactive exercises, past papers, and personal tutor coaching (No Portfolio)."
+                : "Assessed through workplace evidence, reflective logs, and tutor discussions."}
             </span>
           </div>
         </div>
         <div className="flex items-center gap-2 text-[11px] text-navy-900 font-medium shrink-0">
           <Icon name="check-circle" size={14} className="text-emerald-700" />
-          <span>Accredited Assessor Feedback within 5 Working Days</span>
+          <span>
+            {isTutoring
+              ? "Regular Written Parent Feedback Reports"
+              : "Accredited Assessor Feedback within 5 Working Days"}
+          </span>
         </div>
       </div>
 

@@ -12,6 +12,11 @@ export const CourseOutcomes: React.FC<CourseOutcomesProps> = ({ course }) => {
     return null;
   }
 
+  const isTutoring =
+    course.is_private_tutoring ||
+    course.type === "tutoring" ||
+    course.id.toLowerCase().includes("tutoring");
+
   return (
     <section aria-labelledby="outcomes-heading" className="space-y-6">
       <Heading
@@ -19,17 +24,17 @@ export const CourseOutcomes: React.FC<CourseOutcomesProps> = ({ course }) => {
         id="outcomes-heading"
         className="text-navy-900 text-2xl"
       >
-        Career Opportunities & Progression
+        {isTutoring ? "Academic Milestones & Exam Progression" : "Career Opportunities & Progression"}
       </Heading>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        {/* Job Prospects */}
+        {/* Target Academic Outcomes / Job Prospects */}
         {course.job_prospects.length > 0 && (
           <div className="bg-white rounded-lg border border-line p-6 shadow-subtle space-y-3">
             <div className="flex items-center gap-2 mb-2">
-              <Icon name="user" size={18} className="text-navy-900" />
+              <Icon name={isTutoring ? "book-open" : "user"} size={18} className="text-navy-900" />
               <h3 className="font-heading font-bold text-lg text-navy-900">
-                Target Roles & Careers
+                {isTutoring ? "Target Academic Milestones" : "Target Roles & Careers"}
               </h3>
             </div>
 
@@ -50,7 +55,7 @@ export const CourseOutcomes: React.FC<CourseOutcomesProps> = ({ course }) => {
             <div className="flex items-center gap-2 mb-2">
               <Icon name="graduation-cap" size={18} className="text-navy-900" />
               <h3 className="font-heading font-bold text-lg text-navy-900">
-                Next Progression Routes
+                {isTutoring ? "Next Education Pathways" : "Next Progression Routes"}
               </h3>
             </div>
 

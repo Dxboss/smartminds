@@ -23,12 +23,16 @@ export const CoursePricingPanel: React.FC<CoursePricingPanelProps> = ({
   course,
   selectedLevel,
 }) => {
-  const expectedMonths = React.useMemo(
-    () => getSpreadMonthsForLevel(selectedLevel.level_label),
-    [selectedLevel.level_label]
-  );
+  const isTutoring =
+    course.is_private_tutoring ||
+    course.type === "tutoring" ||
+    course.id.toLowerCase().includes("tutoring");
 
   const plans = React.useMemo(() => {
+    if (isTutoring && selectedLevel.plans && selectedLevel.plans.length > 0) {
+      return selectedLevel.plans;
+    }
+    const expectedMonths = getSpreadMonthsForLevel(selectedLevel.level_label);
     const deposit =
       selectedLevel.plans && selectedLevel.plans[0]?.deposit_value !== undefined
         ? selectedLevel.plans[0].deposit_value
@@ -57,7 +61,7 @@ export const CoursePricingPanel: React.FC<CoursePricingPanelProps> = ({
         after_grace: "pause_access" as const,
       };
     });
-  }, [selectedLevel, expectedMonths]);
+  }, [selectedLevel, isTutoring]);
 
   const [selectedPlanIndex, setSelectedPlanIndex] = useState(0);
   const [paymentMode, setPaymentMode] = useState<"full" | "instalments">(
@@ -290,7 +294,11 @@ export const CoursePricingPanel: React.FC<CoursePricingPanelProps> = ({
                   size={14}
                   className="text-navy-900 flex-shrink-0"
                 />
-                <span>Instant enrolment confirmation</span>
+                <span>
+                  {isTutoring
+                    ? "Instant registration & session scheduling"
+                    : "Instant enrolment confirmation"}
+                </span>
               </li>
               <li className="flex items-center gap-2">
                 <Icon
@@ -298,7 +306,11 @@ export const CoursePricingPanel: React.FC<CoursePricingPanelProps> = ({
                   size={14}
                   className="text-navy-900 flex-shrink-0"
                 />
-                <span>Full access to live classes and stream replays</span>
+                <span>
+                  {isTutoring
+                    ? "Dedicated Enhanced DBS-checked specialist teacher"
+                    : "Full access to live classes and stream replays"}
+                </span>
               </li>
               <li className="flex items-center gap-2">
                 <Icon
@@ -306,7 +318,11 @@ export const CoursePricingPanel: React.FC<CoursePricingPanelProps> = ({
                   size={14}
                   className="text-navy-900 flex-shrink-0"
                 />
-                <span>All awarding body registration fees included</span>
+                <span>
+                  {isTutoring
+                    ? "Diagnostic assessment & tailored learning roadmap"
+                    : "All awarding body registration fees included"}
+                </span>
               </li>
             </ul>
           </div>
@@ -328,7 +344,7 @@ export const CoursePricingPanel: React.FC<CoursePricingPanelProps> = ({
               >
                 {plans.map((p, idx) => (
                   <option key={idx} value={idx}>
-                    {p.months > 1 ? `${p.months} monthly instalments` : "Single full payment"}
+                    {p.name || (p.months > 1 ? `${p.months} monthly instalments` : "Single full payment")}
                   </option>
                 ))}
               </select>

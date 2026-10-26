@@ -12,6 +12,11 @@ export const CourseOverview: React.FC<CourseOverviewProps> = ({
   course,
   selectedLevel,
 }) => {
+  const isTutoring =
+    course.is_private_tutoring ||
+    course.type === "tutoring" ||
+    course.id.toLowerCase().includes("tutoring");
+
   return (
     <div className="space-y-8">
       {/* Course Overview & Educational Description */}
@@ -20,14 +25,16 @@ export const CourseOverview: React.FC<CourseOverviewProps> = ({
         className="space-y-3"
       >
         <span className="text-[11px] font-mono uppercase tracking-wider text-gold-700 font-bold block">
-          Academic & Vocational Specification
+          {isTutoring ? "Curriculum & Academic Focus" : "Academic & Vocational Specification"}
         </span>
         <Heading
           level="h2"
           id="course-description-heading"
           className="text-navy-900 text-2xl sm:text-3xl"
         >
-          Qualification overview & delivery structure
+          {isTutoring
+            ? "1-on-1 Tutoring overview & delivery structure"
+            : "Qualification overview & delivery structure"}
         </Heading>
         <div className="text-sm sm:text-base text-ink-soft leading-relaxed space-y-4">
           <p className="whitespace-pre-line">{course.description}</p>
@@ -48,50 +55,96 @@ export const CourseOverview: React.FC<CourseOverviewProps> = ({
             {selectedLevel.level_label} Study specifications
           </Heading>
           <span className="text-xs text-ink-soft font-mono">
-            {course.awarding_body ? `Ofqual Accredited by ${course.awarding_body}` : "Accredited Qualification"}
+            {isTutoring
+              ? "National Curriculum & Exam Board Aligned"
+              : course.awarding_body
+              ? `Ofqual Accredited by ${course.awarding_body}`
+              : "Accredited Qualification"}
           </span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 text-xs">
-          <div className="p-3.5 bg-paper rounded-sm border border-line">
-            <span className="font-mono text-[10px] uppercase tracking-wider text-ink-soft block mb-1">
-              Expected Duration
-            </span>
-            <strong className="text-base font-heading font-bold text-navy-900 block">
-              {selectedLevel.duration_text}
-            </strong>
-            <span className="text-[11px] text-ink-soft mt-0.5 block">
-              Flexible pace around work shifts
-            </span>
-          </div>
+          {isTutoring ? (
+            <>
+              <div className="p-3.5 bg-paper rounded-sm border border-line">
+                <span className="font-mono text-[10px] uppercase tracking-wider text-ink-soft block mb-1">
+                  Session Format
+                </span>
+                <strong className="text-base font-heading font-bold text-navy-900 block">
+                  60m + 15m review
+                </strong>
+                <span className="text-[11px] text-ink-soft mt-0.5 block">
+                  1-on-1 dedicated teacher instruction
+                </span>
+              </div>
 
-          <div className="p-3.5 bg-paper rounded-sm border border-line">
-            <span className="font-mono text-[10px] uppercase tracking-wider text-ink-soft block mb-1">
-              Guided Learning Hours
-            </span>
-            <strong className="text-base font-heading font-bold text-navy-900 block">
-              {selectedLevel.guided_learning_hours} GLH
-            </strong>
-            <span className="text-[11px] text-ink-soft mt-0.5 block">
-              Live lectures + guided reading
-            </span>
-          </div>
+              <div className="p-3.5 bg-paper rounded-sm border border-line">
+                <span className="font-mono text-[10px] uppercase tracking-wider text-ink-soft block mb-1">
+                  Study Locations
+                </span>
+                <strong className="text-base font-heading font-bold text-navy-900 block truncate">
+                  Gloucester Centre & Online
+                </strong>
+                <span className="text-[11px] text-ink-soft mt-0.5 block">
+                  Face-to-face or interactive live video
+                </span>
+              </div>
 
-          <div className="p-3.5 bg-paper rounded-sm border border-line">
-            <span className="font-mono text-[10px] uppercase tracking-wider text-ink-soft block mb-1">
-              Accredited Units
-            </span>
-            <strong className="text-base font-heading font-bold text-navy-900 block">
-              {selectedLevel.units.length} Regulated Units
-            </strong>
-            <span className="text-[11px] text-ink-soft mt-0.5 block">
-              Continuous portfolio assessment
-            </span>
-          </div>
+              <div className="p-3.5 bg-paper rounded-sm border border-line">
+                <span className="font-mono text-[10px] uppercase tracking-wider text-ink-soft block mb-1">
+                  Weekly Schedule
+                </span>
+                <strong className="text-base font-heading font-bold text-navy-900 block">
+                  Thurs/Fri 4–6pm & Sat
+                </strong>
+                <span className="text-[11px] text-ink-soft mt-0.5 block">
+                  After-school & weekend slots
+                </span>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="p-3.5 bg-paper rounded-sm border border-line">
+                <span className="font-mono text-[10px] uppercase tracking-wider text-ink-soft block mb-1">
+                  Expected Duration
+                </span>
+                <strong className="text-base font-heading font-bold text-navy-900 block">
+                  {selectedLevel.duration_text}
+                </strong>
+                <span className="text-[11px] text-ink-soft mt-0.5 block">
+                  Flexible pace around work shifts
+                </span>
+              </div>
+
+              <div className="p-3.5 bg-paper rounded-sm border border-line">
+                <span className="font-mono text-[10px] uppercase tracking-wider text-ink-soft block mb-1">
+                  Guided Learning Hours
+                </span>
+                <strong className="text-base font-heading font-bold text-navy-900 block">
+                  {selectedLevel.guided_learning_hours} GLH
+                </strong>
+                <span className="text-[11px] text-ink-soft mt-0.5 block">
+                  Live lectures + guided reading
+                </span>
+              </div>
+
+              <div className="p-3.5 bg-paper rounded-sm border border-line">
+                <span className="font-mono text-[10px] uppercase tracking-wider text-ink-soft block mb-1">
+                  Accredited Units
+                </span>
+                <strong className="text-base font-heading font-bold text-navy-900 block">
+                  {selectedLevel.units.length} Regulated Units
+                </strong>
+                <span className="text-[11px] text-ink-soft mt-0.5 block">
+                  Continuous portfolio assessment
+                </span>
+              </div>
+            </>
+          )}
         </div>
       </section>
 
-      {/* Workplace Evidence & Assessment Guide */}
+      {/* Assessment & Progress Structure (Tailored: Child Tutoring vs Adult Vocational) */}
       <section
         aria-labelledby="workplace-evidence-heading"
         className="bg-paper rounded-md border border-line p-5 sm:p-6 space-y-4"
@@ -103,30 +156,56 @@ export const CourseOverview: React.FC<CourseOverviewProps> = ({
             id="workplace-evidence-heading"
             className="text-navy-900 text-lg font-bold"
           >
-            How your assessment & workplace observation works
+            {isTutoring
+              ? "How your child's tutoring and progress reviews work"
+              : "How your assessment & workplace observation works"}
           </Heading>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-ink">
-          <div className="space-y-1.5 p-3.5 bg-white rounded-sm border border-line">
-            <strong className="text-navy-900 block font-semibold text-xs">
-              Direct Workplace Evidence:
-            </strong>
-            <p className="text-ink-soft leading-relaxed text-[11px]">
-              {course.workplace_evidence_text ||
-                "You will build a professional portfolio using real workplace evidence gathered during your employment or voluntary care placement, including care plan reviews, risk assessments, and reflective accounts."}
-            </p>
-          </div>
+          {isTutoring ? (
+            <>
+              <div className="space-y-1.5 p-3.5 bg-white rounded-sm border border-line">
+                <strong className="text-navy-900 block font-semibold text-xs">
+                  Diagnostic Assessment & Gap Analysis:
+                </strong>
+                <p className="text-ink-soft leading-relaxed text-[11px]">
+                  Every pupil begins with a structured diagnostic review in English or Mathematics to identify specific gaps in foundation knowledge, aligning with their exam board (AQA, Edexcel, OCR, 11+).
+                </p>
+              </div>
 
-          <div className="space-y-1.5 p-3.5 bg-white rounded-sm border border-line">
-            <strong className="text-navy-900 block font-semibold text-xs">
-              Flexible Observation Methods:
-            </strong>
-            <p className="text-ink-soft leading-relaxed text-[11px]">
-              {course.observation_methods_text ||
-                "Workplace observations can be conducted remotely via recorded video session or in-person with a registered Expert Witness (such as your registered manager or clinical lead)."}
-            </p>
-          </div>
+              <div className="space-y-1.5 p-3.5 bg-white rounded-sm border border-line">
+                <strong className="text-navy-900 block font-semibold text-xs">
+                  Structured Regular Parent Reports:
+                </strong>
+                <p className="text-ink-soft leading-relaxed text-[11px]">
+                  Parents receive regular written updates tracking topic comprehension, homework completion, exam technique improvements, and target grade progression milestones.
+                </p>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="space-y-1.5 p-3.5 bg-white rounded-sm border border-line">
+                <strong className="text-navy-900 block font-semibold text-xs">
+                  Direct Workplace Evidence:
+                </strong>
+                <p className="text-ink-soft leading-relaxed text-[11px]">
+                  {course.workplace_evidence_text ||
+                    "You will build a professional portfolio using real workplace evidence gathered during your employment or voluntary care placement, including care plan reviews, risk assessments, and reflective accounts."}
+                </p>
+              </div>
+
+              <div className="space-y-1.5 p-3.5 bg-white rounded-sm border border-line">
+                <strong className="text-navy-900 block font-semibold text-xs">
+                  Flexible Observation Methods:
+                </strong>
+                <p className="text-ink-soft leading-relaxed text-[11px]">
+                  {course.observation_methods_text ||
+                    "Workplace observations can be conducted remotely via recorded video session or in-person with a registered Expert Witness (such as your registered manager or clinical lead)."}
+                </p>
+              </div>
+            </>
+          )}
         </div>
       </section>
 
@@ -140,12 +219,22 @@ export const CourseOverview: React.FC<CourseOverviewProps> = ({
           id="what-is-included-heading"
           className="text-navy-900 text-lg font-bold"
         >
-          What is included with your tuition fees
+          {isTutoring
+            ? "What is included with your tutoring enrolment"
+            : "What is included with your tuition fees"}
         </Heading>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-ink">
           {(course.tuition_includes && course.tuition_includes.length > 0
             ? course.tuition_includes
+            : isTutoring
+            ? [
+                "Dedicated 1-on-1 subject tuition with an Enhanced DBS-checked specialist teacher",
+                "Gloucester College Centre face-to-face facilities or interactive live online video",
+                "Comprehensive diagnostic assessment identifying individual learning gaps in Maths & English",
+                "Official curriculum and exam board past paper practice (AQA, Edexcel, OCR, 11+)",
+                "Regular structured written progress reports and direct parent feedback",
+              ]
             : [
                 "Weekly live online evening lectures delivered via Zoom with qualified assessors",
                 "24/7 access to the Smartminds Learner Portal and recorded lecture streams",
@@ -172,7 +261,9 @@ export const CourseOverview: React.FC<CourseOverviewProps> = ({
                 className="text-navy-900 mt-0.5 shrink-0"
               />
               <span>
-                Physical printed core textbook dispatched to your UK residential address free of charge
+                {isTutoring
+                  ? "Curriculum revision guide and practice workbook provided free of charge"
+                  : "Physical printed core textbook dispatched to your UK residential address free of charge"}
               </span>
             </div>
           )}
