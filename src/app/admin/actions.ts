@@ -1146,7 +1146,7 @@ export async function updateCoursePricingAction(
   regularPriceGbp?: number | null
 ) {
   const session = await getServerSession();
-  assertAdminAuthorized(session);
+  assertOwnerAuthorized(session);
 
   const { getCourseRepo } = await import("@/lib/repositories");
   const repo = getCourseRepo();
@@ -1187,6 +1187,21 @@ export async function updateCourseDetailsAction(
   const repo = getCourseRepo();
   const existing = await repo.getCourseById(courseId);
   if (!existing) throw new Error(`Course ${courseId} not found.`);
+
+  const isOwner = session?.role === "owner_admin" || session?.role === "super_admin";
+  if (!isOwner && updates.levels && Array.isArray(updates.levels) && existing.levels) {
+    updates.levels = updates.levels.map((lvl: any, idx: number) => {
+      const orig = existing.levels?.[idx];
+      if (!orig) return lvl;
+      return {
+        ...lvl,
+        price_gbp: orig.price_gbp,
+        regular_price_gbp: orig.regular_price_gbp,
+        full_pay_discount_percent: orig.full_pay_discount_percent,
+        plans: orig.plans,
+      };
+    });
+  }
 
   const merged = {
     ...existing,
@@ -1322,7 +1337,7 @@ export async function createCourseAction(courseData: any) {
 
 export async function deleteCourseAction(courseId: string) {
   const session = await getServerSession();
-  assertAdminAuthorized(session);
+  assertOwnerAuthorized(session);
 
   const { getCourseRepo } = await import("@/lib/repositories");
   const repo = getCourseRepo();
@@ -2273,7 +2288,7 @@ export async function saveFacultyAction(faculty: {
 
 export async function deleteFacultyAction(facultyId: string) {
   const session = await getServerSession();
-  assertAdminAuthorized(session);
+  assertOwnerAuthorized(session);
 
   const { deleteFacultyFromStore } = await import("@/lib/persistedData");
   const updatedFaculties = await deleteFacultyFromStore(facultyId);

@@ -58,7 +58,9 @@ export type IconName =
   | "pause"
   | "map-pin"
   | "award"
-  | "globe";
+  | "globe"
+  | "lock"
+  | "activity";
 
 export interface IconProps extends React.SVGAttributes<SVGElement> {
   name: IconName;
@@ -999,6 +1001,23 @@ export const Icon: React.FC<IconProps> = ({
               strokeLinejoin="round"
             />
           </>
+        );
+
+      case "lock":
+        return (
+          <>
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" strokeLinecap="round" strokeLinejoin="round" />
+          </>
+        );
+
+      case "activity":
+        return (
+          <polyline
+            points="22 12 18 12 15 21 9 3 6 12 2 12"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         );
 
       default:

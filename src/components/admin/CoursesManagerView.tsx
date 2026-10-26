@@ -23,6 +23,7 @@ import {
   generatePaymentPlansForLevel,
   isLevel5OrAbove,
   getLevelNumber,
+  tutoringPaymentPlans,
 } from "@/content/plans";
 
 interface CoursesManagerViewProps {
@@ -163,10 +164,104 @@ export function CoursesManagerView({
 
   const [isPending, startTransition] = useTransition();
 
-  const isOwner =
-    userRole === "owner_admin" ||
-    userRole === "super_admin" ||
-    userRole === "admin_staff";
+  const isOwner = userRole === "owner_admin" || userRole === "super_admin";
+  const canManageCourses = isOwner || userRole === "admin_staff";
+
+  type CourseArchetype =
+    | "adult_vocational"
+    | "children_tutoring"
+    | "clinical_workshop"
+    | "cpd_compliance";
+  const [newArchetype, setNewArchetype] = useState<CourseArchetype>("adult_vocational");
+
+  const applyArchetype = (archetype: CourseArchetype) => {
+    setNewArchetype(archetype);
+    if (archetype === "children_tutoring") {
+      setNewTitle("GCSE & Key Stage Academic Tutoring (Maths & English)");
+      setNewTargetAudience("minor_tutoring");
+      setNewType("tutoring");
+      setNewIsPrivateTutoring(true);
+      setNewCategory("Academic Tutoring (Kids & GCSE)");
+      setNewAwardingBody("GL Assessment, Edexcel & AQA");
+      setNewAwardingRef("");
+      setNewDelivery("blended");
+      setNewAttendanceType("physical_venue");
+      setNewTrainingLocations(["Gloucester College Centre - 12 Brunswick Square, GL1 1UG"]);
+      setNewCustomDeliveryText("After-School & Weekends (Thu & Fri 4:00pm–6:00pm, Sat 9:30am–1:30pm)");
+      setNewLevelLabel("Key Stage 3 & 4 (GCSE)");
+      setNewPrice("450");
+      setNewRegularPrice("540");
+      setNewDiscountPercent("10");
+      setNewDeposit("50");
+      setNewDuration("12-Week Term");
+      setNewGlh("48");
+      setNewSummary("Tailored 1-on-1 and small group academic tutoring focused on National Curriculum mastery, diagnostic gap-closing, and exam board excellence.");
+      setNewImage("/images/tutoring-classroom.jpg");
+    } else if (archetype === "clinical_workshop") {
+      setNewTitle("Practical Phlebotomy & Cannulation Clinical Skills Workshop");
+      setNewTargetAudience("adult");
+      setNewType("regulated");
+      setNewIsPrivateTutoring(false);
+      setNewCategory("Practical Clinical Skills");
+      setNewAwardingBody("CPD Standards Office & Healthcare Skills UK");
+      setNewAwardingRef("CS-PHLEB-2026");
+      setNewDelivery("classroom");
+      setNewAttendanceType("physical_venue");
+      setNewTrainingLocations(["Gloucester Practical Clinical Skills Lab - 12 Brunswick Square, GL1 1UG"]);
+      setNewCustomDeliveryText("Saturdays 9:00am–4:30pm (Hands-On Simulation Lab)");
+      setNewLevelLabel("Certificate of Competence");
+      setNewPrice("295");
+      setNewRegularPrice("350");
+      setNewDiscountPercent("0");
+      setNewDeposit("75");
+      setNewDuration("1-Day Practical Intensive");
+      setNewGlh("8");
+      setNewSummary("Hands-on practical training covering venepuncture, vein selection, infection control, and simulated blood draws under supervision of registered clinical nurses.");
+      setNewImage("/images/clinical-training.jpg");
+    } else if (archetype === "cpd_compliance") {
+      setNewTitle("Designated Safeguarding Lead (Level 3 CPD & Certification)");
+      setNewTargetAudience("all");
+      setNewType("cpd");
+      setNewIsPrivateTutoring(false);
+      setNewCategory("Professional CPD & Compliance");
+      setNewAwardingBody("CPD Certification Service");
+      setNewAwardingRef("CPD-SAFE-01");
+      setNewDelivery("self_paced");
+      setNewAttendanceType("online_only");
+      setNewTrainingLocations([]);
+      setNewCustomDeliveryText("Flexible 24/7 Portal Access (Self-Paced)");
+      setNewLevelLabel("CPD Certificate");
+      setNewPrice("65");
+      setNewRegularPrice("85");
+      setNewDiscountPercent("0");
+      setNewDeposit("65");
+      setNewDuration("4 – 6 hours");
+      setNewGlh("6");
+      setNewSummary("Comprehensive statutory safeguarding compliance training covering referral pathways, multi-agency working, child protection legislation, and risk management.");
+      setNewImage("/images/safeguarding-training.jpg");
+    } else {
+      setNewTitle("");
+      setNewTargetAudience("adult");
+      setNewType("regulated");
+      setNewIsPrivateTutoring(false);
+      setNewCategory("Health & Social Care");
+      setNewAwardingBody("TQUK & NCFE");
+      setNewAwardingRef("");
+      setNewDelivery("live_online");
+      setNewAttendanceType("online_only");
+      setNewTrainingLocations([]);
+      setNewCustomDeliveryText("Weekly Live Zoom Lectures (Tuesdays & Thursdays 6:30pm - 8:30pm)");
+      setNewLevelLabel("Level 3");
+      setNewPrice("1250");
+      setNewRegularPrice("1650");
+      setNewDiscountPercent("10");
+      setNewDeposit("150");
+      setNewDuration("4 – 6 months");
+      setNewGlh("320");
+      setNewSummary("");
+      setNewImage("/images/adult-care-training.jpg");
+    }
+  };
 
   // Standalone Academic Faculties State
   const [faculties, setFaculties] = useState<FacultyRecord[]>(
@@ -479,19 +574,26 @@ export function CoursesManagerView({
       const depVal = isNaN(parsedDeposit) ? 150 : parsedDeposit;
       const spreadMonths = getSpreadMonthsForLevel(targetLabel);
 
-      // Dynamically generate all 4 plans for this level based on whether it is < Level 5 or >= Level 5
-      const dynamicPlans = spreadMonths.map((m) => {
-        const existing = lvl.plans?.find((p) => p.months === m);
-        return {
-          id: existing?.id || `plan-${m}m`,
-          name: `${m} Monthly Payments`,
-          months: m,
-          deposit_type: "fixed" as const,
-          deposit_value: depVal,
-          grace_days: 7,
-          after_grace: "pause_access" as const,
-        };
-      });
+      const isTutoringCourse =
+        editType === "tutoring" ||
+        editIsPrivateTutoring ||
+        selectedCourse?.type === "tutoring" ||
+        selectedCourse?.is_private_tutoring;
+
+      const dynamicPlans = isTutoringCourse
+        ? (lvl.plans && lvl.plans.length > 0 ? lvl.plans : tutoringPaymentPlans)
+        : spreadMonths.map((m) => {
+            const existing = lvl.plans?.find((p) => p.months === m);
+            return {
+              id: existing?.id || `plan-${m}m`,
+              name: `${m} Monthly Payments`,
+              months: m,
+              deposit_type: "fixed" as const,
+              deposit_value: depVal,
+              grace_days: 7,
+              after_grace: "pause_access" as const,
+            };
+          });
 
       return {
         ...lvl,
@@ -816,6 +918,151 @@ export function CoursesManagerView({
       ? newCustomFacultyText.trim()
       : newCategory;
 
+    const isTutoring =
+      newType === "tutoring" ||
+      newTargetAudience === "minor_tutoring" ||
+      newIsPrivateTutoring;
+    const isClinical =
+      finalNewCategory.toLowerCase().includes("clinical") ||
+      finalNewCategory.toLowerCase().includes("practical") ||
+      (newAttendanceType === "physical_venue" && !isTutoring);
+    const isCpd = newType === "cpd";
+
+    let calculatedJobProspects = ["Practitioner", "Senior Carer", "Team Leader"];
+    let calculatedProgression = ["Higher National Diploma", "University Degree"];
+    let calculatedWorkplaceEvidence: string | undefined =
+      "You will build a professional portfolio using real workplace evidence gathered during your employment or voluntary care placement, including care plan reviews, risk assessments, and reflective accounts.";
+    let calculatedObservationMethods: string | undefined =
+      "Workplace observations can be conducted remotely via recorded video session or in-person with a registered Expert Witness (such as your registered manager or clinical lead).";
+    let calculatedTuitionIncludes = [
+      "Weekly live online evening lectures delivered via Zoom with qualified assessors",
+      "24/7 access to the Smartminds Learner Portal and recorded lecture streams",
+      "Dedicated named tutor providing individual written feedback within 5 working days",
+      "Official awarding organisation registration fees and Ofqual certificate issuance",
+      "One-to-one academic mentoring, assignment planning, and study skills guidance",
+    ];
+    let calculatedIntake = "Rolling Admissions";
+    let calculatedAssessmentModel = "100% Portfolio Based";
+    let calculatedSupportModel = "Named British Assessor";
+    let calculatedEntryReqs = [
+      "Minimum 16 years of age",
+      "Proficiency in spoken and written English",
+    ];
+    let calculatedPlans = generatePaymentPlansForLevel(newLevelLabel, isNaN(deposit) ? 150 : deposit);
+
+    if (isTutoring) {
+      calculatedJobProspects = [
+        "Grammar School 11+ Pass",
+        "GCSE Grades 7-9 Mastery",
+        "Top-Set Academic Placement",
+        "Russell Group Pathways",
+      ];
+      calculatedProgression = [
+        "GCSE & A-Level Advanced Pathways",
+        "Selective School & University Placement",
+      ];
+      calculatedWorkplaceEvidence = undefined;
+      calculatedObservationMethods = undefined;
+      calculatedTuitionIncludes = [
+        "Weekly 60-minute subject masterclass followed by 15-minute 1-to-1 homework clinic",
+        "Gloucester College Centre physical classrooms or interactive online Zoom stream",
+        "Diagnostic baseline assessment pinpointing national curriculum knowledge gaps",
+        "Bi-weekly written parental progress updates and marked homework feedback",
+        "Full exam preparation covering GL, CEM, AQA, Edexcel & OCR specifications",
+      ];
+      calculatedIntake = "Rolling Admissions (After-School & Weekends)";
+      calculatedAssessmentModel = "Diagnostic Assessment & Regular Progress Reviews";
+      calculatedSupportModel = "Dedicated Enhanced-DBS Tutor & Parent Liaison";
+      calculatedEntryReqs = [
+        "Diagnostic baseline assessment",
+        "Parent / Guardian registration consent",
+      ];
+      calculatedPlans = tutoringPaymentPlans;
+    } else if (isClinical) {
+      calculatedJobProspects = [
+        "Certified Phlebotomist",
+        "Clinical Healthcare Support Worker",
+        "Outpatient Clinical Technician",
+        "NHS & Private Clinic Roles",
+      ];
+      calculatedProgression = [
+        "Advanced Clinical Skills & Cannulation",
+        "Senior Healthcare Support Worker",
+      ];
+      calculatedWorkplaceEvidence =
+        "Direct practical competency demonstration on clinical simulation training arms and mannequins under supervision of qualified clinical nurse instructors.";
+      calculatedObservationMethods =
+        "Live face-to-face clinical observation during intensive practical workshops at the Gloucester training centre.";
+      calculatedTuitionIncludes = [
+        "Intensive practical hands-on training at the Gloucester College practical training lab",
+        "All clinical simulation consumables, medical mannequins, and sharps provided",
+        "Direct 1-to-1 assessment with registered Healthcare Professionals",
+        "CPD-accredited certificate of competence issued upon successful completion",
+      ];
+      calculatedIntake = "Monthly Campus Cohorts";
+      calculatedAssessmentModel = "Hands-On Clinical Simulation & OSCE Assessment";
+      calculatedSupportModel = "Registered Clinical Nurse / Senior Assessor";
+      calculatedEntryReqs = [
+        "Minimum 18 years of age",
+        "Commitment to patient safety and hygiene protocols",
+      ];
+      calculatedPlans = [
+        {
+          id: `plan-${Date.now()}-full`,
+          name: "Single Full Payment",
+          months: 1,
+          deposit_type: "fixed",
+          deposit_value: price,
+          grace_days: 7,
+          after_grace: "pause_access",
+        },
+        {
+          id: `plan-${Date.now()}-deposit`,
+          name: "Deposit Today + Remainder on Training Day",
+          months: 2,
+          deposit_type: "fixed",
+          deposit_value: isNaN(deposit) ? 75 : deposit,
+          grace_days: 7,
+          after_grace: "pause_access",
+        },
+      ];
+    } else if (isCpd) {
+      calculatedJobProspects = [
+        "Statutory CPD Compliance",
+        "Annual Mandatory Workplace Certification",
+        "Career Professional Development",
+      ];
+      calculatedProgression = [
+        "Senior Designated Lead Qualifications",
+        "Accredited Management Diplomas",
+      ];
+      calculatedWorkplaceEvidence = undefined;
+      calculatedObservationMethods = undefined;
+      calculatedTuitionIncludes = [
+        "Instant 24/7 access to digital interactive learning modules and download resources",
+        "Self-paced study from any phone, tablet, or desktop computer",
+        "Accredited CPD digital badge and verifiable certificate instantly generated",
+      ];
+      calculatedIntake = "Immediate 24/7 Access";
+      calculatedAssessmentModel = "End of Module Knowledge Checks & Certificate";
+      calculatedSupportModel = "Digital Assessor & Student Support";
+      calculatedEntryReqs = [
+        "No prior academic prerequisites",
+        "Internet-connected device (mobile, tablet, or PC)",
+      ];
+      calculatedPlans = [
+        {
+          id: `plan-${Date.now()}`,
+          name: "Single Full Payment",
+          months: 1,
+          deposit_type: "fixed",
+          deposit_value: price,
+          grace_days: 7,
+          after_grace: "pause_access",
+        },
+      ];
+    }
+
     const newCourseObj: Course = {
       id: `course-${Date.now().toString().slice(-4)}`,
       slug,
@@ -828,35 +1075,34 @@ export function CoursesManagerView({
       target_audience: newTargetAudience,
       delivery: newDelivery,
       attendance_type: newAttendanceType,
-      training_locations: (newAttendanceType === "blended_practical" || newAttendanceType === "physical_venue") ? newTrainingLocations : undefined,
+      training_locations:
+        newAttendanceType === "blended_practical" || newAttendanceType === "physical_venue"
+          ? newTrainingLocations
+          : undefined,
       custom_delivery_text: newCustomDeliveryText.trim() || undefined,
       start_mode: "rolling",
-      start_dates: ["Every Monday", "First of each month"],
+      start_dates: isTutoring ? ["Term Starts (September, January, April)", "Rolling Weekly Admissions"] : ["Every Monday", "First of each month"],
       awarding_body: newAwardingBody.trim() || null,
       awarding_reference: newAwardingRef.trim() || null,
       assessment_method: "criteria",
       funding: "both",
-      funding_notes: "Eligible learners can access 0% interest monthly instalment plans.",
+      funding_notes: isTutoring
+        ? "Flexible termly tuition payment options with 0% interest instalments."
+        : isCpd
+        ? "Instant digital payment with tax invoice and employer receipt provided."
+        : "Eligible learners can access 0% interest monthly instalment plans.",
       intro_video_url: newIntroVideoUrl.trim() || null,
       free_textbook: true,
       faqs: [],
-      job_prospects: ["Practitioner", "Senior Carer", "Team Leader"],
-      progression: ["Higher National Diploma", "University Degree"],
-      workplace_evidence_text:
-        "You will build a professional portfolio using real workplace evidence gathered during your employment or voluntary care placement, including care plan reviews, risk assessments, and reflective accounts.",
-      observation_methods_text:
-        "Workplace observations can be conducted remotely via recorded video session or in-person with a registered Expert Witness (such as your registered manager or clinical lead).",
-      tuition_includes: [
-        "Weekly live online evening lectures delivered via Zoom with qualified assessors",
-        "24/7 access to the Smartminds Learner Portal and recorded lecture streams",
-        "Dedicated named tutor providing individual written feedback within 5 working days",
-        "Official awarding organisation registration fees and Ofqual certificate issuance",
-        "One-to-one academic mentoring, assignment planning, and study skills guidance",
-      ],
-      intake_text: "Rolling Admissions",
-      assessment_model_text: "100% Portfolio Based",
-      support_model_text: "Named British Assessor",
-      image: newImage.trim() || "/images/adult-care-training.jpg",
+      job_prospects: calculatedJobProspects,
+      progression: calculatedProgression,
+      workplace_evidence_text: calculatedWorkplaceEvidence,
+      observation_methods_text: calculatedObservationMethods,
+      tuition_includes: calculatedTuitionIncludes,
+      intake_text: calculatedIntake,
+      assessment_model_text: calculatedAssessmentModel,
+      support_model_text: calculatedSupportModel,
+      image: newImage.trim() || (isTutoring ? "/images/tutoring-classroom.jpg" : isClinical ? "/images/clinical-training.jpg" : "/images/adult-care-training.jpg"),
       imageAlt: `${newTitle} training at Smartminds College`,
       seo_title: `${newTitle} | Smartminds Training College`,
       seo_description: newSummary.trim(),
@@ -869,29 +1115,22 @@ export function CoursesManagerView({
           regular_price_gbp: parsedRegular,
           full_pay_discount_percent: isNaN(discount) ? 10 : Math.max(0, Math.min(100, discount)),
           duration_text: newDuration,
-          guided_learning_hours: isNaN(glh) ? 300 : glh,
-          entry_requirements: [
-            "Minimum 16 years of age",
-            "Proficiency in spoken and written English",
-          ],
+          guided_learning_hours: isNaN(glh) ? (isTutoring ? 48 : isClinical ? 8 : isCpd ? 6 : 300) : glh,
+          entry_requirements: calculatedEntryReqs,
           units: [
             {
-              code: "UNIT-01",
-              title: "Core Principles and Professional Practice",
-              credits: 4,
+              code: isTutoring ? "KS-CORE-01" : isClinical ? "CLIN-PRACT-01" : isCpd ? "CPD-MOD-01" : "UNIT-01",
+              title: isTutoring
+                ? "Diagnostic Baseline & Core Subject Curriculum"
+                : isClinical
+                ? "Clinical Principles & Simulated Practical Skills"
+                : isCpd
+                ? "Statutory Guidelines & Core Principles"
+                : "Core Principles and Professional Practice",
+              credits: isTutoring ? 2 : isClinical ? 3 : isCpd ? 1 : 4,
             },
           ],
-          plans: [
-            {
-              id: `plan-${Date.now()}`,
-              name: "Spread over 12 Months (0% Interest)",
-              months: 12,
-              deposit_type: "fixed",
-              deposit_value: isNaN(deposit) ? 150 : deposit,
-              grace_days: 7,
-              after_grace: "pause_access",
-            },
-          ],
+          plans: calculatedPlans,
         },
       ],
     };
@@ -1023,7 +1262,7 @@ export function CoursesManagerView({
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          {isOwner && (
+          {canManageCourses && (
             <>
               <button
                 type="button"
@@ -1295,7 +1534,7 @@ export function CoursesManagerView({
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
                             <span>Active / Live</span>
                           </span>
-                          {isOwner && (
+                          {canManageCourses && (
                             <button
                               type="button"
                               onClick={() => handleTogglePublish(c)}
@@ -1312,7 +1551,7 @@ export function CoursesManagerView({
                             <span className="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
                             <span>Archived (Hidden)</span>
                           </span>
-                          {isOwner && (
+                          {canManageCourses && (
                             <button
                               type="button"
                               onClick={() => handleTogglePublish(c)}
@@ -1327,23 +1566,24 @@ export function CoursesManagerView({
                     </td>
                     <td className="py-4 px-4 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-2">
+                        {canManageCourses && (
+                          <button
+                            onClick={() => openEditModal(c)}
+                            className="px-2.5 py-1 text-xs font-semibold text-navy-900 bg-paper hover:bg-gold-300 rounded-sm border border-line transition-colors flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <Icon name="file-text" size={13} />
+                            <span>Edit Details</span>
+                          </button>
+                        )}
                         {isOwner && (
-                          <>
-                            <button
-                              onClick={() => openEditModal(c)}
-                              className="px-2.5 py-1 text-xs font-semibold text-navy-900 bg-paper hover:bg-gold-300 rounded-sm border border-line transition-colors flex items-center gap-1.5"
-                            >
-                              <Icon name="file-text" size={13} />
-                              <span>Edit Details</span>
-                            </button>
-                            <button
-                              onClick={() => handleDeleteCourse(c.id, c.title)}
-                              disabled={deletingId === c.id}
-                              className="px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50 rounded-sm border border-rose-200 transition-colors"
-                            >
-                              {deletingId === c.id ? "Removing..." : "Remove"}
-                            </button>
-                          </>
+                          <button
+                            onClick={() => handleDeleteCourse(c.id, c.title)}
+                            disabled={deletingId === c.id}
+                            className="px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50 rounded-sm border border-rose-200 transition-colors cursor-pointer"
+                            title="Remove qualification from catalogue (Owner only)"
+                          >
+                            {deletingId === c.id ? "Removing..." : "Remove"}
+                          </button>
                         )}
                         <Link
                           href={`/courses/${c.slug}`}
@@ -1903,11 +2143,14 @@ export function CoursesManagerView({
                       </button>
                     </div>
 
-                    {/* Custom Delivery Schedule Input */}
+                    {/* Custom Delivery Schedule Input with Quick Presets */}
                     <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-soft mb-1">
-                        Custom Schedule Label / Times (Optional override)
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-soft">
+                          Custom Schedule Label / Times (Optional override)
+                        </label>
+                        <span className="text-[10px] text-ink-soft">Click any preset to apply</span>
+                      </div>
                       <input
                         type="text"
                         placeholder="e.g. Tuesday & Thursday 6:30pm – 8:30pm (Replays Included)"
@@ -1915,6 +2158,24 @@ export function CoursesManagerView({
                         onChange={(e) => setEditCustomDeliveryText(e.target.value)}
                         className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900"
                       />
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {[
+                          "After-School & Weekends (Thu & Fri 4:00pm–6:00pm, Sat 9:30am–1:30pm)",
+                          "Evening Zoom Seminars (Tue & Thu 6:30pm–8:30pm)",
+                          "Saturdays 9:00am–4:30pm (Weekend Practical Intensive)",
+                          "Mon–Fri 9:30am–2:30pm (Daytime Fast-Track)",
+                          "Flexible 24/7 Self-Paced Portal Study",
+                        ].map((preset) => (
+                          <button
+                            key={preset}
+                            type="button"
+                            onClick={() => setEditCustomDeliveryText(preset)}
+                            className="px-2 py-0.5 rounded-sm bg-white hover:bg-gold-50 border border-line hover:border-navy-900 text-[10px] text-navy-900 transition-colors cursor-pointer"
+                          >
+                            + {preset.split(" (")[0]}
+                          </button>
+                        ))}
+                      </div>
                     </div>
 
                     {/* Embedded UK Campus Venues (When Physical Venue or Blended Practical) */}
@@ -1922,11 +2183,44 @@ export function CoursesManagerView({
                       <div className="pt-2.5 border-t border-line space-y-3">
                         <div className="flex items-center justify-between">
                           <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-950">
-                            Select Training & Assessment Venues:
+                            Select Training &amp; Assessment Venues:
                           </span>
                           <span className="text-[10px] text-emerald-800 font-semibold font-mono">
                             {editTrainingLocations.length} locations selected
                           </span>
+                        </div>
+
+                        {/* Quick Campus Chips */}
+                        <div className="flex flex-wrap gap-1.5">
+                          {[
+                            "Gloucester College Centre - 12 Brunswick Square, GL1 1UG",
+                            "London Healthcare Training Hub - 45 Aldgate High St, EC3N 1AH",
+                            "Birmingham Practical Skills Suite - 88 Colmore Row, B3 2AQ",
+                            "Interactive Online Classroom (Zoom Portal)",
+                          ].map((venue) => {
+                            const isAdded = editTrainingLocations.includes(venue);
+                            return (
+                              <button
+                                key={venue}
+                                type="button"
+                                onClick={() => {
+                                  if (isAdded) {
+                                    setEditTrainingLocations(editTrainingLocations.filter((v) => v !== venue));
+                                  } else {
+                                    setEditTrainingLocations([...editTrainingLocations, venue]);
+                                  }
+                                }}
+                                className={`px-2 py-0.5 rounded-sm text-[10px] transition-colors border cursor-pointer ${
+                                  isAdded
+                                    ? "bg-emerald-100 text-emerald-900 border-emerald-300 font-bold"
+                                    : "bg-white text-ink-soft border-line hover:border-navy-900 hover:text-navy-900"
+                                }`}
+                              >
+                                {isAdded ? "✓ " : "+ "}
+                                {venue.split(" - ")[0]}
+                              </button>
+                            );
+                          })}
                         </div>
 
                         {/* Custom Venue Add Input */}
@@ -1956,10 +2250,10 @@ export function CoursesManagerView({
                                 if (!editTrainingLocations.includes(editLocationInput.trim())) {
                                   setEditTrainingLocations([...editTrainingLocations, editLocationInput.trim()]);
                                 }
-                                setEditLocationInput("");
+                                setNewLocationInput("");
                               }
                             }}
-                            className="px-3 py-1.5 bg-navy-900 text-white text-xs font-semibold rounded-sm hover:bg-navy-700 transition-colors"
+                            className="px-3 py-1.5 bg-navy-900 text-white text-xs font-semibold rounded-sm hover:bg-navy-700 transition-colors cursor-pointer"
                           >
                             + Add Venue
                           </button>
@@ -2236,24 +2530,38 @@ export function CoursesManagerView({
               {/* TAB 2: PRICING, LEVELS & PLANS */}
               {editTab === "pricing" && (
                 <div className="space-y-4">
+                  {!isOwner && (
+                    <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-sm text-xs flex items-start gap-2.5 text-navy-900 shadow-2xs">
+                      <Icon name="lock" size={16} className="text-amber-700 shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-bold text-amber-950 block">Pricing &amp; Payment Plan Controls Restricted</span>
+                        <span className="text-amber-900 text-[11px]">
+                          Tuition fee schedules, regular prices, discounts, and instalment plan structures can only be modified by the College Owner or Finance Director.
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="bg-paper p-3.5 rounded-sm border border-line space-y-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
                         <label className="block text-xs font-bold text-navy-900 uppercase tracking-wider">
-                          Qualification Levels & Stages
+                          Qualification Levels &amp; Stages
                         </label>
                         <p className="text-[11px] text-ink-soft">
                           Manage course levels (e.g. Level 2, Level 3, Level 5, CPD Certificate).
                         </p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={handleAddLevel}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-sm bg-navy-900 text-white hover:bg-navy-700 text-xs font-bold shadow-subtle transition-colors"
-                      >
-                        <Icon name="plus" size={13} />
-                        <span>Add Level</span>
-                      </button>
+                      {isOwner && (
+                        <button
+                          type="button"
+                          onClick={handleAddLevel}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-sm bg-navy-900 text-white hover:bg-navy-700 text-xs font-bold shadow-subtle transition-colors cursor-pointer"
+                        >
+                          <Icon name="plus" size={13} />
+                          <span>Add Level</span>
+                        </button>
+                      )}
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
@@ -2277,7 +2585,7 @@ export function CoursesManagerView({
                           >
                             {lvl.level_label || `Level ${idx + 1}`}
                           </button>
-                          {editLevels.length > 1 && (
+                          {isOwner && editLevels.length > 1 && (
                             <button
                               type="button"
                               onClick={(e) => {
@@ -2285,7 +2593,7 @@ export function CoursesManagerView({
                                 handleRemoveLevel(idx);
                               }}
                               title={`Remove ${lvl.level_label}`}
-                              className={`px-2 py-1.5 text-xs border-l transition-colors ${
+                              className={`px-2 py-1.5 text-xs border-l transition-colors cursor-pointer ${
                                 selectedLevelIdx === idx
                                   ? "bg-navy-900 text-red-200 hover:text-white hover:bg-red-700 border-navy-700"
                                   : "bg-white text-ink-soft hover:text-red-600 hover:bg-red-50 border-line"
@@ -2307,7 +2615,10 @@ export function CoursesManagerView({
                         value={editLevelLabel}
                         onChange={(e) => setEditLevelLabel(e.target.value)}
                         placeholder="e.g. Level 2, Level 3, CPD Certificate"
-                        className="w-full sm:w-72 px-3 py-1.5 border border-line rounded-sm text-xs font-bold bg-white focus:outline-none focus:border-navy-900"
+                        disabled={!isOwner}
+                        className={`w-full sm:w-72 px-3 py-1.5 border border-line rounded-sm text-xs font-bold focus:outline-none focus:border-navy-900 ${
+                          !isOwner ? "bg-slate-100 text-ink-soft cursor-not-allowed" : "bg-white text-navy-900"
+                        }`}
                         required
                       />
                       <p className="text-[11px] text-ink-soft mt-1">
@@ -2327,7 +2638,10 @@ export function CoursesManagerView({
                         value={editRegularPrice}
                         onChange={(e) => setEditRegularPrice(e.target.value)}
                         placeholder="e.g. 1450 (Optional)"
-                        className="w-full px-3 py-2 border border-line rounded-sm text-sm focus:outline-none focus:border-navy-900 bg-paper focus:bg-white font-bold"
+                        disabled={!isOwner}
+                        className={`w-full px-3 py-2 border border-line rounded-sm text-sm focus:outline-none focus:border-navy-900 font-bold ${
+                          !isOwner ? "bg-slate-100 text-ink-soft cursor-not-allowed" : "bg-paper focus:bg-white text-navy-900"
+                        }`}
                       />
                       <p className="text-[11px] text-ink-soft mt-1">
                         Original reference price (slashed out with strikethrough).
@@ -2343,7 +2657,10 @@ export function CoursesManagerView({
                         step="10"
                         value={editPrice}
                         onChange={(e) => setEditPrice(e.target.value)}
-                        className="w-full px-3 py-2 border border-line rounded-sm text-sm focus:outline-none focus:border-navy-900 bg-paper focus:bg-white font-bold text-navy-900"
+                        disabled={!isOwner}
+                        className={`w-full px-3 py-2 border border-line rounded-sm text-sm focus:outline-none focus:border-navy-900 font-bold text-navy-900 ${
+                          !isOwner ? "bg-slate-100 text-ink-soft cursor-not-allowed" : "bg-paper focus:bg-white"
+                        }`}
                         required
                       />
                       <p className="text-[11px] text-ink-soft mt-1">
@@ -2363,7 +2680,10 @@ export function CoursesManagerView({
                         value={editDiscountPercent}
                         onChange={(e) => setEditDiscountPercent(e.target.value)}
                         placeholder="e.g. 10"
-                        className="w-full px-3 py-2 border border-line rounded-sm text-sm focus:outline-none focus:border-navy-900 bg-paper focus:bg-white font-bold"
+                        disabled={!isOwner}
+                        className={`w-full px-3 py-2 border border-line rounded-sm text-sm focus:outline-none focus:border-navy-900 font-bold ${
+                          !isOwner ? "bg-slate-100 text-ink-soft cursor-not-allowed" : "bg-paper focus:bg-white text-navy-900"
+                        }`}
                       />
                       <p className="text-[11px] text-ink-soft mt-1">
                         {parseFloat(editDiscountPercent) > 0
@@ -2381,7 +2701,10 @@ export function CoursesManagerView({
                         step="5"
                         value={editDeposit}
                         onChange={(e) => setEditDeposit(e.target.value)}
-                        className="w-full px-3 py-2 border border-line rounded-sm text-sm focus:outline-none focus:border-navy-900 bg-paper focus:bg-white font-bold"
+                        disabled={!isOwner}
+                        className={`w-full px-3 py-2 border border-line rounded-sm text-sm focus:outline-none focus:border-navy-900 font-bold ${
+                          !isOwner ? "bg-slate-100 text-ink-soft cursor-not-allowed" : "bg-paper focus:bg-white text-navy-900"
+                        }`}
                         required
                       />
                       <p className="text-[11px] text-ink-soft mt-1">
@@ -2494,43 +2817,106 @@ export function CoursesManagerView({
                   </div>
 
                   {/* Monthly instalment preview table */}
-                  <div className="bg-paper p-4 rounded-sm border border-line space-y-3">
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                      <div>
-                        <span className="text-[11px] font-bold uppercase tracking-wider text-navy-900 block">
-                          Instalment Schedule Options (Calculated for {editLevelLabel || "Tuition"})
-                        </span>
-                        <span className="text-[11px] text-ink-soft">
-                          {isLevel5OrAbove(editLevelLabel)
-                            ? "Level 5+ Qualification: Extended 6, 10, 12, and 14 months spread automatically active."
-                            : "Levels 1–4 Qualification: Standard 3, 6, 10, and 12 months spread automatically active."}
-                        </span>
-                      </div>
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm bg-navy-900 text-gold-300 text-[11px] font-bold shadow-xs">
-                        <Icon name="sparkles" size={12} className="text-gold-400" />
-                        <span>{isLevel5OrAbove(editLevelLabel) ? "Level 5+ Spread (6, 10, 12, 14m)" : "Standard Spread (3, 6, 10, 12m)"}</span>
-                      </span>
-                    </div>
+                  {(() => {
+                    const isTutoringCourse =
+                      editType === "tutoring" ||
+                      editIsPrivateTutoring ||
+                      selectedCourse?.type === "tutoring" ||
+                      selectedCourse?.is_private_tutoring;
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                      {getSpreadMonthsForLevel(editLevelLabel).map((m) => {
-                        const fee = parseFloat(editPrice) || 0;
-                        const dep = parseFloat(editDeposit) || 0;
-                        const rem = Math.max(0, fee - dep);
-                        const monthly = Math.round(rem / m);
-                        return (
-                          <div key={m} className="p-3 bg-white border border-line rounded-sm text-center shadow-xs space-y-1">
-                            <span className="block font-bold text-navy-900 text-xs">{m} Months</span>
-                            <strong className="block text-navy-900 text-base font-heading font-bold">{formatCurrency(monthly)}/mo</strong>
-                            <span className="text-[10px] text-emerald-700 font-bold block">0% Interest</span>
-                            <span className="text-[10px] text-ink-soft block pt-1 border-t border-line/60">
-                              Deposit £{dep.toLocaleString()} + {m} × £{monthly.toLocaleString()}
+                    if (isTutoringCourse) {
+                      const fee = parseFloat(editPrice) || 0;
+                      const dep = parseFloat(editDeposit) || 50;
+                      const rem = Math.max(0, fee - dep);
+                      return (
+                        <div className="bg-paper p-4 rounded-sm border border-line space-y-3">
+                          <div className="flex items-center justify-between flex-wrap gap-2">
+                            <div>
+                              <span className="text-[11px] font-bold uppercase tracking-wider text-navy-900 block">
+                                Tutoring Termly Tuition Schedules ({editLevelLabel || "Academic Tutoring"})
+                              </span>
+                              <span className="text-[11px] text-ink-soft">
+                                Flexible payment schedules designed for parents (Full Term, 2 Instalments, or 3 Monthly Payments).
+                              </span>
+                            </div>
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm bg-navy-900 text-gold-300 text-[11px] font-bold shadow-xs">
+                              <Icon name="book-open" size={12} className="text-gold-400" />
+                              <span>12-Week Term Plan</span>
                             </span>
                           </div>
-                        );
-                      })}
-                    </div>
-                  </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                            <div className="p-3 bg-white border border-line rounded-sm text-center shadow-xs space-y-1">
+                              <span className="block font-bold text-navy-900 text-xs">Full Term Upfront</span>
+                              <strong className="block text-navy-900 text-base font-heading font-bold">{formatCurrency(fee)}</strong>
+                              <span className="text-[10px] text-emerald-700 font-bold block">10% Pay-In-Full Savings</span>
+                              <span className="text-[10px] text-ink-soft block pt-1 border-t border-line/60">
+                                Single upfront payment covering all 12 weeks
+                              </span>
+                            </div>
+
+                            <div className="p-3 bg-white border border-line rounded-sm text-center shadow-xs space-y-1">
+                              <span className="block font-bold text-navy-900 text-xs">2 Instalments</span>
+                              <strong className="block text-navy-900 text-base font-heading font-bold">{formatCurrency(Math.round(fee / 2))}</strong>
+                              <span className="text-[10px] text-emerald-700 font-bold block">Every 6 Weeks (0% APR)</span>
+                              <span className="text-[10px] text-ink-soft block pt-1 border-t border-line/60">
+                                50% at enrolment + 50% at Week 6
+                              </span>
+                            </div>
+
+                            <div className="p-3 bg-white border border-line rounded-sm text-center shadow-xs space-y-1">
+                              <span className="block font-bold text-navy-900 text-xs">3 Monthly Payments</span>
+                              <strong className="block text-navy-900 text-base font-heading font-bold">{formatCurrency(Math.round(rem / 3))}/mo</strong>
+                              <span className="text-[10px] text-emerald-700 font-bold block">Deposit £{dep} + 3 Payments</span>
+                              <span className="text-[10px] text-ink-soft block pt-1 border-t border-line/60">
+                                Monthly standing order during term
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="bg-paper p-4 rounded-sm border border-line space-y-3">
+                        <div className="flex items-center justify-between flex-wrap gap-2">
+                          <div>
+                            <span className="text-[11px] font-bold uppercase tracking-wider text-navy-900 block">
+                              Instalment Schedule Options (Calculated for {editLevelLabel || "Tuition"})
+                            </span>
+                            <span className="text-[11px] text-ink-soft">
+                              {isLevel5OrAbove(editLevelLabel)
+                                ? "Level 5+ Qualification: Extended 6, 10, 12, and 14 months spread automatically active."
+                                : "Levels 1–4 Qualification: Standard 3, 6, 10, and 12 months spread automatically active."}
+                            </span>
+                          </div>
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm bg-navy-900 text-gold-300 text-[11px] font-bold shadow-xs">
+                            <Icon name="sparkles" size={12} className="text-gold-400" />
+                            <span>{isLevel5OrAbove(editLevelLabel) ? "Level 5+ Spread (6, 10, 12, 14m)" : "Standard Spread (3, 6, 10, 12m)"}</span>
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                          {getSpreadMonthsForLevel(editLevelLabel).map((m) => {
+                            const fee = parseFloat(editPrice) || 0;
+                            const dep = parseFloat(editDeposit) || 0;
+                            const rem = Math.max(0, fee - dep);
+                            const monthly = Math.round(rem / m);
+                            return (
+                              <div key={m} className="p-3 bg-white border border-line rounded-sm text-center shadow-xs space-y-1">
+                                <span className="block font-bold text-navy-900 text-xs">{m} Months</span>
+                                <strong className="block text-navy-900 text-base font-heading font-bold">{formatCurrency(monthly)}/mo</strong>
+                                <span className="text-[10px] text-emerald-700 font-bold block">0% Interest</span>
+                                <span className="text-[10px] text-ink-soft block pt-1 border-t border-line/60">
+                                  Deposit £{dep.toLocaleString()} + {m} × £{monthly.toLocaleString()}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
 
@@ -3309,6 +3695,76 @@ export function CoursesManagerView({
             )}
 
             <div className="space-y-4">
+              {/* ZERO-CODE COURSE ARCHETYPE BLUEPRINT SELECTOR */}
+              <div className="p-3.5 bg-paper rounded-sm border border-gold-300 shadow-xs space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Icon name="sparkles" size={14} className="text-gold-600" />
+                    <label className="block text-xs font-bold text-navy-900 uppercase tracking-wider">
+                      Select Course Archetype Blueprint
+                    </label>
+                  </div>
+                  <span className="text-[10px] text-ink-soft">
+                    1-Click Auto Config
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    {
+                      id: "adult_vocational" as const,
+                      name: "Adult Vocational",
+                      desc: "RQF / NCFE / TQUK Diplomas",
+                      icon: "graduation-cap" as const,
+                    },
+                    {
+                      id: "children_tutoring" as const,
+                      name: "Kids Tutoring & GCSE",
+                      desc: "Centre & Online, Parent Consent",
+                      icon: "book-open" as const,
+                    },
+                    {
+                      id: "clinical_workshop" as const,
+                      name: "Clinical Workshop",
+                      desc: "Phlebotomy & Practical Lab",
+                      icon: "activity" as const,
+                    },
+                    {
+                      id: "cpd_compliance" as const,
+                      name: "CPD Compliance",
+                      desc: "24/7 Self-Paced Distance",
+                      icon: "clock" as const,
+                    },
+                  ].map((arch) => (
+                    <button
+                      key={arch.id}
+                      type="button"
+                      onClick={() => applyArchetype(arch.id)}
+                      className={`p-2.5 rounded-sm border text-left transition-all cursor-pointer ${
+                        newArchetype === arch.id
+                          ? "bg-navy-900 text-white border-navy-900 shadow-xs"
+                          : "bg-white text-ink border-line hover:border-navy-700 hover:bg-paper"
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5 font-bold text-xs mb-1">
+                        <Icon
+                          name={arch.icon}
+                          size={13}
+                          className={newArchetype === arch.id ? "text-gold-300" : "text-navy-900"}
+                        />
+                        <span>{arch.name}</span>
+                      </div>
+                      <p
+                        className={`text-[10px] leading-tight ${
+                          newArchetype === arch.id ? "text-navy-100" : "text-ink-soft"
+                        }`}
+                      >
+                        {arch.desc}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs font-semibold text-navy-900 uppercase tracking-wider mb-1">
                   Qualification Title
@@ -3544,9 +4000,12 @@ export function CoursesManagerView({
                         : "bg-white text-ink border-line hover:border-navy-700 hover:bg-white"
                     }`}
                   >
-                    <div className="font-bold text-xs">💻 Live Online</div>
+                    <div className="flex items-center gap-1.5 font-bold text-xs">
+                      <Icon name="video" size={13} className={newDelivery === "live_online" && newAttendanceType === "online_only" ? "text-gold-300" : "text-navy-900"} />
+                      <span>Live Online</span>
+                    </div>
                     <p className={`text-[10px] mt-0.5 ${newDelivery === "live_online" && newAttendanceType === "online_only" ? "text-navy-100" : "text-ink-soft"}`}>
-                      Zoom classes & digital portal. No campus.
+                      Zoom classes &amp; digital portal. No campus.
                     </p>
                   </button>
 
@@ -3562,7 +4021,10 @@ export function CoursesManagerView({
                         : "bg-white text-ink border-line hover:border-navy-700 hover:bg-white"
                     }`}
                   >
-                    <div className="font-bold text-xs">🏢 Physical Venue</div>
+                    <div className="flex items-center gap-1.5 font-bold text-xs">
+                      <Icon name="map-pin" size={13} className={newAttendanceType === "physical_venue" ? "text-gold-300" : "text-navy-900"} />
+                      <span>Physical Venue</span>
+                    </div>
                     <p className={`text-[10px] mt-0.5 ${newAttendanceType === "physical_venue" ? "text-navy-100" : "text-ink-soft"}`}>
                       Classroom, training lab or health centre.
                     </p>
@@ -3580,7 +4042,10 @@ export function CoursesManagerView({
                         : "bg-white text-ink border-line hover:border-navy-700 hover:bg-white"
                     }`}
                   >
-                    <div className="font-bold text-xs">🔄 Blended Practical</div>
+                    <div className="flex items-center gap-1.5 font-bold text-xs">
+                      <Icon name="layers" size={13} className={newAttendanceType === "blended_practical" ? "text-gold-300" : "text-navy-900"} />
+                      <span>Blended Practical</span>
+                    </div>
                     <p className={`text-[10px] mt-0.5 ${newAttendanceType === "blended_practical" ? "text-navy-100" : "text-ink-soft"}`}>
                       Online theory + practical assessment days.
                     </p>
@@ -3598,7 +4063,10 @@ export function CoursesManagerView({
                         : "bg-white text-ink border-line hover:border-navy-700 hover:bg-white"
                     }`}
                   >
-                    <div className="font-bold text-xs">⏱️ Self-Paced</div>
+                    <div className="flex items-center gap-1.5 font-bold text-xs">
+                      <Icon name="clock" size={13} className={newDelivery === "self_paced" ? "text-gold-300" : "text-navy-900"} />
+                      <span>Self-Paced</span>
+                    </div>
                     <p className={`text-[10px] mt-0.5 ${newDelivery === "self_paced" ? "text-navy-100" : "text-ink-soft"}`}>
                       Flexible distance study + 1-to-1 assessor.
                     </p>
@@ -3608,9 +4076,46 @@ export function CoursesManagerView({
                 {/* If Physical Venue or Blended: Training Locations Manager */}
                 {(newAttendanceType === "blended_practical" || newAttendanceType === "physical_venue") && (
                   <div className="pt-2 border-t border-line space-y-2">
-                    <label className="block text-[11px] font-bold text-navy-900 uppercase tracking-wider">
-                      📍 Physical Training Venues & Campus Addresses
-                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <Icon name="map-pin" size={12} className="text-emerald-700" />
+                      <label className="block text-[11px] font-bold text-navy-900 uppercase tracking-wider">
+                        Physical Training Venues &amp; Campus Addresses
+                      </label>
+                    </div>
+
+                    {/* Campus presets chips */}
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        "Gloucester College Centre - 12 Brunswick Square, GL1 1UG",
+                        "London Healthcare Training Hub - 45 Aldgate High St, EC3N 1AH",
+                        "Birmingham Practical Skills Suite - 88 Colmore Row, B3 2AQ",
+                        "Interactive Online Classroom (Zoom Portal)",
+                      ].map((venue) => {
+                        const isAdded = newTrainingLocations.includes(venue);
+                        return (
+                          <button
+                            key={venue}
+                            type="button"
+                            onClick={() => {
+                              if (isAdded) {
+                                setNewTrainingLocations(newTrainingLocations.filter((v) => v !== venue));
+                              } else {
+                                setNewTrainingLocations([...newTrainingLocations, venue]);
+                              }
+                            }}
+                            className={`px-2 py-0.5 rounded-sm text-[10px] transition-colors border cursor-pointer ${
+                              isAdded
+                                ? "bg-emerald-100 text-emerald-900 border-emerald-300 font-bold"
+                                : "bg-white text-ink-soft border-line hover:border-navy-900 hover:text-navy-900"
+                            }`}
+                          >
+                            {isAdded ? "✓ " : "+ "}
+                            {venue.split(" - ")[0]}
+                          </button>
+                        );
+                      })}
+                    </div>
+
                     <div className="flex items-center gap-2">
                       <input
                         type="text"
@@ -3636,7 +4141,7 @@ export function CoursesManagerView({
                             setNewLocationInput("");
                           }
                         }}
-                        className="px-3 py-1.5 bg-navy-900 text-white text-xs font-semibold rounded-sm hover:bg-navy-700"
+                        className="px-3 py-1.5 bg-navy-900 text-white text-xs font-semibold rounded-sm hover:bg-navy-700 cursor-pointer"
                       >
                         + Add Venue
                       </button>
@@ -3648,11 +4153,12 @@ export function CoursesManagerView({
                             key={idx}
                             className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs"
                           >
-                            <span>📍 {loc}</span>
+                            <Icon name="map-pin" size={10} className="text-emerald-700" />
+                            <span>{loc}</span>
                             <button
                               type="button"
                               onClick={() => setNewTrainingLocations((prev) => prev.filter((_, i) => i !== idx))}
-                              className="text-emerald-700 hover:text-emerald-950 font-bold"
+                              className="text-emerald-700 hover:text-emerald-950 font-bold cursor-pointer"
                             >
                               ✕
                             </button>
@@ -3664,9 +4170,12 @@ export function CoursesManagerView({
                 )}
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
-                    Custom Delivery Schedule (Optional)
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider">
+                      Custom Delivery Schedule (Optional)
+                    </label>
+                    <span className="text-[10px] text-ink-soft">Click any preset to apply</span>
+                  </div>
                   <input
                     type="text"
                     placeholder="e.g. Evening Zoom Classes + Weekend Assessor Mentoring"
@@ -3674,6 +4183,24 @@ export function CoursesManagerView({
                     onChange={(e) => setNewCustomDeliveryText(e.target.value)}
                     className="w-full px-3 py-1.5 border border-line rounded-sm text-xs focus:outline-none focus:border-navy-900 bg-white"
                   />
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {[
+                      "After-School & Weekends (Thu & Fri 4:00pm–6:00pm, Sat 9:30am–1:30pm)",
+                      "Evening Zoom Seminars (Tue & Thu 6:30pm–8:30pm)",
+                      "Saturdays 9:00am–4:30pm (Weekend Practical Intensive)",
+                      "Mon–Fri 9:30am–2:30pm (Daytime Fast-Track)",
+                      "Flexible 24/7 Self-Paced Portal Study",
+                    ].map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => setNewCustomDeliveryText(preset)}
+                        className="px-2 py-0.5 rounded-sm bg-white hover:bg-gold-50 border border-line hover:border-navy-900 text-[10px] text-navy-900 transition-colors cursor-pointer"
+                      >
+                        + {preset.split(" (")[0]}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -4038,14 +4565,16 @@ export function CoursesManagerView({
                             <span>{isEditing ? "Editing" : "Edit"}</span>
                           </button>
 
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteFaculty(f.id, f.name)}
-                            className="p-1.5 rounded-xs hover:bg-rose-50 text-ink-soft hover:text-rose-600 transition-colors cursor-pointer"
-                            title={`Delete faculty ${f.name}`}
-                          >
-                            <Icon name="trash" size={13} />
-                          </button>
+                          {isOwner && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteFaculty(f.id, f.name)}
+                              className="p-1.5 rounded-xs hover:bg-rose-50 text-ink-soft hover:text-rose-600 transition-colors cursor-pointer"
+                              title={`Delete faculty ${f.name} (Owner only)`}
+                            >
+                              <Icon name="trash" size={13} />
+                            </button>
+                          )}
                         </div>
                       </div>
                     );

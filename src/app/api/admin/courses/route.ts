@@ -27,6 +27,8 @@ export async function POST(req: NextRequest) {
       syncStoreSnapshotToNeon,
     } = await import("@/lib/persistedData");
 
+    const isOwner = session.role === "owner_admin" || session.role === "super_admin";
+
     if (action === "save_faculty" && faculty) {
       const id = faculty.id || faculty.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
       const updatedFaculties = await saveFacultyToStore({
@@ -47,6 +49,12 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "delete_faculty" && facultyId) {
+      if (!isOwner) {
+        return NextResponse.json(
+          { success: false, error: "Unauthorized: Only the College Owner can delete faculties." },
+          { status: 403 }
+        );
+      }
       const updatedFaculties = await deleteFacultyFromStore(facultyId);
       try {
         revalidatePath("/admin/courses");
@@ -59,6 +67,22 @@ export async function POST(req: NextRequest) {
     if (action === "update_course" && courseId && updates) {
       const { savePersistedCourse, getLiveCourses } = await import("@/lib/persistedData");
       const current = getLiveCourses().find((c) => c.id === courseId);
+
+      // If user is not an owner, protect financial and pricing integrity
+      if (!isOwner && updates.levels && Array.isArray(updates.levels) && current?.levels) {
+        updates.levels = updates.levels.map((lvl: any, idx: number) => {
+          const orig = current.levels[idx];
+          if (!orig) return lvl;
+          return {
+            ...lvl,
+            price_gbp: orig.price_gbp,
+            regular_price_gbp: orig.regular_price_gbp,
+            full_pay_discount_percent: orig.full_pay_discount_percent,
+            plans: orig.plans,
+          };
+        });
+      }
+
       const merged = { ...(current || {}), ...updates, id: courseId };
       await savePersistedCourse(merged);
 
@@ -86,6 +110,12 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "delete_course" && courseId) {
+      if (!isOwner) {
+        return NextResponse.json(
+          { success: false, error: "Unauthorized: Only the College Owner can delete courses from the catalogue." },
+          { status: 403 }
+        );
+      }
       const { deletePersistedCourse } = await import("@/lib/persistedData");
       await deletePersistedCourse(courseId);
 
