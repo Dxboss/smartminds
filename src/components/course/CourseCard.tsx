@@ -128,6 +128,18 @@ export const CourseCard: React.FC<CourseCardProps> = ({
     photoSrc.startsWith("https://") ||
     photoSrc.startsWith("/uploads/");
 
+  const isBlended =
+    course.attendance_type === "blended_practical" ||
+    course.delivery === "blended";
+  const isClassroom =
+    course.attendance_type === "physical_venue" ||
+    course.delivery === "classroom";
+  const deliveryLabel = isBlended
+    ? "Blended Practical"
+    : isClassroom
+    ? "Classroom Training"
+    : "Live Online";
+
   return (
     <article className="group bg-white rounded-2xl border border-line shadow-[0_4px_20px_rgba(0,0,0,0.06)] hover:shadow-xl hover:border-teal-300/80 transition-all duration-300 flex flex-col justify-between overflow-hidden p-3.5 sm:p-4 h-full">
       {/* 1. Framed Image Header matching Image 1 */}
@@ -151,8 +163,8 @@ export const CourseCard: React.FC<CourseCardProps> = ({
               {course.type === "regulated" ? "Ofqual RQF" : "Accredited"}
             </span>
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white/95 text-navy-900 backdrop-blur-md shadow-xs">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              Live Online
+              <span className={`w-1.5 h-1.5 rounded-full ${isBlended ? "bg-amber-500" : isClassroom ? "bg-blue-500" : "bg-emerald-500"}`} />
+              {deliveryLabel}
             </span>
           </div>
         </div>

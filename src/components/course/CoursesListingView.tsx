@@ -58,13 +58,31 @@ export function matchesCategory(course: Course, targetCategory: string): boolean
   ) {
     return (
       !cat.includes("child") &&
+      !cat.includes("math") &&
+      !cat.includes("english") &&
       (cat.includes("education") ||
         cat.includes("teach") ||
         cat.includes("train") ||
         cat.includes("assessor") ||
         title.includes("aet") ||
         title.includes("cava") ||
-        title.includes("functional skills"))
+        title.includes("education and training"))
+    );
+  }
+
+  // 3b. Maths & English / Functional Skills
+  if (
+    target.includes("math") ||
+    target.includes("english") ||
+    target.includes("functional")
+  ) {
+    return (
+      cat.includes("math") ||
+      cat.includes("english") ||
+      cat.includes("functional") ||
+      title.includes("functional skills") ||
+      title.includes("math") ||
+      title.includes("english")
     );
   }
 
