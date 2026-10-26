@@ -1865,13 +1865,14 @@ export async function saveHeaderNavConfigAction(config: any) {
     };
   }
 
-  // Persist to siteTheme.json
-  const { savePersistentSiteTheme } = await import("@/lib/siteTheme");
-  savePersistentSiteTheme({
+  // Persist directly to Neon DB and local cache
+  const { savePersistentSiteThemeAsync } = await import("@/lib/siteTheme");
+  await savePersistentSiteThemeAsync({
     headerNav: config,
     footer: footerSync,
   });
 
+  revalidatePath("/", "layout");
   revalidatePath("/admin/cms");
   revalidatePath("/");
   revalidatePath("/courses");
@@ -1905,12 +1906,13 @@ export async function saveFooterConfigAction(config: any) {
   );
   Object.assign(defaultFooterConfig, config);
 
-  // Persist to siteTheme.json
-  const { savePersistentSiteTheme } = await import("@/lib/siteTheme");
-  savePersistentSiteTheme({
+  // Persist directly to Neon DB and local cache
+  const { savePersistentSiteThemeAsync } = await import("@/lib/siteTheme");
+  await savePersistentSiteThemeAsync({
     footer: config,
   });
 
+  revalidatePath("/", "layout");
   revalidatePath("/admin/cms");
   revalidatePath("/");
   revalidatePath("/courses");

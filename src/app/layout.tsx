@@ -26,7 +26,7 @@ import {
   defaultHeaderNavConfig,
   defaultFooterConfig,
 } from "@/lib/repositories/seedData";
-import { getPersistentSiteTheme } from "@/lib/siteTheme";
+import { getPersistentSiteTheme, getPersistentSiteThemeAsync } from "@/lib/siteTheme";
 
 const plusJakartaHeading = Plus_Jakarta_Sans({
   weight: ["600", "700"],
@@ -75,12 +75,12 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const theme = getPersistentSiteTheme();
+  const theme = await getPersistentSiteThemeAsync();
   const headerConfig = (theme.headerNav || defaultHeaderNavConfig) as HeaderNavConfig;
   const footerConfig = (theme.footer || defaultFooterConfig) as FooterConfig;
 

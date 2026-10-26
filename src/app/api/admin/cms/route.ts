@@ -101,9 +101,9 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "save_header" && headerNav) {
-      const { savePersistentSiteTheme } = await import("@/lib/siteTheme");
+      const { savePersistentSiteThemeAsync } = await import("@/lib/siteTheme");
       Object.assign(defaultHeaderNavConfig, headerNav);
-      savePersistentSiteTheme({ headerNav });
+      await savePersistentSiteThemeAsync({ headerNav });
       try {
         revalidatePath("/", "layout");
         revalidatePath("/");
@@ -112,9 +112,9 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "save_footer" && footerConfig) {
-      const { savePersistentSiteTheme } = await import("@/lib/siteTheme");
+      const { savePersistentSiteThemeAsync } = await import("@/lib/siteTheme");
       Object.assign(defaultFooterConfig, footerConfig);
-      savePersistentSiteTheme({ footer: footerConfig });
+      await savePersistentSiteThemeAsync({ footer: footerConfig });
       try {
         revalidatePath("/", "layout");
         revalidatePath("/");

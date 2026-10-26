@@ -37,7 +37,7 @@ export default async function AdminCmsPage() {
     getPublishedCmsPageSections,
     getLiveCourses,
   } = await import("@/lib/persistedData");
-  const { getPersistentSiteTheme } = await import("@/lib/siteTheme");
+  const { getPersistentSiteThemeAsync } = await import("@/lib/siteTheme");
   await pullLatestFromNeon();
   syncPersistedRecords(true);
   const store = loadPersistedRecords();
@@ -45,7 +45,7 @@ export default async function AdminCmsPage() {
   const allPublishedPages = getAllPublishedCmsPages();
   const publishedHome = getPublishedCmsPageSections("/");
   const liveCourses = getLiveCourses();
-  const persistentTheme = getPersistentSiteTheme();
+  const persistentTheme = await getPersistentSiteThemeAsync();
 
   return (
     <SiteCmsEditorView

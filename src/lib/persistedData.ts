@@ -301,6 +301,7 @@ export async function pullLatestFromNeon(): Promise<boolean> {
           Array.isArray(dbStore.colorSwatches) && dbStore.colorSwatches.length > 0
             ? dbStore.colorSwatches
             : store.colorSwatches || DEFAULT_COLOR_SWATCHES,
+        siteTheme: dbStore.siteTheme || store.siteTheme,
       };
 
       const filePath = getStoreFilePath();
