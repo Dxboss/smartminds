@@ -15,6 +15,7 @@ import {
   deleteFacultyAction,
 } from "@/app/admin/actions";
 import { type FacultyRecord, DEFAULT_COLLEGE_FACULTIES } from "@/content/faculties";
+import { matchesCategory } from "@/components/course/CoursesListingView";
 import { ColorPalettePicker } from "./ColorPalettePicker";
 import { COLLEGE_COLOR_PALETTES, isDarkHex, resolveItemColor } from "@/components/ui/sectionBg";
 import {
@@ -341,9 +342,9 @@ export function CoursesManagerView({
       c.summary.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (c.awarding_body &&
         c.awarding_body.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchesCategory =
-      categoryFilter === "all" || c.category === categoryFilter;
-    return matchesSearch && matchesCategory;
+    const matchesCat =
+      categoryFilter === "all" || matchesCategory(c, categoryFilter);
+    return matchesSearch && matchesCat;
   });
 
   const openEditModal = (course: Course) => {
@@ -3830,7 +3831,13 @@ export function CoursesManagerView({
 
                 <div className="grid grid-cols-1 gap-2.5 max-h-60 overflow-y-auto pr-1">
                   {faculties.map((f) => {
-                    const assignedCount = courses.filter((c) => c.category === f.name).length;
+                    const assignedCount = courses.filter(
+                      (c) =>
+                        (c as any).facultyId === f.id ||
+                        (c as any).faculty === f.name ||
+                        c.category === f.name ||
+                        matchesCategory(c, f.name)
+                    ).length;
                     const isEditing = editingFacultyId === f.id;
                     return (
                       <div

@@ -25,47 +25,70 @@ interface CoursesListingViewProps {
  * with course category labels (from courses.ts).
  */
 export function matchesCategory(course: Course, targetCategory: string): boolean {
-  if (!targetCategory || targetCategory === "All") return true;
+  if (!targetCategory || targetCategory === "All" || targetCategory === "all") return true;
 
   const target = targetCategory.toLowerCase().trim();
   const cat = (course.category || "").toLowerCase().trim();
+  const title = (course.title || "").toLowerCase().trim();
 
-  // 1. Direct or partial equality
-  if (cat === target || cat.includes(target) || target.includes(cat)) return true;
+  // 1. Direct equality
+  if (cat === target) return true;
 
-  // 2. Health & Social Care (Adult Care, Healthcare, Social Care)
+  // 2. Childcare & Early Years (Check before Health Care so "childcare" isn't miscaught by generic "care")
   if (
-    (target.includes("health") || target.includes("care") || target.includes("social")) &&
-    (cat.includes("health") || cat.includes("care") || cat.includes("social") || cat.includes("adult"))
+    target.includes("child") ||
+    target.includes("early years") ||
+    target.includes("nursery")
   ) {
-    return true;
+    return (
+      cat.includes("child") ||
+      cat.includes("early years") ||
+      cat.includes("nursery") ||
+      title.includes("early years") ||
+      title.includes("children")
+    );
   }
 
-  // 3. Childcare & Early Years (Early Years Educator, Nursery, Children & Young People)
+  // 3. Education, Teaching & Training (AET, CAVA, Assessor, IQA, Education)
   if (
-    (target.includes("child") || target.includes("early years") || target.includes("nursery")) &&
-    (cat.includes("child") || cat.includes("early years") || cat.includes("nursery") || cat.includes("young people"))
+    target.includes("education") ||
+    target.includes("teach") ||
+    target.includes("train") ||
+    target.includes("assessor")
   ) {
-    return true;
+    return (
+      !cat.includes("child") &&
+      (cat.includes("education") ||
+        cat.includes("teach") ||
+        cat.includes("train") ||
+        cat.includes("assessor") ||
+        title.includes("aet") ||
+        title.includes("cava") ||
+        title.includes("functional skills"))
+    );
   }
 
-  // 4. Education, Teaching & Training (AET, CAVA, Assessor, IQA, Education)
+  // 4. Business, Administration & Management
   if (
-    (target.includes("education") || target.includes("teach") || target.includes("train") || target.includes("assessor")) &&
-    (cat.includes("education") || cat.includes("teach") || cat.includes("train") || cat.includes("assessor") || cat.includes("iqa"))
+    target.includes("business") ||
+    target.includes("admin") ||
+    target.includes("office") ||
+    target.includes("management")
   ) {
-    return true;
+    return (
+      !cat.includes("health") &&
+      !cat.includes("care") &&
+      (cat.includes("business") ||
+        cat.includes("admin") ||
+        cat.includes("management") ||
+        cat.includes("office") ||
+        cat.includes("it user") ||
+        title.includes("business") ||
+        title.includes("it user"))
+    );
   }
 
-  // 5. Business, Administration & Management
-  if (
-    (target.includes("business") || target.includes("admin") || target.includes("management") || target.includes("office")) &&
-    (cat.includes("business") || cat.includes("admin") || cat.includes("management") || cat.includes("office"))
-  ) {
-    return true;
-  }
-
-  // 6. CPD & Compliance / Short Courses
+  // 5. CPD & Compliance / Short Courses
   if (
     target.includes("cpd") ||
     target.includes("compliance") ||
@@ -79,7 +102,7 @@ export function matchesCategory(course: Course, targetCategory: string): boolean
     );
   }
 
-  // 7. Academic Tutoring / Private Tutoring
+  // 6. Academic Tutoring / Private Tutoring
   if (
     target.includes("tutor") ||
     target.includes("academic") ||
@@ -90,11 +113,29 @@ export function matchesCategory(course: Course, targetCategory: string): boolean
       course.type === "tutoring" ||
       cat.includes("tutor") ||
       cat.includes("academic") ||
-      cat.includes("gcse")
+      cat.includes("gcse") ||
+      title.includes("tutoring")
     );
   }
 
-  return false;
+  // 7. Health & Social Care (Adult Care, Healthcare, Social Care)
+  if (
+    target.includes("health") ||
+    target.includes("social care") ||
+    (target.includes("care") && !target.includes("child"))
+  ) {
+    return (
+      !cat.includes("child") &&
+      (cat.includes("health") ||
+        cat.includes("care") ||
+        cat.includes("social") ||
+        cat.includes("adult") ||
+        title.includes("care") ||
+        title.includes("health"))
+    );
+  }
+
+  return cat.includes(target) || target.includes(cat);
 }
 
 const CoursesListingContent: React.FC<CoursesListingViewProps> = ({
