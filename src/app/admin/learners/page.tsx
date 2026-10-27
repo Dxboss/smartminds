@@ -32,6 +32,17 @@ export default async function AdminLearnersPage() {
     courseRepo.listCourses(),
   ]);
 
+  let paymentPlans: any[] = [];
+  if (session.role === "owner_admin" || session.role === "super_admin") {
+    try {
+      const { getPaymentRepo } = await import("@/lib/repositories");
+      const paymentRepo = getPaymentRepo();
+      paymentPlans = await paymentRepo.getAllLearnerPaymentPlans(session);
+    } catch (err) {
+      console.warn("[AdminLearnersPage] Could not load payment plans:", err);
+    }
+  }
+
   const availableCourses = (allCourses || []).filter((c) => c && c.published !== false);
 
   return (
@@ -48,6 +59,7 @@ export default async function AdminLearnersPage() {
       <LearnersDirectory
         initialLearners={learners}
         initialEnrolments={enrolments}
+        initialPaymentPlans={paymentPlans}
         classes={seedClasses}
         availableCourses={availableCourses}
         userRole={session.role}

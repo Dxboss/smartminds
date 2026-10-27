@@ -2466,6 +2466,11 @@ export async function adminEnrolNewStudentAction(data: {
   months?: number;
   paymentMethod?: "bacs" | "card" | "employer" | "funded";
   paymentStatus?: "paid" | "pending";
+  // Historical student fields:
+  isHistorical?: boolean;
+  enrolmentDate?: string;
+  amountPaidToDate?: number;
+  historicalNotes?: string;
 }) {
   const session = await getServerSession();
   assertAdminAuthorized(session);
@@ -2486,6 +2491,13 @@ export async function adminEnrolNewStudentAction(data: {
   const enrolmentId = `enr-${Date.now().toString(36)}-${randomBytes(3).toString("hex")}`;
   const tempPassword = `SM-${randomBytes(3).toString("hex").toUpperCase()}!26`;
 
+  const isHistorical = Boolean(data.isHistorical);
+  const enrolmentDateStr = isHistorical && data.enrolmentDate?.trim()
+    ? new Date(data.enrolmentDate.trim()).toISOString()
+    : new Date().toISOString();
+  const amountPaidToDate = isHistorical ? Math.max(0, Number(data.amountPaidToDate || 0)) : 0;
+  const totalPrice = Math.max(0, Number(data.totalPrice || 0));
+
   const newLearner: Learner = {
     id: learnerId,
     userId,
@@ -2500,7 +2512,7 @@ export async function adminEnrolNewStudentAction(data: {
       ? `${data.emergencyContactName.trim()} (${data.emergencyContactPhone?.trim() || ""})`
       : undefined,
     accessStatus: "active",
-    enrolmentDate: new Date().toISOString(),
+    enrolmentDate: enrolmentDateStr,
     lastActive: new Date().toISOString(),
     progressPercent: 0,
   };
@@ -2521,58 +2533,181 @@ export async function adminEnrolNewStudentAction(data: {
     preferredTimeSlot: data.sessionTiming,
     status: "active",
     fundingType: data.fundingType === "funded" ? "funded" : "self_pay",
-    enrolledAt: new Date().toISOString(),
+    enrolledAt: enrolmentDateStr,
     assessmentMethod: "criteria",
     completedUnits: [],
   };
 
-  // Payment Schedules
+  // Payment Schedules & Initial Payment Record
+  let paymentRecord: any = undefined;
   const paymentSchedules: any[] = [];
   const now = new Date();
 
-  if (data.paymentPlanType === "instalments" && data.months && data.months > 1) {
-    paymentSchedules.push({
-      id: `sched-dep-${enrolmentId}`,
-      enrolmentId,
-      learnerId,
-      amount: data.depositAmount,
-      dueDate: now.toISOString().slice(0, 10),
-      status: data.paymentStatus === "paid" ? "paid" : "pending",
-      paidAt: data.paymentStatus === "paid" ? now.toISOString() : undefined,
-      receiptRef: `RCP-${Date.now().toString(36).toUpperCase()}`,
-      method: data.paymentMethod || "card",
-      type: "deposit",
-      description: "Initial Enrolment Deposit",
-    });
-
-    const monthly = data.monthlyAmount || Math.round((data.totalPrice - data.depositAmount) / data.months);
-    for (let i = 1; i <= data.months; i++) {
-      const dueDate = new Date(now.getTime() + i * 30 * 24 * 60 * 60 * 1000);
+  if (isHistorical) {
+    // 1. Record historical payment already made by student
+    if (amountPaidToDate > 0) {
+      const histReceiptRef = `HIST-${Date.now().toString(36).toUpperCase()}`;
       paymentSchedules.push({
-        id: `sched-inst-${i}-${enrolmentId}`,
+        id: `sched-hist-${enrolmentId}`,
         enrolmentId,
         learnerId,
-        amount: monthly,
-        dueDate: dueDate.toISOString().slice(0, 10),
-        status: "pending",
-        type: "instalment",
-        description: `Instalment ${i} of ${data.months}`,
+        instalmentNumber: 1,
+        totalInstalments: data.months && data.months > 1 ? data.months + 1 : 1,
+        amount: amountPaidToDate,
+        amountGbp: amountPaidToDate,
+        dueDate: enrolmentDateStr.slice(0, 10),
+        status: "paid",
+        paidAt: enrolmentDateStr,
+        receiptRef: histReceiptRef,
+        method: data.paymentMethod || "bacs",
+        type: "deposit",
+        description: data.historicalNotes ? `Prior Payments: ${data.historicalNotes}` : "Prior Tuition Fees Received",
       });
+
+      paymentRecord = {
+        id: `pay-hist-${enrolmentId}`,
+        enrolmentId,
+        learnerId,
+        learnerName: `${data.firstName.trim()} ${data.lastName.trim()}`,
+        courseTitle: data.courseTitle,
+        amountGbp: amountPaidToDate,
+        method: (data.paymentMethod === "card" ? "stripe" : "bank_transfer"),
+        reference: histReceiptRef,
+        status: "paid",
+        paidAt: enrolmentDateStr,
+        notes: data.historicalNotes || "Prior student fee logged during registration",
+      };
+    }
+
+    // 2. Schedule remaining balance (if any)
+    const remainingBalance = Math.max(0, totalPrice - amountPaidToDate);
+
+    if (remainingBalance > 0) {
+      if (data.paymentPlanType === "instalments" && data.months && data.months > 0) {
+        const monthly = data.monthlyAmount || Math.round((remainingBalance / data.months) * 100) / 100;
+        for (let i = 1; i <= data.months; i++) {
+          const dueDate = new Date(now.getTime() + i * 30 * 24 * 60 * 60 * 1000);
+          paymentSchedules.push({
+            id: `sched-inst-${i}-${enrolmentId}`,
+            enrolmentId,
+            learnerId,
+            instalmentNumber: i + (amountPaidToDate > 0 ? 1 : 0),
+            totalInstalments: data.months + (amountPaidToDate > 0 ? 1 : 0),
+            amount: i === data.months
+              ? Math.round((remainingBalance - monthly * (data.months - 1)) * 100) / 100
+              : monthly,
+            amountGbp: i === data.months
+              ? Math.round((remainingBalance - monthly * (data.months - 1)) * 100) / 100
+              : monthly,
+            dueDate: dueDate.toISOString().slice(0, 10),
+            status: "pending",
+            type: "instalment",
+            description: `Remaining Instalment ${i} of ${data.months}`,
+          });
+        }
+      } else {
+        paymentSchedules.push({
+          id: `sched-rem-${enrolmentId}`,
+          enrolmentId,
+          learnerId,
+          instalmentNumber: 1,
+          totalInstalments: 1,
+          amount: remainingBalance,
+          amountGbp: remainingBalance,
+          dueDate: new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+          status: "pending",
+          type: "full",
+          description: "Remaining Balance Due",
+        });
+      }
     }
   } else {
-    paymentSchedules.push({
-      id: `sched-full-${enrolmentId}`,
-      enrolmentId,
-      learnerId,
-      amount: data.totalPrice,
-      dueDate: now.toISOString().slice(0, 10),
-      status: data.paymentStatus === "paid" ? "paid" : "pending",
-      paidAt: data.paymentStatus === "paid" ? now.toISOString() : undefined,
-      receiptRef: `RCP-${Date.now().toString(36).toUpperCase()}`,
-      method: data.paymentMethod || "bacs",
-      type: "full",
-      description: "Full Tuition Fee Upfront",
-    });
+    // Normal live enrolment
+    if (data.paymentPlanType === "instalments" && data.months && data.months > 1) {
+      paymentSchedules.push({
+        id: `sched-dep-${enrolmentId}`,
+        enrolmentId,
+        learnerId,
+        instalmentNumber: 1,
+        totalInstalments: data.months + 1,
+        amount: data.depositAmount,
+        amountGbp: data.depositAmount,
+        dueDate: now.toISOString().slice(0, 10),
+        status: data.paymentStatus === "paid" ? "paid" : "pending",
+        paidAt: data.paymentStatus === "paid" ? now.toISOString() : undefined,
+        receiptRef: `RCP-${Date.now().toString(36).toUpperCase()}`,
+        method: data.paymentMethod || "card",
+        type: "deposit",
+        description: "Initial Enrolment Deposit",
+      });
+
+      if (data.paymentStatus === "paid" && data.depositAmount > 0) {
+        paymentRecord = {
+          id: `pay-dep-${enrolmentId}`,
+          enrolmentId,
+          learnerId,
+          learnerName: `${data.firstName.trim()} ${data.lastName.trim()}`,
+          courseTitle: data.courseTitle,
+          amountGbp: data.depositAmount,
+          method: (data.paymentMethod === "card" ? "stripe" : "bank_transfer"),
+          reference: `RCP-${Date.now().toString(36).toUpperCase()}`,
+          status: "paid",
+          paidAt: now.toISOString(),
+          notes: "Initial Enrolment Deposit",
+        };
+      }
+
+      const monthly = data.monthlyAmount || Math.round((data.totalPrice - data.depositAmount) / data.months);
+      for (let i = 1; i <= data.months; i++) {
+        const dueDate = new Date(now.getTime() + i * 30 * 24 * 60 * 60 * 1000);
+        paymentSchedules.push({
+          id: `sched-inst-${i}-${enrolmentId}`,
+          enrolmentId,
+          learnerId,
+          instalmentNumber: i + 1,
+          totalInstalments: data.months + 1,
+          amount: monthly,
+          amountGbp: monthly,
+          dueDate: dueDate.toISOString().slice(0, 10),
+          status: "pending",
+          type: "instalment",
+          description: `Instalment ${i} of ${data.months}`,
+        });
+      }
+    } else {
+      paymentSchedules.push({
+        id: `sched-full-${enrolmentId}`,
+        enrolmentId,
+        learnerId,
+        instalmentNumber: 1,
+        totalInstalments: 1,
+        amount: data.totalPrice,
+        amountGbp: data.totalPrice,
+        dueDate: now.toISOString().slice(0, 10),
+        status: data.paymentStatus === "paid" ? "paid" : "pending",
+        paidAt: data.paymentStatus === "paid" ? now.toISOString() : undefined,
+        receiptRef: `RCP-${Date.now().toString(36).toUpperCase()}`,
+        method: data.paymentMethod || "bacs",
+        type: "full",
+        description: "Full Tuition Fee Upfront",
+      });
+
+      if (data.paymentStatus === "paid" && data.totalPrice > 0) {
+        paymentRecord = {
+          id: `pay-full-${enrolmentId}`,
+          enrolmentId,
+          learnerId,
+          learnerName: `${data.firstName.trim()} ${data.lastName.trim()}`,
+          courseTitle: data.courseTitle,
+          amountGbp: data.totalPrice,
+          method: (data.paymentMethod === "card" ? "stripe" : "bank_transfer"),
+          reference: `RCP-${Date.now().toString(36).toUpperCase()}`,
+          status: "paid",
+          paidAt: now.toISOString(),
+          notes: "Full Tuition Fee Upfront",
+        };
+      }
+    }
   }
 
   // Persist student records
@@ -2580,12 +2715,13 @@ export async function adminEnrolNewStudentAction(data: {
   savePersistedRecord({
     learner: newLearner,
     enrolment: newEnrolment,
+    paymentRecord,
     paymentSchedules,
     tempPassword,
     mustChangePassword: true,
   });
 
-  // Dispatch Welcome & Induction Email
+  // Dispatch Welcome & Induction Email (only for new enrolments, or if desired)
   try {
     const { buildStudentWelcomeEmail } = await import("@/lib/emailTemplates");
     const { sendEmail } = await import("@/lib/email");
@@ -2594,11 +2730,13 @@ export async function adminEnrolNewStudentAction(data: {
       studentId: learnerId,
       courseTitle: data.courseTitle,
       levelName: data.levelLabel,
-      amountCharged: data.depositAmount || data.totalPrice,
+      amountCharged: isHistorical ? amountPaidToDate : (data.depositAmount || data.totalPrice),
       receiptRef: `RCP-${Date.now().toString(36).toUpperCase()}`,
       paymentPlanLabel:
         data.fundingType === "funded"
           ? "Government / AEB Funded Placement (No Student Fees)"
+          : isHistorical
+          ? (amountPaidToDate >= totalPrice ? "Fully Settled Prior Enrolment" : `Active Payment Plan (£${amountPaidToDate} Paid / £${totalPrice - amountPaidToDate} Remaining)`)
           : data.paymentPlanType === "instalments"
           ? `${data.months}-Month 0% Interest Spread Plan (£${data.monthlyAmount || 0}/mo)`
           : "Full Upfront Payment",
@@ -2638,5 +2776,110 @@ export async function adminEnrolNewStudentAction(data: {
     enrolment: newEnrolment,
     tempPassword,
   };
+}
+
+export async function logLearnerPaymentAction(data: {
+  learnerId: string;
+  enrolmentId?: string;
+  amount: number;
+  method: "bacs" | "card" | "cash" | "employer";
+  reference?: string;
+  notes?: string;
+  paymentDate?: string;
+}) {
+  const session = await getServerSession();
+  if (!session || (session.role !== "owner_admin" && session.role !== "super_admin")) {
+    return { success: false, error: "Unauthorized: Only Centre Director or Super Admin can log payments." };
+  }
+
+  if (!data.learnerId) {
+    return { success: false, error: "Missing learner ID." };
+  }
+
+  const amount = Number(data.amount);
+  if (isNaN(amount) || amount <= 0) {
+    return { success: false, error: "Payment amount must be greater than £0." };
+  }
+
+  const { loadPersistedRecords, getStoreFilePath, syncPersistedRecords, syncStoreSnapshotToNeon } = await import("@/lib/persistedData");
+  const store = loadPersistedRecords();
+  if (!store.paymentRecords) store.paymentRecords = [];
+  if (!store.paymentSchedules) store.paymentSchedules = [];
+
+  const learner = (store.learners || []).find((l: any) => l.id === data.learnerId);
+  const learnerName = learner ? `${learner.firstName} ${learner.lastName}`.trim() : "Student";
+  const enrolment = (store.enrolments || []).find((e: any) => e.learnerId === data.learnerId);
+  const courseTitle = enrolment?.courseTitle || "Vocational Qualification";
+  const enrId = data.enrolmentId || enrolment?.id || `enr-${data.learnerId}`;
+  const payDate = data.paymentDate ? new Date(data.paymentDate).toISOString() : new Date().toISOString();
+  const ref = data.reference?.trim() || `MAN-${Date.now().toString(36).toUpperCase()}`;
+
+  // 1. Record receipt in paymentRecords
+  const newReceipt: any = {
+    id: `pay-manual-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+    enrolmentId: enrId,
+    learnerId: data.learnerId,
+    learnerName,
+    courseTitle,
+    amountGbp: amount,
+    method: data.method === "bacs" ? "bank_transfer" : data.method === "card" ? "stripe" : "manual",
+    reference: ref,
+    status: "paid",
+    paidAt: payDate,
+    notes: data.notes || `Direct payment logged by ${session.name || session.email}`,
+  };
+
+  store.paymentRecords.unshift(newReceipt);
+
+  // 2. Reduce or mark pending schedules as paid
+  let remainingAmount = amount;
+  const pendingSchedules = store.paymentSchedules
+    .filter((s: any) => s.learnerId === data.learnerId && (s.status === "pending" || s.status === "due" || s.status === "overdue"))
+    .sort((a: any, b: any) => (a.dueDate || "").localeCompare(b.dueDate || ""));
+
+  for (const s of pendingSchedules) {
+    if (remainingAmount <= 0) break;
+    const sched = s as any;
+    const schedAmount = Number(sched.amountGbp || sched.amount || 0);
+
+    if (remainingAmount >= schedAmount) {
+      sched.status = "paid";
+      sched.paidAt = payDate;
+      sched.paymentReference = ref;
+      remainingAmount -= schedAmount;
+    } else {
+      sched.amountGbp = schedAmount - remainingAmount;
+      store.paymentSchedules.push({
+        ...sched,
+        id: `sched-split-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+        amountGbp: remainingAmount,
+        status: "paid",
+        paidAt: payDate,
+        paymentReference: ref,
+      });
+      remainingAmount = 0;
+    }
+  }
+
+  const fs = await import("fs");
+  const filePath = getStoreFilePath();
+  fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+  syncPersistedRecords(true);
+  syncStoreSnapshotToNeon(store).catch(() => {});
+
+  if (process.env.DATABASE_URL) {
+    import("@/lib/db").then(({ sql }) => {
+      sql`
+        INSERT INTO payments (id, enrolment_id, learner_id, amount, status, data, created_at)
+        VALUES (${newReceipt.id}, ${newReceipt.enrolmentId}, ${newReceipt.learnerId}, ${newReceipt.amountGbp}, ${newReceipt.status}, ${JSON.stringify(newReceipt)}, now())
+      `.catch(() => {});
+    }).catch(() => {});
+  }
+
+  revalidatePath("/admin/learners");
+  revalidatePath("/admin/payments");
+  revalidatePath("/student");
+
+  return { success: true, payment: newReceipt };
 }
 

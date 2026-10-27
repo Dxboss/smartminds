@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Icon } from "@/components/ui/Icon";
-import { Learner, Enrolment, ClassCohort } from "@/lib/repositories/types";
+import { Learner, Enrolment, ClassCohort, LearnerPaymentPlanSummary } from "@/lib/repositories/types";
 import {
   moveLearnerClassAction,
   assignLearnerTutorAndSessionAction,
@@ -10,6 +10,7 @@ import {
   restoreLearnerAction,
   deleteLearnerPermanentlyAction,
   adminEnrolNewStudentAction,
+  logLearnerPaymentAction,
 } from "@/app/admin/actions";
 import { impersonateUserAction } from "@/app/super/actions";
 import type { Course } from "@/content/types";
@@ -17,6 +18,7 @@ import type { Course } from "@/content/types";
 interface Props {
   initialLearners: Learner[];
   initialEnrolments: Enrolment[];
+  initialPaymentPlans?: LearnerPaymentPlanSummary[];
   classes: ClassCohort[];
   availableCourses?: Course[];
   userRole?: string;
@@ -25,12 +27,15 @@ interface Props {
 export const LearnersDirectory: React.FC<Props> = ({
   initialLearners,
   initialEnrolments,
+  initialPaymentPlans = [],
   classes,
   availableCourses = [],
   userRole = "owner_admin",
 }) => {
   const [learners, setLearners] = useState<Learner[]>(initialLearners);
   const [enrolments, setEnrolments] = useState<Enrolment[]>(initialEnrolments);
+  const [paymentPlans, setPaymentPlans] = useState<LearnerPaymentPlanSummary[]>(initialPaymentPlans);
+  const canManagePayments = userRole === "owner_admin" || userRole === "super_admin";
   const [filter, setFilter] = useState<"all" | "active" | "paused" | "funded" | "archived">("all");
   const [search, setSearch] = useState("");
 
@@ -98,6 +103,90 @@ export const LearnersDirectory: React.FC<Props> = ({
     tempPass: string;
     studentId: string;
   } | null>(null);
+
+  // Historical Enrolment State
+  const [enrolIsHistorical, setEnrolIsHistorical] = useState(false);
+  const [enrolHistoricalDate, setEnrolHistoricalDate] = useState(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 6);
+    return d.toISOString().slice(0, 10);
+  });
+  const [enrolAmountPaidToDate, setEnrolAmountPaidToDate] = useState("0");
+  const [enrolHistoricalNotes, setEnrolHistoricalNotes] = useState("");
+
+  // Direct Log Payment Modal State
+  const [paymentModalLearner, setPaymentModalLearner] = useState<Learner | null>(null);
+  const [paymentModalEnrolment, setPaymentModalEnrolment] = useState<Enrolment | null>(null);
+  const [paymentModalPlan, setPaymentModalPlan] = useState<LearnerPaymentPlanSummary | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState<string>("");
+  const [paymentMethod, setPaymentMethod] = useState<"bacs" | "card" | "cash" | "employer">("bacs");
+  const [paymentReference, setPaymentReference] = useState<string>("");
+  const [paymentDate, setPaymentDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [paymentNotes, setPaymentNotes] = useState<string>("");
+  const [isLoggingPayment, setIsLoggingPayment] = useState(false);
+
+  const openLogPaymentModal = (learner: Learner, enr?: Enrolment, plan?: LearnerPaymentPlanSummary) => {
+    setPaymentModalLearner(learner);
+    setPaymentModalEnrolment(enr || null);
+    setPaymentModalPlan(plan || null);
+    const suggested = plan?.nextDueAmountGbp || (plan?.balanceRemainingGbp ? Math.min(plan.balanceRemainingGbp, 250) : 100);
+    setPaymentAmount(suggested > 0 ? suggested.toString() : "100");
+    setPaymentMethod("bacs");
+    setPaymentReference(`BACS-${Date.now().toString(36).toUpperCase()}`);
+    setPaymentDate(new Date().toISOString().slice(0, 10));
+    setPaymentNotes("");
+  };
+
+  const handleRecordPaymentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!paymentModalLearner) return;
+    const amt = parseFloat(paymentAmount);
+    if (isNaN(amt) || amt <= 0) {
+      alert("Please enter a valid payment amount greater than £0.");
+      return;
+    }
+
+    setIsLoggingPayment(true);
+    try {
+      const res = await logLearnerPaymentAction({
+        learnerId: paymentModalLearner.id,
+        enrolmentId: paymentModalEnrolment?.id,
+        amount: amt,
+        method: paymentMethod,
+        reference: paymentReference || undefined,
+        notes: paymentNotes || undefined,
+        paymentDate: paymentDate || undefined,
+      });
+
+      if (res.success) {
+        setPaymentPlans((prev) =>
+          prev.map((p) => {
+            if (p.learnerId === paymentModalLearner.id || p.enrolmentId === paymentModalEnrolment?.id) {
+              const newPaid = p.totalPaidGbp + amt;
+              const newBalance = Math.max(0, p.totalAmountGbp - newPaid);
+              return {
+                ...p,
+                totalPaidGbp: newPaid,
+                balanceRemainingGbp: newBalance,
+                status: newBalance <= 0 ? "settled" : p.status,
+              };
+            }
+            return p;
+          })
+        );
+
+        setFeedback(`Payment of £${amt.toFixed(2)} recorded for ${paymentModalLearner.firstName} ${paymentModalLearner.lastName}. Receipt reference: ${res.payment?.reference || paymentReference}`);
+        setTimeout(() => setFeedback(null), 6000);
+        setPaymentModalLearner(null);
+      } else {
+        alert(res.error || "Failed to record payment.");
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Error logging payment.");
+    } finally {
+      setIsLoggingPayment(false);
+    }
+  };
 
   const [feedback, setFeedback] = useState<string | null>(null);
 
@@ -328,6 +417,7 @@ export const LearnersDirectory: React.FC<Props> = ({
                 <th className="py-3 px-4">Course & Cohort</th>
                 <th className="py-3 px-4">Access Status</th>
                 <th className="py-3 px-4">Funding Stream</th>
+                {canManagePayments && <th className="py-3 px-4">Fee &amp; Balance</th>}
                 <th className="py-3 px-4">Enrolment Date</th>
                 <th className="py-3 px-4 text-right">Actions</th>
               </tr>
@@ -335,7 +425,7 @@ export const LearnersDirectory: React.FC<Props> = ({
             <tbody className="divide-y divide-line">
               {filteredLearners.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-ink-soft">
+                  <td colSpan={canManagePayments ? 7 : 6} className="py-8 text-center text-ink-soft">
                     No learners found matching the criteria.
                   </td>
                 </tr>
@@ -345,6 +435,9 @@ export const LearnersDirectory: React.FC<Props> = ({
                   const assignedClass = classes.find((c) => c.id === enr?.classId);
                   const isPaused = learner.accessStatus === "paused";
                   const isArchived = learner.accessStatus === "archived";
+                  const plan = paymentPlans.find(
+                    (p) => p.learnerId === learner.id || (enr && p.enrolmentId === enr.id)
+                  );
 
                   return (
                     <tr
@@ -409,11 +502,63 @@ export const LearnersDirectory: React.FC<Props> = ({
                           {enr?.fundingType === "funded" ? "Funded" : "Self-Pay"}
                         </span>
                       </td>
+                      {canManagePayments && (
+                        <td className="py-3 px-4">
+                          {plan ? (
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-1 font-mono text-xs">
+                                <span className="font-bold text-navy-900">
+                                  £{plan.totalPaidGbp.toLocaleString("en-GB")}
+                                </span>
+                                <span className="text-ink-soft text-[10px]">
+                                  / £{plan.totalAmountGbp.toLocaleString("en-GB")}
+                                </span>
+                              </div>
+                              <div>
+                                {plan.balanceRemainingGbp <= 0 ? (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-xs text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                    Settled (£0 bal)
+                                  </span>
+                                ) : plan.status === "overdue" ? (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-xs text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200">
+                                    Overdue: £{plan.balanceRemainingGbp.toLocaleString("en-GB")}
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-xs text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                                    Bal: £{plan.balanceRemainingGbp.toLocaleString("en-GB")}
+                                  </span>
+                                )}
+                              </div>
+                              {plan.nextDueDate && plan.balanceRemainingGbp > 0 && (
+                                <div className="text-[10px] text-ink-soft">
+                                  Next: {new Date(plan.nextDueDate).toLocaleDateString("en-GB")} (£{plan.nextDueAmountGbp || 0})
+                                </div>
+                              )}
+                            </div>
+                          ) : enr?.fundingType === "funded" ? (
+                            <span className="text-ink-soft italic text-[11px]">Fully funded</span>
+                          ) : (
+                            <span className="text-ink-soft text-[11px]">—</span>
+                          )}
+                        </td>
+                      )}
                       <td className="py-3 px-4 text-ink-soft font-mono text-[11px]">
                         {new Date(learner.enrolmentDate).toLocaleDateString("en-GB")}
                       </td>
                       <td className="py-3 px-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
+                          {canManagePayments && !isArchived && plan && plan.balanceRemainingGbp > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => openLogPaymentModal(learner, enr, plan)}
+                              className="px-2 py-1 rounded-sm border border-emerald-600 bg-emerald-50 text-emerald-800 hover:bg-emerald-600 hover:text-white text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer"
+                              title="Log offline or bank payment receipt"
+                            >
+                              <Icon name="credit-card" size={12} />
+                              <span>Log Pay</span>
+                            </button>
+                          )}
+
                           <button
                             type="button"
                             disabled={isImpersonatingId === learner.id || isImpersonatingId === learner.email}
@@ -705,10 +850,13 @@ export const LearnersDirectory: React.FC<Props> = ({
         </div>
       )}
 
-      {/* Learner Details Modal (Strictly Zero Payments) */}
+      {/* Learner Details Modal (Protected Payment Access) */}
       {selectedLearner && (() => {
         const enr = enrolments.find((e) => e.learnerId === selectedLearner.id);
         const assignedClass = classes.find((c) => c.id === enr?.classId);
+        const learnerPlan = paymentPlans.find(
+          (p) => p.learnerId === selectedLearner.id || (enr && p.enrolmentId === enr.id)
+        );
 
         return (
           <div className="fixed inset-0 z-50 bg-navy-900/40 backdrop-blur-sm flex items-center justify-center p-4">
@@ -830,6 +978,63 @@ export const LearnersDirectory: React.FC<Props> = ({
                     {selectedLearner.notes || "No operational notes recorded."}
                   </p>
                 </div>
+
+                {/* Tuition & Payment Overview (Only owner/super admin) */}
+                {canManagePayments && (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-bold text-navy-900 uppercase tracking-wider text-[11px]">
+                        Tuition &amp; Payment Ledger
+                      </h4>
+                      {learnerPlan && learnerPlan.balanceRemainingGbp > 0 && selectedLearner.accessStatus !== "archived" && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            openLogPaymentModal(selectedLearner, enr, learnerPlan);
+                          }}
+                          className="text-emerald-700 hover:text-emerald-800 font-bold text-[11px] underline cursor-pointer"
+                        >
+                          + Record Payment
+                        </button>
+                      )}
+                    </div>
+                    {learnerPlan ? (
+                      <div className="p-3 rounded-sm border border-line bg-paper space-y-2 text-xs">
+                        <div className="grid grid-cols-3 gap-2 text-center">
+                          <div className="bg-white p-2 rounded border border-line">
+                            <span className="text-ink-soft block text-[10px]">Agreed Fee</span>
+                            <strong className="text-navy-900 font-mono">£{learnerPlan.totalAmountGbp.toLocaleString("en-GB")}</strong>
+                          </div>
+                          <div className="bg-white p-2 rounded border border-line">
+                            <span className="text-ink-soft block text-[10px]">Paid to Date</span>
+                            <strong className="text-emerald-700 font-mono">£{learnerPlan.totalPaidGbp.toLocaleString("en-GB")}</strong>
+                          </div>
+                          <div className="bg-white p-2 rounded border border-line">
+                            <span className="text-ink-soft block text-[10px]">Balance Due</span>
+                            <strong className={`font-mono ${learnerPlan.balanceRemainingGbp > 0 ? "text-amber-800" : "text-emerald-700"}`}>
+                              £{learnerPlan.balanceRemainingGbp.toLocaleString("en-GB")}
+                            </strong>
+                          </div>
+                        </div>
+                        {learnerPlan.balanceRemainingGbp <= 0 ? (
+                          <p className="text-[11px] text-emerald-800 font-semibold bg-emerald-50 p-2 rounded border border-emerald-200">
+                            Tuition fees for this student have been fully settled.
+                          </p>
+                        ) : (
+                          <p className="text-[11px] text-amber-900 bg-amber-50 p-2 rounded border border-amber-200">
+                            Outstanding balance of £{learnerPlan.balanceRemainingGbp.toLocaleString("en-GB")}. Next instalment due {learnerPlan.nextDueDate ? new Date(learnerPlan.nextDueDate).toLocaleDateString("en-GB") : "per schedule"} (£{learnerPlan.nextDueAmountGbp || 0}).
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-ink-soft italic text-[11px] bg-paper p-2.5 rounded-sm border border-line">
+                        {enr?.fundingType === "funded"
+                          ? "Government / AEB Funded Placement (No individual learner tuition charges)."
+                          : "No payment plan on file."}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center justify-end pt-3 border-t border-line">
@@ -943,11 +1148,44 @@ export const LearnersDirectory: React.FC<Props> = ({
                       months: monthsNum,
                       paymentMethod: enrolPaymentMethod,
                       paymentStatus: enrolPaymentStatus,
+                      isHistorical: enrolIsHistorical,
+                      enrolmentDate: enrolIsHistorical && enrolHistoricalDate ? new Date(enrolHistoricalDate).toISOString() : undefined,
+                      amountPaidToDate: enrolIsHistorical ? (parseFloat(enrolAmountPaidToDate) || 0) : undefined,
+                      historicalNotes: enrolIsHistorical ? enrolHistoricalNotes : undefined,
                     });
 
                     if (res.success && res.learner && res.enrolment) {
                       setLearners((prev) => [res.learner, ...prev]);
                       setEnrolments((prev) => [res.enrolment, ...prev]);
+
+                      if (canManagePayments) {
+                        const paidSoFar = enrolIsHistorical
+                          ? (parseFloat(enrolAmountPaidToDate) || 0)
+                          : enrolFundingType === "funded"
+                          ? 0
+                          : enrolPaymentStatus === "paid"
+                          ? (enrolPlanType === "full" ? priceNum : depNum)
+                          : 0;
+                        const balRemaining = Math.max(0, priceNum - paidSoFar);
+
+                        const newPlan: LearnerPaymentPlanSummary = {
+                          enrolmentId: res.enrolment.id,
+                          learnerId: res.learner.id,
+                          learnerName: `${res.learner.firstName} ${res.learner.lastName}`,
+                          learnerEmail: res.learner.email,
+                          learnerPhone: res.learner.phone,
+                          courseTitle: res.enrolment.courseTitle,
+                          levelLabel: res.enrolment.courseLevelLabel,
+                          totalAmountGbp: priceNum,
+                          totalPaidGbp: paidSoFar,
+                          balanceRemainingGbp: balRemaining,
+                          status: balRemaining <= 0 ? "settled" : "up_to_date",
+                          schedule: [],
+                          history: [],
+                        };
+                        setPaymentPlans((prev) => [newPlan, ...prev]);
+                      }
+
                       setEnrolCreatedSuccess({
                         name: `${res.learner.firstName} ${res.learner.lastName}`,
                         email: res.learner.email,
@@ -1154,6 +1392,98 @@ export const LearnersDirectory: React.FC<Props> = ({
                     <Icon name="credit-card" size={13} className="text-gold-700" />
                     <span>3. Tuition Fee &amp; Payment Structure</span>
                   </h4>
+                  {/* Historical Student / Previous Enrolment */}
+                  <div className="p-3 bg-amber-50/70 border border-amber-200/90 rounded-sm space-y-2.5">
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={enrolIsHistorical}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setEnrolIsHistorical(checked);
+                          if (checked && (!enrolAmountPaidToDate || enrolAmountPaidToDate === "0")) {
+                            setEnrolAmountPaidToDate(enrolPrice);
+                          }
+                        }}
+                        className="rounded text-navy-900 focus:ring-navy-900"
+                      />
+                      <span className="text-xs font-bold text-navy-900">
+                        Existing / Historical Student (Record Past Enrolment &amp; Payments to Date)
+                      </span>
+                    </label>
+                    <p className="text-[11px] text-ink-soft leading-relaxed">
+                      Enable this to register previous or transferring students. Record their original enrolment date and how much they have already paid so the system tracks their accurate remaining balance.
+                    </p>
+
+                    {enrolIsHistorical && (
+                      <div className="pt-2 border-t border-amber-200/60 space-y-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[11px] font-semibold text-navy-900 mb-1">
+                              Original Enrolment Date *
+                            </label>
+                            <input
+                              type="date"
+                              required={enrolIsHistorical}
+                              value={enrolHistoricalDate}
+                              onChange={(e) => setEnrolHistoricalDate(e.target.value)}
+                              className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-mono"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-semibold text-navy-900 mb-1">
+                              Total Amount Paid to Date (£) *
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              max={enrolPrice}
+                              required={enrolIsHistorical}
+                              value={enrolAmountPaidToDate}
+                              onChange={(e) => setEnrolAmountPaidToDate(e.target.value)}
+                              placeholder="e.g. 900 or 1250"
+                              className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-mono font-bold text-emerald-800"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Live Balance Calculation Notice */}
+                        {(() => {
+                          const total = parseFloat(enrolPrice) || 0;
+                          const paid = parseFloat(enrolAmountPaidToDate) || 0;
+                          const bal = Math.max(0, total - paid);
+                          return (
+                            <div className="p-2.5 rounded bg-white border border-amber-200 text-xs flex items-center justify-between">
+                              <div>
+                                <span className="text-ink-soft block text-[10px]">Calculated Balance Remaining</span>
+                                <span className="font-bold text-sm font-mono text-navy-900">
+                                  {bal <= 0 ? "£0.00 (Fully Settled)" : `£${bal.toFixed(2)} Outstanding`}
+                                </span>
+                              </div>
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${bal <= 0 ? "bg-emerald-100 text-emerald-900" : "bg-amber-100 text-amber-900"}`}>
+                                {bal <= 0 ? "100% Settled" : "Remaining to Collect"}
+                              </span>
+                            </div>
+                          );
+                        })()}
+
+                        <div>
+                          <label className="block text-[11px] font-semibold text-navy-900 mb-1">
+                            Historical Payment Reference / Notes
+                          </label>
+                          <input
+                            type="text"
+                            value={enrolHistoricalNotes}
+                            onChange={(e) => setEnrolHistoricalNotes(e.target.value)}
+                            placeholder="e.g. Paid £900 cash in Sept 2024 (Receipts #402 & #489), remaining £350 due across next 3 months"
+                            className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
                       <label className="block text-[11px] font-semibold text-navy-900 mb-1">Funding Classification</label>
@@ -1190,7 +1520,7 @@ export const LearnersDirectory: React.FC<Props> = ({
                       />
                     </div>
 
-                    {enrolPlanType === "instalments" && (
+                    {enrolPlanType === "instalments" && !enrolIsHistorical && (
                       <>
                         <div>
                           <label className="block text-[11px] font-semibold text-navy-900 mb-1">Deposit Today (£)</label>
@@ -1217,17 +1547,19 @@ export const LearnersDirectory: React.FC<Props> = ({
                       </>
                     )}
 
-                    <div>
-                      <label className="block text-[11px] font-semibold text-navy-900 mb-1">Deposit Payment Status</label>
-                      <select
-                        value={enrolPaymentStatus}
-                        onChange={(e) => setEnrolPaymentStatus(e.target.value as any)}
-                        className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
-                      >
-                        <option value="paid">Paid (Card / Bank Transfer)</option>
-                        <option value="pending">Pending Invoice / First Payment</option>
-                      </select>
-                    </div>
+                    {!enrolIsHistorical && (
+                      <div>
+                        <label className="block text-[11px] font-semibold text-navy-900 mb-1">Deposit Payment Status</label>
+                        <select
+                          value={enrolPaymentStatus}
+                          onChange={(e) => setEnrolPaymentStatus(e.target.value as any)}
+                          className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
+                        >
+                          <option value="paid">Paid (Card / Bank Transfer)</option>
+                          <option value="pending">Pending Invoice / First Payment</option>
+                        </select>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1250,6 +1582,145 @@ export const LearnersDirectory: React.FC<Props> = ({
                 </div>
               </form>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Quick Record Payment Modal */}
+      {paymentModalLearner && (
+        <div className="fixed inset-0 z-50 bg-navy-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-md border border-line p-6 max-w-md w-full space-y-4 shadow-xl">
+            <div className="flex items-start justify-between border-b border-line pb-3">
+              <div>
+                <div className="flex items-center gap-1.5 text-xs text-emerald-800 font-bold uppercase tracking-wider">
+                  <Icon name="credit-card" size={14} />
+                  <span>Record Offline / Bank Payment</span>
+                </div>
+                <h3 className="font-heading text-xl font-bold text-navy-900 mt-0.5">
+                  {paymentModalLearner.firstName} {paymentModalLearner.lastName}
+                </h3>
+                <p className="text-xs text-ink-soft">
+                  {paymentModalEnrolment?.courseTitle || "Accredited Qualification"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPaymentModalLearner(null)}
+                className="text-ink-soft hover:text-navy-900 text-lg leading-none p-1 cursor-pointer"
+              >
+                &times;
+              </button>
+            </div>
+
+            {paymentModalPlan && (
+              <div className="p-3 bg-paper rounded border border-line grid grid-cols-3 gap-2 text-center text-xs">
+                <div>
+                  <span className="text-[10px] text-ink-soft block">Course Fee</span>
+                  <strong className="text-navy-900 font-mono">£{paymentModalPlan.totalAmountGbp}</strong>
+                </div>
+                <div>
+                  <span className="text-[10px] text-ink-soft block">Already Paid</span>
+                  <strong className="text-emerald-700 font-mono">£{paymentModalPlan.totalPaidGbp}</strong>
+                </div>
+                <div>
+                  <span className="text-[10px] text-ink-soft block">Outstanding</span>
+                  <strong className="text-amber-800 font-mono">£{paymentModalPlan.balanceRemainingGbp}</strong>
+                </div>
+              </div>
+            )}
+
+            <form onSubmit={handleRecordPaymentSubmit} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block font-semibold text-navy-900 mb-1">
+                  Payment Amount (£) *
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  required
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(e.target.value)}
+                  placeholder="e.g. 150.00"
+                  className="w-full px-3 py-2 rounded-sm border border-line bg-white font-mono font-bold text-sm text-navy-900 focus:outline-none focus:ring-1 focus:ring-navy-900"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-navy-900 mb-1">
+                    Payment Method *
+                  </label>
+                  <select
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value as any)}
+                    className="w-full px-2.5 py-2 rounded-sm border border-line bg-white font-medium focus:outline-none focus:ring-1 focus:ring-navy-900"
+                  >
+                    <option value="bacs">BACS / Bank Transfer</option>
+                    <option value="card">Card Terminal / POS</option>
+                    <option value="cash">Cash in Person</option>
+                    <option value="employer">Employer / Sponsor</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-navy-900 mb-1">
+                    Payment Date *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={paymentDate}
+                    onChange={(e) => setPaymentDate(e.target.value)}
+                    className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white font-mono text-xs focus:outline-none focus:ring-1 focus:ring-navy-900"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-navy-900 mb-1">
+                  Payment Reference / Receipt ID
+                </label>
+                <input
+                  type="text"
+                  value={paymentReference}
+                  onChange={(e) => setPaymentReference(e.target.value)}
+                  placeholder="e.g. BACS-TRANS-901 or CASH-041"
+                  className="w-full px-3 py-1.5 rounded-sm border border-line bg-white font-mono text-xs focus:outline-none focus:ring-1 focus:ring-navy-900"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-navy-900 mb-1">
+                  Internal Note
+                </label>
+                <input
+                  type="text"
+                  value={paymentNotes}
+                  onChange={(e) => setPaymentNotes(e.target.value)}
+                  placeholder="e.g. Received over counter by Millie"
+                  className="w-full px-3 py-1.5 rounded-sm border border-line bg-white text-xs focus:outline-none focus:ring-1 focus:ring-navy-900"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-line">
+                <button
+                  type="button"
+                  onClick={() => setPaymentModalLearner(null)}
+                  className="px-3.5 py-2 rounded-sm border border-line bg-paper text-ink-soft hover:text-ink font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isLoggingPayment}
+                  className="px-4 py-2 rounded-sm bg-emerald-700 hover:bg-emerald-800 text-white font-bold transition-colors disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
+                >
+                  <Icon name="check" size={14} />
+                  <span>{isLoggingPayment ? "Recording Payment..." : "Confirm & Issue Receipt"}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

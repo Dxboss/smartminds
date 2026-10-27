@@ -111,7 +111,7 @@ export { type ColorSwatch, DEFAULT_COLOR_SWATCHES };
 import { type FacultyRecord, DEFAULT_COLLEGE_FACULTIES } from "@/content/faculties";
 export { type FacultyRecord, DEFAULT_COLLEGE_FACULTIES };
 
-function getStoreFilePath(): string {
+export function getStoreFilePath(): string {
   const dataDir = path.join(process.cwd(), "data");
   if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
@@ -506,19 +506,46 @@ export function savePersistedRecord(data: {
       import("@/lib/db")
         .then(({ sql }) => {
           if (data.learner) {
+            const l = data.learner as any;
+            const firstName = l.firstName || (l.name ? l.name.split(" ")[0] : "");
+            const lastName = l.lastName || (l.name ? l.name.slice(firstName.length).trim() : "");
+            const fullName = `${firstName} ${lastName}`.trim() || l.name || l.email;
+
             sql`
-              INSERT INTO learners (id, email, name, data, created_at, updated_at)
+              INSERT INTO learners (
+                id,
+                user_id,
+                first_name,
+                last_name,
+                email,
+                name,
+                phone,
+                access_status,
+                data,
+                created_at,
+                updated_at
+              )
               VALUES (
-                ${data.learner.id},
-                ${data.learner.email},
-                ${data.learner.firstName + ' ' + data.learner.lastName},
-                ${JSON.stringify(data.learner)},
+                ${l.id},
+                ${l.userId || null},
+                ${firstName},
+                ${lastName},
+                ${l.email},
+                ${fullName},
+                ${l.phone || null},
+                ${l.accessStatus || "active"},
+                ${JSON.stringify(l)},
                 now(),
                 now()
               )
               ON CONFLICT (id) DO UPDATE SET
+                user_id = EXCLUDED.user_id,
+                first_name = EXCLUDED.first_name,
+                last_name = EXCLUDED.last_name,
                 email = EXCLUDED.email,
                 name = EXCLUDED.name,
+                phone = EXCLUDED.phone,
+                access_status = EXCLUDED.access_status,
                 data = EXCLUDED.data,
                 updated_at = now();
             `.catch((err) => console.warn("[Neon DB] learners sync error:", err));
