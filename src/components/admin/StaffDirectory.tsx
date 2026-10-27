@@ -8,6 +8,7 @@ import {
   toggleStaffStatusAction,
   removeStaffMemberAction,
 } from "@/app/admin/actions";
+import { DEFAULT_COLLEGE_FACULTIES } from "@/content/faculties";
 
 interface Props {
   initialUsers: UserProfile[];
@@ -574,15 +575,36 @@ export const StaffDirectory: React.FC<Props> = ({
 
               <div>
                 <label className="font-bold text-navy-900 block mb-1">
-                  Faculty / Department
+                  {inviteRole === "tutor" ? "Assigned Faculty *" : "Department *"}
                 </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Health & Social Care Faculty or Admissions Team"
-                  value={inviteDepartment}
-                  onChange={(e) => setInviteDepartment(e.target.value)}
-                  className="w-full px-3 py-2 rounded-sm border border-line bg-paper text-ink focus:outline-none focus:ring-1 focus:ring-navy-900"
-                />
+                {inviteRole === "tutor" ? (
+                  <select
+                    required
+                    value={inviteDepartment}
+                    onChange={(e) => setInviteDepartment(e.target.value)}
+                    className="w-full px-3 py-2 rounded-sm border border-line bg-paper text-ink focus:outline-none focus:ring-1 focus:ring-navy-900 text-xs"
+                  >
+                    <option value="">Select Faculty...</option>
+                    {DEFAULT_COLLEGE_FACULTIES.map((fac) => (
+                      <option key={fac.id} value={fac.name}>
+                        {fac.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <select
+                    required
+                    value={inviteDepartment}
+                    onChange={(e) => setInviteDepartment(e.target.value)}
+                    className="w-full px-3 py-2 rounded-sm border border-line bg-paper text-ink focus:outline-none focus:ring-1 focus:ring-navy-900 text-xs"
+                  >
+                    <option value="">Select Department...</option>
+                    <option value="Admissions & Student Enrolment">Admissions & Student Enrolment</option>
+                    <option value="Student Support & Services">Student Support & Services</option>
+                    <option value="Operations & Centre Administration">Operations & Centre Administration</option>
+                    <option value="Quality Assurance & Compliance">Quality Assurance & Compliance</option>
+                  </select>
+                )}
               </div>
 
               <div>

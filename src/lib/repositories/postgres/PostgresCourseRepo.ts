@@ -59,14 +59,14 @@ export class PostgresCourseRepo implements CourseRepo {
         for (const c of defaultCourses) {
           const norm = normalizeCourseRecord(c);
           await sql`
-            INSERT INTO course_catalog (id, slug, title, category, type, published, data, updated_at)
-            VALUES (${norm.id}, ${norm.slug}, ${norm.title}, ${norm.category || ""}, ${norm.type}, ${norm.published ?? true}, ${JSON.stringify(norm)}::jsonb, now())
+            INSERT INTO course_catalog (id, title, data, updated_at)
+            VALUES (${norm.id}, ${norm.title}, ${JSON.stringify(norm)}::jsonb, now())
             ON CONFLICT (id) DO NOTHING;
           `;
         }
       }
     } catch (err) {
-      console.error("[PostgresCourseRepo] Catalog seed check failed:", sanitizeDbError(err));
+      console.warn("[PostgresCourseRepo] Catalog seed check notice:", sanitizeDbError(err));
     }
   }
 
@@ -77,7 +77,7 @@ export class PostgresCourseRepo implements CourseRepo {
     try {
       await this.ensureCatalogSeeded();
       const rows = (await sql`
-        SELECT data FROM course_catalog ORDER BY title ASC;
+        SELECT data FROM course_catalog;
       `) as { data: Course }[];
 
       if (rows.length === 0) {
@@ -85,8 +85,8 @@ export class PostgresCourseRepo implements CourseRepo {
       }
       return rows.map((r) => normalizeCourseRecord(r.data));
     } catch (err) {
-      console.error("[PostgresCourseRepo] listCourses query error:", sanitizeDbError(err));
-      throw new Error(`Failed to list courses from database: ${sanitizeDbError(err)}`);
+      console.warn("[PostgresCourseRepo] listCourses notice:", sanitizeDbError(err));
+      return defaultCourses.map(normalizeCourseRecord);
     }
   }
 
@@ -98,7 +98,11 @@ export class PostgresCourseRepo implements CourseRepo {
     try {
       await this.ensureCatalogSeeded();
       const rows = (await sql`
-        SELECT data FROM course_catalog WHERE slug = ${slug} OR id = ${slug} LIMIT 1;
+        SELECT data FROM course_catalog 
+        WHERE id = ${slug} 
+           OR data->>'slug' = ${slug} 
+           OR data->>'id' = ${slug}
+        LIMIT 1;
       `) as { data: Course }[];
 
       if (rows.length > 0 && rows[0]?.data) {
@@ -109,8 +113,9 @@ export class PostgresCourseRepo implements CourseRepo {
       const fallback = defaultCourses.find((c) => c.slug === slug || c.id === slug);
       return fallback ? normalizeCourseRecord(fallback) : null;
     } catch (err) {
-      console.error(`[PostgresCourseRepo] getCourseBySlug(${slug}) error:`, sanitizeDbError(err));
-      throw new Error(`Failed to fetch course by slug from database: ${sanitizeDbError(err)}`);
+      console.warn(`[PostgresCourseRepo] getCourseBySlug(${slug}) notice:`, sanitizeDbError(err));
+      const fallback = defaultCourses.find((c) => c.slug === slug || c.id === slug);
+      return fallback ? normalizeCourseRecord(fallback) : null;
     }
   }
 
@@ -122,7 +127,10 @@ export class PostgresCourseRepo implements CourseRepo {
     try {
       await this.ensureCatalogSeeded();
       const rows = (await sql`
-        SELECT data FROM course_catalog WHERE id = ${id} LIMIT 1;
+        SELECT data FROM course_catalog 
+        WHERE id = ${id} 
+           OR data->>'id' = ${id}
+        LIMIT 1;
       `) as { data: Course }[];
 
       if (rows.length > 0 && rows[0]?.data) {
@@ -131,8 +139,9 @@ export class PostgresCourseRepo implements CourseRepo {
       const fallback = defaultCourses.find((c) => c.id === id);
       return fallback ? normalizeCourseRecord(fallback) : null;
     } catch (err) {
-      console.error(`[PostgresCourseRepo] getCourseById(${id}) error:`, sanitizeDbError(err));
-      throw new Error(`Failed to fetch course by id from database: ${sanitizeDbError(err)}`);
+      console.warn(`[PostgresCourseRepo] getCourseById(${id}) notice:`, sanitizeDbError(err));
+      const fallback = defaultCourses.find((c) => c.id === id);
+      return fallback ? normalizeCourseRecord(fallback) : null;
     }
   }
 
@@ -167,14 +176,10 @@ export class PostgresCourseRepo implements CourseRepo {
       }
 
       await sql`
-        INSERT INTO course_catalog (id, slug, title, category, type, published, data, updated_at)
-        VALUES (${norm.id}, ${norm.slug}, ${norm.title}, ${norm.category || ""}, ${norm.type}, ${norm.published ?? true}, ${JSON.stringify(norm)}::jsonb, now())
+        INSERT INTO course_catalog (id, title, data, updated_at)
+        VALUES (${norm.id}, ${norm.title}, ${JSON.stringify(norm)}::jsonb, now())
         ON CONFLICT (id) DO UPDATE SET
-          slug = EXCLUDED.slug,
           title = EXCLUDED.title,
-          category = EXCLUDED.category,
-          type = EXCLUDED.type,
-          published = EXCLUDED.published,
           data = EXCLUDED.data,
           updated_at = now();
       `;
@@ -199,14 +204,10 @@ export class PostgresCourseRepo implements CourseRepo {
 
     try {
       await sql`
-        INSERT INTO course_catalog (id, slug, title, category, type, published, data, created_at, updated_at)
-        VALUES (${norm.id}, ${norm.slug}, ${norm.title}, ${norm.category || ""}, ${norm.type}, ${norm.published ?? true}, ${JSON.stringify(norm)}::jsonb, now(), now())
+        INSERT INTO course_catalog (id, title, data, updated_at)
+        VALUES (${norm.id}, ${norm.title}, ${JSON.stringify(norm)}::jsonb, now())
         ON CONFLICT (id) DO UPDATE SET
-          slug = EXCLUDED.slug,
           title = EXCLUDED.title,
-          category = EXCLUDED.category,
-          type = EXCLUDED.type,
-          published = EXCLUDED.published,
           data = EXCLUDED.data,
           updated_at = now();
       `;

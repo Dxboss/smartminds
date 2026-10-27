@@ -175,7 +175,7 @@ const CoursesListingContent: React.FC<CoursesListingViewProps> = ({
   const categories = useMemo(() => {
     const result: string[] = ["All"];
 
-    // 1. Primary source: Academic Faculties from Course & Prices
+    // Source strictly from Academic Faculties (configured in CMS or defaults)
     const sourceFaculties =
       initialFaculties && initialFaculties.length > 0
         ? initialFaculties
@@ -189,20 +189,8 @@ const CoursesListingContent: React.FC<CoursesListingViewProps> = ({
       }
     });
 
-    // 2. Extra course categories that are not covered by any existing faculty
-    (initialCourses || []).forEach((c) => {
-      if (!c?.category) return;
-      const cat = c.category.trim();
-      const matchesAnyFaculty = result.some(
-        (r) => r !== "All" && matchesCategory(c, r)
-      );
-      if (!matchesAnyFaculty && !result.some((r) => r.toLowerCase() === cat.toLowerCase())) {
-        result.push(cat);
-      }
-    });
-
     return result;
-  }, [initialCourses, initialFaculties]);
+  }, [initialFaculties]);
 
   // Sync with URL query parameters (e.g. /courses?category=Health+%26+Social+Care&level=Level+3)
   useEffect(() => {
