@@ -950,7 +950,7 @@ export const courses: Course[] = [
       "GCSE-equivalent Level 2 qualifications in English and Maths accepted by UK employers and universities.",
     description:
       "Study from home with weekly live tutor-led classes, recorded revision sessions, and practice exam papers. Meets entry requirements for higher education, university nursing/teaching degrees, and apprenticeships.",
-    category: "Education & Teaching",
+    category: "Maths & English",
     type: "regulated",
     delivery: "live_online",
     start_mode: "rolling",
@@ -1590,7 +1590,7 @@ export const courses: Course[] = [
       "Personalised live tutoring for children (KS3 & GCSE) led by DBS-checked subject teachers to boost confidence and exam grades.",
     description:
       "Targeted one-on-one sessions tailored to your child's specific exam board (AQA, Edexcel, OCR). We identify learning gaps, teach core techniques, and provide regular structured progress feedback to parents.",
-    category: "Private Tutoring",
+    category: "Academic Tutoring (Kids & GCSE)",
     type: "tutoring",
     delivery: "blended",
     attendance_type: "physical_venue",
@@ -1599,13 +1599,27 @@ export const courses: Course[] = [
     training_locations: [
       "Gloucester College Centre (Face-to-Face)",
       "Live 1-on-1 Online Interactive",
-      "Home Study (Upon Request)",
     ],
-    intake_text: "After-School & Weekend Sessions (Thurs/Fri 4–6pm, Sat 9am–3pm)",
+    tutoring_slots: [
+      "Thursday, 4:00pm",
+      "Thursday, 5:00pm",
+      "Friday, 4:00pm",
+      "Friday, 5:00pm",
+      "Saturday, 9:00am",
+      "Saturday, 10:00am",
+      "Saturday, 11:00am",
+      "Saturday, 12:00pm",
+      "Saturday, 1:00pm",
+      "Saturday, 2:00pm",
+      "Saturday, 3:00pm",
+      "Saturday, 4:00pm",
+      "Saturday, 5:00pm",
+    ],
+    home_study_note: "Home study may be available on request.",
+    intake_text: "After-school and weekend lessons: Thursday, Friday, and Saturday",
     assessment_model_text: "Continuous 1-on-1 Progress Review (No Portfolio)",
     support_model_text: "Dedicated DBS-Checked Subject Tutor",
-    session_duration_info:
-      "Session lasts 60 mins + 15 mins variable extra time (depending on learner's speed & topic) + self-assessment period of up to 30 mins (free & optional).",
+    session_duration_info: "Each lesson is 60 minutes, followed by 15 minutes of breakout time.",
     start_mode: "rolling",
     start_dates: ["Flexible weekday and weekend slots"],
     awarding_body: null,
@@ -1618,7 +1632,7 @@ export const courses: Course[] = [
       {
         question: "How long is each tutoring session?",
         answer:
-          "Each session is scheduled for 60 minutes of direct teaching + up to 15 minutes variable extra time depending on the learner's topic and speed. Learners can also access a free 30-minute self-assessment period.",
+          "Each lesson is 60 minutes, followed by 15 minutes of breakout time.",
       },
       {
         question: "Is there a discount for bulk booking?",

@@ -1,5 +1,6 @@
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Course } from "@/content/types";
 import { Heading } from "@/components/ui/Heading";
 import { Icon } from "@/components/ui/Icon";
@@ -19,6 +20,53 @@ export const CourseHeader: React.FC<CourseHeaderProps> = ({ course }) => {
     course.is_private_tutoring ||
     course.type === "tutoring" ||
     course.id.toLowerCase().includes("tutoring");
+
+  if (isTutoring) {
+    return (
+      <header className="mb-10 grid gap-7 overflow-hidden rounded-md border border-line bg-white lg:grid-cols-[1.1fr_0.9fr]">
+        <div className="flex flex-col items-start justify-center p-6 sm:p-9 lg:p-12">
+          <nav aria-label="Breadcrumb" className="mb-5 flex items-center gap-2 text-xs text-ink-soft">
+            <Link href="/" className="hover:text-navy-900">Home</Link>
+            <Icon name="chevron-right" size={12} />
+            <Link href="/courses" className="hover:text-navy-900">Courses</Link>
+            <Icon name="chevron-right" size={12} />
+            <span className="truncate font-semibold text-navy-900">{course.title}</span>
+          </nav>
+          <span className="mb-3 inline-flex items-center rounded-sm bg-navy-900 px-3 py-1 text-xs font-semibold text-white">
+            One-to-one academic tutoring
+          </span>
+          <Heading level="h1" className="mb-3 text-4xl leading-tight text-navy-900 sm:text-5xl">
+            {course.title}
+          </Heading>
+          <p className="max-w-2xl text-base leading-relaxed text-ink-soft sm:text-lg">
+            {course.summary}
+          </p>
+          <div className="mt-6 flex flex-wrap gap-2 text-sm text-ink">
+            <span className="rounded-sm border border-line bg-paper px-3 py-2">English and Maths</span>
+            <span className="rounded-sm border border-line bg-paper px-3 py-2">Centre or online</span>
+            <span className="rounded-sm border border-line bg-paper px-3 py-2">After school and Saturdays</span>
+          </div>
+          {course.home_study_note && (
+            <p className="mt-4 text-sm text-ink-soft">{course.home_study_note}</p>
+          )}
+          <Link href="#pricing" className="mt-7 inline-flex min-h-[44px] items-center rounded-sm bg-navy-900 px-5 font-semibold text-white hover:bg-navy-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-900">
+            View tutoring prices
+          </Link>
+        </div>
+        <div className="relative min-h-[260px] bg-paper sm:min-h-[340px] lg:min-h-[460px]">
+          <Image
+            src={course.image || "/images/tutor-teaching.jpg"}
+            alt={course.imageAlt || "Tutor helping a learner with English and mathematics"}
+            fill
+            unoptimized={course.image?.startsWith("http") || course.image?.startsWith("data:")}
+            priority
+            sizes="(max-width: 1024px) 100vw, 45vw"
+            className="object-cover"
+          />
+        </div>
+      </header>
+    );
+  }
 
   return (
     <div

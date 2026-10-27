@@ -6,11 +6,41 @@ export const isDbConfigured = Boolean(
   databaseUrl && databaseUrl.trim().length > 0
 );
 
-const dummySql = ((..._args: any[]) => Promise.resolve([])) as unknown as ReturnType<typeof neon>;
+export function sanitizeDbError(err: unknown): string {
+  if (!err) return "Unknown database error";
+  const msg = err instanceof Error ? err.message : String(err);
+  return msg
+    .replace(/postgres(?:ql)?:\/\/[^@\s]+@/gi, "postgresql://[REDACTED]@")
+    .replace(/(?:password|pwd|secret)=([^\s&]+)/gi, "password=[REDACTED]");
+}
 
-export const sql = isDbConfigured
-  ? neon(databaseUrl!)
-  : dummySql;
+const dummySql = ((..._args: any[]) => {
+  if (
+    process.env.NODE_ENV === "production" &&
+    process.env.DEMO_MODE !== "true" &&
+    process.env.NEXT_PHASE !== "phase-production-build"
+  ) {
+    const errorMsg =
+      "[Neon DB] Error: DATABASE_URL is not configured in production. Database query aborted to prevent data loss or silent fallback.";
+    console.error(errorMsg);
+    throw new Error(errorMsg);
+  }
+  return Promise.resolve([]);
+}) as unknown as ReturnType<typeof neon>;
+
+const rawNeon = isDbConfigured ? neon(databaseUrl!) : null;
+
+export const sql = (isDbConfigured && rawNeon
+  ? (async (strings: TemplateStringsArray | string, ...values: any[]) => {
+      try {
+        return await (rawNeon as any)(strings, ...values);
+      } catch (err) {
+        const safeMsg = sanitizeDbError(err);
+        console.error("[Neon DB] Query Error:", safeMsg);
+        throw new Error(safeMsg);
+      }
+    })
+  : dummySql) as unknown as ReturnType<typeof neon>;
 
 let tablesInitialized = false;
 let initializingPromise: Promise<boolean> | null = null;

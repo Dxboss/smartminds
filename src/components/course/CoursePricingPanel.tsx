@@ -79,8 +79,9 @@ export const CoursePricingPanel: React.FC<CoursePricingPanelProps> = ({
   const hasFundingOption =
     course.funding === "both" || course.funding === "funded";
 
-  const discountPercent =
-    selectedLevel.full_pay_discount_percent !== null &&
+  const discountPercent = pricing.hasPriceSlash
+    ? 0
+    : selectedLevel.full_pay_discount_percent !== null &&
     selectedLevel.full_pay_discount_percent !== undefined
       ? selectedLevel.full_pay_discount_percent
       : globalSettings.default_full_pay_discount_percent;
@@ -210,10 +211,10 @@ export const CoursePricingPanel: React.FC<CoursePricingPanelProps> = ({
             <div className="text-xs text-ink-soft flex items-center justify-between pt-1">
               <span>
                 {paymentMode === "full" && pricing.saving > 0
-                  ? `Pay in full upfront (${selectedLevel.full_pay_discount_percent ?? globalSettings.default_full_pay_discount_percent}% discount on standard ${formatCurrency(pricing.sellingPrice)} fee)`
+                  ? `Pay in full upfront (${discountPercent}% discount on standard ${formatCurrency(pricing.sellingPrice)} fee)`
                   : paymentMode === "full"
                   ? `Standard tuition fee: ${formatCurrency(pricing.sellingPrice)}`
-                  : `Standard tuition fee: ${formatCurrency(pricing.sellingPrice)} (Spread over 0% interest monthly plans)`}
+                  : `Standard tuition fee: ${formatCurrency(pricing.sellingPrice)} (${isTutoring ? "choose a payment interval" : "spread over monthly plans"})`}
               </span>
               <span className="text-[11px] font-mono text-navy-900 font-bold uppercase">
                 {selectedLevel.level_label}
@@ -234,9 +235,8 @@ export const CoursePricingPanel: React.FC<CoursePricingPanelProps> = ({
             }`}
           >
             Pay in full
-            {(selectedLevel.full_pay_discount_percent ??
-              globalSettings.default_full_pay_discount_percent) > 0
-              ? ` (Save ${selectedLevel.full_pay_discount_percent ?? globalSettings.default_full_pay_discount_percent}%)`
+            {discountPercent > 0
+              ? ` (Save ${discountPercent}%)`
               : ""}
           </button>
 
@@ -280,8 +280,8 @@ export const CoursePricingPanel: React.FC<CoursePricingPanelProps> = ({
                   <Icon name="check" size={13} className="text-navy-900" />
                   <span>
                     {pricing.hasPriceSlash
-                      ? `Total saving: ${formatCurrency(pricing.regularPrice - pricing.fullPayPrice)} with special price & upfront discount`
-                      : `You save ${formatCurrency(pricing.saving)} (${selectedLevel.full_pay_discount_percent ?? globalSettings.default_full_pay_discount_percent}% off) with upfront settlement`}
+                      ? `You save ${formatCurrency(pricing.regularSaving)} against the regular price`
+                      : `You save ${formatCurrency(pricing.saving)} (${discountPercent}% off) with upfront settlement`}
                   </span>
                 </div>
               )}
@@ -334,7 +334,7 @@ export const CoursePricingPanel: React.FC<CoursePricingPanelProps> = ({
                 htmlFor="plan-select"
                 className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1.5"
               >
-                Choose plan duration:
+                {isTutoring ? "Choose payment interval:" : "Choose plan duration:"}
               </label>
               <select
                 id="plan-select"
@@ -359,13 +359,15 @@ export const CoursePricingPanel: React.FC<CoursePricingPanelProps> = ({
               </div>
 
               {/* Hide instalment line when months = 1 (PRD Item 1) */}
-              {pricing.months > 1 && (
+              {(pricing.months > 1 || (Boolean(activePlan.interval_weeks) && activePlan.deposit_value < 100)) && (
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-ink-soft">
-                    Monthly payment ({pricing.months} months):
+                    {activePlan.interval_weeks
+                      ? `Payment every ${activePlan.interval_weeks} weeks:`
+                      : `Monthly payment (${pricing.months} months):`}
                   </span>
                   <span className="font-heading font-bold text-sm text-navy-900">
-                    {formatCurrency(pricing.monthly)}/mo
+                    {formatCurrency(pricing.monthly)}{activePlan.interval_weeks ? " per payment" : "/mo"}
                   </span>
                 </div>
               )}
@@ -476,7 +478,9 @@ export const CoursePricingPanel: React.FC<CoursePricingPanelProps> = ({
                   ? "Funded (£0.00)"
                   : paymentMode === "full"
                   ? formatCurrency(pricing.fullPayPrice)
-                  : `${formatCurrency(pricing.deposit)} dep + ${pricing.months}mo`}
+                  : isTutoring && activePlan.interval_weeks
+                    ? `${formatCurrency(pricing.deposit)} today`
+                    : `${formatCurrency(pricing.deposit)} dep + ${pricing.months}mo`}
               </span>
               {!isFundedOnly && pricing.hasPriceSlash && (
                 <span className="text-xs line-through text-ink-soft/75">

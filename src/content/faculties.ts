@@ -57,4 +57,12 @@ export const DEFAULT_COLLEGE_FACULTIES: FacultyRecord[] = [
     color: "teal",
     status: "active",
   },
+  {
+    id: "maths-english",
+    name: "Maths & English",
+    description: "Functional Skills qualifications in English and mathematics",
+    icon: "book-open",
+    color: "navy",
+    status: "active",
+  },
 ];

@@ -10,6 +10,7 @@ import {
   TemplateRepo,
   UserRepo,
 } from "./interfaces";
+import { isDbConfigured } from "@/lib/db";
 import { MemoryCourseRepo } from "./memory/MemoryCourseRepo";
 import { MemoryLearnerRepo } from "./memory/MemoryLearnerRepo";
 import { MemoryEnrolmentRepo } from "./memory/MemoryEnrolmentRepo";
@@ -21,104 +22,191 @@ import { MemoryEntitlementRepo } from "./memory/MemoryEntitlementRepo";
 import { MemoryFeedbackRepo } from "./memory/MemoryFeedbackRepo";
 import { MemoryUserRepo } from "./memory/MemoryUserRepo";
 
-// Singleton instances for demo in-memory storage.
-// In later phases, these getters will return Supabase-backed implementations
-// without requiring any changes to screens or components.
+import { PostgresCourseRepo } from "./postgres/PostgresCourseRepo";
+import { PostgresLearnerRepo } from "./postgres/PostgresLearnerRepo";
+import { PostgresEnrolmentRepo } from "./postgres/PostgresEnrolmentRepo";
+import { PostgresPaymentRepo } from "./postgres/PostgresPaymentRepo";
+import { PostgresTaskRepo } from "./postgres/PostgresTaskRepo";
+import { PostgresBookingRepo } from "./postgres/PostgresBookingRepo";
+import { PostgresTemplateRepo } from "./postgres/PostgresTemplateRepo";
+import { PostgresEntitlementRepo } from "./postgres/PostgresEntitlementRepo";
+import { PostgresFeedbackRepo } from "./postgres/PostgresFeedbackRepo";
+import { PostgresUserRepo } from "./postgres/PostgresUserRepo";
 
-let courseRepo: CourseRepo;
-let learnerRepo: LearnerRepo;
-let enrolmentRepo: EnrolmentRepo;
-let paymentRepo: PaymentRepo;
-let taskRepo: TaskRepo;
-let bookingRepo: BookingRepo;
-let templateRepo: TemplateRepo;
-let entitlementRepo: EntitlementRepo;
-let feedbackRepo: FeedbackRepo;
-let userRepo: UserRepo;
+/**
+ * Determines whether the repository layer should target Neon PostgreSQL.
+ *
+ * Rules:
+ * 1. DEMO_MODE=true always runs against sample in-memory / JSON storage.
+ * 2. When configured, Neon is the production single source of truth.
+ * 3. In production, if DATABASE_URL is missing, silent local fallback is rejected.
+ */
+function shouldUsePostgres(): boolean {
+  if (process.env.DEMO_MODE === "true") {
+    return false;
+  }
+  if (isDbConfigured) {
+    return true;
+  }
+  if (
+    process.env.NODE_ENV === "production" &&
+    process.env.NEXT_PHASE !== "phase-production-build"
+  ) {
+    const errorMsg =
+      "[Neon DB] Fatal Production Error: DATABASE_URL is not configured. Neon PostgreSQL is the required production source of truth. Silent local fallback is disabled in production.";
+    console.error(errorMsg);
+    throw new Error(errorMsg);
+  }
+  return false;
+}
+
+let courseRepo: CourseRepo | null = null;
+let learnerRepo: LearnerRepo | null = null;
+let enrolmentRepo: EnrolmentRepo | null = null;
+let paymentRepo: PaymentRepo | null = null;
+let taskRepo: TaskRepo | null = null;
+let bookingRepo: BookingRepo | null = null;
+let templateRepo: TemplateRepo | null = null;
+let entitlementRepo: EntitlementRepo | null = null;
+let feedbackRepo: FeedbackRepo | null = null;
+let userRepo: UserRepo | null = null;
+
+export function resetRepositoriesForTest(): void {
+  courseRepo = null;
+  learnerRepo = null;
+  enrolmentRepo = null;
+  paymentRepo = null;
+  taskRepo = null;
+  bookingRepo = null;
+  templateRepo = null;
+  entitlementRepo = null;
+  feedbackRepo = null;
+  userRepo = null;
+}
 
 export function getCourseRepo(): CourseRepo {
-  if (!courseRepo) courseRepo = new MemoryCourseRepo();
+  if (!courseRepo) {
+    courseRepo = shouldUsePostgres()
+      ? new PostgresCourseRepo()
+      : new MemoryCourseRepo();
+  }
   return courseRepo;
 }
 
 export function getLearnerRepo(): LearnerRepo {
   if (!learnerRepo) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { syncPersistedRecords } = require("@/lib/persistedData");
-      syncPersistedRecords();
-    } catch {
-      // Ignore if not in Node environment
+    if (shouldUsePostgres()) {
+      learnerRepo = new PostgresLearnerRepo();
+    } else {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { syncPersistedRecords } = require("@/lib/persistedData");
+        syncPersistedRecords();
+      } catch {
+        // Ignore in non-Node environments
+      }
+      learnerRepo = new MemoryLearnerRepo();
     }
-    learnerRepo = new MemoryLearnerRepo();
   }
   return learnerRepo;
 }
 
 export function getEnrolmentRepo(): EnrolmentRepo {
   if (!enrolmentRepo) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { syncPersistedRecords } = require("@/lib/persistedData");
-      syncPersistedRecords();
-    } catch {
-      // Ignore if not in Node environment
+    if (shouldUsePostgres()) {
+      enrolmentRepo = new PostgresEnrolmentRepo();
+    } else {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { syncPersistedRecords } = require("@/lib/persistedData");
+        syncPersistedRecords();
+      } catch {
+        // Ignore in non-Node environments
+      }
+      enrolmentRepo = new MemoryEnrolmentRepo();
     }
-    enrolmentRepo = new MemoryEnrolmentRepo();
   }
   return enrolmentRepo;
 }
 
 export function getPaymentRepo(): PaymentRepo {
   if (!paymentRepo) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { syncPersistedRecords } = require("@/lib/persistedData");
-      syncPersistedRecords();
-    } catch {
-      // Ignore if not in Node environment
+    if (shouldUsePostgres()) {
+      paymentRepo = new PostgresPaymentRepo();
+    } else {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { syncPersistedRecords } = require("@/lib/persistedData");
+        syncPersistedRecords();
+      } catch {
+        // Ignore in non-Node environments
+      }
+      paymentRepo = new MemoryPaymentRepo();
     }
-    paymentRepo = new MemoryPaymentRepo();
   }
   return paymentRepo;
 }
 
 export function getTaskRepo(): TaskRepo {
-  if (!taskRepo) taskRepo = new MemoryTaskRepo();
+  if (!taskRepo) {
+    taskRepo = shouldUsePostgres()
+      ? new PostgresTaskRepo()
+      : new MemoryTaskRepo();
+  }
   return taskRepo;
 }
 
 export function getBookingRepo(): BookingRepo {
   if (!bookingRepo) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { syncPersistedRecords } = require("@/lib/persistedData");
-      syncPersistedRecords();
-    } catch {
-      // Ignore if not in Node environment
+    if (shouldUsePostgres()) {
+      bookingRepo = new PostgresBookingRepo();
+    } else {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { syncPersistedRecords } = require("@/lib/persistedData");
+        syncPersistedRecords();
+      } catch {
+        // Ignore in non-Node environments
+      }
+      bookingRepo = new MemoryBookingRepo();
     }
-    bookingRepo = new MemoryBookingRepo();
   }
   return bookingRepo;
 }
 
 export function getTemplateRepo(): TemplateRepo {
-  if (!templateRepo) templateRepo = new MemoryTemplateRepo();
+  if (!templateRepo) {
+    templateRepo = shouldUsePostgres()
+      ? new PostgresTemplateRepo()
+      : new MemoryTemplateRepo();
+  }
   return templateRepo;
 }
 
 export function getEntitlementRepo(): EntitlementRepo {
-  if (!entitlementRepo) entitlementRepo = new MemoryEntitlementRepo();
+  if (!entitlementRepo) {
+    entitlementRepo = shouldUsePostgres()
+      ? new PostgresEntitlementRepo()
+      : new MemoryEntitlementRepo();
+  }
   return entitlementRepo;
 }
 
 export function getFeedbackRepo(): FeedbackRepo {
-  if (!feedbackRepo) feedbackRepo = new MemoryFeedbackRepo();
+  if (!feedbackRepo) {
+    feedbackRepo = shouldUsePostgres()
+      ? new PostgresFeedbackRepo()
+      : new MemoryFeedbackRepo();
+  }
   return feedbackRepo;
 }
 
 export function getUserRepo(): UserRepo {
-  if (!userRepo) userRepo = new MemoryUserRepo();
+  if (!userRepo) {
+    userRepo = shouldUsePostgres()
+      ? new PostgresUserRepo()
+      : new MemoryUserRepo();
+  }
   return userRepo;
 }
 

@@ -146,9 +146,9 @@ export interface HeroSectionProps {
 }
 
 export const HeroSection: React.FC<HeroSectionProps> = ({
-  headline = "Live classes with real tutors. Qualifications that move your career forward.",
-  subheadline = "Study recognised UK diplomas in health, social care, education, and business through interactive live evening classes with dedicated tutor mentoring.",
-  badgeText = "British Accredited Training",
+  headline = "Bringing Live Classes to your Doorstep.",
+  subheadline = "Experts in Career Building, Career Switching, or Career Upgrade. We help you find the Right Course, at the Right Level in tune with your Dream.",
+  badgeText = "Ofqual Regulated Courses",
   tags,
   buttonText = "Get free advice",
   buttonLink,
@@ -176,7 +176,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   secondaryButtonIconPosition,
   secondaryButtonRadius,
   secondaryButtonSize,
-  image = "/images/hero-learner.jpg",
+  image = "/images/hero-learner-live.webp",
   floatingBadgeTitle = "Live Evening Sessions",
   floatingBadgeSubtitle = "Recordings available 24/7 to rewatch",
   floatingBadgeIcon = "star",
@@ -368,8 +368,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
       : "md:pt-16 md:pb-24";
 
   const paddingClass = `${mobilePadClass} ${desktopPadClass}`;
-
-  const effectiveHeroImg = image && !image.includes("hero-learner") ? image : "/images/hero-student-thumbsup.jpg";
+  const effectiveHeroImg = image || "/images/hero-learner-live.webp";
 
   return (
     <section

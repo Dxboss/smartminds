@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const cspHeader = `
   default-src 'self';
-  script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://app.cal.com https://cal.com;
+  script-src 'self' 'unsafe-inline' ${process.env.NODE_ENV !== "production" ? "'unsafe-eval' " : ""}https://www.googletagmanager.com https://app.cal.com https://cal.com;
   style-src 'self' 'unsafe-inline';
   img-src 'self' data: https: blob:;
   font-src 'self' data:;
@@ -21,21 +21,13 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: false,
   images: {
+    loader: "custom",
+    loaderFile: "./src/lib/imageLoader.ts",
     formats: ["image/avif", "image/webp"],
     deviceSizes: [360, 390, 640, 750, 828, 1080, 1200, 1920],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     minimumCacheTTL: 60 * 60 * 24 * 30, // 30 days in edge cache
-    dangerouslyAllowSVG: true,
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "**",
-      },
-      {
-        protocol: "http",
-        hostname: "**",
-      },
-    ],
+    dangerouslyAllowSVG: false,
   },
   experimental: {
     // @ts-ignore

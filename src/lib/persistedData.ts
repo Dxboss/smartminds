@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { hashPassword } from "@/lib/passwords";
 import {
   Learner,
   Enrolment,
@@ -110,8 +111,19 @@ export function loadPersistedRecords(): PersistedRecordsStore {
         faculties: [...DEFAULT_COLLEGE_FACULTIES],
       };
     }
-    const raw = fs.readFileSync(filePath, "utf-8");
-    const parsed = JSON.parse(raw);
+    let parsed: any = null;
+    for (let i = 0; i < 3; i++) {
+      try {
+        const raw = fs.readFileSync(filePath, "utf-8");
+        parsed = JSON.parse(raw);
+        break;
+      } catch (e) {
+        if (i === 2) throw e;
+        try {
+          Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 15);
+        } catch {}
+      }
+    }
     return {
       learners: Array.isArray(parsed.learners) ? parsed.learners : [],
       enrolments: Array.isArray(parsed.enrolments) ? parsed.enrolments : [],
@@ -226,6 +238,7 @@ export async function syncStoreSnapshotToNeon(store: PersistedRecordsStore): Pro
  * Pulls master snapshot from Neon PostgreSQL if local file is missing/empty or out of sync.
  * Guarantees that Hostinger deployments and local environments restore instantly after git push.
  */
+let lastNeonPullPerf = 0;
 let lastNeonPullTimestamp = 0;
 const NEON_PULL_TTL_MS = 10000; // 10 seconds cache to avoid DB storming across concurrent components
 
@@ -234,8 +247,8 @@ export async function pullLatestFromNeon(force = false): Promise<boolean> {
     return false;
   }
 
-  const now = Date.now();
-  if (!force && now - lastNeonPullTimestamp < NEON_PULL_TTL_MS) {
+  const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+  if (!force && lastNeonPullPerf > 0 && now - lastNeonPullPerf < NEON_PULL_TTL_MS) {
     return true;
   }
 
@@ -246,17 +259,37 @@ export async function pullLatestFromNeon(force = false): Promise<boolean> {
     await ensureDbTablesExist();
 
     const timeout = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("Neon pullLatest timeout")), 3500)
+      setTimeout(() => reject(new Error("Neon pullLatest timeout")), 8000)
     );
-    const rows: any = await Promise.race([
-      sql`
-        SELECT value FROM system_store WHERE key = 'master_records_store' LIMIT 1
-      `,
+    const [storeRows, cmsRows]: [any, any] = await Promise.race([
+      Promise.all([
+        sql`
+          SELECT value FROM system_store WHERE key = 'master_records_store' LIMIT 1
+        `.catch((err) => {
+          console.warn("[Neon DB] system_store query error:", err);
+          return [];
+        }),
+        sql`
+          SELECT path, sections FROM cms_pages
+        `.catch((err) => {
+          console.warn("[Neon DB] cms_pages query error:", err);
+          return [];
+        }),
+      ]),
       timeout,
     ]);
 
-    if (rows && rows.length > 0 && rows[0]?.value) {
-      const dbStore = rows[0].value as PersistedRecordsStore;
+    const cmsPagesFromDb: Record<string, any[]> = {};
+    if (Array.isArray(cmsRows)) {
+      for (const row of cmsRows) {
+        if (row?.path && Array.isArray(row?.sections) && row.sections.length > 0) {
+          cmsPagesFromDb[row.path] = row.sections;
+        }
+      }
+    }
+
+    if ((storeRows && storeRows.length > 0 && storeRows[0]?.value) || Object.keys(cmsPagesFromDb).length > 0) {
+      const dbStore = ((storeRows?.[0]?.value || {}) as Partial<PersistedRecordsStore>) || {};
       const store = loadPersistedRecords();
 
       const mergedStore: PersistedRecordsStore = {
@@ -269,6 +302,7 @@ export async function pullLatestFromNeon(force = false): Promise<boolean> {
         cmsPagesData: {
           ...(store.cmsPagesData || {}),
           ...(dbStore.cmsPagesData || {}),
+          ...cmsPagesFromDb,
         },
         cmsPagesDraftData: {
           ...(store.cmsPagesDraftData || {}),
@@ -334,6 +368,7 @@ export async function pullLatestFromNeon(force = false): Promise<boolean> {
       const filePath = getStoreFilePath();
       fs.writeFileSync(filePath, JSON.stringify(mergedStore, null, 2));
       syncPersistedRecords(true);
+      lastNeonPullPerf = typeof performance !== "undefined" ? performance.now() : Date.now();
       lastNeonPullTimestamp = Date.now();
       return true;
     }
@@ -545,13 +580,13 @@ export function updateLearnerPasswordInStore(email: string, newPassword: string)
         email: cleanEmail,
         name,
         role,
-        passwordHash: newPassword,
+        passwordHash: hashPassword(newPassword),
         mustChangePassword: false,
         createdAt: new Date().toISOString(),
       };
       store.userCredentials.push(user);
     } else {
-      user.passwordHash = newPassword;
+      user.passwordHash = hashPassword(newPassword);
       user.temporaryPassword = undefined;
       user.mustChangePassword = false;
     }
@@ -950,15 +985,58 @@ export function getLiveCourses(): Course[] {
           merged.push(custom);
         }
       });
-      return merged;
+      return merged.map(normalizeLiveCourse);
     }
-    return courses;
+    return courses.map(normalizeLiveCourse);
   } catch (err) {
     console.error("[persistedData] Failed to get live courses:", err);
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { courses } = require("@/content/courses");
-    return courses;
+    return courses.map(normalizeLiveCourse);
   }
+}
+
+/** Keep editable catalogue records safe for public pages, even when older
+ * admin saves omit fields introduced in a later version of the site. */
+function normalizeLiveCourse(course: Course): Course {
+  const record = (course || {}) as Course;
+  return {
+    ...record,
+    start_dates: Array.isArray(record.start_dates) ? record.start_dates : [],
+    faqs: Array.isArray(record.faqs) ? record.faqs : [],
+    job_prospects: Array.isArray(record.job_prospects) ? record.job_prospects : [],
+    progression: Array.isArray(record.progression) ? record.progression : [],
+    tutoring_slots: Array.isArray(record.tutoring_slots) ? record.tutoring_slots : [],
+    training_locations: Array.isArray(record.training_locations) ? record.training_locations : [],
+    tuition_includes: Array.isArray(record.tuition_includes) ? record.tuition_includes : [],
+    levels: Array.isArray(record.levels)
+      ? record.levels
+          .filter((level) =>
+            Boolean(level) &&
+            level.price_gbp !== null &&
+            level.price_gbp !== undefined &&
+            String(level.price_gbp).trim() !== "" &&
+            Number.isFinite(Number(level.price_gbp))
+          )
+          .map((level) => ({
+            ...level,
+            course_id: level.course_id || record.id,
+            level_label: level.level_label || "Course level",
+            price_gbp: Number(level.price_gbp),
+            regular_price_gbp:
+              level.regular_price_gbp !== undefined && level.regular_price_gbp !== null
+                ? Number(level.regular_price_gbp)
+                : undefined,
+            full_pay_discount_percent:
+              level.full_pay_discount_percent !== undefined && level.full_pay_discount_percent !== null
+                ? Number(level.full_pay_discount_percent)
+                : null,
+            entry_requirements: Array.isArray(level.entry_requirements) ? level.entry_requirements : [],
+            units: Array.isArray(level.units) ? level.units : [],
+            plans: Array.isArray(level.plans) ? level.plans : [],
+          }))
+      : [],
+  };
 }
 
 export function savePersistedCohort(cohort: any): void {
@@ -1080,9 +1158,15 @@ export function syncPersistedRecords(force: boolean = false): void {
     } = require("@/lib/repositories/seedData");
 
     const store = loadPersistedRecords();
-    seedLearners.length = 0;
-    if (store.learners && Array.isArray(store.learners)) {
-      seedLearners.push(...store.learners);
+    if (store.learners && Array.isArray(store.learners) && store.learners.length > 0) {
+      for (const sl of store.learners) {
+        const existingIdx = seedLearners.findIndex((l: any) => l.id === sl.id);
+        if (existingIdx >= 0) {
+          seedLearners[existingIdx] = { ...seedLearners[existingIdx], ...sl };
+        } else {
+          seedLearners.push(sl);
+        }
+      }
     }
 
     if (store.userCredentials && store.userCredentials.length > 0) {
@@ -1109,19 +1193,37 @@ export function syncPersistedRecords(force: boolean = false): void {
       }
     }
 
-    seedEnrolments.length = 0;
-    if (store.enrolments && Array.isArray(store.enrolments)) {
-      seedEnrolments.push(...store.enrolments);
+    if (store.enrolments && Array.isArray(store.enrolments) && store.enrolments.length > 0) {
+      for (const se of store.enrolments) {
+        const existingIdx = seedEnrolments.findIndex((e: any) => e.id === se.id);
+        if (existingIdx >= 0) {
+          seedEnrolments[existingIdx] = { ...seedEnrolments[existingIdx], ...se };
+        } else {
+          seedEnrolments.push(se);
+        }
+      }
     }
 
-    seedPaymentRecords.length = 0;
-    if (store.paymentRecords && Array.isArray(store.paymentRecords)) {
-      seedPaymentRecords.push(...store.paymentRecords);
+    if (store.paymentRecords && Array.isArray(store.paymentRecords) && store.paymentRecords.length > 0) {
+      for (const pr of store.paymentRecords) {
+        const existingIdx = seedPaymentRecords.findIndex((r: any) => r.id === pr.id);
+        if (existingIdx >= 0) {
+          seedPaymentRecords[existingIdx] = { ...seedPaymentRecords[existingIdx], ...pr };
+        } else {
+          seedPaymentRecords.push(pr);
+        }
+      }
     }
 
-    seedPaymentSchedules.length = 0;
-    if (store.paymentSchedules && Array.isArray(store.paymentSchedules)) {
-      seedPaymentSchedules.push(...store.paymentSchedules);
+    if (store.paymentSchedules && Array.isArray(store.paymentSchedules) && store.paymentSchedules.length > 0) {
+      for (const ps of store.paymentSchedules) {
+        const existingIdx = seedPaymentSchedules.findIndex((s: any) => s.id === ps.id);
+        if (existingIdx >= 0) {
+          seedPaymentSchedules[existingIdx] = { ...seedPaymentSchedules[existingIdx], ...ps };
+        } else {
+          seedPaymentSchedules.push(ps);
+        }
+      }
     }
 
     if (store.blockedDays && Array.isArray(store.blockedDays)) {
@@ -1245,7 +1347,7 @@ export function createPlatformUserInStore(data: {
   name: string;
   email: string;
   role: string;
-  password?: string;
+  password: string;
   department?: string;
   specialism?: string;
 }): PersistedUserRecord {
@@ -1261,8 +1363,8 @@ export function createPlatformUserInStore(data: {
     email: data.email.toLowerCase().trim(),
     name: data.name.trim(),
     role: data.role,
-    passwordHash: data.password ? data.password.trim() : "Smartminds2026!",
-    mustChangePassword: false,
+    passwordHash: hashPassword(data.password.trim()),
+    mustChangePassword: true,
     createdAt: new Date().toISOString(),
   };
 
@@ -1825,10 +1927,14 @@ export function verifyAndConsumePasswordResetToken(
 export function getPersistedFaculties(): FacultyRecord[] {
   try {
     const store = loadPersistedRecords();
-    if (store.faculties && Array.isArray(store.faculties) && store.faculties.length > 0) {
-      return store.faculties;
+    const saved = Array.isArray(store.faculties) ? store.faculties : [];
+    const merged = [...saved];
+    for (const faculty of DEFAULT_COLLEGE_FACULTIES) {
+      if (!merged.some((item) => item.id === faculty.id || item.name.toLowerCase() === faculty.name.toLowerCase())) {
+        merged.push(faculty);
+      }
     }
-    return DEFAULT_COLLEGE_FACULTIES;
+    return merged;
   } catch (err) {
     console.error("[persistedData] Failed to load faculties:", err);
     return DEFAULT_COLLEGE_FACULTIES;

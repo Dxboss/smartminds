@@ -71,10 +71,10 @@ export const CourseOverview: React.FC<CourseOverviewProps> = ({
                   Session Format
                 </span>
                 <strong className="text-base font-heading font-bold text-navy-900 block">
-                  60m + 15m review
+                  60-minute lesson
                 </strong>
                 <span className="text-[11px] text-ink-soft mt-0.5 block">
-                  1-on-1 dedicated teacher instruction
+                  Followed by 15 minutes of breakout time
                 </span>
               </div>
 
@@ -82,11 +82,11 @@ export const CourseOverview: React.FC<CourseOverviewProps> = ({
                 <span className="font-mono text-[10px] uppercase tracking-wider text-ink-soft block mb-1">
                   Study Locations
                 </span>
-                <strong className="text-base font-heading font-bold text-navy-900 block truncate">
-                  Gloucester Centre & Online
+                <strong className="text-base font-heading font-bold text-navy-900 block">
+                  Centre or online
                 </strong>
                 <span className="text-[11px] text-ink-soft mt-0.5 block">
-                  Face-to-face or interactive live video
+                  {course.training_locations?.join(" · ") || "Choose a study mode"}
                 </span>
               </div>
 
@@ -95,11 +95,11 @@ export const CourseOverview: React.FC<CourseOverviewProps> = ({
                   Weekly Schedule
                 </span>
                 <strong className="text-base font-heading font-bold text-navy-900 block">
-                  Thurs/Fri 4–6pm & Sat
+                  After-school and Saturday times
                 </strong>
-                <span className="text-[11px] text-ink-soft mt-0.5 block">
-                  After-school & weekend slots
-                </span>
+                <ul className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] text-ink-soft">
+                  {(course.tutoring_slots || []).map((slot) => <li key={slot}>{slot}</li>)}
+                </ul>
               </div>
             </>
           ) : (
@@ -133,7 +133,7 @@ export const CourseOverview: React.FC<CourseOverviewProps> = ({
                   Accredited Units
                 </span>
                 <strong className="text-base font-heading font-bold text-navy-900 block">
-                  {selectedLevel.units.length} Regulated Units
+                  {(selectedLevel.units || []).length} Regulated Units
                 </strong>
                 <span className="text-[11px] text-ink-soft mt-0.5 block">
                   Continuous portfolio assessment

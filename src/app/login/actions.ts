@@ -1,5 +1,8 @@
 "use server";
 
+import { randomBytes } from "node:crypto";
+import { verifyPassword } from "@/lib/passwords";
+
 import { revalidatePath } from "next/cache";
 import { UserRole } from "@/lib/repositories/types";
 import {
@@ -193,7 +196,7 @@ export async function authenticateUser(formData: {
 
   // 1. Check persistent user credentials (custom created users, superadmin, learners)
   try {
-    const { loadPersistedRecords } = await import("@/lib/persistedData");
+    const { loadPersistedRecords, updateLearnerPasswordInStore } = await import("@/lib/persistedData");
     const store = loadPersistedRecords();
     const persistedCred = store.userCredentials?.find(
       (c) => c.email.toLowerCase() === email
@@ -204,11 +207,14 @@ export async function authenticateUser(formData: {
         persistedCred.temporaryPassword &&
         persistedCred.temporaryPassword.trim().toUpperCase() ===
           password.trim().toUpperCase();
-      const matchesPermanent =
-        persistedCred.passwordHash &&
-        persistedCred.passwordHash.trim() === password.trim();
+      const passwordVerification = persistedCred.passwordHash
+        ? verifyPassword(password.trim(), persistedCred.passwordHash.trim())
+        : { valid: false, needsRehash: false };
+      const matchesPermanent = passwordVerification.valid;
       const matchesMaster = Boolean(
-        defaultMasterPassword && password === defaultMasterPassword
+        defaultMasterPassword &&
+        password === defaultMasterPassword &&
+        (process.env.NODE_ENV !== "production" || persistedCred.role === "super_admin")
       );
 
       if (!matchesTemp && !matchesPermanent && !matchesMaster) {
@@ -216,6 +222,10 @@ export async function authenticateUser(formData: {
           success: false,
           error: "Incorrect password. Please verify your credentials or request a password reset.",
         };
+      }
+
+      if (matchesPermanent && passwordVerification.needsRehash) {
+        updateLearnerPasswordInStore(email, password.trim());
       }
 
       const resolvedRole =
@@ -276,7 +286,11 @@ export async function authenticateUser(formData: {
     );
 
     if (persistedLearner) {
-      if (password !== defaultMasterPassword) {
+      if (
+        process.env.NODE_ENV === "production" ||
+        !defaultMasterPassword ||
+        password !== defaultMasterPassword
+      ) {
         return {
           success: false,
           error: "Incorrect password for learner portal. Please verify your password.",
@@ -385,7 +399,7 @@ export async function requestPasswordResetAction(
     };
   }
 
-  const token = `reset_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  const token = `reset_${randomBytes(32).toString("base64url")}`;
   
   // Persist secure single-use token with 60-minute expiration
   try {
@@ -432,10 +446,10 @@ export async function resetPasswordAction(data: {
   newPassword: string;
   confirmPassword: string;
 }): Promise<PasswordResetResponse> {
-  if (!data.newPassword || data.newPassword.length < 6) {
+  if (!data.newPassword || data.newPassword.trim().length < 12) {
     return {
       success: false,
-      error: "New password must be at least 6 characters long.",
+      error: "New password must be at least 12 characters long.",
     };
   }
 
@@ -512,8 +526,8 @@ export async function changePasswordAction(formData: {
     return { success: false, error: "Authentication required. Please sign in again." };
   }
 
-  if (!formData.newPassword || formData.newPassword.trim().length < 6) {
-    return { success: false, error: "New password must be at least 6 characters long." };
+  if (!formData.newPassword || formData.newPassword.trim().length < 12) {
+    return { success: false, error: "New password must be at least 12 characters long." };
   }
 
   try {

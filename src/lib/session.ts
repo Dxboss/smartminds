@@ -5,22 +5,27 @@ import { SessionUser, UserRole } from "./repositories/types";
 export const DEMO_COOKIE_NAME = "smartminds_demo_session";
 
 const DEFAULT_FALLBACK_SECRET = "smartminds-demo-secret-key-2026-for-client-review-only";
+const EXAMPLE_ENV_SECRET = "smartminds-session-secret-change-in-production-2026";
 let _runtimeEphemeralSecret: string | null = null;
 
 export function getSessionSecret(): string {
   const envSecret = process.env.SESSION_SECRET || process.env.DEMO_SESSION_SECRET;
-  if (envSecret && envSecret.trim().length > 16 && envSecret !== DEFAULT_FALLBACK_SECRET) {
-    return envSecret.trim();
+  const trimmedSecret = envSecret?.trim();
+  if (
+    trimmedSecret &&
+    trimmedSecret.length >= 32 &&
+    trimmedSecret !== DEFAULT_FALLBACK_SECRET &&
+    trimmedSecret !== EXAMPLE_ENV_SECRET
+  ) {
+    return trimmedSecret;
   }
 
   // In production, NEVER trust or sign with the public GitHub fallback string!
   if (process.env.NODE_ENV === "production") {
     if (!_runtimeEphemeralSecret) {
-      if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-        _runtimeEphemeralSecret = crypto.randomUUID() + "-" + Date.now();
-      } else {
-        _runtimeEphemeralSecret = Math.random().toString(36).substring(2) + "-" + Date.now();
-      }
+      const random = new Uint8Array(32);
+      crypto.getRandomValues(random);
+      _runtimeEphemeralSecret = Array.from(random, (byte) => byte.toString(16).padStart(2, "0")).join("");
       console.warn(
         "[SECURITY] Notice: SESSION_SECRET is not configured or using public default in production. Generated dynamic runtime secret to prevent token forgery."
       );
@@ -171,19 +176,34 @@ export async function verifySession(token: string): Promise<SessionUser | null> 
     const parsed = JSON.parse(data);
     if (!parsed || typeof parsed !== "object") return null;
 
-    // Check if new SessionPayload format with exp
-    if ("user" in parsed && "exp" in parsed) {
-      if (typeof parsed.exp === "number" && Date.now() > parsed.exp) {
-        // Session expired
-        return null;
-      }
-      return parsed.user as SessionUser;
+    if (
+      !("user" in parsed) ||
+      typeof parsed.exp !== "number" ||
+      !Number.isFinite(parsed.exp) ||
+      Date.now() > parsed.exp
+    ) {
+      return null;
     }
 
-    // Support legacy SessionUser format without exp (e.g. during rollout)
-    if ("role" in parsed && "id" in parsed) {
-      return parsed as SessionUser;
+    const user = parsed.user as Partial<SessionUser> | null;
+    const allowedRoles: UserRole[] = [
+      "student",
+      "tutor",
+      "admin_staff",
+      "owner_admin",
+      "super_admin",
+    ];
+    if (
+      !user ||
+      typeof user.id !== "string" ||
+      typeof user.email !== "string" ||
+      typeof user.name !== "string" ||
+      !allowedRoles.includes(user.role as UserRole)
+    ) {
+      return null;
     }
+
+    return user as SessionUser;
 
     return null;
   } catch {

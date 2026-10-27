@@ -45,10 +45,13 @@ export function calculatePricing(
       ? Math.round((regularSaving / regularPrice) * 100)
       : 0;
 
-  // 1. Full-pay discount calculation
-  const discountPercent =
-    level.full_pay_discount_percent !== null &&
-    level.full_pay_discount_percent !== undefined
+  // An explicit sale price is already the payable price. Do not apply a
+  // second discount to it; the regular price supplies the struck-through
+  // comparison instead.
+  const discountPercent = hasPriceSlash
+    ? 0
+    : level.full_pay_discount_percent !== null &&
+        level.full_pay_discount_percent !== undefined
       ? level.full_pay_discount_percent
       : globals.default_full_pay_discount_percent;
 

@@ -106,6 +106,10 @@ export const CourseCard: React.FC<CourseCardProps> = ({
   headingLevel = "h3",
   priority = false,
 }) => {
+  const isTutoring =
+    course.is_private_tutoring ||
+    course.type === "tutoring" ||
+    course.id.toLowerCase().includes("tutoring");
   const lowestLevel = course.levels?.[0];
   // Sort plans descending by months so we get the longest spread (e.g. 12 or 14 months) which gives the lowest monthly payment teaser
   const sortedPlans =
@@ -133,10 +137,6 @@ export const CourseCard: React.FC<CourseCardProps> = ({
     photoSrc.startsWith("https://") ||
     photoSrc.startsWith("/uploads/");
 
-  const isTutoring =
-    course.is_private_tutoring ||
-    course.type === "tutoring" ||
-    course.id.toLowerCase().includes("tutoring");
   const isBlended =
     course.attendance_type === "blended_practical" ||
     course.delivery === "blended";
@@ -153,31 +153,20 @@ export const CourseCard: React.FC<CourseCardProps> = ({
     ? "Classroom Training"
     : "Live Online";
 
-  // Realistic verified reviews per course area (flagships get 5.0, others 4.9)
-  const getCourseStats = (c: Course) => {
+  // Display only the course rating requested by the college; do not imply
+  // course-specific review or enrolment counts that are not in the data.
+  const getCourseRating = (c: Course) => {
     const id = c.id.toLowerCase();
     const cat = (c.category || "").toLowerCase();
     if (id.includes("adult-care") || id.includes("leadership")) {
-      return { rating: "5.0", reviews: 68, students: 240 };
+      return "5.0";
     }
     if (id.includes("aet") || id.includes("cava") || cat.includes("teaching")) {
-      return { rating: "5.0", reviews: 54, students: 195 };
+      return "5.0";
     }
-    if (c.is_private_tutoring || c.type === "tutoring" || id.includes("tutoring")) {
-      return { rating: "5.0", reviews: 38, students: 120 };
-    }
-    if (id.includes("childcare") || id.includes("cypw") || cat.includes("child")) {
-      return { rating: "4.9", reviews: 46, students: 180 };
-    }
-    if (id.includes("business")) {
-      return { rating: "4.9", reviews: 42, students: 160 };
-    }
-    if (id.includes("phlebotomy")) {
-      return { rating: "4.9", reviews: 34, students: 110 };
-    }
-    return { rating: "4.9", reviews: 36, students: 140 };
+    return "4.9";
   };
-  const stats = getCourseStats(course);
+  const rating = getCourseRating(course);
 
   return (
     <article className="group bg-white rounded-2xl border border-line shadow-[0_4px_20px_rgba(0,0,0,0.06)] hover:shadow-xl hover:border-teal-300/80 transition-all duration-300 flex flex-col justify-between overflow-hidden p-3.5 sm:p-4 h-full">
@@ -208,29 +197,10 @@ export const CourseCard: React.FC<CourseCardProps> = ({
           </div>
         </div>
 
-        {/* 2. Avatar Stack Proof (Image 1 Onlearn style) */}
-        <div className="flex items-center justify-between gap-2 mb-2.5">
-          <div className="flex items-center gap-2">
-            <div className="flex -space-x-1.5">
-              <div className="w-5 h-5 rounded-full border border-white bg-[#0B4D4E] text-white text-[8px] font-bold flex items-center justify-center">
-                SJ
-              </div>
-              <div className="w-5 h-5 rounded-full border border-white bg-[#FF5722] text-white text-[8px] font-bold flex items-center justify-center">
-                DK
-              </div>
-              <div className="w-5 h-5 rounded-full border border-white bg-navy-900 text-white text-[8px] font-bold flex items-center justify-center">
-                +
-              </div>
-            </div>
-            <span className="text-[11px] font-bold text-ink-soft">
-              {(course as any).enrolment_count || stats.students}+ Students
-            </span>
-          </div>
-
-          <div className="flex items-center gap-1 text-[11px] font-bold text-amber-500">
+        <div className="flex justify-end mb-2.5">
+          <div className="flex items-center gap-1 text-[11px] font-bold text-amber-700" aria-label={`${rating} rating`}>
             <Icon name="star" size={12} className="fill-amber-400 text-amber-400" />
-            <span>{stats.rating}</span>
-            <span className="text-ink-soft font-normal">({(course as any).review_count || stats.reviews})</span>
+            <span>{rating}</span>
           </div>
         </div>
 
@@ -282,9 +252,11 @@ export const CourseCard: React.FC<CourseCardProps> = ({
               )}
             </div>
             <div className="flex items-center gap-1.5 mt-1 text-[11px] leading-tight text-ink-soft flex-wrap">
-              {pricing.monthly > 0 && primaryPlan.months > 1 && (
+              {pricing.monthly > 0 && (primaryPlan.months > 1 || (isTutoring && Boolean(primaryPlan.interval_weeks)) && primaryPlan.deposit_value < 100) && (
                 <span className="text-[10px] text-ink-soft/90 font-medium whitespace-nowrap">
-                  From £{Math.round(pricing.monthly)}/mo (0% APR)
+                  {isTutoring && primaryPlan.interval_weeks
+                    ? `£${formatCurrency(pricing.monthly).replace("£", "")}/every ${primaryPlan.interval_weeks} weeks`
+                    : `From £${Math.round(pricing.monthly)}/mo (0% APR)`}
                 </span>
               )}
               {pricing.saving > 0 && (

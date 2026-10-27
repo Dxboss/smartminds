@@ -26,9 +26,9 @@ export const CourseDetailClient: React.FC<CourseDetailClientProps> = ({
   allCourses,
 }) => {
   const [selectedLevelIndex, setSelectedLevelIndex] = useState(0);
-
-  // Safety fallback if course has no levels
-  const selectedLevel = course.levels[selectedLevelIndex] || course.levels[0];
+  const levels = Array.isArray(course.levels) ? course.levels : [];
+  const isTutoring = course.type === "tutoring" || course.is_private_tutoring === true;
+  const selectedLevel = levels[selectedLevelIndex] || levels[0];
 
   return (
     <div className="bg-paper py-8 md:py-14 pb-32 lg:pb-16 min-h-screen">
@@ -41,16 +41,18 @@ export const CourseDetailClient: React.FC<CourseDetailClientProps> = ({
           {/* Left Column (Content) */}
           <div className="lg:col-span-8 space-y-10">
             {/* 1. Interactive Video, Photographic Tour & Delivery Model Showcase */}
-            <CourseMediaShowcase course={course} />
+            {!isTutoring && <CourseMediaShowcase course={course} />}
 
             {/* 2. Level Selector (Tabs / Segmented Control) */}
-            <div className="bg-white rounded-lg border border-line p-5 shadow-subtle">
-              <LevelSelector
-                levels={course.levels}
-                selectedIndex={selectedLevelIndex}
-                onSelectIndex={setSelectedLevelIndex}
-              />
-            </div>
+            {levels.length > 1 && (
+              <div className="bg-white rounded-lg border border-line p-5 shadow-subtle">
+                <LevelSelector
+                  levels={levels}
+                  selectedIndex={selectedLevelIndex}
+                  onSelectIndex={setSelectedLevelIndex}
+                />
+              </div>
+            )}
 
             {/* 3. Course Overview, Duration & Included Features */}
             {selectedLevel && (
@@ -58,26 +60,26 @@ export const CourseDetailClient: React.FC<CourseDetailClientProps> = ({
             )}
 
             {/* 4. Units List for Selected Level */}
-            {selectedLevel && <CourseUnitsList selectedLevel={selectedLevel} />}
+            {selectedLevel && !isTutoring && <CourseUnitsList selectedLevel={selectedLevel} />}
 
             {/* 5. Entry Requirements for Selected Level */}
-            {selectedLevel && (
+            {selectedLevel && !isTutoring && (
               <CourseRequirements selectedLevel={selectedLevel} />
             )}
 
             {/* 6. Career Prospects & Progression Routes */}
-            <CourseOutcomes course={course} />
+            {!isTutoring && <CourseOutcomes course={course} />}
 
             {/* 7. Trust Row & Booking Consultation */}
-            <CourseTrustRow />
+            {!isTutoring && <CourseTrustRow />}
 
             {/* 8. Course FAQs */}
-            <CourseFAQ faqs={course.faqs} />
+            <CourseFAQ faqs={Array.isArray(course.faqs) ? course.faqs : []} />
 
             {/* 9. Related Qualifications */}
             <RelatedCourses
               currentCourseId={course.id}
-              category={course.category}
+              category={course.category || ""}
               allCourses={allCourses}
             />
           </div>

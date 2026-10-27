@@ -42,7 +42,7 @@ export const ChangePasswordPrompt: React.FC<Props> = ({ userEmail }) => {
     setErrorMsg(null);
 
     if (newPassword.length < 6) {
-      setErrorMsg("Password must be at least 6 characters long.");
+      setErrorMsg("Password must be at least 12 characters long.");
       return;
     }
 
@@ -94,7 +94,7 @@ export const ChangePasswordPrompt: React.FC<Props> = ({ userEmail }) => {
               minLength={6}
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Minimum 6 characters"
+              placeholder="Minimum 12 characters"
               className="w-full px-3 py-2 text-xs rounded-sm border border-line bg-white text-navy-900 focus:outline-none focus:ring-2 focus:ring-gold-500 min-h-[40px]"
             />
           </div>

@@ -91,6 +91,7 @@ export interface Enrolment {
   courseLevelLabel: string;
   classId: string;
   sessionTiming?: "afternoon" | "evening";
+  preferredTimeSlot?: string;
   tutorName?: string;
   trainingLocation?: string;
   enrolledAt: string;

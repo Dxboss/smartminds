@@ -1,5 +1,7 @@
 "use server";
 
+import { randomBytes } from "node:crypto";
+
 import { getServerSession, setSessionCookie, DEMO_USERS } from "@/lib/session";
 import { getEntitlementRepo } from "@/lib/repositories";
 import { FeatureModuleKey, UserRole } from "@/lib/repositories/types";
@@ -43,7 +45,12 @@ export async function createPlatformUserAction(data: {
     throw new Error("Unauthorized: Super Administrator privileges required.");
   }
 
-  const user = createPlatformUserInStore(data);
+  if (data.password && data.password.trim().length < 12) {
+    throw new Error("Initial passwords must be at least 12 characters long.");
+  }
+
+  const temporaryPassword = data.password?.trim() || randomBytes(18).toString("base64url");
+  const user = createPlatformUserInStore({ ...data, password: temporaryPassword });
 
   // Automatically dispatch branded onboarding credentials email
   try {
@@ -64,7 +71,7 @@ export async function createPlatformUserAction(data: {
       roleLabel,
       department: data.department,
       specialism: data.specialism,
-      temporaryPassword: data.password || "Smartminds2026!",
+      temporaryPassword,
       invitedByName: session.name || "Super Administrator",
     });
 

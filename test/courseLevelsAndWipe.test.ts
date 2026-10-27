@@ -105,36 +105,80 @@ test("Course Level Addition, Modification and Removal", async (t) => {
 
 test("Data Wipe & Production Clean State", async (t) => {
   await t.test("wipeAllDemoData resets transactional records while keeping schedules", async () => {
-    // Ensure cohort schedules exist
-    saveCohortSchedule({
-      afternoon: {
-        timeLabel: "13:30 – 15:30",
-        startTime: "13:30",
-        endTime: "15:30",
-        description: "Interactive live daytime seminar",
-        zoomUrl: "https://zoom.us/j/smartminds-pro-afternoon-account-1",
-      },
-      evening: {
-        timeLabel: "19:00 – 21:00",
-        startTime: "19:00",
-        endTime: "21:00",
-        description: "Interactive live evening seminar",
-        zoomUrl: "https://zoom.us/j/smartminds-pro-evening-account-2",
-      },
-    });
+    // Backup in-memory seed records and persisted file so later tests aren't starved of test fixtures
+    const fs = await import("fs");
+    const path = await import("path");
+    const seedData = await import("../src/lib/repositories/seedData");
+    const { resetRepositoriesForTest } = await import("../src/lib/repositories");
 
-    const res = await wipeDemoDataAction();
-    assert.equal(res.success, true);
+    const storePath = path.join(process.cwd(), "data", "persisted_records.json");
+    const storeBackup = fs.existsSync(storePath) ? fs.readFileSync(storePath, "utf-8") : null;
 
-    const store = loadPersistedRecords();
-    assert.equal(store.learners.length, 0, "Learners must be wiped");
-    assert.equal(store.enrolments.length, 0, "Enrolments must be wiped");
-    assert.equal(store.paymentRecords.length, 0, "Payment records must be wiped");
-    assert.equal(store.bookings?.length || 0, 0, "Bookings must be wiped");
+    const backupLearners = [...seedData.seedLearners];
+    const backupEnrolments = [...seedData.seedEnrolments];
+    const backupPaymentRecords = [...seedData.seedPaymentRecords];
+    const backupPaymentSchedules = [...seedData.seedPaymentSchedules];
+    const backupBookings = [...seedData.seedBookings];
+    const backupEnquiries = [...seedData.seedEnquiries];
+    const backupUsers = [...seedData.seedUsers];
+    const backupOutbox = [...seedData.demoOutbox];
 
-    // Cohort schedule configuration should remain intact
-    const schedule = getCohortSchedule();
-    assert.equal(schedule.afternoon.zoomUrl, "https://zoom.us/j/smartminds-pro-afternoon-account-1");
-    assert.equal(schedule.evening.zoomUrl, "https://zoom.us/j/smartminds-pro-evening-account-2");
+    try {
+      // Ensure cohort schedules exist
+      saveCohortSchedule({
+        afternoon: {
+          timeLabel: "13:30 – 15:30",
+          startTime: "13:30",
+          endTime: "15:30",
+          description: "Interactive live daytime seminar",
+          zoomUrl: "https://zoom.us/j/smartminds-pro-afternoon-account-1",
+        },
+        evening: {
+          timeLabel: "19:00 – 21:00",
+          startTime: "19:00",
+          endTime: "21:00",
+          description: "Interactive live evening seminar",
+          zoomUrl: "https://zoom.us/j/smartminds-pro-evening-account-2",
+        },
+      });
+
+      const res = await wipeDemoDataAction();
+      assert.equal(res.success, true);
+
+      const store = loadPersistedRecords();
+      assert.equal(store.learners.length, 0, "Learners must be wiped");
+      assert.equal(store.enrolments.length, 0, "Enrolments must be wiped");
+      assert.equal(store.paymentRecords.length, 0, "Payment records must be wiped");
+      assert.equal(store.bookings?.length || 0, 0, "Bookings must be wiped");
+
+      // Cohort schedule configuration should remain intact
+      const schedule = getCohortSchedule();
+      assert.equal(schedule.afternoon.zoomUrl, "https://zoom.us/j/smartminds-pro-afternoon-account-1");
+      assert.equal(schedule.evening.zoomUrl, "https://zoom.us/j/smartminds-pro-evening-account-2");
+    } finally {
+      // Restore in-memory fixtures and persisted file for downstream test isolation
+      seedData.seedLearners.length = 0;
+      seedData.seedLearners.push(...backupLearners);
+      seedData.seedEnrolments.length = 0;
+      seedData.seedEnrolments.push(...backupEnrolments);
+      seedData.seedPaymentRecords.length = 0;
+      seedData.seedPaymentRecords.push(...backupPaymentRecords);
+      seedData.seedPaymentSchedules.length = 0;
+      seedData.seedPaymentSchedules.push(...backupPaymentSchedules);
+      seedData.seedBookings.length = 0;
+      seedData.seedBookings.push(...backupBookings);
+      seedData.seedEnquiries.length = 0;
+      seedData.seedEnquiries.push(...backupEnquiries);
+      seedData.seedUsers.length = 0;
+      seedData.seedUsers.push(...backupUsers);
+      seedData.demoOutbox.length = 0;
+      seedData.demoOutbox.push(...backupOutbox);
+
+      if (storeBackup !== null) {
+        fs.writeFileSync(storePath, storeBackup, "utf-8");
+      }
+      resetRepositoriesForTest();
+    }
   });
 });
+

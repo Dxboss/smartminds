@@ -5,10 +5,19 @@ interface CourseStructuredDataProps {
   course: Course;
 }
 
+function serializeJsonLd(value: unknown): string {
+  return JSON.stringify(value)
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/&/g, "\\u0026");
+}
+
 export const CourseStructuredData: React.FC<CourseStructuredDataProps> = ({
   course,
 }) => {
-  const primaryLevel = course.levels[0];
+  const levels = Array.isArray(course.levels) ? course.levels : [];
+  const faqs = Array.isArray(course.faqs) ? course.faqs : [];
+  const primaryLevel = levels[0];
 
   const courseSchema = {
     "@context": "https://schema.org",
@@ -38,11 +47,11 @@ export const CourseStructuredData: React.FC<CourseStructuredDataProps> = ({
   };
 
   const faqSchema =
-    course.faqs.length > 0
+    faqs.length > 0
       ? {
           "@context": "https://schema.org",
           "@type": "FAQPage",
-          mainEntity: course.faqs.map((faq) => ({
+          mainEntity: faqs.map((faq) => ({
             "@type": "Question",
             name: faq.question,
             acceptedAnswer: {
@@ -57,12 +66,12 @@ export const CourseStructuredData: React.FC<CourseStructuredDataProps> = ({
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(courseSchema) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(courseSchema) }}
       />
       {faqSchema && (
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+          dangerouslySetInnerHTML={{ __html: serializeJsonLd(faqSchema) }}
         />
       )}
     </>

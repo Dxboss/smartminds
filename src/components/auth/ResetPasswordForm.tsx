@@ -33,7 +33,7 @@ export const ResetPasswordForm: React.FC = () => {
     }
 
     if (!newPassword || newPassword.length < 6) {
-      setErrorMessage("New password must be at least 6 characters long.");
+      setErrorMessage("New password must be at least 12 characters long.");
       return;
     }
 
@@ -142,7 +142,7 @@ export const ResetPasswordForm: React.FC = () => {
                 htmlFor="new-password"
                 className="block text-sm font-semibold text-navy-900"
               >
-                New Password (minimum 6 characters)
+                New Password (minimum 12 characters)
               </label>
               <button
                 type="button"

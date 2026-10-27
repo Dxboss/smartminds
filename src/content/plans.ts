@@ -72,35 +72,45 @@ export const level5PaymentPlans: PaymentPlanTemplate[] = [
   defaultPlan14Months,
 ];
 
-/**
- * Dedicated term-based payment plans for 1-on-1 Children's Tutoring (12-Week Term):
- * Full Term, 2 Payments (every 6 weeks), or 3 Monthly Payments.
- */
+/** Payment intervals discussed for the 12-week one-to-one tutoring term. */
 export const tutoringPaymentPlans: PaymentPlanTemplate[] = [
   {
-    id: "plan-1m",
-    name: "Full Term (12 Weeks)",
+    id: "tutoring-every-2-weeks",
+    name: "Every 2 weeks (6 payments)",
+    months: 5,
+    interval_weeks: 2,
+    deposit_type: "percent",
+    deposit_value: 100 / 6,
+    grace_days: 7,
+    after_grace: "pause_access",
+  },
+  {
+    id: "tutoring-every-4-weeks",
+    name: "Every 4 weeks (3 payments)",
+    months: 2,
+    interval_weeks: 4,
+    deposit_type: "percent",
+    deposit_value: 100 / 3,
+    grace_days: 7,
+    after_grace: "pause_access",
+  },
+  {
+    id: "tutoring-every-8-weeks",
+    name: "Every 8 weeks (2 payments)",
     months: 1,
+    interval_weeks: 8,
+    deposit_type: "percent",
+    deposit_value: 50,
+    grace_days: 7,
+    after_grace: "pause_access",
+  },
+  {
+    id: "tutoring-every-12-weeks",
+    name: "Every 12 weeks (one payment)",
+    months: 1,
+    interval_weeks: 12,
     deposit_type: "percent",
     deposit_value: 100,
-    grace_days: 7,
-    after_grace: "pause_access",
-  },
-  {
-    id: "plan-2m",
-    name: "2 Instalments (Every 6 Weeks)",
-    months: 2,
-    deposit_type: "percent",
-    deposit_value: 50,
-    grace_days: 7,
-    after_grace: "pause_access",
-  },
-  {
-    id: "plan-3m",
-    name: "3 Monthly Payments (Term Length)",
-    months: 3,
-    deposit_type: "fixed",
-    deposit_value: 50,
     grace_days: 7,
     after_grace: "pause_access",
   },

@@ -1,5 +1,7 @@
 "use server";
 
+import { randomBytes } from "node:crypto";
+
 import { revalidatePath } from "next/cache";
 import { globalSettings } from "@/content/globals";
 import {
@@ -44,6 +46,7 @@ export interface EnrolmentFormInput {
   postcode?: string;
   paymentOption: "full" | "instalments";
   preferredSession?: "afternoon" | "evening";
+  preferredTimeSlot?: string;
   cardNumberLast4?: string;
   couponCode?: string;
   termsAccepted: boolean;
@@ -139,6 +142,10 @@ export async function processSelfEnrolmentAction(input: EnrolmentFormInput) {
   if (!level) {
     throw new Error("Course level is invalid.");
   }
+  const isTutoringCourse = course.type === "tutoring" || course.is_private_tutoring === true;
+  if (isTutoringCourse && !course.tutoring_slots?.includes(input.preferredTimeSlot || "")) {
+    throw new Error("Please choose an available tutoring day and time.");
+  }
 
   const selectedPlan: PaymentPlanTemplate = resolvePlanForLevel(
     level,
@@ -189,7 +196,7 @@ export async function processSelfEnrolmentAction(input: EnrolmentFormInput) {
       phone: input.phone.trim(),
       enrolmentDate: new Date().toISOString(),
       accessStatus: "active",
-      notes: `Self-enrolled: ${course.title} (${level.level_label})${input.dob ? ` | DOB: ${input.dob}` : ""}${input.address ? ` | Address: ${input.address}` : ""}${input.childName ? ` | Child: ${input.childName} (${input.childYearGroup})` : ""}${input.trainingLocation ? ` | Campus: ${input.trainingLocation}` : ""}`,
+      notes: `Self-enrolled: ${course.title} (${level.level_label})${input.dob ? ` | DOB: ${input.dob}` : ""}${input.address ? ` | Address: ${input.address}` : ""}${input.childName ? ` | Child: ${input.childName} (${input.childYearGroup})` : ""}${input.trainingLocation ? ` | Campus: ${input.trainingLocation}` : ""}${input.preferredTimeSlot ? ` | Preferred tutoring time: ${input.preferredTimeSlot}` : ""}`,
       learnerType: input.learnerType || "myself",
       guardianName: input.guardianName || (input.learnerType === "child" ? input.fullName.trim() : undefined),
       guardianPhone: input.guardianPhone || (input.learnerType === "child" ? input.phone.trim() : undefined),
@@ -231,6 +238,7 @@ export async function processSelfEnrolmentAction(input: EnrolmentFormInput) {
       courseLevelLabel: level.level_label,
       classId,
       sessionTiming: input.preferredSession === "afternoon" ? "afternoon" : "evening",
+      preferredTimeSlot: input.preferredTimeSlot,
       tutorName: matchingClass?.tutorName || "Dr. Eleanor Vance",
       trainingLocation: input.trainingLocation,
       enrolledAt: new Date().toISOString(),
@@ -243,6 +251,7 @@ export async function processSelfEnrolmentAction(input: EnrolmentFormInput) {
     seedEnrolments.push(enrolment);
   } else {
     enrolment.status = "active";
+    enrolment.preferredTimeSlot = input.preferredTimeSlot;
   }
 
   // 5. Record Payment in College Ledger
@@ -251,8 +260,14 @@ export async function processSelfEnrolmentAction(input: EnrolmentFormInput) {
     .padStart(3, "0")}`;
   const paymentPlanLabel =
     input.paymentOption === "full"
-      ? "Paid in full (10% upfront discount)"
-      : `${selectedPlan.months} monthly payments (${formatCurrency(pricing.monthly)}/mo)`;
+      ? pricing.hasPriceSlash
+        ? `Paid in full at the sale price (${formatCurrency(pricing.sellingPrice)})`
+        : pricing.saving > 0
+          ? `Paid in full with ${formatCurrency(pricing.saving)} upfront savings`
+          : "Paid in full"
+      : selectedPlan.interval_weeks
+        ? `${selectedPlan.name} (${formatCurrency(pricing.monthly)} per payment)`
+        : `${selectedPlan.months} monthly payments (${formatCurrency(pricing.monthly)}/mo)`;
 
   const paymentRecord: PaymentRecord = {
     id: paymentId,
@@ -275,7 +290,13 @@ export async function processSelfEnrolmentAction(input: EnrolmentFormInput) {
   const nowIso = new Date().toISOString();
   const todayYmd = nowIso.split("T")[0];
 
-  if (input.paymentOption === "instalments" && selectedPlan.months > 1) {
+  const hasFutureInstalments =
+    input.paymentOption === "instalments" &&
+    selectedPlan.months > 0 &&
+    pricing.deposit < pricing.total;
+
+  if (hasFutureInstalments) {
+    const totalInstalments = selectedPlan.months + 1;
     // Instalment 1: Initial Deposit Paid Now
     const grace1 = new Date();
     grace1.setDate(grace1.getDate() + (selectedPlan.grace_days || 7));
@@ -285,7 +306,7 @@ export async function processSelfEnrolmentAction(input: EnrolmentFormInput) {
       enrolmentId: enrolment.id,
       learnerId: learner.id,
       instalmentNumber: 1,
-      totalInstalments: selectedPlan.months,
+      totalInstalments,
       amountGbp: pricing.deposit,
       dueDate: todayYmd,
       status: "paid",
@@ -293,20 +314,24 @@ export async function processSelfEnrolmentAction(input: EnrolmentFormInput) {
       graceExpiryDate: grace1.toISOString().split("T")[0],
     });
 
-    // Instalments 2..N: Monthly payments spread across remaining schedule
-    for (let i = 2; i <= selectedPlan.months; i++) {
+    // The deposit is due today; all later payments follow the chosen interval.
+    for (let i = 2; i <= totalInstalments; i++) {
       const dueDate = new Date();
-      dueDate.setMonth(dueDate.getMonth() + (i - 1));
+      if (selectedPlan.interval_weeks) {
+        dueDate.setDate(dueDate.getDate() + selectedPlan.interval_weeks * (i - 1) * 7);
+      } else {
+        dueDate.setMonth(dueDate.getMonth() + (i - 1));
+      }
       const graceDate = new Date(dueDate);
       graceDate.setDate(graceDate.getDate() + (selectedPlan.grace_days || 7));
-      const amount = i === selectedPlan.months ? pricing.finalPayment : pricing.monthly;
+      const amount = i === totalInstalments ? pricing.finalPayment : pricing.monthly;
 
       newSchedules.push({
         id: `sched-${enrolment.id}-${i}`,
         enrolmentId: enrolment.id,
         learnerId: learner.id,
         instalmentNumber: i,
-        totalInstalments: selectedPlan.months,
+        totalInstalments,
         amountGbp: amount,
         dueDate: dueDate.toISOString().split("T")[0],
         status: "due",
@@ -340,7 +365,7 @@ export async function processSelfEnrolmentAction(input: EnrolmentFormInput) {
   }
 
   // 7. Generate Temporary Password for New Learner
-  const tempPassword = `SMT-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+  const tempPassword = `SMT-${randomBytes(8).toString("hex").toUpperCase()}`;
 
   // Persist to local JSON storage for cross-restart preservation
   savePersistedRecord({
@@ -442,7 +467,11 @@ export async function processSelfEnrolmentAction(input: EnrolmentFormInput) {
     levelName: level.level_label,
     amountCharged,
     receiptRef,
-    paymentType: input.paymentOption === "full" ? "Paid in Full" : `${selectedPlan.months}-Month Instalment Plan`,
+    paymentType: input.paymentOption === "full"
+      ? "Paid in Full"
+      : selectedPlan.interval_weeks
+        ? `Every ${selectedPlan.interval_weeks} weeks`
+        : `${selectedPlan.months}-Month Instalment Plan`,
     isReturningStudent,
   });
 
@@ -484,6 +513,7 @@ export async function processSelfEnrolmentAction(input: EnrolmentFormInput) {
     learnerType: input.learnerType || "myself",
     childName: input.childName,
     trainingLocation: input.trainingLocation,
+    preferredTimeSlot: input.preferredTimeSlot,
   };
 }
 
@@ -502,6 +532,7 @@ export async function createStripeCheckoutAction(input: {
   address?: string;
   postcode?: string;
   preferredSession?: "afternoon" | "evening";
+  preferredTimeSlot?: string;
   couponCode?: string;
   paymentOption: "full" | "instalments";
   learnerType?: "myself" | "child";
@@ -524,6 +555,10 @@ export async function createStripeCheckoutAction(input: {
     course.levels.find((l) => l.level_label === input.levelLabel) ||
     course.levels[0];
   if (!level) throw new Error("Course level is invalid.");
+  const isTutoringCourse = course.type === "tutoring" || course.is_private_tutoring === true;
+  if (isTutoringCourse && !course.tutoring_slots?.includes(input.preferredTimeSlot || "")) {
+    throw new Error("Please choose an available tutoring day and time.");
+  }
 
   const selectedPlan: PaymentPlanTemplate = resolvePlanForLevel(
     level,
@@ -561,8 +596,10 @@ export async function createStripeCheckoutAction(input: {
               name: `${course.title} (${level.level_label})`,
               description:
                 input.paymentOption === "full"
-                  ? "Full payment (10% upfront discount applied)"
-                  : `${selectedPlan.months}-month instalment plan initial deposit`,
+                  ? "Full course tuition payment"
+                  : selectedPlan.interval_weeks
+                    ? `Tutoring payment every ${selectedPlan.interval_weeks} weeks`
+                    : `${selectedPlan.months}-month instalment plan initial deposit`,
             },
           },
           quantity: 1,
@@ -580,6 +617,7 @@ export async function createStripeCheckoutAction(input: {
         address: input.address || "",
         postcode: input.postcode || "",
         preferredSession: input.preferredSession || "evening",
+        preferredTimeSlot: input.preferredTimeSlot || "",
         couponCode: input.couponCode || "",
         paymentOption: input.paymentOption,
         learnerType: input.learnerType || "myself",
@@ -751,6 +789,7 @@ export async function fulfillStripeCheckoutSession(sessionId: string) {
     address: meta.address || undefined,
     postcode: meta.postcode || undefined,
     preferredSession: meta.preferredSession === "afternoon" ? "afternoon" : "evening",
+    preferredTimeSlot: meta.preferredTimeSlot || undefined,
     couponCode: meta.couponCode || undefined,
     paymentOption: meta.paymentOption === "full" ? "full" : "instalments",
     termsAccepted: true,

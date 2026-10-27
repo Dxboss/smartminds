@@ -132,6 +132,10 @@ export const EnrolmentClient: React.FC<Props> = ({
     (Boolean(currentCourse?.is_private_tutoring) && currentCourse?.target_audience !== "adult");
   const isAllAudience = currentCourse?.target_audience === "all";
   const isAdultOnly = !isMinorCourse && !isAllAudience;
+  const isTutoringCourse = currentCourse?.type === "tutoring" || currentCourse?.is_private_tutoring === true;
+  const [selectedTutoringSlot, setSelectedTutoringSlot] = useState<string>(
+    currentCourse?.tutoring_slots?.[0] || ""
+  );
 
   // Learner profile type: Independent Adult (19+) vs Parent/Guardian registering Child
   const [learnerType, setLearnerType] = useState<"myself" | "child">(
@@ -161,6 +165,7 @@ export const EnrolmentClient: React.FC<Props> = ({
     } else {
       setSelectedLocation("");
     }
+    setSelectedTutoringSlot(currentCourse?.tutoring_slots?.[0] || "");
   }, [currentCourse, isMinorCourse, isAdultOnly, selectedLocation]);
 
   // Form Fields
@@ -270,6 +275,7 @@ export const EnrolmentClient: React.FC<Props> = ({
     learnerType?: "myself" | "child";
     childName?: string;
     trainingLocation?: string;
+    preferredTimeSlot?: string;
   } | null>(null);
 
   // Pricing calculations
@@ -292,7 +298,9 @@ export const EnrolmentClient: React.FC<Props> = ({
     paymentOption === "full" ? pricing?.fullPayPrice || 0 : pricing?.deposit || 0;
 
   const discountPercent =
-    currentLevel?.full_pay_discount_percent !== null &&
+    basePricing?.hasPriceSlash
+      ? 0
+      : currentLevel?.full_pay_discount_percent !== null &&
     currentLevel?.full_pay_discount_percent !== undefined
       ? currentLevel.full_pay_discount_percent
       : globalSettings.default_full_pay_discount_percent;
@@ -355,6 +363,10 @@ export const EnrolmentClient: React.FC<Props> = ({
         return;
       }
     }
+    if (isTutoringCourse && !selectedTutoringSlot) {
+      setErrorMsg("Please select a preferred tutoring day and time.");
+      return;
+    }
 
     const effectiveName =
       accountType === "existing" && verifiedStudent
@@ -383,6 +395,7 @@ export const EnrolmentClient: React.FC<Props> = ({
           address: accountType === "existing" ? undefined : address,
           postcode: accountType === "existing" ? undefined : postcode,
           preferredSession,
+          preferredTimeSlot: isTutoringCourse ? selectedTutoringSlot : undefined,
           couponCode: appliedCoupon?.code,
           paymentOption,
           learnerType,
@@ -414,6 +427,7 @@ export const EnrolmentClient: React.FC<Props> = ({
           address: accountType === "existing" ? undefined : address,
           postcode: accountType === "existing" ? undefined : postcode,
           preferredSession,
+          preferredTimeSlot: isTutoringCourse ? selectedTutoringSlot : undefined,
           paymentOption,
           cardNumberLast4: cardNumber.replace(/\D/g, "").slice(-4) || "4242",
           couponCode: appliedCoupon?.code,
@@ -563,6 +577,12 @@ export const EnrolmentClient: React.FC<Props> = ({
                 <span className="font-semibold text-navy-900 text-sm bg-white px-2 py-0.5 rounded-xs border border-line">
                   {confirmedResult.trainingLocation} Centre
                 </span>
+              </div>
+            )}
+            {confirmedResult.preferredTimeSlot && (
+              <div className="flex justify-between items-center border-b border-line pb-3">
+                <span className="text-xs font-semibold text-ink-soft">Preferred tutoring time</span>
+                <span className="font-semibold text-navy-900 text-sm">{confirmedResult.preferredTimeSlot}</span>
               </div>
             )}
             <div className="flex justify-between items-center border-b border-line pb-3">
@@ -738,7 +758,7 @@ export const EnrolmentClient: React.FC<Props> = ({
                     )}
                   </button>
 
-                  {/* Monthly instalments */}
+                  {/* Instalment plan */}
                   <button
                     type="button"
                     onClick={() => setPaymentOption("instalments")}
@@ -749,25 +769,25 @@ export const EnrolmentClient: React.FC<Props> = ({
                     }`}
                   >
                     <span className="absolute top-2 right-2 px-2 py-0.5 rounded-xs text-[10px] font-bold bg-navy-900 text-gold-300 uppercase">
-                      0% Interest
+                      No interest
                     </span>
                     <strong className="block text-sm font-bold text-navy-900">
-                      Monthly Instalments
+                      {isTutoringCourse ? "Split payments" : "Monthly instalments"}
                     </strong>
                     <span className="text-xs text-ink-soft block mt-1">
                       Pay initial deposit, balance split equally
                     </span>
                     <span className="text-[11px] text-navy-900 font-semibold mt-1 block">
-                      Zero finance fees or APR
+                      {isTutoringCourse ? "Choose a payment interval" : "No finance fees"}
                     </span>
                   </button>
                 </div>
 
-                {/* Instalment Month Selector */}
+                {/* Instalment schedule selector */}
                 {paymentOption === "instalments" && (
                   <div className="mt-3 p-3 rounded-sm bg-paper border border-line space-y-2">
                     <label className="block text-xs font-semibold text-navy-900">
-                      Choose Monthly Schedule:
+                      {isTutoringCourse ? "Choose payment interval:" : "Choose monthly schedule:"}
                     </label>
                     <div
                       className={`grid gap-2 ${
@@ -790,7 +810,7 @@ export const EnrolmentClient: React.FC<Props> = ({
                             }`}
                           >
                             <span className="block font-bold">
-                              {p.months} Month{p.months > 1 ? "s" : ""}
+                              {p.interval_weeks ? p.name : `${p.months} Month${p.months > 1 ? "s" : ""}`}
                             </span>
                             <span className="text-[10px] block opacity-85 mt-0.5">
                               {p.deposit_value > 0 ? `£${p.deposit_value} dep` : "£0 dep"}
@@ -1046,8 +1066,8 @@ export const EnrolmentClient: React.FC<Props> = ({
                               <span>Student ID: <strong className="font-mono">{verifiedStudent.studentId}</strong></span>
                               <span>Email: <strong>{verifiedStudent.email}</strong></span>
                             </div>
-                            <p className="text-[11px] text-emerald-700 pt-0.5">
-                              Your identity and contact details are already verified on file. Choose your preferred study session below to complete enrolment.
+                          <p className="text-[11px] text-emerald-700 pt-0.5">
+                              Your identity and contact details are already verified on file. Choose your preferred lesson time below to complete enrolment.
                             </p>
                           </div>
                         </div>
@@ -1069,9 +1089,21 @@ export const EnrolmentClient: React.FC<Props> = ({
                       {/* Study Timing / Cohort Selection for Existing Student */}
                       <div>
                         <label className="block text-xs font-bold text-navy-900 mb-1.5">
-                          Live Cohort Teaching Schedule *
+                          {isTutoringCourse ? "Choose a tutoring day and time *" : "Live Cohort Teaching Schedule *"}
                         </label>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {isTutoringCourse && (
+                          <select
+                            value={selectedTutoringSlot}
+                            onChange={(event) => setSelectedTutoringSlot(event.target.value)}
+                            required
+                            className="w-full min-h-[44px] rounded-sm border border-line bg-white px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-navy-900"
+                          >
+                            {(currentCourse.tutoring_slots || []).map((slot) => (
+                              <option key={slot} value={slot}>{slot}</option>
+                            ))}
+                          </select>
+                        )}
+                        <div hidden={isTutoringCourse} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <button
                             type="button"
                             onClick={() => setPreferredSession("afternoon")}
@@ -1122,9 +1154,21 @@ export const EnrolmentClient: React.FC<Props> = ({
                   {/* Study Timing / Cohort Selection for New Student */}
                   <div>
                     <label className="block text-xs font-bold text-navy-900 mb-1.5">
-                      Live Cohort Teaching Schedule *
+                      {isTutoringCourse ? "Choose a tutoring day and time *" : "Live Cohort Teaching Schedule *"}
                     </label>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {isTutoringCourse && (
+                      <select
+                        value={selectedTutoringSlot}
+                        onChange={(event) => setSelectedTutoringSlot(event.target.value)}
+                        required
+                        className="w-full min-h-[44px] rounded-sm border border-line bg-white px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-navy-900"
+                      >
+                        {(currentCourse.tutoring_slots || []).map((slot) => (
+                          <option key={slot} value={slot}>{slot}</option>
+                        ))}
+                      </select>
+                    )}
+                    <div hidden={isTutoringCourse} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <button
                         type="button"
                         onClick={() => setPreferredSession("afternoon")}
@@ -1439,7 +1483,9 @@ export const EnrolmentClient: React.FC<Props> = ({
                         ? discountPercent > 0
                           ? `Full Tuition (${discountPercent}% Upfront Discount Applied)`
                           : "Full Tuition (Single Payment)"
-                        : `${pricing?.months || activePlan.months}-Month Instalment Plan (0% APR)`}
+                        : activePlan.interval_weeks
+                          ? activePlan.name
+                          : `${pricing?.months || activePlan.months}-Month Instalment Plan (no interest)`}
                     </span>
                   </div>
                   <div className="flex justify-between items-center text-sm pt-2 border-t border-line/60">
@@ -1450,7 +1496,7 @@ export const EnrolmentClient: React.FC<Props> = ({
                   </div>
                   {paymentOption === "instalments" && pricing && (
                     <p className="text-[11px] text-ink-soft pt-1 leading-relaxed">
-                      Your initial deposit of <strong>{formatCurrency(pricing.deposit)}</strong> is charged today. Remaining tuition is divided into {pricing.months} monthly payments of {formatCurrency(pricing.monthly)}.
+                      Your initial deposit of <strong>{formatCurrency(pricing.deposit)}</strong> is charged today. Remaining tuition is divided into {activePlan.interval_weeks ? `${pricing.months} payments every ${activePlan.interval_weeks} weeks` : `${pricing.months} monthly payments`}, at {formatCurrency(pricing.monthly)} per payment.
                     </p>
                   )}
                 </div>
@@ -1570,12 +1616,14 @@ export const EnrolmentClient: React.FC<Props> = ({
                   <div className="flex justify-between">
                     <span>Instalment Schedule</span>
                     <span className="font-semibold text-navy-900">
-                      {pricing.months} payments of {formatCurrency(pricing.monthly)}
+                      {activePlan.interval_weeks
+                        ? `${pricing.months} payments every ${activePlan.interval_weeks} weeks`
+                        : `${pricing.months} monthly payments`} of {formatCurrency(pricing.monthly)}
                     </span>
                   </div>
                   <div className="flex justify-between text-[11px] text-ink-soft">
-                    <span>Finance Charges / APR</span>
-                    <span className="font-bold text-emerald-700">£0.00 (0% Interest)</span>
+                    <span>{isTutoringCourse ? "Interest or finance charges" : "Finance charges / APR"}</span>
+                    <span className="font-bold text-emerald-700">None</span>
                   </div>
                 </div>
               )}

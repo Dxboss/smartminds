@@ -32,6 +32,7 @@ export interface PaymentPlanTemplate {
   id?: string;
   name: string;
   months: number;
+  interval_weeks?: number;
   deposit_type: DepositType;
   deposit_value: number;
   grace_days: number;
@@ -71,6 +72,8 @@ export interface Course {
   intro_video_poster?: string | null;
   custom_delivery_text?: string;
   training_locations?: string[];
+  tutoring_slots?: string[];
+  home_study_note?: string;
   is_private_tutoring?: boolean;
   session_duration_info?: string;
   attendance_type?: "online_only" | "blended_practical" | "physical_venue";

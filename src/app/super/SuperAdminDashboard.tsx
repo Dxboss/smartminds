@@ -39,7 +39,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
   const [newUserName, setNewUserName] = useState("");
   const [newUserEmail, setNewUserEmail] = useState("");
   const [newUserRole, setNewUserRole] = useState<UserRole>("owner_admin");
-  const [newUserPassword, setNewUserPassword] = useState("Smartminds2026!");
+  const [newUserPassword, setNewUserPassword] = useState("");
   const [userSearch, setUserSearch] = useState("");
 
   // Feedback State
@@ -79,7 +79,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
           setShowCreateModal(false);
           setNewUserName("");
           setNewUserEmail("");
-          setNewUserPassword("Smartminds2026!");
+          setNewUserPassword("");
           setStatusMessage({
             type: "success",
             text: `Successfully created user '${res.user.name}' as ${res.user.role}. They can now log in with their credentials.`,
@@ -628,16 +628,18 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
 
                   <div>
                     <label className="block font-semibold text-navy-900 mb-1">
-                      Initial Password
+                      Initial password (optional)
                     </label>
                     <input
-                      type="text"
+                      type="password"
                       value={newUserPassword}
                       onChange={(e) => setNewUserPassword(e.target.value)}
+                      autoComplete="new-password"
+                      placeholder="Leave blank to generate one"
                       className="w-full px-3 py-2 rounded-sm border border-line focus:outline-none focus:ring-1 focus:ring-navy-900 font-mono"
                     />
                     <p className="text-[11px] text-ink-soft mt-1">
-                      User can sign in with this password and update it anytime.
+                      A random temporary password is generated and sent to the user if left blank. They must change it after signing in.
                     </p>
                   </div>
 

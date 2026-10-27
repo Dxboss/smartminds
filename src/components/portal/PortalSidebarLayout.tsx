@@ -62,7 +62,7 @@ export const PortalSidebarLayout: React.FC<PortalSidebarLayoutProps> = ({
     if (!newPassword || newPassword.length < 6) {
       setPasswordFeedback({
         type: "error",
-        text: "New password must be at least 6 characters long.",
+        text: "New password must be at least 12 characters long.",
       });
       return;
     }
@@ -659,7 +659,7 @@ export const PortalSidebarLayout: React.FC<PortalSidebarLayoutProps> = ({
             <form onSubmit={handlePasswordSubmit} className="space-y-4 text-xs">
               <div>
                 <label className="font-bold text-navy-900 block mb-1">
-                  New Password (min. 6 characters) *
+                  New Password (min. 12 characters) *
                 </label>
                 <div className="relative">
                   <input

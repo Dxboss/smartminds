@@ -62,15 +62,141 @@ export const seedUsers: UserProfile[] = [
     active: true,
     createdAt: "2026-09-01T08:30:00Z",
   },
+  // Administrative Staff (Office Team - No Financial Access)
+  {
+    id: "user-admin-01",
+    email: "sarah.jenkins@smartmindstraining.co.uk",
+    name: "Sarah Jenkins",
+    role: "admin_staff",
+    active: true,
+    createdAt: "2026-09-05T09:00:00Z",
+  },
+  {
+    id: "user-admin-02",
+    email: "brian.miller@smartmindstraining.co.uk",
+    name: "Brian Miller",
+    role: "admin_staff",
+    active: true,
+    createdAt: "2026-09-05T09:15:00Z",
+  },
+  {
+    id: "user-admin-03",
+    email: "fatima.almansoor@smartmindstraining.co.uk",
+    name: "Fatima Al-Mansoor",
+    role: "admin_staff",
+    active: true,
+    createdAt: "2026-09-05T09:30:00Z",
+  },
+  // 5 Tutors (Teaching Staff)
+  {
+    id: "user-tutor-01",
+    email: "eleanor.vance@smartmindstraining.co.uk",
+    name: "Dr. Eleanor Vance",
+    role: "tutor",
+    tutorId: "tutor-001",
+    active: true,
+    createdAt: "2026-09-08T10:00:00Z",
+  },
+  {
+    id: "user-tutor-02",
+    email: "marcus.sterling@smartmindstraining.co.uk",
+    name: "Marcus Sterling",
+    role: "tutor",
+    tutorId: "tutor-002",
+    active: true,
+    createdAt: "2026-09-08T10:30:00Z",
+  },
+  {
+    id: "user-tutor-03",
+    email: "amara.patel@smartmindstraining.co.uk",
+    name: "Amara Patel",
+    role: "tutor",
+    tutorId: "tutor-003",
+    active: true,
+    createdAt: "2026-09-08T11:00:00Z",
+  },
+  {
+    id: "user-tutor-04",
+    email: "david.kalu@smartmindstraining.co.uk",
+    name: "David Kalu",
+    role: "tutor",
+    tutorId: "tutor-004",
+    active: true,
+    createdAt: "2026-09-08T11:30:00Z",
+  },
+  {
+    id: "user-tutor-05",
+    email: "chloe.davies@smartmindstraining.co.uk",
+    name: "Chloe Davies",
+    role: "tutor",
+    tutorId: "tutor-005",
+    active: true,
+    createdAt: "2026-09-08T12:00:00Z",
+  },
 ];
 
 // ============================================================================
-// 2. Learners
+// 2. 24 Fictional Learners
 // ============================================================================
 
-export const seedLearners: Learner[] = [];
+const learnerNames = [
+  { first: "Maya", last: "Lin", status: "active" as const },
+  { first: "Jordan", last: "Lee", status: "active" as const },
+  { first: "Priya", last: "Sharma", status: "active" as const },
+  { first: "Sam", last: "Taylor", status: "active" as const },
+  { first: "Aisha", last: "Bello", status: "paused" as const }, // Overdue instalment
+  { first: "Marcus", last: "O'Connor", status: "active" as const },
+  { first: "Zoe", last: "Campbell", status: "active" as const },
+  { first: "Liam", last: "Walker", status: "active" as const },
+  { first: "Chloe", last: "Bennett", status: "completed" as const }, // Completed
+  { first: "Daniel", last: "Hughes", status: "active" as const },
+  { first: "Fatima", last: "Zahra", status: "paused" as const }, // Paused
+  { first: "Ethan", last: "Brooks", status: "active" as const },
+  { first: "Nadia", last: "Hussain", status: "active" as const },
+  { first: "Oliver", last: "Wright", status: "active" as const },
+  { first: "Grace", last: "Okafor", status: "active" as const },
+  { first: "Benjamin", last: "Scott", status: "active" as const },
+  { first: "Hannah", last: "Kelly", status: "paused" as const }, // Paused
+  { first: "Lucas", last: "Evans", status: "active" as const },
+  { first: "Leila", last: "Moradi", status: "active" as const },
+  { first: "Noah", last: "Phillips", status: "active" as const },
+  { first: "Ella", last: "Murphy", status: "completed" as const }, // Completed
+  { first: "Callum", last: "Murray", status: "active" as const },
+  { first: "Rhea", last: "Chopra", status: "paused" as const }, // Paused
+  { first: "Tariq", last: "Al-Sayed", status: "active" as const },
+];
 
-// Student profiles will be added dynamically when real learners enrol.
+export const seedLearners: Learner[] = learnerNames.map((person, index) => {
+  const num = (index + 1).toString().padStart(3, "0");
+  const emailName = `${person.first.toLowerCase()}.${person.last.toLowerCase().replace(/['\s]/g, "")}`;
+  return {
+    id: `learner-${num}`,
+    userId: `user-learner-${num}`,
+    firstName: person.first,
+    lastName: person.last,
+    email: `${emailName}@example.com`,
+    phone: `+44 7700 900${num}`,
+    enrolmentDate: "2026-09-15T09:00:00Z",
+    accessStatus: person.status === "paused" ? "paused" : "active",
+    notes:
+      person.status === "paused"
+        ? "Access paused: payment review pending."
+        : "Good academic engagement.",
+  };
+});
+
+// Also append student user profiles for all 24 learners
+seedLearners.forEach((l) => {
+  seedUsers.push({
+    id: l.userId,
+    email: l.email,
+    name: `${l.firstName} ${l.lastName}`,
+    role: "student",
+    learnerId: l.id,
+    active: l.accessStatus === "active",
+    createdAt: l.enrolmentDate,
+  });
+});
 
 // ============================================================================
 // 3. 4 Classes Across Courses
@@ -212,24 +338,258 @@ export const seedEnrolments: Enrolment[] = seedLearners.map((learner, idx) => {
 // 5. Payment Records & Schedules (Paid, Due, Overdue)
 // ============================================================================
 
-export const seedPaymentRecords: PaymentRecord[] = [];
+export const seedPaymentRecords: PaymentRecord[] = [
+  {
+    id: "pay-rec-001",
+    enrolmentId: "enrolment-001",
+    learnerId: "learner-001",
+    learnerName: "Maya Lin",
+    courseTitle: "Diploma in Adult Care L3",
+    amountGbp: 150.0,
+    method: "stripe",
+    reference: "ch_demo_lin_deposit_001",
+    status: "paid",
+    paidAt: "2026-09-15T09:30:00Z",
+    notes: "Deposit paid at enrolment",
+  },
+  {
+    id: "pay-rec-002",
+    enrolmentId: "enrolment-002",
+    learnerId: "learner-002",
+    learnerName: "Jordan Lee",
+    courseTitle: "Diploma in Adult Care L3",
+    amountGbp: 1174.5,
+    method: "bank_transfer",
+    reference: "BT-2026-09-LEE",
+    status: "paid",
+    paidAt: "2026-09-16T11:00:00Z",
+    notes: "Paid in full via BACS transfer (verified by Millie)",
+  },
+  {
+    id: "pay-rec-003",
+    enrolmentId: "enrolment-003",
+    learnerId: "learner-003",
+    learnerName: "Priya Sharma",
+    courseTitle: "Diploma in Adult Care L3",
+    amountGbp: 150.0,
+    method: "stripe",
+    reference: "ch_demo_sharma_001",
+    status: "paid",
+    paidAt: "2026-09-15T14:20:00Z",
+  },
+  {
+    id: "pay-rec-004",
+    enrolmentId: "enrolment-005",
+    learnerId: "learner-005",
+    learnerName: "Aisha Bello",
+    courseTitle: "Diploma in Adult Care L3",
+    amountGbp: 150.0,
+    method: "stripe",
+    reference: "ch_demo_bello_001",
+    status: "paid",
+    paidAt: "2026-08-10T10:00:00Z",
+  },
+  {
+    id: "pay-rec-005",
+    enrolmentId: "enrolment-009",
+    learnerId: "learner-009",
+    learnerName: "Chloe Bennett",
+    courseTitle: "Leadership in Adult Care L5",
+    amountGbp: 1620.0,
+    method: "stripe",
+    reference: "ch_demo_bennett_full",
+    status: "paid",
+    paidAt: "2026-05-01T10:00:00Z",
+    notes: "Course completed and full balance settled",
+  },
+];
 
-export const seedPaymentSchedules: PaymentScheduleItem[] = [];
+export const seedPaymentSchedules: PaymentScheduleItem[] = [
+  // Maya Lin (Active, next instalment due soon)
+  {
+    id: "sched-001-1",
+    enrolmentId: "enrolment-001",
+    learnerId: "learner-001",
+    instalmentNumber: 1,
+    totalInstalments: 6,
+    amountGbp: 150.0,
+    dueDate: "2026-09-15",
+    status: "paid",
+    paidAt: "2026-09-15T09:30:00Z",
+    graceExpiryDate: "2026-09-29",
+  },
+  {
+    id: "sched-001-2",
+    enrolmentId: "enrolment-001",
+    learnerId: "learner-001",
+    instalmentNumber: 2,
+    totalInstalments: 6,
+    amountGbp: 192.5,
+    dueDate: "2026-10-15",
+    status: "due",
+    graceExpiryDate: "2026-10-29",
+  },
+  {
+    id: "sched-001-3",
+    enrolmentId: "enrolment-001",
+    learnerId: "learner-001",
+    instalmentNumber: 3,
+    totalInstalments: 6,
+    amountGbp: 192.5,
+    dueDate: "2026-11-15",
+    status: "due",
+    graceExpiryDate: "2026-11-29",
+  },
+
+  // Aisha Bello (Paused due to overdue instalment past grace period)
+  {
+    id: "sched-005-1",
+    enrolmentId: "enrolment-005",
+    learnerId: "learner-005",
+    instalmentNumber: 1,
+    totalInstalments: 6,
+    amountGbp: 150.0,
+    dueDate: "2026-08-10",
+    status: "paid",
+    paidAt: "2026-08-10T10:00:00Z",
+    graceExpiryDate: "2026-08-24",
+  },
+  {
+    id: "sched-005-2",
+    enrolmentId: "enrolment-005",
+    learnerId: "learner-005",
+    instalmentNumber: 2,
+    totalInstalments: 6,
+    amountGbp: 192.5,
+    dueDate: "2026-09-10",
+    status: "overdue",
+    graceExpiryDate: "2026-09-24",
+  },
+];
 
 // ============================================================================
 // 6. Assignments, Submissions & Unit Results
-// Coursework assignments will be created and assigned by tutors via the Staff Console.
 // ============================================================================
 
-export const seedAssignments: Assignment[] = [];
+export const seedAssignments: Assignment[] = [
+  {
+    id: "assign-care-301",
+    classId: "class-care-l3",
+    tutorId: "tutor-001",
+    unitCode: "UNIT-301",
+    title: "Unit 301: Principles of Person-Centred Practice",
+    instructions:
+      "Submit your reflective practice account exploring person-centred values, individual rights, and collaborative care planning in your workplace context.",
+    deadline: "2026-10-20T23:59:00Z",
+    createdAt: "2026-09-20T10:00:00Z",
+  },
+  {
+    id: "assign-lead-501",
+    classId: "class-lead-l5",
+    tutorId: "tutor-002",
+    unitCode: "UNIT-501",
+    title: "Unit 501: Leadership & Strategic Governance Report",
+    instructions:
+      "Evaluate regulatory governance structures against current CQC Key Lines of Enquiry, with recommendations for continuous service quality improvement.",
+    deadline: "2026-10-25T23:59:00Z",
+    createdAt: "2026-09-22T11:00:00Z",
+  },
+  {
+    id: "assign-ey-302",
+    classId: "class-ey-l3",
+    tutorId: "tutor-003",
+    unitCode: "UNIT-EY-302",
+    title: "Unit EY-302: Safeguarding & Child Protection Case Study",
+    instructions:
+      "Analyze a multi-agency safeguarding scenario adhering to Working Together to Safeguard Children statutory guidance.",
+    deadline: "2026-10-18T23:59:00Z",
+    createdAt: "2026-09-21T09:30:00Z",
+  },
+];
 
-export const seedSubmissions: Submission[] = [];
+export const seedSubmissions: Submission[] = [
+  {
+    id: "sub-001",
+    assignmentId: "assign-care-301",
+    learnerId: "learner-001",
+    learnerName: "Maya Lin",
+    unitCode: "UNIT-301",
+    fileName: "Maya_Lin_Unit301_Reflective_Account.pdf",
+    fileSizeBytes: 421000,
+    submittedAt: "2026-10-02T16:45:00Z",
+    status: "marked",
+    outcome: "achieved",
+    feedback:
+      "Comprehensive demonstration of person-centred planning. Clear workplace evidence linking duty of care with learner empowerment.",
+    markedByTutorId: "tutor-001",
+    markedAt: "2026-10-04T11:15:00Z",
+  },
+  {
+    id: "sub-002",
+    assignmentId: "assign-care-301",
+    learnerId: "learner-002",
+    learnerName: "Jordan Lee",
+    unitCode: "UNIT-301",
+    fileName: "Jordan_Lee_Unit301_Submission.docx",
+    fileSizeBytes: 285000,
+    submittedAt: "2026-10-03T18:20:00Z",
+    status: "submitted",
+    outcome: "pending",
+  },
+  {
+    id: "sub-003",
+    assignmentId: "assign-care-301",
+    learnerId: "learner-003",
+    learnerName: "Priya Sharma",
+    unitCode: "UNIT-301",
+    status: "not_submitted",
+  },
+];
 
 // ============================================================================
 // 7. Tasks Assigned by Owner
 // ============================================================================
 
-export const seedTasks: Task[] = [];
+export const seedTasks: Task[] = [
+  {
+    id: "task-001",
+    title: "Verify BACS bank transfer for Jordan Lee",
+    description: "Confirm £1,174.50 payment against bank statement and check enrolment status.",
+    assignedToId: "user-admin-01",
+    assignedToName: "Sarah Jenkins",
+    assignedByRole: "owner_admin",
+    deadline: "2026-10-10T17:00:00Z",
+    status: "completed",
+    isOverdue: false,
+    createdAt: "2026-10-01T09:00:00Z",
+    completedAt: "2026-10-02T11:00:00Z",
+  },
+  {
+    id: "task-002",
+    title: "Contact Aisha Bello regarding paused payment instalment",
+    description: "Follow up via telephone and approved template email regarding second payment instalment.",
+    assignedToId: "user-admin-02",
+    assignedToName: "Brian Miller",
+    assignedByRole: "owner_admin",
+    deadline: "2026-10-05T17:00:00Z",
+    status: "pending",
+    isOverdue: true,
+    createdAt: "2026-09-28T09:00:00Z",
+  },
+  {
+    id: "task-003",
+    title: "Mark Unit 301 draft submissions for Adult Care Class",
+    description: "Provide developmental criteria feedback on submitted reflective accounts.",
+    assignedToId: "user-tutor-01",
+    assignedToName: "Dr. Eleanor Vance",
+    assignedByRole: "owner_admin",
+    deadline: "2026-10-14T17:00:00Z",
+    status: "in_progress",
+    isOverdue: false,
+    createdAt: "2026-10-04T08:30:00Z",
+  },
+];
+
 
 // ============================================================================
 // 8. Approved Message Templates
@@ -282,7 +642,50 @@ export const seedTemplates: MessageTemplate[] = [
 // 9. Bookings & Availability
 // ============================================================================
 
-export const seedBookings: Booking[] = [];
+export const seedBookings: Booking[] = [
+  {
+    id: "book-001",
+    fullName: "Claire Jenkins",
+    email: "claire.jenkins@example.com",
+    phone: "+44 7911 123456",
+    courseInterest: "Diploma in Adult Care (Level 3)",
+    scheduledAt: "2026-10-14T14:00:00Z",
+    status: "confirmed",
+    timeZone: "Europe/London",
+    notes: "Wants to know if workplace funding is available.",
+    createdAt: "2026-10-05T10:00:00Z",
+    assignedStaffId: "user-admin-01",
+    assignedStaffName: "Sarah Jenkins",
+  },
+  {
+    id: "book-002",
+    fullName: "Adebayo Ogun",
+    email: "adebayo.ogun@example.com",
+    phone: "+44 7922 654321",
+    courseInterest: "Leadership in Adult Care (Level 5)",
+    scheduledAt: "2026-10-15T11:00:00Z",
+    status: "confirmed",
+    timeZone: "Europe/London",
+    notes: "Deputy manager preparing for registered manager promotion.",
+    createdAt: "2026-10-06T14:30:00Z",
+    assignedStaffId: "user-admin-02",
+    assignedStaffName: "Brian Miller",
+  },
+  {
+    id: "book-003",
+    fullName: "Miriam O'Connor",
+    email: "miriam.oconnor@example.com",
+    phone: "+44 7700 900112",
+    courseInterest: "Award in Education and Training (Level 3 AET)",
+    scheduledAt: "2026-10-16T15:30:00Z",
+    status: "confirmed",
+    timeZone: "Europe/London",
+    notes: "Interested in online delivery schedule.",
+    createdAt: "2026-10-07T09:00:00Z",
+    assignedStaffId: "user-admin-01",
+    assignedStaffName: "Sarah Jenkins",
+  },
+];
 
 export const seedAvailabilityRules: AvailabilityRule[] = [
   { dayOfWeek: 1, startTime: "09:00", endTime: "17:00", slotDurationMinutes: 30 },
@@ -410,7 +813,69 @@ export interface OutboxMessage {
 
 export const demoOutbox: OutboxMessage[] = [];
 
-export const seedEnquiries: EnquiryLead[] = [];
+export const seedEnquiries: EnquiryLead[] = [
+  {
+    id: "enq-001",
+    fullName: "Eleanor Wright",
+    email: "eleanor.w@example.com",
+    phone: "+44 7700 900111",
+    courseInterest: "Diploma in Adult Care (Level 3)",
+    formType: "funding_check",
+    stage: "new",
+    notes: "Applied via workplace funding eligibility form. Employed as senior care assistant.",
+    employmentStatus: "Employed 30+ hrs/wk",
+    workplaceLocation: "Birmingham",
+    submittedAt: "2026-10-06T11:20:00Z",
+  },
+  {
+    id: "enq-002",
+    fullName: "Kofi Mensah",
+    email: "kofi.mensah@example.com",
+    phone: "+44 7700 900222",
+    courseInterest: "Leadership in Adult Care (Level 5)",
+    formType: "free_advice",
+    stage: "contacted",
+    notes: "Called 07 Oct. Looking for CQC registered manager progression. Follow-up booked for next Tuesday.",
+    employmentStatus: "Deputy Manager",
+    workplaceLocation: "London",
+    submittedAt: "2026-10-05T09:15:00Z",
+  },
+  {
+    id: "enq-003",
+    fullName: "Sophie Green",
+    email: "sophie.green@example.com",
+    phone: "+44 7700 900333",
+    courseInterest: "Early Years Educator (Level 3)",
+    formType: "funding_check",
+    stage: "new",
+    notes: "Nursery assistant checking apprenticeship / funded placement eligibility.",
+    employmentStatus: "Early Years Assistant",
+    workplaceLocation: "Manchester",
+    submittedAt: "2026-10-07T14:40:00Z",
+  },
+  {
+    id: "enq-004",
+    fullName: "Tariq Al-Mansoor",
+    email: "tariq.m@example.com",
+    phone: "+44 7700 900444",
+    courseInterest: "Mental Health Awareness (CPD)",
+    formType: "contact",
+    stage: "contacted",
+    notes: "Enquired about team group rates for 12 care home staff members.",
+    submittedAt: "2026-10-04T16:00:00Z",
+  },
+  {
+    id: "enq-005",
+    fullName: "Rachel Davies",
+    email: "rachel.d@example.com",
+    phone: "+44 7700 900555",
+    courseInterest: "Diploma in Adult Care (Level 3)",
+    formType: "free_advice",
+    stage: "enrolled",
+    notes: "Completed onboarding call, accepted place on Autumn 2026 Cohort.",
+    submittedAt: "2026-10-03T11:00:00Z",
+  },
+];
 
 export const seedMessageLogs: MessageLogEntry[] = [];
 
@@ -765,53 +1230,41 @@ export const defaultPageBuilderSections: BuilderSection[] = [
     type: "hero",
     name: "Hero Banner",
     enabled: true,
-    badgeText: "British Accredited Training",
-    tags: [
-      { id: "tag-1", label: "Live Online Classes", variant: "live" },
-      { id: "tag-2", label: "Regulated Qualifications", variant: "navy" },
-      { id: "tag-3", label: "Flexible Instalments", variant: "gold" },
-    ],
-    headline: "Live classes with real tutors. Qualifications that move your career forward.",
+    bgColor: "#13416B",
+    headlineColor: "#FFFFFF",
+    badgeText: "Ofqual Regulated Courses",
+    tags: [],
+    headline: "Bringing Live Classes to your Doorstep.",
     subheadline:
-      "Study recognised UK diplomas in health, social care, education, and business through interactive live evening classes with dedicated tutor mentoring.",
+      "Experts in Career Building, Career Switching, or Career Upgrade. We help you find the Right Course, at the Right Level in tune with your Dream.",
     buttonText: "Get free advice",
     buttonLink: "/book",
+    buttonIcon: "phone",
     secondaryButtonText: "View all courses",
     secondaryButtonLink: "/courses",
-    image: "/images/hero-learner.jpg",
-    floatingBadgeTitle: "Live Evening Sessions",
-    floatingBadgeSubtitle: "Recordings available 24/7 to rewatch",
+    secondaryButtonIcon: "arrow-right",
+    secondaryButtonIconPosition: "right",
+    image: "/images/hero-learner-live.webp",
+    floatingBadgeTitle: "Weekly Live Classes",
+    floatingBadgeSubtitle: "Recordings available 24/7 for Revision",
     floatingBadgeIcon: "star",
     floatingBadgeEnabled: true,
-    socialProofEnabled: true,
-    avatar1Text: "EM",
-    avatar1Bg: "#0B4D4E",
-    avatar1Color: "#FFFFFF",
-    avatar2Text: "KA",
-    avatar2Bg: "#FF5722",
-    avatar2Color: "#FFFFFF",
-    avatar3Text: "+2k",
-    avatar3Bg: "#23216B",
-    avatar3Color: "#FFFFFF",
-    socialProofRating: "4.9/5",
-    socialProofRatingColor: "#0B4D4E",
-    socialProofStars: 5,
-    socialProofStarColor: "#F59E0B",
-    socialProofText: "2,500+ Working Adults Certified",
-    socialProofTextColor: "#0B4D4E",
-    reassuranceEnabled: true,
-    reassuranceText: "0% Interest Monthly Plans Available",
-    reassuranceIcon: "check",
-    reassuranceTextColor: "#0B4D4E",
-    reassuranceIconColor: "#047857",
+    sealBgColor: "#074C4E",
+    sealPlayColor: "#FF5722",
+    sealTextColor: "#ffffff",
+    socialProofRatingColor: "mint",
+    socialProofTextColor: "white",
+    reassuranceTextColor: "white",
+    reassuranceIconColor: "white",
   },
   {
     id: "sec-trust-02",
     type: "trust_strip",
     name: "Accreditation & Trust Strip",
     enabled: true,
-    headline: "Recognised British Standards",
-    subheadline: "Accredited by leading UK awarding bodies under Ofqual oversight",
+    bgColor: "navy",
+    headline: "OFFICIAL AWARDING & REGULATED BODIES",
+    subheadline: "Rated 4.9/5 by 300+ UK Healthcare & Education Professionals",
     items: [
       {
         title: "Ofqual",
@@ -855,8 +1308,9 @@ export const defaultPageBuilderSections: BuilderSection[] = [
     type: "choose_path",
     name: "Choose Your Path by Outcome",
     enabled: true,
-    headline: "Choose your path by outcome",
-    subheadline: "Select where you want your qualification to take you.",
+    bgColor: "white",
+    headline: "Specialist Career Pathways",
+    subheadline: "Select your sector to discover regulated qualifications and salary outcomes.",
     buttonText: "View All Categories",
     buttonLink: "/courses",
     items: [
@@ -914,7 +1368,7 @@ export const defaultPageBuilderSections: BuilderSection[] = [
     id: "sec-why-choose-us",
     type: "why_smartminds",
     name: "Why Choose Us (Innovative Learning)",
-    enabled: true,
+    enabled: false,
     badgeText: "WHY CHOOSE US?",
     headline: "Innovative and effective learning approaches",
     subheadline:
@@ -968,9 +1422,10 @@ export const defaultPageBuilderSections: BuilderSection[] = [
     type: "how_it_works",
     name: "How It Works 4-Step Journey",
     enabled: true,
-    headline: "How it works: from consultation to qualification",
+    bgColor: "white",
+    headline: "Your 4-Step Pathway to Awarding Body Certification",
     subheadline:
-      "Our structured route gives you personal tutor support from day one, fitting around your working week with both live classes and 24/7 access to recordings.",
+      "From initial induction to receiving your official certificate, your assessor guides you through workplace evidence with zero exam pressure.",
     items: [
       {
         number: "01",
@@ -1007,11 +1462,12 @@ export const defaultPageBuilderSections: BuilderSection[] = [
     type: "pricing",
     name: "0% Interest Tuition Flexibility",
     enabled: true,
+    bgColor: "navy",
     badgeText: "Honest, Transparent Pricing",
     trustNote: "Smartminds instalment plans are direct payment schedules between the learner and the college. No credit checks, no loan agreements, and no third-party lenders.",
-    headline: "Flexible ways to pay — no hidden fees, no interest charges",
+    headline: "Transparent Tuition with Institutional Guarantees",
     subheadline:
-      "We believe career qualifications should be accessible. Choose an upfront discount, spread your fees monthly with zero markup, or check whether your course is covered by government funding.",
+      "Spread fees over 12 months with 0% interest, or pay in full and save. Awarding body registration and certificate fees are always included.",
     items: [
       {
         number: "Option 01",
@@ -1059,9 +1515,10 @@ export const defaultPageBuilderSections: BuilderSection[] = [
     type: "featured_courses",
     name: "Featured Qualifications Grid",
     enabled: true,
-    headline: "Popular live-taught qualifications",
+    bgColor: "paper",
+    headline: "Explore Regulated Qualifications & Diplomas",
     subheadline:
-      "Explore our most requested British diplomas. Every programme features live tutor-led sessions, continuous mentor support, and flexible instalment schedules.",
+      "Ofqual regulated RQF diplomas with transparent fees and 0% interest monthly instalment options. Every programme includes your dedicated personal assessor.",
     buttonText: "View all courses",
     buttonLink: "/courses",
     columns: 4,
@@ -1072,10 +1529,11 @@ export const defaultPageBuilderSections: BuilderSection[] = [
     type: "testimonials",
     name: "Student Reviews & Outcomes",
     enabled: true,
+    bgColor: "paper",
     badgeText: "Learner Experiences",
-    headline: "Real stories from qualified graduates",
+    headline: "Taught & Mentored by Senior British Assessors",
     subheadline:
-      "Read how healthcare workers, aspiring tutors, and career changers achieved their Ofqual-regulated certificates with Smartminds.",
+      "Our tutors are active CQC Registered Managers and Early Years inspectors dedicated to mentoring working adults with empathy, not bureaucracy.",
     videoTag: "Spotlight Video",
     videoBadge: "Student Stories",
     videoTitle: "Watch learners share their qualification journey",
@@ -1112,6 +1570,7 @@ export const defaultPageBuilderSections: BuilderSection[] = [
     type: "faq_accordion",
     name: "Frequently Asked Questions",
     enabled: true,
+    bgColor: "white",
     headline: "Everything you need to know before enrolling",
     subheadline:
       "Clear answers about class schedules, Ofqual accreditation, flexible instalment plans, and tutor support.",
@@ -1163,6 +1622,7 @@ export const defaultPageBuilderSections: BuilderSection[] = [
     type: "cta_banner",
     name: "Free Advisory Call Band",
     enabled: true,
+    bgColor: "navy",
     badgeText: "Personalised Guidance",
     headline: "Not sure which course? Book a free call.",
     subheadline:

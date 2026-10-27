@@ -145,8 +145,8 @@ describe("calculatePricing engine (PRD 10.4)", () => {
     assert.equal(result.total, 95);
   });
 
-  it("works with seeded courses from /content", () => {
-    // Test against real seeded content: Adult Care Level 2
+  it("works with seeded courses from /content (sale price displays as entered; non-sale receives upfront discount)", () => {
+    // Test against real seeded content: Adult Care Level 2 (has sale price / price slash)
     const adultCare = courses.find((c) => c.slug === "diploma-in-adult-care");
     assert.ok(adultCare, "Adult Care course must exist in seeded content");
 
@@ -155,12 +155,22 @@ describe("calculatePricing engine (PRD 10.4)", () => {
 
     const result = calculatePricing(level2, plan3m, globalSettings);
 
-    const expectedDiscount = (level2.price_gbp * (level2.full_pay_discount_percent ?? 10)) / 100;
-    const expectedFullPay = level2.price_gbp - expectedDiscount;
+    // Rule: Sale price must display as entered and must not receive a second discount
+    assert.equal(result.hasPriceSlash, true);
+    assert.equal(result.sellingPrice, 850);
+    assert.equal(result.regularPrice, 995);
+    assert.equal(result.fullPayPrice, 850);
+    assert.equal(result.total, 850);
 
-    assert.equal(result.fullPayPrice, expectedFullPay);
-    assert.equal(result.saving, expectedDiscount);
-    assert.equal(result.total, level2.price_gbp);
+    // Course level without price slash receives full pay discount
+    const standardLevel = {
+      price_gbp: 1000,
+      full_pay_discount_percent: 10,
+    };
+    const standardResult = calculatePricing(standardLevel, plan3m, globalSettings);
+    assert.equal(standardResult.fullPayPrice, 900);
+    assert.equal(standardResult.saving, 100);
+    assert.equal(standardResult.total, 1000);
   });
 
   it("reflects changes in course level price or discount dynamically", () => {
