@@ -54,8 +54,15 @@ test("4 Required CPD Courses Verification", async (t) => {
 test("Course Level Addition, Modification and Removal", async (t) => {
   const repo = getCourseRepo();
   const testCourseId = "course-adult-care";
-  const initial = await repo.getCourseById(testCourseId);
+  let initial = await repo.getCourseById(testCourseId);
   assert.ok(initial, "Adult care course must exist");
+
+  // Clean up any test artifact from prior test runs
+  if (initial.levels.some((l) => l.level_label === "Level 4 Higher Diploma")) {
+    const cleaned = initial.levels.filter((l) => l.level_label !== "Level 4 Higher Diploma");
+    await updateCourseDetailsAction(testCourseId, { levels: cleaned });
+    initial = (await repo.getCourseById(testCourseId))!;
+  }
   const initialLevelCount = initial.levels.length;
 
   await t.test("Admin can add a new level to an existing course", async () => {
