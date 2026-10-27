@@ -2433,6 +2433,20 @@ export function listImpersonationAuditLogs(): ImpersonationAuditLog[] {
   return store.impersonationLogs || [];
 }
 
+export function getAuditLogsFromStore(): any[] {
+  const store = loadPersistedRecords();
+  const raw = store.impersonationLogs || [];
+  return raw.map((r: any) => ({
+    id: r.id || `audit-${Date.now()}`,
+    actorUserId: r.actorId || r.actorUserId || "sys",
+    actorEmail: r.actorEmail || "system",
+    actorRole: r.actorRole || "super_admin",
+    action: r.action || "IMPERSONATE",
+    details: r.details || `Impersonated ${r.targetName || r.targetEmail || ""}`,
+    timestamp: r.timestamp || new Date().toISOString(),
+  }));
+}
+
 export function findUserForImpersonation(userIdOrEmail: string): PersistedUserRecord | null {
   const target = userIdOrEmail.trim().toLowerCase();
   const allUsers = listAllPlatformUsers();

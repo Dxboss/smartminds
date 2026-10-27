@@ -27,16 +27,16 @@ interface SuperAdminDashboardProps {
 }
 
 export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
-  initialUsers,
-  entitlements,
-  auditLogs,
-  currentSuperAdminEmail,
+  initialUsers = [],
+  entitlements = [],
+  auditLogs = [],
+  currentSuperAdminEmail = "",
 }) => {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"users" | "backup" | "audit" | "modules">("users");
 
   // User Management State
-  const [users, setUsers] = useState<PersistedUserRecord[]>(initialUsers);
+  const [users, setUsers] = useState<PersistedUserRecord[]>(initialUsers || []);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newUserName, setNewUserName] = useState("");
   const [newUserEmail, setNewUserEmail] = useState("");
