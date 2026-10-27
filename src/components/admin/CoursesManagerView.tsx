@@ -615,11 +615,16 @@ export function CoursesManagerView({
     }
 
     // Section Visibility Toggles
-    setEditShowGlh(course.show_glh !== undefined ? course.show_glh : !course.is_private_tutoring);
+    const isCpdCourse = course.type === "cpd";
+    setEditShowGlh(
+      course.show_glh !== undefined
+        ? course.show_glh
+        : (!course.is_private_tutoring && !isCpdCourse)
+    );
     setEditShowWorkplaceAssessment(
       course.show_workplace_assessment !== undefined
         ? course.show_workplace_assessment
-        : !course.is_private_tutoring
+        : (!course.is_private_tutoring && !isCpdCourse)
     );
     setEditShowCareerProgression(
       course.show_career_progression !== undefined
@@ -629,7 +634,7 @@ export function CoursesManagerView({
     setEditShowVideoShowcase(
       course.show_video_showcase !== undefined
         ? course.show_video_showcase
-        : !course.is_private_tutoring
+        : true
     );
     setEditShowDbsGuarantee(
       course.show_dbs_guarantee !== undefined
@@ -3967,14 +3972,14 @@ export function CoursesManagerView({
                       />
                     </div>
 
-                    {/* 4. Video & Interactive Campus Tour Showcase */}
+                    {/* 4. Course Visual & Video Showcase Banner */}
                     <div className="p-3.5 bg-white rounded-sm border border-line flex items-start justify-between gap-4">
                       <div className="space-y-1">
                         <label className="text-xs font-bold text-navy-900 block">
-                          Show Interactive Tour &amp; Media Showcase
+                          Show Featured Course Visual &amp; Video Banner
                         </label>
                         <p className="text-[11px] text-ink-soft leading-relaxed">
-                          Displays the photographic tour and delivery walkthrough tab bar.
+                          Displays the clean qualification photo or official video briefing above the syllabus. Uncheck to let the page lead straight into the qualification syllabus and editorial overview.
                         </p>
                       </div>
                       <input

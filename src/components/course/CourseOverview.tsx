@@ -17,8 +17,9 @@ export const CourseOverview: React.FC<CourseOverviewProps> = ({
     course.type === "tutoring" ||
     course.id.toLowerCase().includes("tutoring");
 
-  const hideGlh = isTutoring || course.show_glh === false;
-  const hideWorkplace = isTutoring || course.show_workplace_assessment === false;
+  const isCpd = course.type === "cpd";
+  const hideGlh = isTutoring || course.show_glh === false || (isCpd && course.show_glh !== true);
+  const hideWorkplace = isTutoring || course.show_workplace_assessment === false || (isCpd && course.show_workplace_assessment !== true);
 
   return (
     <div className="space-y-8">
