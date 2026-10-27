@@ -29,7 +29,7 @@ export default async function AdminCoursesPage() {
 
   try {
     const { pullLatestFromNeon } = await import("@/lib/persistedData");
-    await pullLatestFromNeon();
+    await pullLatestFromNeon(true);
   } catch {}
 
   const courseRepo = getCourseRepo();

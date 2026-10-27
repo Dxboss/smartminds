@@ -176,35 +176,17 @@ const CoursesListingContent: React.FC<CoursesListingViewProps> = ({
     const result: string[] = ["All"];
 
     const rawFaculties =
-      initialFaculties && initialFaculties.length > 0
+      initialFaculties && Array.isArray(initialFaculties) && initialFaculties.length > 0
         ? initialFaculties
         : DEFAULT_COLLEGE_FACULTIES;
 
-    const map = new Map<string, string>();
-    for (const f of DEFAULT_COLLEGE_FACULTIES) {
-      map.set(f.id, f.name);
-    }
-
     for (const f of rawFaculties) {
       if (!f?.name) continue;
-      const lower = f.name.toLowerCase().trim();
-      const idLower = (f.id || "").toLowerCase().trim();
-      if (
-        idLower === "cpd" ||
-        idLower === "continuing-professional-development" ||
-        lower === "continuing professional development"
-      ) {
-        map.set("cpd-compliance", "Department of CPD & Compliance");
-      } else {
-        map.set(f.id || lower, f.name);
-      }
-    }
-
-    map.forEach((name) => {
+      const name = f.name.trim();
       if (!result.some((r) => r.toLowerCase() === name.toLowerCase())) {
         result.push(name);
       }
-    });
+    }
 
     return result;
   }, [initialFaculties]);

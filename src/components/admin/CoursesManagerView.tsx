@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
+import React, { useState, useEffect, useTransition } from "react";
 import Link from "next/link";
 import { Course, CourseLevel, Unit, FAQ, DeliveryMode, CourseType } from "@/content/types";
 import { formatCurrency } from "@/content/pricing";
@@ -281,6 +281,13 @@ export function CoursesManagerView({
       ? initialFaculties
       : DEFAULT_COLLEGE_FACULTIES
   );
+
+  useEffect(() => {
+    if (initialFaculties && Array.isArray(initialFaculties)) {
+      setFaculties(initialFaculties);
+    }
+  }, [initialFaculties]);
+
   const [isFacultyModalOpen, setIsFacultyModalOpen] = useState(false);
   const [editingFacultyId, setEditingFacultyId] = useState<string | null>(null);
   const [newFacultyName, setNewFacultyName] = useState("");
@@ -377,7 +384,9 @@ export function CoursesManagerView({
         if (oldName && oldName.toLowerCase() !== newFacultyName.trim().toLowerCase()) {
           setCourses((prev) =>
             prev.map((c) =>
-              c.category === oldName ? { ...c, category: newFacultyName.trim() } : c
+              c.category && c.category.toLowerCase() === oldName.toLowerCase()
+                ? { ...c, category: newFacultyName.trim() }
+                : c
             )
           );
         }

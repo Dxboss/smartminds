@@ -212,8 +212,8 @@ export function loadPersistedRecords(): PersistedRecordsStore {
           ? parsed.siteTheme
           : undefined,
       faculties:
-        Array.isArray(parsed.faculties) && parsed.faculties.length > 0
-          ? parsed.faculties
+        Array.isArray(parsed.faculties)
+          ? sanitizeFaculties(parsed.faculties)
           : [...DEFAULT_COLLEGE_FACULTIES],
     };
   } catch (err) {
@@ -346,10 +346,10 @@ export async function pullLatestFromNeon(force = false): Promise<boolean> {
           ...(dbStore.cmsPagesDraftData || {}),
         },
         faculties:
-          Array.isArray(dbStore.faculties) && dbStore.faculties.length > 0
-            ? dbStore.faculties
-            : (Array.isArray(store.faculties) && store.faculties.length > 0
-              ? store.faculties
+          Array.isArray(dbStore.faculties)
+            ? sanitizeFaculties(dbStore.faculties)
+            : (Array.isArray(store.faculties)
+              ? sanitizeFaculties(store.faculties)
               : [...DEFAULT_COLLEGE_FACULTIES]),
         learners:
           Array.isArray(dbStore.learners)
@@ -2062,48 +2062,40 @@ export function verifyAndConsumePasswordResetToken(
 
 
 export function sanitizeFaculties(raw?: FacultyRecord[]): FacultyRecord[] {
-  const map = new Map<string, FacultyRecord>();
-  // Pre-seed canonical faculties in official order
-  for (const f of DEFAULT_COLLEGE_FACULTIES) {
-    map.set(f.id, { ...f });
+  if (!raw || !Array.isArray(raw)) {
+    return [...DEFAULT_COLLEGE_FACULTIES];
   }
 
-  for (const item of raw || []) {
-    if (!item?.name) continue;
-    const normName = item.name.toLowerCase().trim();
-    const normId = (item.id || "").toLowerCase().trim();
+  const result: FacultyRecord[] = [];
+  const seenIds = new Set<string>();
 
-    // Collapse any legacy CPD aliases into Department of CPD & Compliance
-    if (
-      normId === "cpd" ||
-      normId === "continuing-professional-development" ||
-      normName === "continuing professional development"
-    ) {
-      const canonicalCpd = map.get("cpd-compliance")!;
-      map.set("cpd-compliance", {
-        ...canonicalCpd,
-        ...item,
-        id: "cpd-compliance",
-        name: "Department of CPD & Compliance",
-      });
-      continue;
-    }
+  for (const item of raw) {
+    if (!item?.name || !item.name.trim()) continue;
+    const cleanId = (
+      item.id || item.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")
+    ).trim();
+    if (!cleanId || seenIds.has(cleanId)) continue;
+    seenIds.add(cleanId);
 
-    if (map.has(item.id)) {
-      map.set(item.id, { ...map.get(item.id)!, ...item });
-    } else {
-      map.set(item.id, item);
-    }
+    result.push({
+      ...item,
+      id: cleanId,
+      name: item.name.trim(),
+      description: item.description?.trim() || "",
+      icon: item.icon || "shield-check",
+      color: item.color || "navy",
+      status: item.status || "active",
+      createdAt: item.createdAt || new Date().toISOString(),
+    });
   }
 
-  return Array.from(map.values());
+  return result;
 }
 
 export function getPersistedFaculties(): FacultyRecord[] {
   try {
     const store = loadPersistedRecords();
-    const saved = Array.isArray(store.faculties) ? store.faculties : [];
-    return sanitizeFaculties(saved);
+    return sanitizeFaculties(store.faculties);
   } catch (err) {
     console.error("[persistedData] Failed to load faculties:", err);
     return DEFAULT_COLLEGE_FACULTIES;
@@ -2116,36 +2108,68 @@ export async function saveFacultyToStore(faculty: FacultyRecord): Promise<Facult
       await pullLatestFromNeon();
     } catch {}
     const store = loadPersistedRecords();
-    if (!store.faculties || !Array.isArray(store.faculties) || store.faculties.length === 0) {
+    if (!store.faculties || !Array.isArray(store.faculties)) {
       store.faculties = [...DEFAULT_COLLEGE_FACULTIES];
     }
 
-    const existingIdx = store.faculties.findIndex(
-      (f) => f.id === faculty.id || f.name.toLowerCase() === faculty.name.toLowerCase()
-    );
+    const targetId = (
+      faculty.id || faculty.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")
+    ).trim();
+
+    const existingIdx = store.faculties.findIndex((f) => {
+      if (faculty.id && f.id === faculty.id) return true;
+      if (!faculty.id && f.name.toLowerCase() === faculty.name.toLowerCase()) return true;
+      return false;
+    });
+
     if (existingIdx >= 0) {
       const oldName = store.faculties[existingIdx].name;
       store.faculties[existingIdx] = {
         ...store.faculties[existingIdx],
         ...faculty,
+        id: targetId,
+        name: faculty.name.trim(),
       };
 
-      // If the faculty name changed, keep associated courses updated in courseOverrides
-      if (oldName && faculty.name && oldName.toLowerCase() !== faculty.name.toLowerCase()) {
-        if (store.courseOverrides) {
-          for (const [cId, override] of Object.entries(store.courseOverrides)) {
-            if (override && (override as any).category === oldName) {
-              (store.courseOverrides as any)[cId] = {
-                ...override,
-                category: faculty.name,
+      // If the faculty name changed, keep associated courses updated in courseOverrides and Neon DB
+      if (oldName && faculty.name && oldName.toLowerCase() !== faculty.name.trim().toLowerCase()) {
+        const newName = faculty.name.trim();
+        if (!store.courseOverrides) store.courseOverrides = {};
+
+        for (const [cId, override] of Object.entries(store.courseOverrides)) {
+          if (override && (override as any).category === oldName) {
+            (store.courseOverrides as any)[cId] = {
+              ...override,
+              category: newName,
+            };
+          }
+        }
+
+        try {
+          const { getLiveCourses } = await import("@/lib/persistedData");
+          const liveCourses = getLiveCourses();
+          for (const c of liveCourses) {
+            if (c.category === oldName && !(store.courseOverrides as any)[c.id]?.category) {
+              (store.courseOverrides as any)[c.id] = {
+                ...((store.courseOverrides as any)[c.id] || {}),
+                category: newName,
               };
             }
           }
-        }
+        } catch {}
+
+        try {
+          const { isDbConfigured, sql } = await import("@/lib/db");
+          if (isDbConfigured) {
+            await sql`UPDATE course_catalog SET category = ${newName} WHERE category = ${oldName};`;
+          }
+        } catch {}
       }
     } else {
       store.faculties.push({
         ...faculty,
+        id: targetId,
+        name: faculty.name.trim(),
         createdAt: new Date().toISOString(),
       });
     }
@@ -2157,10 +2181,10 @@ export async function saveFacultyToStore(faculty: FacultyRecord): Promise<Facult
       console.warn("[persistedData] Local file write warning:", fileErr);
     }
     await syncStoreSnapshotToNeon(store);
-    return store.faculties;
+    return sanitizeFaculties(store.faculties);
   } catch (err) {
     console.error("[persistedData] Failed to save faculty:", err);
-    return DEFAULT_COLLEGE_FACULTIES;
+    return getPersistedFaculties();
   }
 }
 
@@ -2170,18 +2194,24 @@ export async function deleteFacultyFromStore(facultyId: string): Promise<Faculty
       await pullLatestFromNeon();
     } catch {}
     const store = loadPersistedRecords();
-    if (!store.faculties || !Array.isArray(store.faculties) || store.faculties.length === 0) {
+    if (!store.faculties || !Array.isArray(store.faculties)) {
       store.faculties = [...DEFAULT_COLLEGE_FACULTIES];
     }
 
-    store.faculties = store.faculties.filter((f) => f.id !== facultyId);
+    store.faculties = store.faculties.filter(
+      (f) => f.id !== facultyId && f.name.toLowerCase() !== facultyId.toLowerCase()
+    );
     const filePath = getStoreFilePath();
-    fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+    try {
+      fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+    } catch (fileErr) {
+      console.warn("[persistedData] Local file write warning:", fileErr);
+    }
     await syncStoreSnapshotToNeon(store);
-    return store.faculties;
+    return sanitizeFaculties(store.faculties);
   } catch (err) {
     console.error("[persistedData] Failed to delete faculty:", err);
-    return DEFAULT_COLLEGE_FACULTIES;
+    return getPersistedFaculties();
   }
 }
 
