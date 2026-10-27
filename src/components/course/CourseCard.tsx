@@ -137,22 +137,6 @@ export const CourseCard: React.FC<CourseCardProps> = ({
     photoSrc.startsWith("https://") ||
     photoSrc.startsWith("/uploads/");
 
-  const isBlended =
-    course.attendance_type === "blended_practical" ||
-    course.delivery === "blended";
-  const isClassroom =
-    course.attendance_type === "physical_venue" ||
-    course.delivery === "classroom";
-  const deliveryLabel = course.custom_delivery_text
-    ? course.custom_delivery_text
-    : isTutoring
-    ? "Centre & Online"
-    : isBlended
-    ? "Blended Practical"
-    : isClassroom
-    ? "Classroom Training"
-    : "Live Online";
-
   // Display only the course rating requested by the college; do not imply
   // course-specific review or enrolment counts that are not in the data.
   const getCourseRating = (c: Course) => {
@@ -184,15 +168,11 @@ export const CourseCard: React.FC<CourseCardProps> = ({
             className="object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
           />
 
-          {/* Top Pill Badges */}
-          <div className="absolute top-2.5 inset-x-2.5 flex items-center justify-between pointer-events-none">
+          {/* Top Pill Badge: Left Green Badge */}
+          <div className="absolute top-2.5 left-2.5 pointer-events-none">
             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#0B4D4E]/90 text-white backdrop-blur-md shadow-xs">
               <Icon name="shield-check" size={12} className="text-gold-300" />
               {course.type === "regulated" ? "Ofqual RQF" : course.type === "tutoring" ? "1-on-1 Tuition" : "Accredited"}
-            </span>
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white/95 text-navy-900 backdrop-blur-md shadow-xs">
-              <span className={`w-1.5 h-1.5 rounded-full ${isTutoring ? "bg-teal-500" : isBlended ? "bg-amber-500" : isClassroom ? "bg-blue-500" : "bg-emerald-500"}`} />
-              {deliveryLabel}
             </span>
           </div>
         </div>
