@@ -204,17 +204,18 @@ export const CourseHeader: React.FC<CourseHeaderProps> = ({ course }) => {
                 : "Live Online Evening")}
           </strong>
           <span className={`text-[11px] mt-0.5 block truncate ${isDark ? "text-white/70" : "text-ink-soft"}`}>
-            {course.custom_delivery_text
-              ? "Tutor-led interactive schedule"
-              : isTutoring
-              ? "Gloucester Centre or Live 1-on-1 Online"
-              : course.attendance_type === "physical_venue" || course.delivery === "classroom"
-              ? "On-site face-to-face tuition & lab training"
-              : course.delivery === "blended"
-              ? "Online theory + workplace practice"
-              : course.delivery === "self_paced"
-              ? "Flexible online portal + 1-to-1 assessor"
-              : "Weekly interactive Zoom lectures"}
+            {course.custom_delivery_subtext ||
+              (course.custom_delivery_text
+                ? "Weekly interactive Zoom lectures"
+                : isTutoring
+                ? "Gloucester Centre or Live 1-on-1 Online"
+                : course.attendance_type === "physical_venue" || course.delivery === "classroom"
+                ? "On-site face-to-face tuition & lab training"
+                : course.delivery === "blended"
+                ? "Online theory + workplace practice"
+                : course.delivery === "self_paced"
+                ? "Flexible online portal + 1-to-1 assessor"
+                : "Weekly interactive Zoom lectures")}
           </span>
         </div>
 
@@ -232,11 +233,12 @@ export const CourseHeader: React.FC<CourseHeaderProps> = ({ course }) => {
             {course.intake_text || (isTutoring ? "After-School & Weekend Sessions" : "Rolling Admissions")}
           </strong>
           <span className={`text-[11px] mt-0.5 block truncate ${isDark ? "text-white/70" : "text-ink-soft"}`}>
-            {course.intake_text
-              ? "Active Cohorts Enrolling"
-              : isTutoring
-              ? "Thurs/Fri 4–6pm & Sat morning/afternoon"
-              : "Autumn 2026 Cohorts Enrolling"}
+            {course.intake_subtext ||
+              (course.intake_text
+                ? "Active Cohorts Enrolling"
+                : isTutoring
+                ? "Thurs/Fri 4–6pm & Sat morning/afternoon"
+                : "Active Cohorts Enrolling")}
           </span>
         </div>
 
@@ -255,9 +257,10 @@ export const CourseHeader: React.FC<CourseHeaderProps> = ({ course }) => {
               (isTutoring ? "Continuous Progress Review" : "100% Portfolio Based")}
           </strong>
           <span className={`text-[11px] mt-0.5 block truncate ${isDark ? "text-white/70" : "text-ink-soft"}`}>
-            {isTutoring
-              ? "Topic drills & past papers (No Portfolio)"
-              : "Coursework & Tutor Review"}
+            {course.assessment_model_subtext ||
+              (isTutoring
+                ? "Topic drills & past papers (No Portfolio)"
+                : "Coursework & Tutor Review")}
           </span>
         </div>
 
@@ -273,12 +276,13 @@ export const CourseHeader: React.FC<CourseHeaderProps> = ({ course }) => {
           </span>
           <strong className={`text-xs sm:text-sm font-heading font-bold block leading-tight truncate ${isDark ? "text-white" : "text-navy-900"}`}>
             {(course.support_model_text ? course.support_model_text.replace(/British Assessor/gi, "Qualified Assessor") : null) ||
-              (isTutoring ? "Enhanced DBS-Checked Tutor" : "Named Qualified Assessor")}
+              (isTutoring ? "Enhanced DBS-Checked Tutor" : "Qualified Assessor")}
           </strong>
           <span className={`text-[11px] mt-0.5 block truncate ${isDark ? "text-white/70" : "text-ink-soft"}`}>
-            {isTutoring
-              ? "Personal 1-on-1 coaching & parent updates"
-              : "1-to-1 tutorials & fast marking"}
+            {course.support_model_subtext ||
+              (isTutoring
+                ? "Personal 1-on-1 coaching & parent updates"
+                : "1-to-1 tutorials & fast marking")}
           </span>
         </div>
       </div>

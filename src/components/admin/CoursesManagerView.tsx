@@ -109,10 +109,14 @@ export function CoursesManagerView({
   const [editTuitionIncludes, setEditTuitionIncludes] = useState<string[]>([]);
   const [editFreeTextbook, setEditFreeTextbook] = useState(true);
 
-  // Header Spec Bar Customizations
+  // Header Spec Bar Customizations (All 4 Prospectus Cards)
+  const [editCustomDeliverySubtext, setEditCustomDeliverySubtext] = useState("");
   const [editIntakeText, setEditIntakeText] = useState("");
+  const [editIntakeSubtext, setEditIntakeSubtext] = useState("");
   const [editAssessmentModelText, setEditAssessmentModelText] = useState("");
+  const [editAssessmentModelSubtext, setEditAssessmentModelSubtext] = useState("");
   const [editSupportModelText, setEditSupportModelText] = useState("");
+  const [editSupportModelSubtext, setEditSupportModelSubtext] = useState("");
 
   // Active Level fields & Curriculum
   const [expandedUnitIdx, setExpandedUnitIdx] = useState<number | null>(null);
@@ -538,12 +542,62 @@ export function CoursesManagerView({
           ]
     );
     setEditFreeTextbook(course.free_textbook !== undefined ? course.free_textbook : true);
-    setEditIntakeText(course.intake_text || "Rolling Admissions");
-    setEditAssessmentModelText(course.assessment_model_text || "100% Portfolio Based");
+    setEditCustomDeliveryText(
+      course.custom_delivery_text ||
+        (course.is_private_tutoring
+          ? "Centre & Online"
+          : course.attendance_type === "physical_venue" || course.delivery === "classroom"
+          ? "Physical Campus / Venue"
+          : course.delivery === "blended"
+          ? "Blended Learning"
+          : course.delivery === "self_paced"
+          ? "Self-Paced Distance"
+          : "Live Online Evening")
+    );
+    setEditCustomDeliverySubtext(
+      course.custom_delivery_subtext ||
+        (course.is_private_tutoring
+          ? "Gloucester Centre or Live 1-on-1 Online"
+          : course.attendance_type === "physical_venue" || course.delivery === "classroom"
+          ? "On-site face-to-face tuition & lab training"
+          : course.delivery === "blended"
+          ? "Online theory + workplace practice"
+          : course.delivery === "self_paced"
+          ? "Flexible online portal + 1-to-1 assessor"
+          : "Weekly interactive Zoom lectures")
+    );
+    setEditIntakeText(
+      course.intake_text ||
+        (course.is_private_tutoring ? "After-School & Weekend Sessions" : "Rolling Admissions")
+    );
+    setEditIntakeSubtext(
+      course.intake_subtext ||
+        (course.is_private_tutoring
+          ? "Thurs/Fri 4–6pm & Sat morning/afternoon"
+          : "Active Cohorts Enrolling")
+    );
+    setEditAssessmentModelText(
+      course.assessment_model_text ||
+        (course.is_private_tutoring ? "Continuous Progress Review" : "100% Portfolio Based")
+    );
+    setEditAssessmentModelSubtext(
+      course.assessment_model_subtext ||
+        (course.is_private_tutoring
+          ? "Topic drills & past papers (No Portfolio)"
+          : "Coursework & Tutor Review")
+    );
     setEditSupportModelText(
       course.support_model_text
         ? course.support_model_text.replace(/British Assessor/gi, "Qualified Assessor")
-        : "Named Qualified Assessor"
+        : course.is_private_tutoring
+        ? "Enhanced DBS-Checked Tutor"
+        : "Qualified Assessor"
+    );
+    setEditSupportModelSubtext(
+      course.support_model_subtext ||
+        (course.is_private_tutoring
+          ? "Personal 1-on-1 coaching & parent updates"
+          : "1-to-1 tutorials & fast marking")
     );
     setExpandedUnitIdx(null);
 
@@ -847,6 +901,7 @@ export function CoursesManagerView({
           awarding_reference: editAwardingRef.trim() || null,
           delivery: editDelivery,
           custom_delivery_text: editCustomDeliveryText.trim() || undefined,
+          custom_delivery_subtext: editCustomDeliverySubtext.trim() || undefined,
           intro_video_url: editIntroVideoUrl.trim() || null,
           intro_video_poster: editIntroVideoPoster.trim() || null,
           training_locations:
@@ -864,8 +919,11 @@ export function CoursesManagerView({
           tuition_includes: editTuitionIncludes.filter(Boolean),
           free_textbook: editFreeTextbook,
           intake_text: editIntakeText.trim() || undefined,
+          intake_subtext: editIntakeSubtext.trim() || undefined,
           assessment_model_text: editAssessmentModelText.trim() || undefined,
+          assessment_model_subtext: editAssessmentModelSubtext.trim() || undefined,
           support_model_text: editSupportModelText.trim() || undefined,
+          support_model_subtext: editSupportModelSubtext.trim() || undefined,
           banner_theme: editBannerTheme,
           banner_bg_color: editBannerBgColor.trim() || undefined,
           banner_text_color: editBannerTextColor.trim() || undefined,
@@ -3254,47 +3312,193 @@ export function CoursesManagerView({
                     </p>
                   </div>
 
-                  {/* Header Spec Bar Badges */}
+                  {/* Header Spec Bar Badges (All 4 Prospectus Feature Cards) */}
                   <div className="p-3 bg-paper rounded-sm border border-line space-y-3">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-navy-900">
-                      Header Prospectus Feature Bar (Hero Spec Badges)
-                    </label>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pb-1 border-b border-line/60">
                       <div>
-                        <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-soft mb-1">
-                          Intake & Admissions Text
+                        <label className="block text-xs font-bold uppercase tracking-wider text-navy-900">
+                          Header Prospectus Feature Bar (4 Hero Cards)
                         </label>
-                        <input
-                          type="text"
-                          value={editIntakeText}
-                          onChange={(e) => setEditIntakeText(e.target.value)}
-                          placeholder="e.g. Rolling Admissions"
-                          className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900"
-                        />
+                        <p className="text-[11px] text-ink-soft">
+                          Customize both Title and Subtitle for all 4 key prospectus cards shown at the top of the course page.
+                        </p>
                       </div>
-                      <div>
-                        <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-soft mb-1">
-                          Assessment Model Text
-                        </label>
-                        <input
-                          type="text"
-                          value={editAssessmentModelText}
-                          onChange={(e) => setEditAssessmentModelText(e.target.value)}
-                          placeholder="e.g. 100% Portfolio Based"
-                          className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900"
-                        />
+                      <span className="text-[10px] font-mono text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded shrink-0 self-start sm:self-auto font-semibold">
+                        4 Editable Cards
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1">
+                      {/* CARD 1: Class Delivery */}
+                      <div className="p-3 bg-white rounded-sm border border-line space-y-2.5">
+                        <div className="flex items-center justify-between border-b border-line/50 pb-1.5">
+                          <div className="flex items-center gap-1.5 font-bold text-xs text-navy-900">
+                            <Icon name="video" size={13} className="text-navy-900" />
+                            <span>1. Class Delivery</span>
+                          </div>
+                          <span className="text-[9px] uppercase font-mono px-1.5 py-0.5 bg-paper rounded text-ink-soft">
+                            Card 1
+                          </span>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-soft mb-1">
+                            Main Headline / Title
+                          </label>
+                          <input
+                            type="text"
+                            value={editCustomDeliveryText}
+                            onChange={(e) => setEditCustomDeliveryText(e.target.value)}
+                            placeholder="e.g. Live Online Evening"
+                            className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900 font-medium text-navy-900"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-soft mb-1">
+                            Secondary Subtitle / Detail
+                          </label>
+                          <input
+                            type="text"
+                            value={editCustomDeliverySubtext}
+                            onChange={(e) => setEditCustomDeliverySubtext(e.target.value)}
+                            placeholder="e.g. Weekly interactive Zoom lectures"
+                            className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900 text-ink"
+                          />
+                        </div>
+                        <div className="pt-1.5 border-t border-line/40 text-[10px] text-ink-soft flex items-center justify-between">
+                          <span>Preview:</span>
+                          <span className="font-semibold text-navy-900 truncate max-w-[200px]">
+                            {editCustomDeliveryText || "Live Online Evening"} &bull; {editCustomDeliverySubtext || "Weekly interactive Zoom lectures"}
+                          </span>
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-soft mb-1">
-                          Dedicated Support Text
-                        </label>
-                        <input
-                          type="text"
-                          value={editSupportModelText}
-                          onChange={(e) => setEditSupportModelText(e.target.value)}
-                          placeholder="e.g. Named Qualified Assessor"
-                          className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900"
-                        />
+
+                      {/* CARD 2: Intake & Start */}
+                      <div className="p-3 bg-white rounded-sm border border-line space-y-2.5">
+                        <div className="flex items-center justify-between border-b border-line/50 pb-1.5">
+                          <div className="flex items-center gap-1.5 font-bold text-xs text-navy-900">
+                            <Icon name="calendar" size={13} className="text-navy-900" />
+                            <span>2. Intake &amp; Start</span>
+                          </div>
+                          <span className="text-[9px] uppercase font-mono px-1.5 py-0.5 bg-paper rounded text-ink-soft">
+                            Card 2
+                          </span>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-soft mb-1">
+                            Main Headline / Title
+                          </label>
+                          <input
+                            type="text"
+                            value={editIntakeText}
+                            onChange={(e) => setEditIntakeText(e.target.value)}
+                            placeholder="e.g. Rolling Admissions"
+                            className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900 font-medium text-navy-900"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-soft mb-1">
+                            Secondary Subtitle / Detail
+                          </label>
+                          <input
+                            type="text"
+                            value={editIntakeSubtext}
+                            onChange={(e) => setEditIntakeSubtext(e.target.value)}
+                            placeholder="e.g. Active Cohorts Enrolling"
+                            className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900 text-ink"
+                          />
+                        </div>
+                        <div className="pt-1.5 border-t border-line/40 text-[10px] text-ink-soft flex items-center justify-between">
+                          <span>Preview:</span>
+                          <span className="font-semibold text-navy-900 truncate max-w-[200px]">
+                            {editIntakeText || "Rolling Admissions"} &bull; {editIntakeSubtext || "Active Cohorts Enrolling"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* CARD 3: Assessment Model */}
+                      <div className="p-3 bg-white rounded-sm border border-line space-y-2.5">
+                        <div className="flex items-center justify-between border-b border-line/50 pb-1.5">
+                          <div className="flex items-center gap-1.5 font-bold text-xs text-navy-900">
+                            <Icon name="file-text" size={13} className="text-navy-900" />
+                            <span>3. Assessment Model</span>
+                          </div>
+                          <span className="text-[9px] uppercase font-mono px-1.5 py-0.5 bg-paper rounded text-ink-soft">
+                            Card 3
+                          </span>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-soft mb-1">
+                            Main Headline / Title
+                          </label>
+                          <input
+                            type="text"
+                            value={editAssessmentModelText}
+                            onChange={(e) => setEditAssessmentModelText(e.target.value)}
+                            placeholder="e.g. 100% Portfolio Based"
+                            className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900 font-medium text-navy-900"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-soft mb-1">
+                            Secondary Subtitle / Detail
+                          </label>
+                          <input
+                            type="text"
+                            value={editAssessmentModelSubtext}
+                            onChange={(e) => setEditAssessmentModelSubtext(e.target.value)}
+                            placeholder="e.g. Coursework & Tutor Review"
+                            className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900 text-ink"
+                          />
+                        </div>
+                        <div className="pt-1.5 border-t border-line/40 text-[10px] text-ink-soft flex items-center justify-between">
+                          <span>Preview:</span>
+                          <span className="font-semibold text-navy-900 truncate max-w-[200px]">
+                            {editAssessmentModelText || "100% Portfolio Based"} &bull; {editAssessmentModelSubtext || "Coursework & Tutor Review"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* CARD 4: Dedicated Support */}
+                      <div className="p-3 bg-white rounded-sm border border-line space-y-2.5">
+                        <div className="flex items-center justify-between border-b border-line/50 pb-1.5">
+                          <div className="flex items-center gap-1.5 font-bold text-xs text-navy-900">
+                            <Icon name="user" size={13} className="text-navy-900" />
+                            <span>4. Dedicated Support</span>
+                          </div>
+                          <span className="text-[9px] uppercase font-mono px-1.5 py-0.5 bg-paper rounded text-ink-soft">
+                            Card 4
+                          </span>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-soft mb-1">
+                            Main Headline / Title
+                          </label>
+                          <input
+                            type="text"
+                            value={editSupportModelText}
+                            onChange={(e) => setEditSupportModelText(e.target.value)}
+                            placeholder="e.g. Qualified Assessor"
+                            className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900 font-medium text-navy-900"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-soft mb-1">
+                            Secondary Subtitle / Detail
+                          </label>
+                          <input
+                            type="text"
+                            value={editSupportModelSubtext}
+                            onChange={(e) => setEditSupportModelSubtext(e.target.value)}
+                            placeholder="e.g. 1-to-1 tutorials & fast marking"
+                            className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900 text-ink"
+                          />
+                        </div>
+                        <div className="pt-1.5 border-t border-line/40 text-[10px] text-ink-soft flex items-center justify-between">
+                          <span>Preview:</span>
+                          <span className="font-semibold text-navy-900 truncate max-w-[200px]">
+                            {editSupportModelText || "Qualified Assessor"} &bull; {editSupportModelSubtext || "1-to-1 tutorials & fast marking"}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -3669,20 +3873,24 @@ export function CoursesManagerView({
                           {/* Delivery Mini Pills */}
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10px]">
                             <div className={`p-2 rounded border ${isDark ? "bg-white/10 border-white/15 text-white" : "bg-white border-line"}`}>
-                              <span className={`block text-[9px] uppercase font-mono ${isDark ? "text-white/60" : "text-ink-soft"}`}>Delivery</span>
-                              <strong className="block truncate">{editDelivery === "classroom" ? "Physical Campus" : "Live Online"}</strong>
+                              <span className={`block text-[9px] uppercase font-mono ${isDark ? "text-white/60" : "text-ink-soft"}`}>Class Delivery</span>
+                              <strong className="block truncate">{editCustomDeliveryText || (editDelivery === "classroom" ? "Physical Campus" : "Live Online Evening")}</strong>
+                              <span className={`block text-[9px] truncate ${isDark ? "text-white/70" : "text-ink-soft"}`}>{editCustomDeliverySubtext || "Weekly interactive Zoom lectures"}</span>
                             </div>
                             <div className={`p-2 rounded border ${isDark ? "bg-white/10 border-white/15 text-white" : "bg-white border-line"}`}>
-                              <span className={`block text-[9px] uppercase font-mono ${isDark ? "text-white/60" : "text-ink-soft"}`}>Intake</span>
-                              <strong className="block truncate">{editIntakeText || "Rolling"}</strong>
+                              <span className={`block text-[9px] uppercase font-mono ${isDark ? "text-white/60" : "text-ink-soft"}`}>Intake &amp; Start</span>
+                              <strong className="block truncate">{editIntakeText || "Rolling Admissions"}</strong>
+                              <span className={`block text-[9px] truncate ${isDark ? "text-white/70" : "text-ink-soft"}`}>{editIntakeSubtext || "Active Cohorts Enrolling"}</span>
                             </div>
                             <div className={`p-2 rounded border ${isDark ? "bg-white/10 border-white/15 text-white" : "bg-white border-line"}`}>
-                              <span className={`block text-[9px] uppercase font-mono ${isDark ? "text-white/60" : "text-ink-soft"}`}>Assessment</span>
-                              <strong className="block truncate">100% Portfolio</strong>
+                              <span className={`block text-[9px] uppercase font-mono ${isDark ? "text-white/60" : "text-ink-soft"}`}>Assessment Model</span>
+                              <strong className="block truncate">{editAssessmentModelText || "100% Portfolio Based"}</strong>
+                              <span className={`block text-[9px] truncate ${isDark ? "text-white/70" : "text-ink-soft"}`}>{editAssessmentModelSubtext || "Coursework & Tutor Review"}</span>
                             </div>
                             <div className={`p-2 rounded border ${isDark ? "bg-white/10 border-white/15 text-white" : "bg-white border-line"}`}>
-                              <span className={`block text-[9px] uppercase font-mono ${isDark ? "text-white/60" : "text-ink-soft"}`}>Support</span>
-                              <strong className="block truncate">Named Assessor</strong>
+                              <span className={`block text-[9px] uppercase font-mono ${isDark ? "text-white/60" : "text-ink-soft"}`}>Dedicated Support</span>
+                              <strong className="block truncate">{editSupportModelText || "Qualified Assessor"}</strong>
+                              <span className={`block text-[9px] truncate ${isDark ? "text-white/70" : "text-ink-soft"}`}>{editSupportModelSubtext || "1-to-1 tutorials & fast marking"}</span>
                             </div>
                           </div>
                         </div>

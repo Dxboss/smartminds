@@ -71,6 +71,7 @@ export interface Course {
   intro_video_url: string | null;
   intro_video_poster?: string | null;
   custom_delivery_text?: string;
+  custom_delivery_subtext?: string;
   training_locations?: string[];
   tutoring_slots?: string[];
   home_study_note?: string;
@@ -81,8 +82,11 @@ export interface Course {
   observation_methods_text?: string;
   tuition_includes?: string[];
   intake_text?: string;
+  intake_subtext?: string;
   assessment_model_text?: string;
+  assessment_model_subtext?: string;
   support_model_text?: string;
+  support_model_subtext?: string;
   free_textbook: boolean;
   faqs: FAQ[];
   job_prospects: string[];
