@@ -11,7 +11,6 @@ import {
 } from "@/lib/repositories/seedData";
 import { SiteCmsEditorView } from "@/components/admin/SiteCmsEditorView";
 
-export const instant = false;
 
 export const metadata: Metadata = {
   title: "Visual Page Builder & CMS | Smartminds Administration",

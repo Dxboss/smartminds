@@ -16,7 +16,6 @@ interface Props {
   params: Promise<{ id: string }>;
 }
 
-export const instant = false;
 
 export default async function TutorAssignmentSubmissionsPage({ params }: Props) {
   const { id } = await params;

@@ -11,7 +11,6 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-export const instant = false;
 
 export default async function TutorClassDetailPage({ params }: PageProps) {
   const session = await getServerSession();

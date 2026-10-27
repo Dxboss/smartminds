@@ -15,7 +15,6 @@ export const metadata: Metadata = {
   description: "Your official enrolment and payment have been confirmed.",
 };
 
-export const instant = false;
 
 interface PageProps {
   searchParams: Promise<{

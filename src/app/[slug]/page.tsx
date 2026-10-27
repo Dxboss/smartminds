@@ -8,8 +8,6 @@ import {
   getLiveCourses,
 } from "@/lib/persistedData";
 
-// Satisfy Next.js 16 Partial Prefetching / Instant Navigation for dynamic route params
-export const instant = false;
 
 const RESERVED_SLUGS = [
   "",

@@ -5,7 +5,6 @@ import { Container } from "@/components/ui/Container";
 import { ResetPasswordForm } from "@/components/auth/ResetPasswordForm";
 import { Icon } from "@/components/ui/Icon";
 
-export const instant = false;
 
 export const metadata: Metadata = {
   title: "Reset Password | Smartminds Training College",

@@ -18,7 +18,6 @@ import { formatCurrency } from "@/content/pricing";
 import { ChangePasswordPrompt } from "@/components/student/ChangePasswordPrompt";
 import { SafeguardingCard } from "@/components/student/SafeguardingCard";
 
-export const instant = false;
 
 export default async function StudentDashboardPage() {
   const session = await getServerSession();

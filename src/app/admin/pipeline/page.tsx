@@ -5,7 +5,6 @@ import { seedClasses } from "@/lib/repositories/seedData";
 import { listAllEnquiries } from "@/lib/persistedData";
 import { EnquiryPipelineBoard } from "@/components/admin/EnquiryPipelineBoard";
 
-export const instant = false;
 
 export default async function AdminPipelinePage() {
   const session = await getServerSession();

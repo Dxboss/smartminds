@@ -10,7 +10,6 @@ export const metadata: Metadata = {
     "Official student enrolment and course registration. Choose your payment option with 10% upfront savings or 0% interest monthly instalment plans.",
 };
 
-export const instant = false;
 
 interface PageProps {
   searchParams: Promise<{

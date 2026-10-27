@@ -17,7 +17,6 @@ export const metadata: Metadata = {
   },
 };
 
-export const instant = false;
 
 interface LoginPageProps {
   searchParams?: Promise<{ reason?: string; from?: string }>;

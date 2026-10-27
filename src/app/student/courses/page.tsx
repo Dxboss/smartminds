@@ -4,7 +4,6 @@ import { getServerSession } from "@/lib/session";
 import { getEnrolmentRepo, getCourseRepo } from "@/lib/repositories";
 import { Icon } from "@/components/ui/Icon";
 
-export const instant = false;
 
 export default async function StudentCoursesPage() {
   const session = await getServerSession();

@@ -5,7 +5,6 @@ import { getUserRepo, getBookingRepo, getTaskRepo } from "@/lib/repositories";
 import { seedClasses } from "@/lib/repositories/seedData";
 import { StaffDirectory } from "@/components/admin/StaffDirectory";
 
-export const instant = false;
 
 export default async function AdminStaffPage() {
   const session = await getServerSession();

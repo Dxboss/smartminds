@@ -5,7 +5,6 @@ import { getServerSession } from "@/lib/session";
 import { getLiveBlogPosts, getLiveCourses } from "@/lib/persistedData";
 import { BlogManagerView } from "@/components/admin/BlogManagerView";
 
-export const instant = false;
 
 export const metadata: Metadata = {
   title: "Blog & Educational Articles Manager | Smartminds Administration",

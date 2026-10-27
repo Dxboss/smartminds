@@ -4,7 +4,6 @@ import { getEntitlementRepo } from "@/lib/repositories";
 import { listAllPlatformUsers } from "@/lib/persistedData";
 import { SuperAdminDashboard } from "./SuperAdminDashboard";
 
-export const instant = false;
 
 export default async function SuperAdminPage() {
   const session = await getServerSession();

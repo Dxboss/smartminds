@@ -3,7 +3,6 @@ import { getServerSession } from "@/lib/session";
 import { getLearnerRepo } from "@/lib/repositories";
 import { Icon } from "@/components/ui/Icon";
 
-export const instant = false;
 
 export default async function StudentProfilePage() {
   const session = await getServerSession();

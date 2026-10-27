@@ -9,7 +9,6 @@ import {
 } from "@/lib/repositories";
 import { PaymentsLedgerView } from "@/components/admin/PaymentsLedgerView";
 
-export const instant = false;
 
 export const metadata: Metadata = {
   title: "Tuition Payments Ledger | Smartminds Administration",

@@ -10,7 +10,6 @@ import { Icon } from "@/components/ui/Icon";
 
 import { PortalSidebarLayout } from "@/components/portal/PortalSidebarLayout";
 
-export const instant = false;
 
 export const metadata: Metadata = {
   title: "Student Portal | Smartminds Training College",

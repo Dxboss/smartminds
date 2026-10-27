@@ -5,7 +5,6 @@ import { getLearnerRepo, getEnrolmentRepo } from "@/lib/repositories";
 import { seedClasses } from "@/lib/repositories/seedData";
 import { LearnersDirectory } from "@/components/admin/LearnersDirectory";
 
-export const instant = false;
 
 export default async function AdminLearnersPage() {
   const session = await getServerSession();

@@ -9,7 +9,6 @@ import {
 } from "@/lib/repositories/seedData";
 import { Icon } from "@/components/ui/Icon";
 
-export const instant = false;
 
 export default async function StudentAssignmentsPage() {
   const session = await getServerSession();

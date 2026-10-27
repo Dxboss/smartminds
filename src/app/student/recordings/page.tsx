@@ -6,7 +6,6 @@ import { seedClasses, seedSessions } from "@/lib/repositories/seedData";
 import { StreamOnlyPlayer } from "@/components/student/StreamOnlyPlayer";
 import { Icon } from "@/components/ui/Icon";
 
-export const instant = false;
 
 export default async function StudentRecordingsPage() {
   const session = await getServerSession();

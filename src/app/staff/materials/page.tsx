@@ -7,7 +7,6 @@ import { listLearningMaterials } from "@/lib/persistedData";
 import { TutorMaterialsManager } from "@/components/staff/TutorMaterialsManager";
 import { Icon } from "@/components/ui/Icon";
 
-export const instant = false;
 
 export const metadata: Metadata = {
   title: "Learning Materials & Document Cabinet | Tutor Console",

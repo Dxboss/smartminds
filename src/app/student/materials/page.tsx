@@ -8,7 +8,6 @@ import { listLearningMaterials } from "@/lib/persistedData";
 import { StudentMaterialsView } from "@/components/student/StudentMaterialsView";
 import { Icon } from "@/components/ui/Icon";
 
-export const instant = false;
 
 export const metadata: Metadata = {
   title: "Course Materials & Study Packs | Student Portal",

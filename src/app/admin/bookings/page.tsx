@@ -4,7 +4,6 @@ import { getServerSession } from "@/lib/session";
 import { getBookingRepo } from "@/lib/repositories";
 import { BookingsManager } from "@/components/admin/BookingsManager";
 
-export const instant = false;
 
 export default async function AdminBookingsPage() {
   const session = await getServerSession();

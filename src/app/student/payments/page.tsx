@@ -5,7 +5,6 @@ import { getPaymentRepo } from "@/lib/repositories";
 import { StudentPaymentsClient } from "@/components/student/StudentPaymentsClient";
 import { fulfillStripeCheckoutSession } from "@/app/actions/enrolmentActions";
 
-export const instant = false;
 
 interface PageProps {
   searchParams: Promise<{

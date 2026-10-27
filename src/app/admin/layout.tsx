@@ -11,7 +11,6 @@ import { PortalSidebarLayout } from "@/components/portal/PortalSidebarLayout";
 
 
 
-export const instant = false;
 
 export const metadata: Metadata = {
   title: "Administration | Smartminds Training College",

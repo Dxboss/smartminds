@@ -20,7 +20,6 @@ export const metadata: Metadata = {
   },
 };
 
-export const instant = false;
 
 import { SuperSignOutButton } from "./SuperSignOutButton";
 

@@ -11,7 +11,6 @@ import { listNewsletterSubscribers } from "@/lib/persistedData";
 import { formatCurrency } from "@/content/pricing";
 import { Icon } from "@/components/ui/Icon";
 
-export const instant = false;
 
 export default async function AdminDashboardPage() {
   const session = await getServerSession();

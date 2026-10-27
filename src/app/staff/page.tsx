@@ -5,7 +5,6 @@ import { getLearnerRepo, getTaskRepo } from "@/lib/repositories";
 import { seedClasses, seedAssignments } from "@/lib/repositories/seedData";
 import { Icon } from "@/components/ui/Icon";
 
-export const instant = false;
 
 export default async function StaffDashboardPage() {
   const session = await getServerSession();

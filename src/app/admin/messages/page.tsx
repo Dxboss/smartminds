@@ -6,7 +6,6 @@ import { seedMessageLogs } from "@/lib/repositories/seedData";
 import { getEmailSettings } from "@/lib/emailSettings";
 import { AdminCommunicationsHub } from "@/components/admin/AdminCommunicationsHub";
 
-export const instant = false;
 
 export default async function AdminMessagesPage() {
   const session = await getServerSession();

@@ -4,7 +4,6 @@ import { getServerSession } from "@/lib/session";
 import { getTaskRepo, getUserRepo } from "@/lib/repositories";
 import { AdminTasksList } from "@/components/admin/AdminTasksList";
 
-export const instant = false;
 
 export default async function AdminTasksPage() {
   const session = await getServerSession();

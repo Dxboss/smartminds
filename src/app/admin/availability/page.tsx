@@ -5,7 +5,6 @@ import { getServerSession } from "@/lib/session";
 import { getBookingRepo } from "@/lib/repositories";
 import { AvailabilityManagerView } from "@/components/admin/AvailabilityManagerView";
 
-export const instant = false;
 
 export const metadata: Metadata = {
   title: "Admissions Availability & Days Off | Smartminds Administration",

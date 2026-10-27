@@ -6,7 +6,6 @@ import { getCourseRepo } from "@/lib/repositories";
 import { getPersistedFaculties } from "@/lib/persistedData";
 import { CoursesManagerView } from "@/components/admin/CoursesManagerView";
 
-export const instant = false;
 
 export const metadata: Metadata = {
   title: "Courses & Pricing Schedule | Smartminds Administration",
