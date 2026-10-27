@@ -18,8 +18,6 @@ const cspHeader = `
 
 const nextConfig: NextConfig = {
   /* config options here */
-  cacheComponents: true,
-  partialPrefetching: false,
   images: {
     loader: "custom",
     loaderFile: "./src/lib/imageLoader.ts",
@@ -30,8 +28,6 @@ const nextConfig: NextConfig = {
     dangerouslyAllowSVG: false,
   },
   experimental: {
-    // @ts-ignore
-    agentUpgrade: "security",
     staleTimes: {
       dynamic: 0,
       static: 30,

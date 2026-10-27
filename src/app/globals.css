@@ -70,9 +70,9 @@
   --color-brand-stripe: var(--brand-stripe);
 
   --font-heading:
-    var(--font-heading), "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    var(--font-heading, var(--font-sans)), "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-body:
-    var(--font-body), "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    var(--font-body, var(--font-sans)), "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 
   --radius-sm: var(--radius-sm);
   --radius-lg: var(--radius-lg);
@@ -84,7 +84,7 @@
 
 html {
   font-family:
-    var(--font-body), "Source Sans 3", "Segoe UI", Tahoma, sans-serif;
+    var(--font-sans), var(--font-body), "Source Sans 3", "Segoe UI", Tahoma, sans-serif;
   background-color: var(--paper);
   color: var(--ink);
   overflow-x: hidden;

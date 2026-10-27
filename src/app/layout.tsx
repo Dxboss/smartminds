@@ -28,19 +28,9 @@ import {
 } from "@/lib/repositories/seedData";
 import { getPersistentSiteTheme, getPersistentSiteThemeAsync } from "@/lib/siteTheme";
 
-const plusJakartaHeading = Plus_Jakarta_Sans({
-  weight: ["600", "700"],
+const plusJakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
-  variable: "--font-heading",
-  display: "swap",
-  preload: true,
-  fallback: ["system-ui", "-apple-system", "Segoe UI", "sans-serif"],
-});
-
-const plusJakartaBody = Plus_Jakarta_Sans({
-  weight: ["400", "600"],
-  subsets: ["latin"],
-  variable: "--font-body",
+  variable: "--font-sans",
   display: "swap",
   preload: true,
   fallback: ["system-ui", "-apple-system", "Segoe UI", "sans-serif"],
@@ -80,15 +70,21 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const theme = await getPersistentSiteThemeAsync();
-  const headerConfig = (theme.headerNav || defaultHeaderNavConfig) as HeaderNavConfig;
-  const footerConfig = (theme.footer || defaultFooterConfig) as FooterConfig;
+  let headerConfig = defaultHeaderNavConfig;
+  let footerConfig = defaultFooterConfig;
+  try {
+    const theme = await getPersistentSiteThemeAsync();
+    if (theme?.headerNav) headerConfig = theme.headerNav as HeaderNavConfig;
+    if (theme?.footer) footerConfig = theme.footer as FooterConfig;
+  } catch (themeErr) {
+    console.warn("[RootLayout] Fallback to default theme configs:", themeErr);
+  }
 
   return (
     <html
       lang="en-GB"
       data-scroll-behavior="smooth"
-      className={`${plusJakartaHeading.variable} ${plusJakartaBody.variable} h-full antialiased`}
+      className={`${plusJakarta.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <body
