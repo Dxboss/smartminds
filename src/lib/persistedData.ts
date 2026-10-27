@@ -1917,6 +1917,7 @@ export function savePasswordResetToken(
 
     const filePath = getStoreFilePath();
     fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+    syncStoreSnapshotToNeon(store);
   } catch (err) {
     console.error("[persistedData] Failed to save reset token:", err);
   }
@@ -1946,6 +1947,7 @@ export function verifyAndConsumePasswordResetToken(
     store.passwordResetTokens.splice(tokenIdx, 1);
     const filePath = getStoreFilePath();
     fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+    syncStoreSnapshotToNeon(store);
     return true;
   } catch (err) {
     console.error("[persistedData] Failed to verify and consume reset token:", err);

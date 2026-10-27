@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import {
@@ -325,18 +326,12 @@ export const LoginForm: React.FC<LoginFormProps> = ({ reason }) => {
                 >
                   Password
                 </label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setResetEmail(email || "");
-                    setErrorMessage("");
-                    setResetSuccessMessage("");
-                    setIsForgotPasswordView(true);
-                  }}
+                <Link
+                  href="/forgot-password"
                   className="text-xs text-navy-900 hover:text-gold-700 underline font-medium min-h-[44px] flex items-center cursor-pointer"
                 >
                   Forgot password?
-                </button>
+                </Link>
               </div>
               <div className="relative">
                 <input

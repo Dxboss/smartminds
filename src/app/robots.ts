@@ -16,6 +16,7 @@ export default function robots(): MetadataRoute.Robots {
           "/super/",
           "/portal/",
           "/login",
+          "/forgot-password",
           "/reset-password",
         ],
       },

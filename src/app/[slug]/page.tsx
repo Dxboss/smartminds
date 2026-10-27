@@ -27,6 +27,7 @@ const RESERVED_SLUGS = [
   "cpd",
   "enrol",
   "funding",
+  "forgot-password",
   "login",
   "portal",
   "privacy",
