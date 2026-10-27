@@ -812,9 +812,10 @@ export async function inviteStaffMemberAction(data: {
     !session ||
     (session.role !== "owner_admin" && session.role !== "super_admin")
   ) {
-    throw new Error(
-      "Unauthorized: Only the Training Director or Super Admin can invite staff members."
-    );
+    return {
+      success: false,
+      error: "Unauthorized: Only the Training Director or Super Admin can invite staff members.",
+    };
   }
 
   const { getUserRepo } = await import("@/lib/repositories");
@@ -908,9 +909,10 @@ export async function toggleStaffStatusAction(userId: string) {
     !session ||
     (session.role !== "owner_admin" && session.role !== "super_admin")
   ) {
-    throw new Error(
-      "Unauthorized: Only the Training Director or Super Admin can modify staff member status."
-    );
+    return {
+      success: false,
+      error: "Unauthorized: Only the Training Director or Super Admin can modify staff member status.",
+    };
   }
 
   const { getUserRepo } = await import("@/lib/repositories");
@@ -928,9 +930,10 @@ export async function removeStaffMemberAction(userId: string) {
     !session ||
     (session.role !== "owner_admin" && session.role !== "super_admin")
   ) {
-    throw new Error(
-      "Unauthorized: Only the Training Director or Super Admin can remove staff members."
-    );
+    return {
+      success: false,
+      error: "Unauthorized: Only the Training Director or Super Admin can remove staff members.",
+    };
   }
 
   const { getUserRepo } = await import("@/lib/repositories");
@@ -941,6 +944,21 @@ export async function removeStaffMemberAction(userId: string) {
   revalidatePath("/admin/staff");
   revalidatePath("/admin/tutors");
   return { success: true };
+}
+
+export async function updateStaffMemberAction(data: {
+  userIdOrEmail: string;
+  name?: string;
+  email?: string;
+  role?: any;
+  department?: string;
+  specialism?: string;
+  facultyId?: string;
+  facultyName?: string;
+  active?: boolean;
+}) {
+  const { updatePlatformUserAction } = await import("@/app/super/actions");
+  return updatePlatformUserAction(data);
 }
 
 export async function assignBookingStaffAction(

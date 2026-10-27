@@ -9,6 +9,7 @@ import type { PersistedUserRecord } from "@/lib/persistedData";
 import {
   createPlatformUserAction,
   updatePlatformUserRoleAction,
+  updatePlatformUserAction,
   deletePlatformUserAction,
   cleanDemoUsersAction,
   impersonateUserAction,
@@ -16,6 +17,7 @@ import {
   restorePlatformBackupAction,
 } from "./actions";
 import { EntitlementToggleList } from "./EntitlementToggleList";
+import { DEFAULT_COLLEGE_FACULTIES } from "@/content/faculties";
 
 interface SuperAdminDashboardProps {
   initialUsers: PersistedUserRecord[];
@@ -49,6 +51,84 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
   // Backup & Restore State
   const [restoreJson, setRestoreJson] = useState("");
   const [isRestoring, setIsRestoring] = useState(false);
+
+  // Edit User State
+  const [editingUser, setEditingUser] = useState<PersistedUserRecord | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editRole, setEditRole] = useState<UserRole>("tutor");
+  const [editDepartment, setEditDepartment] = useState("");
+  const [editSpecialism, setEditSpecialism] = useState("");
+  const [editFacultyId, setEditFacultyId] = useState("");
+  const [editActive, setEditActive] = useState(true);
+
+  const handleOpenEdit = (user: PersistedUserRecord) => {
+    setEditingUser(user);
+    setEditName(user.name);
+    setEditEmail(user.email);
+    setEditRole(user.role as UserRole);
+    setEditDepartment(user.department || "");
+    setEditSpecialism(user.specialism || "");
+    setEditActive(user.active !== false);
+
+    const matchedFac = DEFAULT_COLLEGE_FACULTIES.find(
+      (f) =>
+        (user.department && f.name.toLowerCase().includes(user.department.toLowerCase())) ||
+        (user.specialism && f.name.toLowerCase().includes(user.specialism.toLowerCase()))
+    );
+    setEditFacultyId(matchedFac?.id || DEFAULT_COLLEGE_FACULTIES[0]?.id || "");
+  };
+
+  const handleEditUser = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser || !editName.trim() || !editEmail.trim()) {
+      setStatusMessage({ type: "error", text: "Please enter both name and email." });
+      return;
+    }
+
+    startTransition(async () => {
+      try {
+        const selectedFaculty = DEFAULT_COLLEGE_FACULTIES.find((f) => f.id === editFacultyId);
+        const res = await updatePlatformUserAction({
+          userIdOrEmail: editingUser.id || editingUser.email,
+          name: editName.trim(),
+          email: editEmail.trim(),
+          role: editRole,
+          department: editDepartment.trim() || selectedFaculty?.name,
+          specialism: editSpecialism.trim(),
+          facultyId: editFacultyId,
+          facultyName: selectedFaculty?.name,
+          active: editActive,
+        });
+
+        if (res.success && res.user) {
+          setUsers((prev) =>
+            prev.map((u) =>
+              u.id === editingUser.id || u.email.toLowerCase() === editingUser.email.toLowerCase()
+                ? { ...u, ...res.user }
+                : u
+            )
+          );
+          setEditingUser(null);
+          setStatusMessage({
+            type: "success",
+            text: `Successfully updated user '${res.user.name}'.`,
+          });
+          router.refresh();
+        } else {
+          setStatusMessage({
+            type: "error",
+            text: res.error || "Failed to update user.",
+          });
+        }
+      } catch (err: any) {
+        setStatusMessage({
+          type: "error",
+          text: err?.message || "Failed to update user.",
+        });
+      }
+    });
+  };
 
   const filteredUsers = users.filter((u) => {
     const q = userSearch.toLowerCase();
@@ -514,6 +594,17 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
                           </td>
                           <td className="py-3 px-4 text-right">
                             <div className="flex items-center justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEdit(user)}
+                                disabled={isPending}
+                                className="px-2.5 py-1 rounded-xs bg-white border border-navy-700 text-navy-900 hover:bg-navy-900 hover:text-white transition-all font-semibold text-[11px] flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                                title={`Edit ${user.name}`}
+                              >
+                                <Icon name="edit" size={11} />
+                                <span>Edit</span>
+                              </button>
+
                               {!isSuper && (
                                 <button
                                   type="button"
@@ -657,6 +748,165 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
                       className="px-4 py-2 rounded-sm bg-navy-900 text-white hover:bg-navy-700 font-bold cursor-pointer disabled:opacity-50"
                     >
                       {isPending ? "Creating..." : "Confirm & Create User"}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* Edit User Modal */}
+          {editingUser && (
+            <div className="fixed inset-0 z-50 bg-navy-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+              <div className="bg-white rounded-md border border-line shadow-xl max-w-md w-full p-6 space-y-5 animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between border-b border-line pb-3">
+                  <div>
+                    <h3 className="font-heading text-lg font-bold text-navy-900">
+                      Edit Platform User
+                    </h3>
+                    <p className="text-xs text-ink-soft">
+                      Modify role, faculty, subject specialism, or details for {editingUser.name}.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setEditingUser(null)}
+                    className="text-ink-soft hover:text-ink cursor-pointer p-1"
+                  >
+                    <Icon name="close" size={16} />
+                  </button>
+                </div>
+
+                <form onSubmit={handleEditUser} className="space-y-4 text-xs">
+                  <div>
+                    <label className="block font-semibold text-navy-900 mb-1">
+                      Full Legal Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="w-full px-3 py-2 rounded-sm border border-line focus:outline-none focus:ring-1 focus:ring-navy-900"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-navy-900 mb-1">
+                      Official Email Address <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={editEmail}
+                      onChange={(e) => setEditEmail(e.target.value)}
+                      className="w-full px-3 py-2 rounded-sm border border-line focus:outline-none focus:ring-1 focus:ring-navy-900"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-navy-900 mb-1">
+                      Platform Role <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={editRole}
+                      onChange={(e) => setEditRole(e.target.value as UserRole)}
+                      className="w-full px-3 py-2 rounded-sm border border-line focus:outline-none focus:ring-1 focus:ring-navy-900 bg-white cursor-pointer"
+                    >
+                      <option value="owner_admin">
+                        College Owner (Full Admin &amp; Financial Access)
+                      </option>
+                      <option value="admin_staff">
+                        Admin Staff (No Financial Access)
+                      </option>
+                      <option value="tutor">
+                        Tutor (Assigned Cohorts &amp; Grading)
+                      </option>
+                      <option value="student">
+                        Student / Learner
+                      </option>
+                      <option value="super_admin">
+                        Super Administrator (Platform Governance)
+                      </option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-navy-900 mb-1">
+                      Assigned Faculty
+                    </label>
+                    <select
+                      value={editFacultyId}
+                      onChange={(e) => {
+                        setEditFacultyId(e.target.value);
+                        const selected = DEFAULT_COLLEGE_FACULTIES.find((f) => f.id === e.target.value);
+                        if (selected) {
+                          setEditDepartment(selected.name);
+                        }
+                      }}
+                      className="w-full px-3 py-2 rounded-sm border border-line focus:outline-none focus:ring-1 focus:ring-navy-900 bg-white cursor-pointer"
+                    >
+                      <option value="">Select Faculty...</option>
+                      {DEFAULT_COLLEGE_FACULTIES.map((fac) => (
+                        <option key={fac.id} value={fac.id}>
+                          {fac.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-navy-900 mb-1">
+                      Subject / Specialism
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Adult Social Care (Level 3 & 5) or Functional Skills Maths"
+                      value={editSpecialism}
+                      onChange={(e) => setEditSpecialism(e.target.value)}
+                      className="w-full px-3 py-2 rounded-sm border border-line focus:outline-none focus:ring-1 focus:ring-navy-900"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-navy-900 mb-1">
+                      Department
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Faculty of Health & Social Care or Operations"
+                      value={editDepartment}
+                      onChange={(e) => setEditDepartment(e.target.value)}
+                      className="w-full px-3 py-2 rounded-sm border border-line focus:outline-none focus:ring-1 focus:ring-navy-900"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-1">
+                    <input
+                      type="checkbox"
+                      id="super-edit-active-toggle"
+                      checked={editActive}
+                      onChange={(e) => setEditActive(e.target.checked)}
+                      className="rounded border-line text-navy-900 focus:ring-navy-900"
+                    />
+                    <label htmlFor="super-edit-active-toggle" className="font-semibold text-navy-900 cursor-pointer">
+                      Active Account (authorized to log in)
+                    </label>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-3 pt-3 border-t border-line">
+                    <button
+                      type="button"
+                      onClick={() => setEditingUser(null)}
+                      className="px-3.5 py-2 rounded-sm border border-line text-ink-soft hover:text-navy-900 font-semibold cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isPending}
+                      className="px-4 py-2 rounded-sm bg-navy-900 text-white hover:bg-navy-700 font-bold cursor-pointer disabled:opacity-50"
+                    >
+                      {isPending ? "Saving..." : "Save Changes"}
                     </button>
                   </div>
                 </form>

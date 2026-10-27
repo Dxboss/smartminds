@@ -22,6 +22,12 @@ export interface PersistedUserRecord {
   name: string;
   role: string;
   learnerId?: string;
+  tutorId?: string;
+  department?: string;
+  specialism?: string;
+  facultyId?: string;
+  facultyName?: string;
+  active?: boolean;
   temporaryPassword?: string;
   passwordHash?: string;
   mustChangePassword?: boolean;
@@ -1358,15 +1364,25 @@ export function listAllPlatformUsers(): PersistedUserRecord[] {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { seedUsers } = require("@/lib/repositories/seedData");
     for (const su of seedUsers) {
-      if (!users.some((u) => u.email.toLowerCase() === su.email.toLowerCase())) {
+      const existing = users.find((u) => u.email.toLowerCase() === su.email.toLowerCase());
+      if (!existing) {
         users.push({
           id: su.id,
           email: su.email,
           name: su.name,
           role: su.role,
           learnerId: su.learnerId,
+          tutorId: su.tutorId,
+          department: su.department,
+          specialism: su.specialism,
+          active: su.active ?? true,
           createdAt: su.createdAt || new Date().toISOString(),
         });
+      } else {
+        if (!existing.department && su.department) existing.department = su.department;
+        if (!existing.specialism && su.specialism) existing.specialism = su.specialism;
+        if (existing.active === undefined && su.active !== undefined) existing.active = su.active;
+        if (!existing.tutorId && su.tutorId) existing.tutorId = su.tutorId;
       }
     }
   } catch {}
@@ -1469,17 +1485,28 @@ export function deletePaymentRecordFromStore(paymentId: string): boolean {
   }
 }
 
-export function updateUserRoleInStore(
-  userIdOrEmail: string,
-  newRole: string
-): { success: boolean; user?: PersistedUserRecord } {
+export interface UpdatePlatformUserInput {
+  userIdOrEmail: string;
+  name?: string;
+  email?: string;
+  role?: string;
+  department?: string;
+  specialism?: string;
+  facultyId?: string;
+  facultyName?: string;
+  active?: boolean;
+}
+
+export function updatePlatformUserInStore(
+  input: UpdatePlatformUserInput
+): { success: boolean; user?: PersistedUserRecord; error?: string } {
   try {
     const store = loadPersistedRecords();
     if (!store.userCredentials) store.userCredentials = [];
 
-    const cleanQuery = userIdOrEmail.toLowerCase().trim();
+    const cleanQuery = input.userIdOrEmail.toLowerCase().trim();
     let user = store.userCredentials.find(
-      (u) => u.id === userIdOrEmail || u.email.toLowerCase() === cleanQuery
+      (u) => u.id === input.userIdOrEmail || u.email.toLowerCase() === cleanQuery
     );
 
     if (!user) {
@@ -1488,15 +1515,19 @@ export function updateUserRoleInStore(
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         const { seedUsers } = require("@/lib/repositories/seedData");
         const seedMatch = seedUsers.find(
-          (u: any) => u.id === userIdOrEmail || u.email.toLowerCase() === cleanQuery
+          (u: any) => u.id === input.userIdOrEmail || u.email.toLowerCase() === cleanQuery
         );
         if (seedMatch) {
           user = {
             id: seedMatch.id,
             email: seedMatch.email,
             name: seedMatch.name,
-            role: newRole,
+            role: seedMatch.role,
             learnerId: seedMatch.learnerId,
+            tutorId: seedMatch.tutorId,
+            department: seedMatch.department,
+            specialism: seedMatch.specialism,
+            active: seedMatch.active ?? true,
             createdAt: seedMatch.createdAt || new Date().toISOString(),
           };
           store.userCredentials.push(user);
@@ -1505,10 +1536,17 @@ export function updateUserRoleInStore(
     }
 
     if (!user) {
-      return { success: false };
+      return { success: false, error: `User '${input.userIdOrEmail}' was not found in directory.` };
     }
 
-    user.role = newRole;
+    if (input.name && input.name.trim()) user.name = input.name.trim();
+    if (input.email && input.email.trim()) user.email = input.email.toLowerCase().trim();
+    if (input.role) user.role = input.role;
+    if (input.department !== undefined) user.department = input.department.trim();
+    if (input.specialism !== undefined) user.specialism = input.specialism.trim();
+    if (input.facultyId !== undefined) user.facultyId = input.facultyId;
+    if (input.facultyName !== undefined) user.facultyName = input.facultyName;
+    if (input.active !== undefined) user.active = Boolean(input.active);
 
     // If Millie, guarantee proper ID
     if (user.email.toLowerCase() === "millie@smartmindstraining.co.uk") {
@@ -1521,10 +1559,18 @@ export function updateUserRoleInStore(
       const { seedUsers } = require("@/lib/repositories/seedData");
       if (Array.isArray(seedUsers)) {
         const seedMatch = seedUsers.find(
-          (u: any) => u.id === user!.id || u.email.toLowerCase() === user!.email.toLowerCase()
+          (u: any) =>
+            u.id === user!.id ||
+            u.email.toLowerCase() === cleanQuery ||
+            u.email.toLowerCase() === user!.email.toLowerCase()
         );
         if (seedMatch) {
-          seedMatch.role = newRole as any;
+          if (input.name && input.name.trim()) seedMatch.name = input.name.trim();
+          if (input.email && input.email.trim()) seedMatch.email = input.email.toLowerCase().trim();
+          if (input.role) seedMatch.role = input.role as any;
+          if (input.department !== undefined) seedMatch.department = input.department.trim();
+          if (input.specialism !== undefined) seedMatch.specialism = input.specialism.trim();
+          if (input.active !== undefined) seedMatch.active = Boolean(input.active);
           if (user.email.toLowerCase() === "millie@smartmindstraining.co.uk") {
             seedMatch.id = "user-owner-01";
           }
@@ -1535,11 +1581,42 @@ export function updateUserRoleInStore(
     const filePath = getStoreFilePath();
     fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
     syncPersistedRecords(true);
+    syncStoreSnapshotToNeon(store).catch(() => {});
+
+    // Also sync to Neon user_credentials table if configured
+    try {
+      import("@/lib/db").then(({ isDbConfigured, sql }) => {
+        if (isDbConfigured) {
+          sql`
+            UPDATE user_credentials
+            SET name = ${user!.name},
+                email = ${user!.email},
+                role = ${user!.role},
+                department = ${user!.department || null},
+                specialism = ${user!.specialism || null},
+                active = ${user!.active !== false}
+            WHERE id = ${user!.id} OR LOWER(email) = ${user!.email.toLowerCase()}
+          `.catch(() => {});
+        }
+      });
+    } catch {}
+
     return { success: true, user };
   } catch (err) {
-    console.error("[persistedData] Failed to update user role:", err);
-    return { success: false };
+    console.error("[persistedData] Failed to update user:", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Internal storage error",
+    };
   }
+}
+
+export function updateUserRoleInStore(
+  userIdOrEmail: string,
+  newRole: string
+): { success: boolean; user?: PersistedUserRecord } {
+  const res = updatePlatformUserInStore({ userIdOrEmail, role: newRole });
+  return { success: res.success, user: res.user };
 }
 
 export function purgeAllTestRecordsFromStore(): {
@@ -1957,17 +2034,49 @@ export function verifyAndConsumePasswordResetToken(
 
 
 
+export function sanitizeFaculties(raw?: FacultyRecord[]): FacultyRecord[] {
+  const map = new Map<string, FacultyRecord>();
+  // Pre-seed canonical faculties in official order
+  for (const f of DEFAULT_COLLEGE_FACULTIES) {
+    map.set(f.id, { ...f });
+  }
+
+  for (const item of raw || []) {
+    if (!item?.name) continue;
+    const normName = item.name.toLowerCase().trim();
+    const normId = (item.id || "").toLowerCase().trim();
+
+    // Collapse any legacy CPD aliases into Department of CPD & Compliance
+    if (
+      normId === "cpd" ||
+      normId === "continuing-professional-development" ||
+      normName === "continuing professional development"
+    ) {
+      const canonicalCpd = map.get("cpd-compliance")!;
+      map.set("cpd-compliance", {
+        ...canonicalCpd,
+        ...item,
+        id: "cpd-compliance",
+        name: "Department of CPD & Compliance",
+      });
+      continue;
+    }
+
+    if (map.has(item.id)) {
+      map.set(item.id, { ...map.get(item.id)!, ...item });
+    } else {
+      map.set(item.id, item);
+    }
+  }
+
+  return Array.from(map.values());
+}
+
 export function getPersistedFaculties(): FacultyRecord[] {
   try {
     const store = loadPersistedRecords();
     const saved = Array.isArray(store.faculties) ? store.faculties : [];
-    const merged = [...saved];
-    for (const faculty of DEFAULT_COLLEGE_FACULTIES) {
-      if (!merged.some((item) => item.id === faculty.id || item.name.toLowerCase() === faculty.name.toLowerCase())) {
-        merged.push(faculty);
-      }
-    }
-    return merged;
+    return sanitizeFaculties(saved);
   } catch (err) {
     console.error("[persistedData] Failed to load faculties:", err);
     return DEFAULT_COLLEGE_FACULTIES;

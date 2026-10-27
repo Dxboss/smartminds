@@ -175,15 +175,32 @@ const CoursesListingContent: React.FC<CoursesListingViewProps> = ({
   const categories = useMemo(() => {
     const result: string[] = ["All"];
 
-    // Source strictly from Academic Faculties (configured in CMS or defaults)
-    const sourceFaculties =
+    const rawFaculties =
       initialFaculties && initialFaculties.length > 0
         ? initialFaculties
         : DEFAULT_COLLEGE_FACULTIES;
 
-    sourceFaculties.forEach((f) => {
-      if (!f?.name) return;
-      const name = f.name.trim();
+    const map = new Map<string, string>();
+    for (const f of DEFAULT_COLLEGE_FACULTIES) {
+      map.set(f.id, f.name);
+    }
+
+    for (const f of rawFaculties) {
+      if (!f?.name) continue;
+      const lower = f.name.toLowerCase().trim();
+      const idLower = (f.id || "").toLowerCase().trim();
+      if (
+        idLower === "cpd" ||
+        idLower === "continuing-professional-development" ||
+        lower === "continuing professional development"
+      ) {
+        map.set("cpd-compliance", "Department of CPD & Compliance");
+      } else {
+        map.set(f.id || lower, f.name);
+      }
+    }
+
+    map.forEach((name) => {
       if (!result.some((r) => r.toLowerCase() === name.toLowerCase())) {
         result.push(name);
       }

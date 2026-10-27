@@ -7,6 +7,7 @@ import {
   inviteStaffMemberAction,
   toggleStaffStatusAction,
   removeStaffMemberAction,
+  updateStaffMemberAction,
 } from "@/app/admin/actions";
 import { impersonateUserAction } from "@/app/super/actions";
 import { DEFAULT_COLLEGE_FACULTIES, type FacultyRecord } from "@/content/faculties";
@@ -50,6 +51,17 @@ export const StaffDirectory: React.FC<Props> = ({
   const [inviteSpecialism, setInviteSpecialism] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Edit modal state
+  const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editRole, setEditRole] = useState<string>("tutor");
+  const [editDepartment, setEditDepartment] = useState("");
+  const [editSpecialism, setEditSpecialism] = useState("");
+  const [editFacultyId, setEditFacultyId] = useState("");
+  const [editActive, setEditActive] = useState(true);
+  const [isEditSubmitting, setIsEditSubmitting] = useState(false);
+
   const isOwnerOrSuper = userRole === "owner_admin" || userRole === "super_admin";
 
   // Filtered users
@@ -91,12 +103,17 @@ export const StaffDirectory: React.FC<Props> = ({
     if (!isOwnerOrSuper) return;
     try {
       const res = await toggleStaffStatusAction(userId);
+      if (!res.success || !res.user) {
+        alert(res.error || "Failed to update staff status");
+        return;
+      }
+      const updatedUser = res.user;
       setUsers((prev) =>
-        prev.map((u) => (u.id === userId ? { ...u, active: res.user.active } : u))
+        prev.map((u) => (u.id === userId ? { ...u, active: updatedUser.active } : u))
       );
       setFeedback(
-        `Staff member status updated: ${res.user.name} is now ${
-          res.user.active ? "Active" : "Inactive"
+        `Staff member status updated: ${updatedUser.name} is now ${
+          updatedUser.active ? "Active" : "Inactive"
         }.`
       );
       setTimeout(() => setFeedback(null), 4000);
@@ -113,7 +130,11 @@ export const StaffDirectory: React.FC<Props> = ({
     if (!confirmed) return;
 
     try {
-      await removeStaffMemberAction(userId);
+      const res = await removeStaffMemberAction(userId);
+      if (!res.success) {
+        alert(res.error || "Failed to remove staff member");
+        return;
+      }
       setUsers((prev) => prev.filter((u) => u.id !== userId));
       setFeedback(`Staff member ${userName} has been permanently removed.`);
       setTimeout(() => setFeedback(null), 4000);
@@ -127,12 +148,82 @@ export const StaffDirectory: React.FC<Props> = ({
     setIsImpersonatingId(userIdOrEmail);
     try {
       const res = await impersonateUserAction(userIdOrEmail);
-      if (res.redirectUrl) {
+      if (res.success && res.redirectUrl) {
         window.location.href = res.redirectUrl;
+      } else {
+        alert(res.error || "Failed to impersonate staff member");
+        setIsImpersonatingId(null);
       }
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to impersonate staff member");
       setIsImpersonatingId(null);
+    }
+  };
+
+  const handleOpenEdit = (user: UserProfile) => {
+    setEditingUser(user);
+    setEditName(user.name);
+    setEditEmail(user.email);
+    setEditRole(user.role);
+    setEditDepartment(user.department || "");
+    setEditSpecialism(user.specialism || "");
+    setEditActive(user.active !== false);
+
+    // Match faculty from department or specialism or pre-select
+    const matchedFac = faculties.find(
+      (f) =>
+        (user.department && f.name.toLowerCase().includes(user.department.toLowerCase())) ||
+        (user.specialism && f.name.toLowerCase().includes(user.specialism.toLowerCase()))
+    );
+    setEditFacultyId(matchedFac?.id || faculties[0]?.id || "");
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser || !editName.trim() || !editEmail.trim()) return;
+
+    setIsEditSubmitting(true);
+    try {
+      const selectedFaculty = faculties.find((f) => f.id === editFacultyId);
+      const res = await updateStaffMemberAction({
+        userIdOrEmail: editingUser.id || editingUser.email,
+        name: editName.trim(),
+        email: editEmail.trim(),
+        role: editRole as any,
+        department: editDepartment.trim() || selectedFaculty?.name,
+        specialism: editSpecialism.trim(),
+        facultyId: editFacultyId,
+        facultyName: selectedFaculty?.name,
+        active: editActive,
+      });
+
+      if (!res.success || !res.user) {
+        alert(res.error || "Failed to update staff member");
+        return;
+      }
+
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === editingUser.id || u.email.toLowerCase() === editingUser.email.toLowerCase()
+            ? {
+                ...u,
+                name: res.user!.name,
+                email: res.user!.email,
+                role: res.user!.role as any,
+                department: res.user!.department,
+                specialism: res.user!.specialism,
+                active: res.user!.active !== false,
+              }
+            : u
+        )
+      );
+      setEditingUser(null);
+      setFeedback(`Successfully updated ${res.user.name}'s profile, faculty, and platform permissions.`);
+      setTimeout(() => setFeedback(null), 5000);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to update staff member");
+    } finally {
+      setIsEditSubmitting(false);
     }
   };
 
@@ -150,7 +241,12 @@ export const StaffDirectory: React.FC<Props> = ({
         specialism: inviteSpecialism || undefined,
       });
 
-      setUsers((prev) => [...prev, res.user]);
+      if (!res.success || !res.user) {
+        alert(res.error || "Failed to send staff invitation");
+        return;
+      }
+
+      setUsers((prev) => [...prev, res.user!]);
       setIsModalOpen(false);
       setInviteName("");
       setInviteEmail("");
@@ -463,45 +559,57 @@ export const StaffDirectory: React.FC<Props> = ({
                       {/* Actions */}
                       {isOwnerOrSuper && (
                         <td className="py-3.5 px-4 text-right">
-                          {u.role !== "owner_admin" && u.role !== "super_admin" ? (
-                            <div className="flex items-center justify-end gap-1.5">
-                              {u.role === "tutor" && (
+                          <div className="flex items-center justify-end gap-1.5">
+                            {/* Allow editing any user, except Owner Admin cannot edit Super Admin */}
+                            {!(userRole === "owner_admin" && u.role === "super_admin") && (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEdit(u)}
+                                className="px-2.5 py-1 rounded-sm border border-navy-700 bg-white hover:bg-navy-900 hover:text-white text-navy-900 text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer"
+                                title={`Edit ${u.name}'s role, faculty, or specialism`}
+                              >
+                                <Icon name="edit" size={12} />
+                                <span>Edit</span>
+                              </button>
+                            )}
+
+                            {u.role === "tutor" && (
+                              <button
+                                type="button"
+                                disabled={isImpersonatingId === (u.email || u.id)}
+                                onClick={() => handleImpersonate(u.email || u.id, u.name)}
+                                className="px-2.5 py-1 rounded-sm border border-navy-900 bg-navy-50 hover:bg-navy-900 hover:text-white text-navy-900 text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                                title="View Tutor Console as this faculty member"
+                              >
+                                <Icon name="eye" size={12} />
+                                <span>{isImpersonatingId === (u.email || u.id) ? "Loading..." : "View as Tutor"}</span>
+                              </button>
+                            )}
+
+                            {u.role !== "owner_admin" && u.role !== "super_admin" && (
+                              <>
                                 <button
                                   type="button"
-                                  disabled={isImpersonatingId === (u.email || u.id)}
-                                  onClick={() => handleImpersonate(u.email || u.id, u.name)}
-                                  className="px-2.5 py-1 rounded-sm border border-navy-900 bg-navy-50 hover:bg-navy-900 hover:text-white text-navy-900 text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                                  title="View Tutor Console as this faculty member"
+                                  onClick={() => handleToggleStatus(u.id, u.active)}
+                                  className={`px-2.5 py-1 rounded-sm border text-xs font-semibold transition-colors cursor-pointer ${
+                                    u.active
+                                      ? "bg-paper hover:bg-rose-50 text-ink-soft hover:text-rose-700 border-line hover:border-rose-200"
+                                      : "bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200"
+                                  }`}
                                 >
-                                  <Icon name="eye" size={12} />
-                                  <span>{isImpersonatingId === (u.email || u.id) ? "Loading..." : "View as Tutor"}</span>
+                                  {u.active ? "Deactivate" : "Activate"}
                                 </button>
-                              )}
-                              <button
-                                type="button"
-                                onClick={() => handleToggleStatus(u.id, u.active)}
-                                className={`px-2.5 py-1 rounded-sm border text-xs font-semibold transition-colors ${
-                                  u.active
-                                    ? "bg-paper hover:bg-rose-50 text-ink-soft hover:text-rose-700 border-line hover:border-rose-200"
-                                    : "bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200"
-                                }`}
-                              >
-                                {u.active ? "Deactivate" : "Activate"}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveStaff(u.id, u.name)}
-                                className="px-2.5 py-1 rounded-sm border border-line hover:border-red-300 bg-white hover:bg-red-50 text-ink-soft hover:text-red-700 text-xs font-semibold transition-colors"
-                                title={`Permanently remove ${u.name}`}
-                              >
-                                Remove
-                              </button>
-                            </div>
-                          ) : (
-                            <span className="text-[11px] text-ink-soft italic">
-                              Protected
-                            </span>
-                          )}
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveStaff(u.id, u.name)}
+                                  className="px-2.5 py-1 rounded-sm border border-line hover:border-red-300 bg-white hover:bg-red-50 text-ink-soft hover:text-red-700 text-xs font-semibold transition-colors cursor-pointer"
+                                  title={`Permanently remove ${u.name}`}
+                                >
+                                  Remove
+                                </button>
+                              </>
+                            )}
+                          </div>
                         </td>
                       )}
                     </tr>
@@ -692,6 +800,163 @@ export const StaffDirectory: React.FC<Props> = ({
                   className="px-4 py-2 rounded-sm bg-navy-900 hover:bg-navy-700 text-white font-semibold transition-colors disabled:opacity-50"
                 >
                   {isSubmitting ? "Issuing Invitation..." : "Send Staff Invitation"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Staff Member Modal */}
+      {editingUser && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-900/60 backdrop-blur-xs"
+        >
+          <div className="bg-white rounded-md border border-line shadow-xl max-w-lg w-full p-6 space-y-5 animate-in fade-in duration-150 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="font-heading text-xl font-bold text-navy-900">
+                  Edit Staff Profile &amp; Permissions
+                </h3>
+                <p className="text-xs text-ink-soft mt-1">
+                  Update role, assigned faculty, specialism, or details for {editingUser.name}.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingUser(null)}
+                className="text-ink-soft hover:text-navy-900 p-1 cursor-pointer"
+                aria-label="Close edit modal"
+              >
+                <Icon name="close" size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditSubmit} className="space-y-4 text-xs">
+              <div>
+                <label className="font-bold text-navy-900 block mb-1">
+                  Full Legal Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full px-3 py-2 rounded-sm border border-line bg-paper text-ink focus:outline-none focus:ring-1 focus:ring-navy-900"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-navy-900 block mb-1">
+                  Official Email Address *
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={editEmail}
+                  onChange={(e) => setEditEmail(e.target.value)}
+                  className="w-full px-3 py-2 rounded-sm border border-line bg-paper text-ink focus:outline-none focus:ring-1 focus:ring-navy-900"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-navy-900 block mb-1">
+                  Platform Role *
+                </label>
+                <select
+                  value={editRole}
+                  onChange={(e) => setEditRole(e.target.value)}
+                  className="w-full px-3 py-2 rounded-sm border border-line bg-paper text-ink focus:outline-none focus:ring-1 focus:ring-navy-900 text-xs cursor-pointer"
+                >
+                  <option value="tutor">Course Tutor &amp; Vocational Assessor</option>
+                  <option value="admin_staff">Operations &amp; Admissions Administrator</option>
+                  <option value="owner_admin">Centre Director &amp; Lead Administrator</option>
+                  <option value="student">Enrolled Student</option>
+                  {userRole === "super_admin" && (
+                    <option value="super_admin">Super Administrator (Platform Governance)</option>
+                  )}
+                </select>
+              </div>
+
+              <div>
+                <label className="font-bold text-navy-900 block mb-1">
+                  Assigned Faculty
+                </label>
+                <select
+                  value={editFacultyId}
+                  onChange={(e) => {
+                    setEditFacultyId(e.target.value);
+                    const selected = faculties.find((f) => f.id === e.target.value);
+                    if (selected) {
+                      setEditDepartment(selected.name);
+                    }
+                  }}
+                  className="w-full px-3 py-2 rounded-sm border border-line bg-paper text-ink focus:outline-none focus:ring-1 focus:ring-navy-900 text-xs cursor-pointer"
+                >
+                  <option value="">Select Faculty...</option>
+                  {faculties.map((fac) => (
+                    <option key={fac.id} value={fac.id}>
+                      {fac.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="font-bold text-navy-900 block mb-1">
+                  Subject / Specialism
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Adult Social Care (Level 3 & 5) or Functional Skills Maths"
+                  value={editSpecialism}
+                  onChange={(e) => setEditSpecialism(e.target.value)}
+                  className="w-full px-3 py-2 rounded-sm border border-line bg-paper text-ink focus:outline-none focus:ring-1 focus:ring-navy-900"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-navy-900 block mb-1">
+                  Department
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Faculty of Health & Social Care or Admissions"
+                  value={editDepartment}
+                  onChange={(e) => setEditDepartment(e.target.value)}
+                  className="w-full px-3 py-2 rounded-sm border border-line bg-paper text-ink focus:outline-none focus:ring-1 focus:ring-navy-900"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="edit-active-toggle"
+                  checked={editActive}
+                  onChange={(e) => setEditActive(e.target.checked)}
+                  className="rounded border-line text-navy-900 focus:ring-navy-900"
+                />
+                <label htmlFor="edit-active-toggle" className="font-semibold text-navy-900 cursor-pointer">
+                  Active staff member account (grants portal access)
+                </label>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-line">
+                <button
+                  type="button"
+                  onClick={() => setEditingUser(null)}
+                  className="px-3 py-2 rounded-sm border border-line bg-paper text-ink-soft hover:text-ink font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isEditSubmitting}
+                  className="px-4 py-2 rounded-sm bg-navy-900 hover:bg-navy-700 text-white font-semibold transition-colors disabled:opacity-50 cursor-pointer"
+                >
+                  {isEditSubmitting ? "Saving Changes..." : "Save Changes"}
                 </button>
               </div>
             </form>

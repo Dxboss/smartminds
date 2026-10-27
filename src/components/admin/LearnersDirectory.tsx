@@ -105,8 +105,11 @@ export const LearnersDirectory: React.FC<Props> = ({
     setIsImpersonatingId(userIdOrEmail);
     try {
       const res = await impersonateUserAction(userIdOrEmail);
-      if (res.redirectUrl) {
+      if (res.success && res.redirectUrl) {
         window.location.href = res.redirectUrl;
+      } else {
+        alert(res.error || "Failed to impersonate student");
+        setIsImpersonatingId(null);
       }
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to impersonate student");

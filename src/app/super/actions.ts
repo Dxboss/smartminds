@@ -11,6 +11,7 @@ import {
   deleteUserFromStore,
   cleanDemoUsersFromStore,
   updateUserRoleInStore,
+  updatePlatformUserInStore,
   purgeAllTestRecordsFromStore,
   generatePlatformBackupData,
   restorePlatformBackupData,
@@ -23,7 +24,7 @@ export async function toggleEntitlementAction(
 ) {
   const session = await getServerSession();
   if (!session || (session.role !== "super_admin" && session.originalRole !== "super_admin")) {
-    throw new Error("Unauthorized: Super Administrator privileges required.");
+    return { success: false, error: "Unauthorized: Super Administrator privileges required." };
   }
   const repo = getEntitlementRepo();
   await repo.updateEntitlement(session, moduleKey, enabled);
@@ -41,12 +42,17 @@ export async function createPlatformUserAction(data: {
   specialism?: string;
 }) {
   const session = await getServerSession();
-  if (!session || (session.role !== "super_admin" && session.originalRole !== "super_admin")) {
-    throw new Error("Unauthorized: Super Administrator privileges required.");
+  const actorRole = session?.originalRole || session?.role;
+  if (!session || (actorRole !== "super_admin" && actorRole !== "owner_admin")) {
+    return { success: false, error: "Unauthorized: Administrator privileges required." };
   }
 
-  if (data.password && data.password.trim().length < 12) {
-    throw new Error("Initial passwords must be at least 12 characters long.");
+  if (actorRole === "owner_admin" && data.role === "super_admin") {
+    return { success: false, error: "Access Denied: Only Super Administrators can create Super Admin accounts." };
+  }
+
+  if (data.password && data.password.trim().length < 8) {
+    return { success: false, error: "Initial passwords must be at least 8 characters long." };
   }
 
   const temporaryPassword = data.password?.trim() || randomBytes(18).toString("base64url");
@@ -72,7 +78,7 @@ export async function createPlatformUserAction(data: {
       department: data.department,
       specialism: data.specialism,
       temporaryPassword,
-      invitedByName: session.name || "Super Administrator",
+      invitedByName: session.name || "Administrator",
     });
 
     await sendEmail({
@@ -83,7 +89,7 @@ export async function createPlatformUserAction(data: {
       text: emailPayload.text,
       html: emailPayload.html,
       templateKey: "staff_invitation",
-      triggerEvent: `Superadmin User Creation (${data.role})`,
+      triggerEvent: `User Creation (${data.role})`,
     });
   } catch (err) {
     console.error("[createPlatformUserAction] Failed to dispatch onboarding email:", err);
@@ -101,54 +107,106 @@ export async function createPlatformUserAction(data: {
 
   revalidatePath("/super");
   revalidatePath("/admin");
+  revalidatePath("/admin/staff");
   return { success: true, user };
 }
 
-export async function updatePlatformUserRoleAction(data: {
+export async function updatePlatformUserAction(data: {
   userIdOrEmail: string;
-  newRole: UserRole;
+  name?: string;
+  email?: string;
+  role?: UserRole;
+  department?: string;
+  specialism?: string;
+  facultyId?: string;
+  facultyName?: string;
+  active?: boolean;
 }) {
   const session = await getServerSession();
-  if (!session || (session.role !== "super_admin" && session.originalRole !== "super_admin")) {
-    throw new Error("Unauthorized: Super Administrator privileges required.");
+  const actorRole = session?.originalRole || session?.role;
+  if (!session || (actorRole !== "super_admin" && actorRole !== "owner_admin")) {
+    return { success: false, error: "Unauthorized: Privileges required to edit users." };
   }
 
-  const result = updateUserRoleInStore(data.userIdOrEmail, data.newRole);
+  const { listAllPlatformUsers } = await import("@/lib/persistedData");
+  const allUsers = listAllPlatformUsers();
+  const target = allUsers.find(
+    (u) =>
+      u.id === data.userIdOrEmail ||
+      u.email.toLowerCase() === data.userIdOrEmail.toLowerCase().trim()
+  );
+
+  // Security barrier: Owner Admin cannot edit Super Admin accounts
+  if (actorRole === "owner_admin" && target?.role === "super_admin") {
+    return { success: false, error: "Access Denied: College Owner cannot modify Super Administrator accounts." };
+  }
+
+  if (actorRole === "owner_admin" && data.role === "super_admin") {
+    return { success: false, error: "Access Denied: Only Super Administrators can grant Super Admin role." };
+  }
+
+  const result = updatePlatformUserInStore(data);
   if (!result.success) {
-    throw new Error(`Failed to update role for '${data.userIdOrEmail}'.`);
+    return { success: false, error: result.error || `Failed to update user '${data.userIdOrEmail}'.` };
   }
 
   // Append audit event
   try {
     const repo = getEntitlementRepo();
     await (repo as any).recordCustomAudit?.({
-      action: "ROLE_CHANGED",
-      details: `Changed role of user ${data.userIdOrEmail} to '${data.newRole}' by ${session.email}`,
+      action: "USER_UPDATED",
+      details: `Updated user ${data.userIdOrEmail} (Role: ${data.role || "unchanged"}, Dept: ${data.department || "unchanged"}, Specialism: ${data.specialism || "unchanged"}) by ${session.email}`,
       actor: session,
     });
   } catch {}
 
   revalidatePath("/super");
   revalidatePath("/admin");
+  revalidatePath("/admin/staff");
+  revalidatePath("/admin/tutors");
   return { success: true, user: result.user };
+}
+
+export async function updatePlatformUserRoleAction(data: {
+  userIdOrEmail: string;
+  newRole: UserRole;
+}) {
+  return updatePlatformUserAction({
+    userIdOrEmail: data.userIdOrEmail,
+    role: data.newRole,
+  });
 }
 
 export async function deletePlatformUserAction(userIdOrEmail: string) {
   const session = await getServerSession();
-  if (!session || (session.role !== "super_admin" && session.originalRole !== "super_admin")) {
-    throw new Error("Unauthorized: Super Administrator privileges required.");
+  const actorRole = session?.originalRole || session?.role;
+  if (!session || (actorRole !== "super_admin" && actorRole !== "owner_admin")) {
+    return { success: false, error: "Unauthorized: Privileges required to delete users." };
+  }
+
+  const { listAllPlatformUsers } = await import("@/lib/persistedData");
+  const allUsers = listAllPlatformUsers();
+  const target = allUsers.find(
+    (u) =>
+      u.id === userIdOrEmail ||
+      u.email.toLowerCase() === userIdOrEmail.toLowerCase().trim()
+  );
+
+  if (actorRole === "owner_admin" && target?.role === "super_admin") {
+    return { success: false, error: "Access Denied: Cannot delete Super Administrator accounts." };
   }
 
   const success = deleteUserFromStore(userIdOrEmail);
   revalidatePath("/super");
   revalidatePath("/admin");
+  revalidatePath("/admin/staff");
   return { success };
 }
 
 export async function cleanDemoUsersAction() {
   const session = await getServerSession();
   if (!session || (session.role !== "super_admin" && session.originalRole !== "super_admin")) {
-    throw new Error("Unauthorized: Super Administrator privileges required.");
+    return { success: false, error: "Unauthorized: Super Administrator privileges required." };
   }
 
   const result = purgeAllTestRecordsFromStore();
@@ -161,7 +219,7 @@ export async function cleanDemoUsersAction() {
 export async function purgeAllTestRecordsAction() {
   const session = await getServerSession();
   if (!session || (session.role !== "super_admin" && session.originalRole !== "super_admin")) {
-    throw new Error("Unauthorized: Super Administrator privileges required.");
+    return { success: false, error: "Unauthorized: Super Administrator privileges required." };
   }
 
   const result = purgeAllTestRecordsFromStore();
@@ -171,26 +229,35 @@ export async function purgeAllTestRecordsAction() {
   return { success: true, ...result };
 }
 
-export async function impersonateUserAction(userIdOrEmail: string) {
+export async function impersonateUserAction(userIdOrEmail: string): Promise<{ success: boolean; redirectUrl?: string; error?: string }> {
   const session = await getServerSession();
   const actorRole = session?.originalRole || session?.role;
   if (
     !session ||
     (actorRole !== "super_admin" && actorRole !== "owner_admin")
   ) {
-    throw new Error("Unauthorized: Centre Director or Super Administrator privileges required to impersonate users.");
+    return {
+      success: false,
+      error: "Unauthorized: Centre Director or Super Administrator privileges required to impersonate users.",
+    };
   }
 
   const { findUserForImpersonation, recordImpersonationAuditLog } = await import("@/lib/persistedData");
   const target = findUserForImpersonation(userIdOrEmail);
 
   if (!target) {
-    throw new Error(`User or Learner '${userIdOrEmail}' not found.`);
+    return {
+      success: false,
+      error: `User or Learner '${userIdOrEmail}' not found.`,
+    };
   }
 
   // Security guard: Centre Director cannot impersonate Super Admin
   if (actorRole === "owner_admin" && target.role === "super_admin") {
-    throw new Error("Access Denied: College Admin cannot impersonate a Super Administrator.");
+    return {
+      success: false,
+      error: "Access Denied: College Admin cannot impersonate a Super Administrator.",
+    };
   }
 
   // Record audit log
