@@ -255,9 +255,7 @@ export const CourseHeader: React.FC<CourseHeaderProps> = ({ course }) => {
               (isTutoring ? "Continuous Progress Review" : "100% Portfolio Based")}
           </strong>
           <span className={`text-[11px] mt-0.5 block truncate ${isDark ? "text-white/70" : "text-ink-soft"}`}>
-            {course.assessment_model_text
-              ? course.assessment_model_text
-              : isTutoring
+            {isTutoring
               ? "Topic drills & past papers (No Portfolio)"
               : "Coursework & Tutor Review"}
           </span>
@@ -274,13 +272,11 @@ export const CourseHeader: React.FC<CourseHeaderProps> = ({ course }) => {
             Dedicated Support
           </span>
           <strong className={`text-xs sm:text-sm font-heading font-bold block leading-tight truncate ${isDark ? "text-white" : "text-navy-900"}`}>
-            {course.support_model_text ||
-              (isTutoring ? "Enhanced DBS-Checked Tutor" : "Named British Assessor")}
+            {(course.support_model_text ? course.support_model_text.replace(/British Assessor/gi, "Qualified Assessor") : null) ||
+              (isTutoring ? "Enhanced DBS-Checked Tutor" : "Named Qualified Assessor")}
           </strong>
           <span className={`text-[11px] mt-0.5 block truncate ${isDark ? "text-white/70" : "text-ink-soft"}`}>
-            {course.support_model_text
-              ? course.support_model_text
-              : isTutoring
+            {isTutoring
               ? "Personal 1-on-1 coaching & parent updates"
               : "1-to-1 tutorials & fast marking"}
           </span>

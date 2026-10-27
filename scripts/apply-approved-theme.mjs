@@ -54,7 +54,7 @@ for (const sec of sections) {
       "Spread fees over 12 months with 0% interest, or pay in full and save. Awarding body registration and certificate fees are always included.";
   } else if (sec.id === "sec-testimonials-07") {
     sec.bgColor = "paper";
-    sec.headline = "Taught & Mentored by Senior British Assessors";
+    sec.headline = "Taught & Mentored by Senior Qualified Assessors";
     sec.subheadline =
       "Our tutors are active CQC Registered Managers and Early Years inspectors dedicated to mentoring working adults with empathy, not bureaucracy.";
   } else if (sec.id === "sec-faqs-08") {

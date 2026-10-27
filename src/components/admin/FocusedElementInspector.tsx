@@ -262,7 +262,7 @@ export const getDefaultItemsForSection = (type: string): BuilderSectionItem[] =>
         descColor: "white",
       },
       {
-        title: "Dedicated British 1-to-1 Assessor",
+        title: "Dedicated Qualified 1-to-1 Assessor",
         desc: "Direct mentor guidance, unlimited draft feedback, and live tutor workshops.",
         icon: "check",
         titleColor: "white",
@@ -281,7 +281,7 @@ export const getDefaultItemsForSection = (type: string): BuilderSectionItem[] =>
       },
       {
         title: "Live Assessor Guidance & Feedback",
-        desc: "Direct contact with qualified British subject assessors for continuous draft portfolio appraisals.",
+        desc: "Direct contact with senior qualified subject assessors for continuous draft portfolio appraisals.",
         icon: "users",
         tag: "Mentorship",
         cardBg: "white",

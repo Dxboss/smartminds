@@ -540,7 +540,11 @@ export function CoursesManagerView({
     setEditFreeTextbook(course.free_textbook !== undefined ? course.free_textbook : true);
     setEditIntakeText(course.intake_text || "Rolling Admissions");
     setEditAssessmentModelText(course.assessment_model_text || "100% Portfolio Based");
-    setEditSupportModelText(course.support_model_text || "Named British Assessor");
+    setEditSupportModelText(
+      course.support_model_text
+        ? course.support_model_text.replace(/British Assessor/gi, "Qualified Assessor")
+        : "Named Qualified Assessor"
+    );
     setExpandedUnitIdx(null);
 
     // Course Page Styling & Theme
@@ -980,7 +984,7 @@ export function CoursesManagerView({
     ];
     let calculatedIntake = "Rolling Admissions";
     let calculatedAssessmentModel = "100% Portfolio Based";
-    let calculatedSupportModel = "Named British Assessor";
+    let calculatedSupportModel = "Named Qualified Assessor";
     let calculatedEntryReqs = [
       "Minimum 16 years of age",
       "Proficiency in spoken and written English",
@@ -3288,7 +3292,7 @@ export function CoursesManagerView({
                           type="text"
                           value={editSupportModelText}
                           onChange={(e) => setEditSupportModelText(e.target.value)}
-                          placeholder="e.g. Named British Assessor"
+                          placeholder="e.g. Named Qualified Assessor"
                           className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900"
                         />
                       </div>

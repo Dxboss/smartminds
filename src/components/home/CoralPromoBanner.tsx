@@ -74,7 +74,7 @@ const DEFAULT_PROMO_BULLETS = [
     desc: "Divide tuition into 3 to 12 interest-free monthly instalments.",
   },
   {
-    title: "Dedicated British 1-to-1 Assessor",
+    title: "Dedicated Qualified 1-to-1 Assessor",
     desc: "Direct mentor guidance, unlimited draft feedback, and live tutor workshops.",
   },
 ];

@@ -1531,7 +1531,7 @@ export const defaultPageBuilderSections: BuilderSection[] = [
     enabled: true,
     bgColor: "paper",
     badgeText: "Learner Experiences",
-    headline: "Taught & Mentored by Senior British Assessors",
+    headline: "Taught & Mentored by Senior Qualified Assessors",
     subheadline:
       "Our tutors are active CQC Registered Managers and Early Years inspectors dedicated to mentoring working adults with empathy, not bureaucracy.",
     videoTag: "Spotlight Video",
