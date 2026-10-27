@@ -418,18 +418,19 @@ export const CoursePricingPanel: React.FC<CoursePricingPanelProps> = ({
             href={enrolHref}
             className="w-full inline-flex items-center justify-center min-h-[46px] px-5 rounded-xl bg-gold-500 hover:bg-gold-700 text-white font-heading font-extrabold text-base tracking-wide transition-all text-center shadow-subtle hover:shadow-card"
           >
-            Enrol &amp; Secure Your Place &rarr;
+            {isTutoring ? "Register & Secure Tutoring Place \u2192" : "Enrol & Secure Your Place \u2192"}
           </Link>
 
           <BookingCTAButton variant="outline" size="md" className="w-full">
-            Talk to an adviser
+            {isTutoring ? "Book Free 15-Min Diagnostic Call" : "Talk to an adviser"}
           </BookingCTAButton>
 
           <p className="text-center text-[11px] text-ink-soft">
-            Online enrolment is open. Secure your place now
-            {discountPercent > 0
-              ? ` with ${discountPercent}% upfront savings or 0% interest instalments.`
-              : " with flexible 0% interest instalments."}
+            {isTutoring
+              ? "Comprehensive diagnostic gap review included. After-school & Saturday lessons available."
+              : discountPercent > 0
+              ? `Online enrolment is open. Secure your place now with ${discountPercent}% upfront savings or 0% interest instalments.`
+              : "Online enrolment is open. Secure your place now with flexible 0% interest instalments."}
           </p>
         </div>
       </div>

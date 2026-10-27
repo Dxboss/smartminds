@@ -24,9 +24,16 @@ export default async function AdminLearnersPage() {
 
   const learnerRepo = getLearnerRepo();
   const enrolmentRepo = getEnrolmentRepo();
+  const { getCourseRepo } = await import("@/lib/repositories");
+  const courseRepo = getCourseRepo();
 
-  const learners = await learnerRepo.listLearners(session);
-  const enrolments = await enrolmentRepo.listEnrolments(session);
+  const [learners, enrolments, allCourses] = await Promise.all([
+    learnerRepo.listLearners(session),
+    enrolmentRepo.listEnrolments(session),
+    courseRepo.listCourses(),
+  ]);
+
+  const availableCourses = (allCourses || []).filter((c) => c && c.published !== false);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
@@ -43,6 +50,8 @@ export default async function AdminLearnersPage() {
         initialLearners={learners}
         initialEnrolments={enrolments}
         classes={seedClasses}
+        availableCourses={availableCourses}
+        userRole={session.role}
       />
     </div>
   );

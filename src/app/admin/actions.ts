@@ -17,7 +17,12 @@ import {
 } from "@/lib/repositories/seedData";
 import { siteConfig } from "@/content/siteConfig";
 import { getTaskRepo } from "@/lib/repositories";
-import { EnquiryStage, CohortScheduleConfig } from "@/lib/repositories/types";
+import {
+  EnquiryStage,
+  CohortScheduleConfig,
+  Learner,
+  Enrolment,
+} from "@/lib/repositories/types";
 import { revalidatePath } from "next/cache";
 import { sendEmail } from "@/lib/email";
 import { buildBookingReminderEmail } from "@/lib/emailTemplates";
@@ -2416,5 +2421,204 @@ export async function deleteColorSwatchAction(swatchId: string): Promise<{ succe
   } catch (err: any) {
     return { success: false, error: err.message || "Failed to delete swatch" };
   }
+}
+
+export async function adminEnrolNewStudentAction(data: {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  dateOfBirth?: string;
+  addressLine1?: string;
+  postcode?: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+  courseId: string;
+  courseTitle: string;
+  levelLabel: string;
+  classId: string;
+  className: string;
+  tutorName: string;
+  sessionTiming: "evening" | "afternoon" | "self_paced";
+  fundingType: "self_pay" | "funded" | "sponsored";
+  paymentPlanType: "full" | "instalments";
+  totalPrice: number;
+  depositAmount: number;
+  monthlyAmount?: number;
+  months?: number;
+  paymentMethod?: "bacs" | "card" | "employer" | "funded";
+  paymentStatus?: "paid" | "pending";
+}) {
+  const session = await getServerSession();
+  assertAdminAuthorized(session);
+
+  if (!data.firstName.trim() || !data.lastName.trim()) {
+    throw new Error("Student first and last name are required.");
+  }
+  if (!data.email.trim() || !data.email.includes("@")) {
+    throw new Error("A valid student email address is required.");
+  }
+  if (!data.courseId) {
+    throw new Error("Please select an enrolled qualification or course.");
+  }
+
+  const cleanEmail = data.email.trim().toLowerCase();
+  const learnerId = `lrn-${Date.now().toString(36)}-${randomBytes(3).toString("hex")}`;
+  const userId = `user-${learnerId}`;
+  const enrolmentId = `enr-${Date.now().toString(36)}-${randomBytes(3).toString("hex")}`;
+  const tempPassword = `SM-${randomBytes(3).toString("hex").toUpperCase()}!26`;
+
+  const newLearner: Learner = {
+    id: learnerId,
+    userId,
+    firstName: data.firstName.trim(),
+    lastName: data.lastName.trim(),
+    email: cleanEmail,
+    phone: data.phone.trim(),
+    dateOfBirth: data.dateOfBirth?.trim(),
+    address: data.addressLine1 ? `${data.addressLine1.trim()}, ${data.postcode?.trim() || ""}` : undefined,
+    postcode: data.postcode?.trim(),
+    emergencyContact: data.emergencyContactName
+      ? `${data.emergencyContactName.trim()} (${data.emergencyContactPhone?.trim() || ""})`
+      : undefined,
+    accessStatus: "active",
+    enrolmentDate: new Date().toISOString(),
+    lastActive: new Date().toISOString(),
+    progressPercent: 0,
+  };
+
+  const newEnrolment: Enrolment = {
+    id: enrolmentId,
+    learnerId,
+    courseId: data.courseId,
+    courseSlug: data.courseId.replace(/^course-/, ""),
+    courseTitle: data.courseTitle,
+    courseLevelLabel: data.levelLabel || "Accredited Qualification",
+    classId: data.classId,
+    tutorName: data.tutorName,
+    sessionTiming:
+      data.sessionTiming === "evening" || data.sessionTiming === "afternoon"
+        ? data.sessionTiming
+        : undefined,
+    preferredTimeSlot: data.sessionTiming,
+    status: "active",
+    fundingType: data.fundingType === "funded" ? "funded" : "self_pay",
+    enrolledAt: new Date().toISOString(),
+    assessmentMethod: "criteria",
+    completedUnits: [],
+  };
+
+  // Payment Schedules
+  const paymentSchedules: any[] = [];
+  const now = new Date();
+
+  if (data.paymentPlanType === "instalments" && data.months && data.months > 1) {
+    paymentSchedules.push({
+      id: `sched-dep-${enrolmentId}`,
+      enrolmentId,
+      learnerId,
+      amount: data.depositAmount,
+      dueDate: now.toISOString().slice(0, 10),
+      status: data.paymentStatus === "paid" ? "paid" : "pending",
+      paidAt: data.paymentStatus === "paid" ? now.toISOString() : undefined,
+      receiptRef: `RCP-${Date.now().toString(36).toUpperCase()}`,
+      method: data.paymentMethod || "card",
+      type: "deposit",
+      description: "Initial Enrolment Deposit",
+    });
+
+    const monthly = data.monthlyAmount || Math.round((data.totalPrice - data.depositAmount) / data.months);
+    for (let i = 1; i <= data.months; i++) {
+      const dueDate = new Date(now.getTime() + i * 30 * 24 * 60 * 60 * 1000);
+      paymentSchedules.push({
+        id: `sched-inst-${i}-${enrolmentId}`,
+        enrolmentId,
+        learnerId,
+        amount: monthly,
+        dueDate: dueDate.toISOString().slice(0, 10),
+        status: "pending",
+        type: "instalment",
+        description: `Instalment ${i} of ${data.months}`,
+      });
+    }
+  } else {
+    paymentSchedules.push({
+      id: `sched-full-${enrolmentId}`,
+      enrolmentId,
+      learnerId,
+      amount: data.totalPrice,
+      dueDate: now.toISOString().slice(0, 10),
+      status: data.paymentStatus === "paid" ? "paid" : "pending",
+      paidAt: data.paymentStatus === "paid" ? now.toISOString() : undefined,
+      receiptRef: `RCP-${Date.now().toString(36).toUpperCase()}`,
+      method: data.paymentMethod || "bacs",
+      type: "full",
+      description: "Full Tuition Fee Upfront",
+    });
+  }
+
+  // Persist student records
+  const { savePersistedRecord } = await import("@/lib/persistedData");
+  savePersistedRecord({
+    learner: newLearner,
+    enrolment: newEnrolment,
+    paymentSchedules,
+    tempPassword,
+    mustChangePassword: true,
+  });
+
+  // Dispatch Welcome & Induction Email
+  try {
+    const { buildStudentWelcomeEmail } = await import("@/lib/emailTemplates");
+    const { sendEmail } = await import("@/lib/email");
+    const emailPayload = buildStudentWelcomeEmail({
+      studentName: `${data.firstName.trim()} ${data.lastName.trim()}`,
+      studentId: learnerId,
+      courseTitle: data.courseTitle,
+      levelName: data.levelLabel,
+      amountCharged: data.depositAmount || data.totalPrice,
+      receiptRef: `RCP-${Date.now().toString(36).toUpperCase()}`,
+      paymentPlanLabel:
+        data.fundingType === "funded"
+          ? "Government / AEB Funded Placement (No Student Fees)"
+          : data.paymentPlanType === "instalments"
+          ? `${data.months}-Month 0% Interest Spread Plan (£${data.monthlyAmount || 0}/mo)`
+          : "Full Upfront Payment",
+      portalUrl: `${process.env.NEXT_PUBLIC_BASE_URL || "https://smartmindstraining.co.uk"}/login`,
+      loginEmail: cleanEmail,
+      tempPassword,
+      preferredTiming: data.sessionTiming,
+      cohortTime:
+        data.sessionTiming === "evening"
+          ? "18:30 – 20:30 (Live Online / Centre)"
+          : data.sessionTiming === "afternoon"
+          ? "14:00 – 16:00 (Live Online / Centre)"
+          : "Flexible 1-on-1 / Self-Paced",
+    });
+
+    await sendEmail({
+      to: cleanEmail,
+      recipientName: `${data.firstName.trim()} ${data.lastName.trim()}`,
+      department: "admissions",
+      subject: emailPayload.subject,
+      text: emailPayload.text,
+      html: emailPayload.html,
+      templateKey: "student_welcome",
+      triggerEvent: `Admin Enrolment (${data.courseTitle})`,
+    });
+  } catch (err) {
+    console.warn("[adminEnrolNewStudentAction] Warning: welcome email send failed:", err);
+  }
+
+  revalidatePath("/admin/learners");
+  revalidatePath("/admin/payments");
+  revalidatePath("/student");
+
+  return {
+    success: true,
+    learner: newLearner,
+    enrolment: newEnrolment,
+    tempPassword,
+  };
 }
 

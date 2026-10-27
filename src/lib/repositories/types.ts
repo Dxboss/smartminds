@@ -51,6 +51,12 @@ export interface Learner {
   parentSignature?: string;
   childConcerns?: string;
   emergencyPhone?: string;
+  dateOfBirth?: string;
+  address?: string;
+  postcode?: string;
+  emergencyContact?: string;
+  lastActive?: string;
+  progressPercent?: number;
 }
 
 export interface ClassCohort {

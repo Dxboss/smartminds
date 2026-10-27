@@ -23,6 +23,8 @@ import {
 import {
   savePersistedCohort,
   savePersistedClassSession,
+  saveLearningMaterial,
+  deleteLearningMaterial,
 } from "@/lib/persistedData";
 import { createZoomMeetingForClass, isZoomConfigured } from "@/lib/zoom";
 import { getCloudflareStreamAdminDownloadUrl } from "@/lib/cloudflareStream";
@@ -517,4 +519,72 @@ export async function getRecordingAdminDownloadUrlAction(sessionId: string) {
     downloadUrl: s.recordingUrl || null,
   };
 }
+
+export async function saveMaterialAction(data: {
+  id?: string;
+  title: string;
+  description: string;
+  fileName: string;
+  fileUrl: string;
+  fileType: "pdf" | "ppt" | "docx" | "link";
+  fileSizeBytes?: number;
+  cohortId?: string;
+  cohortName?: string;
+  unitCode?: string;
+  published?: boolean;
+}) {
+  const session = await getServerSession();
+  if (
+    !session ||
+    (session.role !== "tutor" &&
+      session.role !== "owner_admin" &&
+      session.role !== "super_admin")
+  ) {
+    throw new Error("Unauthorized: Tutor access required to manage materials.");
+  }
+
+  const tutorId = session.tutorId || session.id || "user-tutor-eleanor";
+  const tutorName = session.name || "Dr. Eleanor Vance";
+
+  let cohortName = data.cohortName;
+  if (data.cohortId && !cohortName) {
+    const cls = seedClasses.find((c) => c.id === data.cohortId);
+    cohortName = cls ? cls.name : "Assigned Cohort";
+  }
+
+  const saved = await saveLearningMaterial({
+    ...data,
+    cohortName,
+    tutorId,
+    tutorName,
+    published: data.published ?? true,
+  });
+
+  revalidatePath("/staff/materials");
+  revalidatePath("/student/materials");
+  revalidatePath("/student");
+
+  return { success: true, material: saved };
+}
+
+export async function deleteMaterialAction(materialId: string) {
+  const session = await getServerSession();
+  if (
+    !session ||
+    (session.role !== "tutor" &&
+      session.role !== "owner_admin" &&
+      session.role !== "super_admin")
+  ) {
+    throw new Error("Unauthorized: Tutor access required to delete materials.");
+  }
+
+  const deleted = await deleteLearningMaterial(materialId);
+
+  revalidatePath("/staff/materials");
+  revalidatePath("/student/materials");
+  revalidatePath("/student");
+
+  return { success: deleted };
+}
+
 

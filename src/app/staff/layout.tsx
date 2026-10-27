@@ -31,6 +31,7 @@ export const metadata: Metadata = {
 
 const TUTOR_NAV = [
   { href: "/staff", label: "My classes", icon: "calendar" as const },
+  { href: "/staff/materials", label: "Learning materials", icon: "book-open" as const },
   { href: "/staff/assignments", label: "Assignments & marking", icon: "file-text" as const },
   { href: "/staff/recordings", label: "Recordings", icon: "video" as const },
   { href: "/staff/tasks", label: "My tasks", icon: "check-circle" as const },

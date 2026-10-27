@@ -45,7 +45,7 @@ export function CoursesManagerView({
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [editTab, setEditTab] = useState<
-    "general" | "pricing" | "curriculum" | "outcomes" | "specs" | "style" | "faqs"
+    "general" | "pricing" | "curriculum" | "outcomes" | "specs" | "style" | "faqs" | "sections"
   >("general");
   const [selectedLevelIdx, setSelectedLevelIdx] = useState(0);
   const [editLevels, setEditLevels] = useState<CourseLevel[]>([]);
@@ -58,6 +58,14 @@ export function CoursesManagerView({
   const [editBannerBgColor, setEditBannerBgColor] = useState("");
   const [editBannerTextColor, setEditBannerTextColor] = useState("");
   const [editAccentColor, setEditAccentColor] = useState("");
+
+  // Section Visibility & Page Customization Toggles
+  const [editShowGlh, setEditShowGlh] = useState<boolean>(true);
+  const [editShowWorkplaceAssessment, setEditShowWorkplaceAssessment] = useState<boolean>(true);
+  const [editShowCareerProgression, setEditShowCareerProgression] = useState<boolean>(true);
+  const [editShowVideoShowcase, setEditShowVideoShowcase] = useState<boolean>(true);
+  const [editShowDbsGuarantee, setEditShowDbsGuarantee] = useState<boolean>(false);
+  const [editShowExamBoards, setEditShowExamBoards] = useState<boolean>(false);
 
   // Wix-style Media Library State
   const [mediaLibrary, setMediaLibrary] = useState<{ label: string; url: string }[]>([
@@ -281,12 +289,7 @@ export function CoursesManagerView({
 
   const categories = [
     "all",
-    ...Array.from(
-      new Set([
-        ...faculties.map((f) => f.name),
-        ...courses.map((c) => c.category).filter(Boolean),
-      ])
-    ),
+    ...faculties.map((f) => f.name),
   ];
 
   const handleStartEditFaculty = (faculty: FacultyRecord) => {
@@ -552,6 +555,34 @@ export function CoursesManagerView({
         return [{ label: `Course Photo: ${course.title.slice(0, 24)}`, url: course.image }, ...prev];
       });
     }
+
+    // Section Visibility Toggles
+    setEditShowGlh(course.show_glh !== undefined ? course.show_glh : !course.is_private_tutoring);
+    setEditShowWorkplaceAssessment(
+      course.show_workplace_assessment !== undefined
+        ? course.show_workplace_assessment
+        : !course.is_private_tutoring
+    );
+    setEditShowCareerProgression(
+      course.show_career_progression !== undefined
+        ? course.show_career_progression
+        : !course.is_private_tutoring
+    );
+    setEditShowVideoShowcase(
+      course.show_video_showcase !== undefined
+        ? course.show_video_showcase
+        : !course.is_private_tutoring
+    );
+    setEditShowDbsGuarantee(
+      course.show_dbs_guarantee !== undefined
+        ? course.show_dbs_guarantee
+        : Boolean(course.is_private_tutoring)
+    );
+    setEditShowExamBoards(
+      course.show_exam_boards !== undefined
+        ? course.show_exam_boards
+        : Boolean(course.is_private_tutoring)
+    );
 
     setEditTab("general");
     setModalError("");
@@ -835,6 +866,12 @@ export function CoursesManagerView({
           banner_bg_color: editBannerBgColor.trim() || undefined,
           banner_text_color: editBannerTextColor.trim() || undefined,
           accent_color: editAccentColor.trim() || undefined,
+          show_glh: editShowGlh,
+          show_workplace_assessment: editShowWorkplaceAssessment,
+          show_career_progression: editShowCareerProgression,
+          show_video_showcase: editShowVideoShowcase,
+          show_dbs_guarantee: editShowDbsGuarantee,
+          show_exam_boards: editShowExamBoards,
         };
 
         let savedCourse: any = null;
@@ -1726,6 +1763,19 @@ export function CoursesManagerView({
               >
                 <Icon name="sparkles" size={14} />
                 <span>Page Styling & Theme</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setEditTab("sections")}
+                className={`px-3 py-1.5 rounded-sm transition-colors flex items-center gap-1.5 ${
+                  editTab === "sections"
+                    ? "bg-navy-900 text-white"
+                    : "text-ink-soft hover:bg-paper hover:text-navy-900"
+                }`}
+              >
+                <Icon name="check" size={14} />
+                <span>Section Toggles</span>
               </button>
             </div>
 
@@ -3635,6 +3685,130 @@ export function CoursesManagerView({
                       </div>
                     );
                   })()}
+                </div>
+              )}
+
+              {/* TAB 8: SECTION VISIBILITY TOGGLES */}
+              {editTab === "sections" && (
+                <div className="space-y-4">
+                  <div className="p-3.5 bg-paper rounded-sm border border-line">
+                    <strong className="text-xs font-bold text-navy-900 block mb-1">
+                      Prospectus Page Section Visibility
+                    </strong>
+                    <p className="text-[11px] text-ink-soft leading-relaxed">
+                      Control which sections and informational blocks appear on the public qualification prospectus. Ideal for tailoring academic tutoring pages for children and hiding adult NVQ workplace requirements.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3">
+                    {/* 1. Guided Learning Hours (GLH) vs Session Duration */}
+                    <div className="p-3.5 bg-white rounded-sm border border-line flex items-start justify-between gap-4">
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-navy-900 block">
+                          Show Guided Learning Hours (GLH)
+                        </label>
+                        <p className="text-[11px] text-ink-soft leading-relaxed">
+                          Displays Ofqual GLH metrics (e.g. 320 GLH). Disable for 1-on-1 tutoring or kids classes to display lesson duration (e.g. 60-min sessions) instead.
+                        </p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={editShowGlh}
+                        onChange={(e) => setEditShowGlh(e.target.checked)}
+                        className="w-4 h-4 text-navy-900 border-line rounded mt-0.5 accent-navy-900 cursor-pointer"
+                      />
+                    </div>
+
+                    {/* 2. Workplace Assessment & Evidence */}
+                    <div className="p-3.5 bg-white rounded-sm border border-line flex items-start justify-between gap-4">
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-navy-900 block">
+                          Show Workplace Assessment &amp; Observation
+                        </label>
+                        <p className="text-[11px] text-ink-soft leading-relaxed">
+                          Displays vocational care placement/employer observation instructions. Disable for kids tutoring or non-vocational courses to display diagnostic reviews and coursework milestones instead.
+                        </p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={editShowWorkplaceAssessment}
+                        onChange={(e) => setEditShowWorkplaceAssessment(e.target.checked)}
+                        className="w-4 h-4 text-navy-900 border-line rounded mt-0.5 accent-navy-900 cursor-pointer"
+                      />
+                    </div>
+
+                    {/* 3. Career Outcomes & Job Prospects */}
+                    <div className="p-3.5 bg-white rounded-sm border border-line flex items-start justify-between gap-4">
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-navy-900 block">
+                          Show Adult Career Prospects &amp; Job Outcomes
+                        </label>
+                        <p className="text-[11px] text-ink-soft leading-relaxed">
+                          Displays career progression (e.g. Care Agency Founder, Senior Carer). Disable for children&apos;s academic tutoring.
+                        </p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={editShowCareerProgression}
+                        onChange={(e) => setEditShowCareerProgression(e.target.checked)}
+                        className="w-4 h-4 text-navy-900 border-line rounded mt-0.5 accent-navy-900 cursor-pointer"
+                      />
+                    </div>
+
+                    {/* 4. Video & Interactive Campus Tour Showcase */}
+                    <div className="p-3.5 bg-white rounded-sm border border-line flex items-start justify-between gap-4">
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-navy-900 block">
+                          Show Interactive Tour &amp; Media Showcase
+                        </label>
+                        <p className="text-[11px] text-ink-soft leading-relaxed">
+                          Displays the photographic tour and delivery walkthrough tab bar.
+                        </p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={editShowVideoShowcase}
+                        onChange={(e) => setEditShowVideoShowcase(e.target.checked)}
+                        className="w-4 h-4 text-navy-900 border-line rounded mt-0.5 accent-navy-900 cursor-pointer"
+                      />
+                    </div>
+
+                    {/* 5. Enhanced DBS Certified Teacher & Child Safeguarding */}
+                    <div className="p-3.5 bg-white rounded-sm border border-line flex items-start justify-between gap-4">
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-navy-900 block">
+                          Show Enhanced DBS &amp; Child Safeguarding Assurance
+                        </label>
+                        <p className="text-[11px] text-ink-soft leading-relaxed">
+                          Highlights Enhanced DBS verification, certified UK teachers, safe centre facilities, and child protection compliance.
+                        </p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={editShowDbsGuarantee}
+                        onChange={(e) => setEditShowDbsGuarantee(e.target.checked)}
+                        className="w-4 h-4 text-navy-900 border-line rounded mt-0.5 accent-navy-900 cursor-pointer"
+                      />
+                    </div>
+
+                    {/* 6. UK National Curriculum & Exam Boards */}
+                    <div className="p-3.5 bg-white rounded-sm border border-line flex items-start justify-between gap-4">
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-navy-900 block">
+                          Show Exam Boards &amp; National Curriculum Card (AQA, Edexcel, OCR, 11+)
+                        </label>
+                        <p className="text-[11px] text-ink-soft leading-relaxed">
+                          Displays the official exam board alignment matrix for Primary, KS3, GCSE, and 11+ Grammar preparation.
+                        </p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={editShowExamBoards}
+                        onChange={(e) => setEditShowExamBoards(e.target.checked)}
+                        className="w-4 h-4 text-navy-900 border-line rounded mt-0.5 accent-navy-900 cursor-pointer"
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

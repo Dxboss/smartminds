@@ -314,7 +314,7 @@ export const courses: Course[] = [
       "Fully recognised Early Years Educator & Senior Practitioner qualification conferring full licence-to-practise status in nurseries and pre-schools.",
     description:
       "Develop deep expertise in child development from birth to 5 years, early years curriculum planning, safeguarding, and partnership working with parents. Combines live theoretical instruction with workplace observational practice.",
-    category: "Childcare & Education",
+    category: "Childcare & Early Years",
     type: "regulated",
     delivery: "blended",
     start_mode: "rolling",
@@ -626,7 +626,7 @@ export const courses: Course[] = [
       "Premier teaching qualifications for individuals wanting to teach or train in further education, colleges, and private training centres.",
     description:
       "Equips aspiring and practicing educators with pedagogical methods, session planning, assessment techniques, and observed practical micro-teaching sessions. Choose between Level 3 AET or Level 4 CET with practical classroom observations in our regional training centres.",
-    category: "Education & Teaching",
+    category: "Education & Training",
     type: "regulated",
     delivery: "blended",
     attendance_type: "blended_practical",
@@ -749,7 +749,7 @@ export const courses: Course[] = [
       "Become a qualified NVQ/vocational assessor. Assess occupational competence in workplaces, colleges, and training centres.",
     description:
       "Formally known as A1 or TAQA Assessor qualification. Enables you to assess learners in their place of work and in training environments across your area of expertise. Enjoy high flexibility to assess on your own schedule or build a tutorial business.",
-    category: "Education & Teaching",
+    category: "Education & Training",
     type: "regulated",
     delivery: "blended",
     start_mode: "rolling",
@@ -828,7 +828,7 @@ export const courses: Course[] = [
       "Master modern office management, digital administration, stakeholder communication, and organisational workflows.",
     description:
       "Designed for administrative officers, executive assistants, and team coordinators seeking recognised qualifications to step into management. Develop practical skills in project coordination, information management, and commercial operations with live tutor classes.",
-    category: "Business & Management",
+    category: "Business & Office Administration",
     type: "regulated",
     delivery: "live_online",
     start_mode: "rolling",
@@ -1145,7 +1145,7 @@ export const courses: Course[] = [
       "Comprehensive compliance training covering safe handling, administration protocols, MAR charts, and errors avoidance.",
     description:
       "Taught by experienced healthcare trainers, this certified CPD programme covers the 6 rights of medication administration, storage regulations, controlled drugs protocols, and standard documentation procedures.",
-    category: "Continuing Professional Development",
+    category: "Department of CPD & Compliance",
     type: "cpd",
     delivery: "live_online",
     start_mode: "rolling",
@@ -1231,7 +1231,7 @@ export const courses: Course[] = [
       "Master all 15 National Care Certificate standards through live interactive classes. Ideal for beginners or career changers.",
     description:
       "This training introduces you to the care sector with the fundamental knowledge required to work confidently and safely. Covers safeguarding, moving & handling, infection control, person-centred care, mental capacity, and health & safety basics.",
-    category: "Continuing Professional Development",
+    category: "Department of CPD & Compliance",
     type: "cpd",
     delivery: "live_online",
     start_mode: "rolling",
@@ -1316,7 +1316,7 @@ export const courses: Course[] = [
       "Ofqual-regulated IT qualification accredited by TQUK. Build workplace computer, email, cloud and productivity skills.",
     description:
       "Ofqual regulated course with 130 Ofqual Total Learning Time accredited by TQUK (Reference 601/7963/6). Covers digital communication, document management, office productivity software, internet safety, and cybersecurity basics. Available online or blended.",
-    category: "Business & Management",
+    category: "Business & Office Administration",
     type: "regulated",
     delivery: "blended",
     start_mode: "rolling",
@@ -1403,7 +1403,7 @@ export const courses: Course[] = [
       "Master computer essentials, Microsoft Word, Excel spreadsheets, email etiquette, and cloud storage for modern workplaces.",
     description:
       "A practical, hands-on CPD-certified course developed for administrative staff, healthcare workers, and career returners. Learn essential computer navigation, document authoring, professional email communication, spreadsheet data recording, cloud file management, and workplace cybersecurity through interactive live sessions.",
-    category: "Continuing Professional Development",
+    category: "Department of CPD & Compliance",
     type: "cpd",
     delivery: "live_online",
     start_mode: "rolling",
@@ -1497,7 +1497,7 @@ export const courses: Course[] = [
       "Practical career readiness training covering bespoke CV design, competency interview techniques, and professional workplace standards.",
     description:
       "Designed for individuals preparing to enter, re-enter, or transition careers. This CPD-accredited course equips you with tailored CV writing skills, job search strategies, competency-based interview answering, communication techniques, and core UK workplace expectations.",
-    category: "Continuing Professional Development",
+    category: "Department of CPD & Compliance",
     type: "cpd",
     delivery: "live_online",
     start_mode: "rolling",
@@ -1595,6 +1595,13 @@ export const courses: Course[] = [
     delivery: "blended",
     attendance_type: "physical_venue",
     is_private_tutoring: true,
+    target_audience: "minor_tutoring",
+    show_glh: false,
+    show_workplace_assessment: false,
+    show_career_progression: false,
+    show_video_showcase: false,
+    show_dbs_guarantee: true,
+    show_exam_boards: true,
     custom_delivery_text: "Face-to-Face at Centre & Online",
     training_locations: [
       "Gloucester College Centre (Face-to-Face)",

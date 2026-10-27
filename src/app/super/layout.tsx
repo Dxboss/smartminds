@@ -96,7 +96,7 @@ export default async function SuperLayout({
         </div>
       </header>
 
-      <main className="flex-1 py-8">{children}</main>
+      <div className="flex-1 py-8">{children}</div>
     </div>
   );
 }

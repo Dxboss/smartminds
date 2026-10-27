@@ -32,6 +32,10 @@ export default async function AdminStaffPage() {
     taskRepo.listTasks(session),
   ]);
 
+  const { getPersistedFaculties, listImpersonationAuditLogs } = await import("@/lib/persistedData");
+  const faculties = getPersistedFaculties();
+  const impersonationLogs = listImpersonationAuditLogs();
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
       <div>
@@ -49,6 +53,8 @@ export default async function AdminStaffPage() {
         bookings={bookings}
         tasks={tasks}
         userRole={session.role}
+        faculties={faculties}
+        initialImpersonationLogs={impersonationLogs}
       />
     </div>
   );

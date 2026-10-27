@@ -173,20 +173,38 @@ export async function purgeAllTestRecordsAction() {
 
 export async function impersonateUserAction(userIdOrEmail: string) {
   const session = await getServerSession();
-  if (!session || (session.role !== "super_admin" && session.originalRole !== "super_admin")) {
-    throw new Error("Unauthorized: Super Administrator privileges required to impersonate users.");
+  const actorRole = session?.originalRole || session?.role;
+  if (
+    !session ||
+    (actorRole !== "super_admin" && actorRole !== "owner_admin")
+  ) {
+    throw new Error("Unauthorized: Centre Director or Super Administrator privileges required to impersonate users.");
   }
 
-  const allUsers = listAllPlatformUsers();
-  const target = allUsers.find(
-    (u) =>
-      u.id === userIdOrEmail ||
-      u.email.toLowerCase() === userIdOrEmail.toLowerCase().trim()
-  );
+  const { findUserForImpersonation, recordImpersonationAuditLog } = await import("@/lib/persistedData");
+  const target = findUserForImpersonation(userIdOrEmail);
 
   if (!target) {
-    throw new Error(`User '${userIdOrEmail}' not found.`);
+    throw new Error(`User or Learner '${userIdOrEmail}' not found.`);
   }
+
+  // Security guard: Centre Director cannot impersonate Super Admin
+  if (actorRole === "owner_admin" && target.role === "super_admin") {
+    throw new Error("Access Denied: College Admin cannot impersonate a Super Administrator.");
+  }
+
+  // Record audit log
+  await recordImpersonationAuditLog({
+    id: `imp-${Date.now()}-${randomBytes(4).toString("hex")}`,
+    actorEmail: session.impersonatorEmail || session.email,
+    actorRole,
+    targetUserId: target.id,
+    targetEmail: target.email,
+    targetName: target.name,
+    targetRole: target.role,
+    action: "impersonation_started",
+    timestamp: new Date().toISOString(),
+  });
 
   // Set session cookie as target user with impersonation metadata
   await setSessionCookie({
@@ -197,7 +215,7 @@ export async function impersonateUserAction(userIdOrEmail: string) {
     learnerId: target.learnerId,
     isImpersonating: true,
     impersonatorEmail: session.impersonatorEmail || session.email,
-    originalRole: "super_admin",
+    originalRole: actorRole,
   });
 
   let redirectUrl = "/admin";
@@ -215,10 +233,33 @@ export async function stopImpersonationAction() {
     return { success: true, redirectUrl: "/login" };
   }
 
-  // Restore primary superadmin account for George Digitals
-  await setSessionCookie(DEMO_USERS.super_admin);
-  revalidatePath("/super");
-  return { success: true, redirectUrl: "/super" };
+  const actorRole = session.originalRole || "owner_admin";
+
+  // Record audit log
+  try {
+    const { recordImpersonationAuditLog } = await import("@/lib/persistedData");
+    await recordImpersonationAuditLog({
+      id: `imp-end-${Date.now()}-${randomBytes(4).toString("hex")}`,
+      actorEmail: session.impersonatorEmail || session.email,
+      actorRole,
+      targetUserId: session.id,
+      targetEmail: session.email,
+      targetName: session.name,
+      targetRole: session.role,
+      action: "impersonation_ended",
+      timestamp: new Date().toISOString(),
+    });
+  } catch {}
+
+  if (actorRole === "super_admin") {
+    await setSessionCookie(DEMO_USERS.super_admin);
+    revalidatePath("/super");
+    return { success: true, redirectUrl: "/super" };
+  } else {
+    await setSessionCookie(DEMO_USERS.owner_admin);
+    revalidatePath("/admin");
+    return { success: true, redirectUrl: "/admin" };
+  }
 }
 
 export async function getPlatformBackupJsonAction() {

@@ -21,18 +21,18 @@ export default function PrivacyPage() {
 
   if (sections && sections.length > 0) {
     return (
-      <main className="bg-paper min-h-screen">
+      <div className="bg-paper min-h-screen">
         {sections
           .filter((sec) => sec.enabled)
           .map((sec) => (
             <SectionRenderer key={sec.id} section={sec} />
           ))}
-      </main>
+      </div>
     );
   }
 
   return (
-    <main className="bg-paper min-h-screen py-10 md:py-16">
+    <div className="bg-paper min-h-screen py-10 md:py-16">
       <Container>
         <div className="max-w-3xl mx-auto">
           <Eyebrow tone="navy" className="mb-2">
@@ -157,6 +157,6 @@ export default function PrivacyPage() {
           </div>
         </div>
       </Container>
-    </main>
+    </div>
   );
 }

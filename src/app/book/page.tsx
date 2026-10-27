@@ -24,13 +24,13 @@ export default function BookPage() {
   const customSections = getPublishedCmsPageSections("/book");
   if (customSections && customSections.length > 0) {
     return (
-      <main className="bg-paper text-ink min-h-screen">
+      <div className="bg-paper text-ink min-h-screen">
         {customSections
           .filter((sec) => sec.enabled)
           .map((sec) => (
             <SectionRenderer key={sec.id} section={sec} courses={liveCourses} />
           ))}
-      </main>
+      </div>
     );
   }
 
@@ -41,7 +41,7 @@ export default function BookPage() {
   }));
 
   return (
-    <main className="bg-paper py-12 md:py-20 min-h-screen">
+    <div className="bg-paper py-12 md:py-20 min-h-screen">
       <Container>
         <div className="max-w-3xl mx-auto space-y-8">
           {/* Header */}
@@ -94,6 +94,6 @@ export default function BookPage() {
           </div>
         </div>
       </Container>
-    </main>
+    </div>
   );
 }

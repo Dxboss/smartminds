@@ -29,18 +29,18 @@ export default function FundingPage() {
   const customSections = getPublishedCmsPageSections("/funding");
   if (customSections && customSections.length > 0) {
     return (
-      <main className="bg-paper text-ink min-h-screen">
+      <div className="bg-paper text-ink min-h-screen">
         {customSections
           .filter((sec) => sec.enabled)
           .map((sec) => (
             <SectionRenderer key={sec.id} section={sec} />
           ))}
-      </main>
+      </div>
     );
   }
 
   return (
-    <main className="bg-paper min-h-screen py-10 md:py-16">
+    <div className="bg-paper min-h-screen py-10 md:py-16">
       <Container>
         {/* Header Block */}
         <div className="max-w-3xl mb-12">
@@ -194,6 +194,6 @@ export default function FundingPage() {
           </div>
         </div>
       </Container>
-    </main>
+    </div>
   );
 }

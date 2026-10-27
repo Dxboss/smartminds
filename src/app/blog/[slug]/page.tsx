@@ -186,7 +186,7 @@ export default async function BlogPostPage({ params }: PageProps) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
       />
 
-      <main className="bg-paper min-h-screen pb-20">
+      <div className="bg-paper min-h-screen pb-20">
         {/* Article Header & Hero */}
         <article>
           <header className="bg-white border-b border-line pt-10 pb-12">
@@ -485,7 +485,7 @@ export default async function BlogPostPage({ params }: PageProps) {
             </Container>
           </Section>
         </article>
-      </main>
+      </div>
     </>
   );
 }

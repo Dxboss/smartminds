@@ -8,7 +8,9 @@ import {
   toggleStaffStatusAction,
   removeStaffMemberAction,
 } from "@/app/admin/actions";
-import { DEFAULT_COLLEGE_FACULTIES } from "@/content/faculties";
+import { impersonateUserAction } from "@/app/super/actions";
+import { DEFAULT_COLLEGE_FACULTIES, type FacultyRecord } from "@/content/faculties";
+import type { ImpersonationAuditLog } from "@/lib/persistedData";
 
 interface Props {
   initialUsers: UserProfile[];
@@ -16,6 +18,8 @@ interface Props {
   bookings: Booking[];
   tasks: Task[];
   userRole: string;
+  faculties?: FacultyRecord[];
+  initialImpersonationLogs?: ImpersonationAuditLog[];
 }
 
 export const StaffDirectory: React.FC<Props> = ({
@@ -24,11 +28,18 @@ export const StaffDirectory: React.FC<Props> = ({
   bookings,
   tasks,
   userRole,
+  faculties = DEFAULT_COLLEGE_FACULTIES,
+  initialImpersonationLogs = [],
 }) => {
   const [users, setUsers] = useState<UserProfile[]>(initialUsers);
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [feedback, setFeedback] = useState<string | null>(null);
+
+  // Impersonation state
+  const [isImpersonatingId, setIsImpersonatingId] = useState<string | null>(null);
+  const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
+  const [auditLogs] = useState<ImpersonationAuditLog[]>(initialImpersonationLogs);
 
   // Invite modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -108,6 +119,20 @@ export const StaffDirectory: React.FC<Props> = ({
       setTimeout(() => setFeedback(null), 4000);
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to remove staff member");
+    }
+  };
+
+  const handleImpersonate = async (userIdOrEmail: string, name: string) => {
+    if (!isOwnerOrSuper) return;
+    setIsImpersonatingId(userIdOrEmail);
+    try {
+      const res = await impersonateUserAction(userIdOrEmail);
+      if (res.redirectUrl) {
+        window.location.href = res.redirectUrl;
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to impersonate staff member");
+      setIsImpersonatingId(null);
     }
   };
 
@@ -264,14 +289,26 @@ export const StaffDirectory: React.FC<Props> = ({
           </div>
 
           {isOwnerOrSuper && (
-            <button
-              type="button"
-              onClick={() => setIsModalOpen(true)}
-              className="px-3.5 py-1.5 bg-navy-900 hover:bg-navy-700 text-white rounded-sm text-xs font-semibold flex items-center gap-1.5 transition-colors whitespace-nowrap shadow-sm"
-            >
-              <Icon name="plus" size={14} />
-              <span>Add Staff Member</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsAuditModalOpen(true)}
+                className="px-3 py-1.5 bg-paper hover:bg-gold-300/30 text-navy-900 border border-line rounded-sm text-xs font-semibold flex items-center gap-1.5 transition-colors whitespace-nowrap shadow-xs cursor-pointer"
+                title="View immutable security and impersonation access logs"
+              >
+                <Icon name="shield-check" size={14} className="text-gold-700" />
+                <span>Security Logs ({auditLogs.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(true)}
+                className="px-3.5 py-1.5 bg-navy-900 hover:bg-navy-700 text-white rounded-sm text-xs font-semibold flex items-center gap-1.5 transition-colors whitespace-nowrap shadow-sm cursor-pointer"
+              >
+                <Icon name="plus" size={14} />
+                <span>Add Staff Member</span>
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -428,6 +465,18 @@ export const StaffDirectory: React.FC<Props> = ({
                         <td className="py-3.5 px-4 text-right">
                           {u.role !== "owner_admin" && u.role !== "super_admin" ? (
                             <div className="flex items-center justify-end gap-1.5">
+                              {u.role === "tutor" && (
+                                <button
+                                  type="button"
+                                  disabled={isImpersonatingId === (u.email || u.id)}
+                                  onClick={() => handleImpersonate(u.email || u.id, u.name)}
+                                  className="px-2.5 py-1 rounded-sm border border-navy-900 bg-navy-50 hover:bg-navy-900 hover:text-white text-navy-900 text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                                  title="View Tutor Console as this faculty member"
+                                >
+                                  <Icon name="eye" size={12} />
+                                  <span>{isImpersonatingId === (u.email || u.id) ? "Loading..." : "View as Tutor"}</span>
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 onClick={() => handleToggleStatus(u.id, u.active)}
@@ -585,7 +634,7 @@ export const StaffDirectory: React.FC<Props> = ({
                     className="w-full px-3 py-2 rounded-sm border border-line bg-paper text-ink focus:outline-none focus:ring-1 focus:ring-navy-900 text-xs"
                   >
                     <option value="">Select Faculty...</option>
-                    {DEFAULT_COLLEGE_FACULTIES.map((fac) => (
+                    {faculties.map((fac) => (
                       <option key={fac.id} value={fac.name}>
                         {fac.name}
                       </option>
@@ -646,6 +695,99 @@ export const StaffDirectory: React.FC<Props> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Security & Impersonation Logs Modal */}
+      {isAuditModalOpen && (
+        <div className="fixed inset-0 bg-ink/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-md border border-line shadow-xl max-w-3xl w-full p-6 space-y-4 max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-line pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded bg-gold-300/30 text-navy-900 border border-gold-500/40 flex items-center justify-center">
+                  <Icon name="shield-check" size={18} />
+                </div>
+                <div>
+                  <h3 className="font-heading font-bold text-lg text-navy-900">
+                    Security &amp; Impersonation Access Logs
+                  </h3>
+                  <p className="text-xs text-ink-soft">
+                    Immutable audit records of all staff and student portal sessions initiated by College Administrators.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAuditModalOpen(false)}
+                className="text-ink-soft hover:text-navy-900 text-lg font-bold p-1 cursor-pointer"
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-1 text-xs">
+              {auditLogs.length === 0 ? (
+                <div className="text-center py-10 bg-paper rounded-sm border border-line text-ink-soft">
+                  <p className="font-semibold text-navy-900 mb-1">No Impersonation Logs Recorded Yet</p>
+                  <p className="text-[11px]">When an administrator views the portal as a tutor or student, an immutable timestamped event will appear here.</p>
+                </div>
+              ) : (
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="border-b border-line bg-paper/60 text-ink-soft font-semibold">
+                      <th className="py-2.5 px-3">Date &amp; Time</th>
+                      <th className="py-2.5 px-3">Administrator</th>
+                      <th className="py-2.5 px-3">Account Viewed</th>
+                      <th className="py-2.5 px-3">Role</th>
+                      <th className="py-2.5 px-3">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-line">
+                    {auditLogs.map((log) => (
+                      <tr key={log.id} className="hover:bg-paper/30">
+                        <td className="py-2.5 px-3 font-mono text-[11px] text-ink-soft whitespace-nowrap">
+                          {new Date(log.timestamp).toLocaleString("en-GB")}
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <strong className="text-navy-900 block">{log.actorEmail}</strong>
+                          <span className="text-[10px] text-ink-soft uppercase font-bold">{log.actorRole}</span>
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <strong className="text-navy-900 block">{log.targetName}</strong>
+                          <span className="text-[10px] text-ink-soft font-mono">{log.targetEmail}</span>
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <span className="px-1.5 py-0.5 rounded-xs bg-paper border border-line text-[10px] font-bold uppercase">
+                            {log.targetRole}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <span
+                            className={`px-2 py-0.5 rounded-sm text-[10px] font-bold uppercase tracking-wider ${
+                              log.action === "impersonation_started"
+                                ? "bg-amber-50 text-amber-900 border border-amber-300"
+                                : "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                            }`}
+                          >
+                            {log.action === "impersonation_started" ? "Session Started" : "Session Ended"}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            <div className="pt-3 border-t border-line flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsAuditModalOpen(false)}
+                className="px-4 py-1.5 rounded-sm bg-navy-900 text-white font-semibold text-xs hover:bg-navy-700 cursor-pointer"
+              >
+                Close Audit Viewer
+              </button>
+            </div>
           </div>
         </div>
       )}

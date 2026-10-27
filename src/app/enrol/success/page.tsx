@@ -77,7 +77,7 @@ export default async function EnrolSuccessPage({ searchParams }: PageProps) {
   }
 
   return (
-    <main className="bg-paper min-h-screen py-16 px-4 sm:px-6 lg:px-8">
+    <div className="bg-paper min-h-screen py-16 px-4 sm:px-6 lg:px-8">
       <div className="max-w-2xl mx-auto bg-white rounded-md border border-line p-8 sm:p-10 shadow-sm text-center space-y-8 animate-in fade-in">
         <div className="w-16 h-16 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto shadow-md">
           <Icon name="check" size={32} />
@@ -163,6 +163,6 @@ export default async function EnrolSuccessPage({ searchParams }: PageProps) {
           </Link>
         </div>
       </div>
-    </main>
+    </div>
   );
 }

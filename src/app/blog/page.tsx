@@ -31,7 +31,7 @@ export default function BlogIndexPage() {
   const regularPosts = blogPosts.filter((p) => p.id !== featuredPost?.id);
 
   return (
-    <main className="bg-paper min-h-screen">
+    <div className="bg-paper min-h-screen">
       {/* 1. Header Banner */}
       <Section variant="white" className="border-b border-line pt-12 pb-14">
         <Container>
@@ -258,6 +258,6 @@ export default function BlogIndexPage() {
           </div>
         </Container>
       </Section>
-    </main>
+    </div>
   );
 }

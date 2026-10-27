@@ -30,6 +30,7 @@ export const metadata: Metadata = {
 const NAV_LINKS = [
   { href: "/student", label: "Dashboard", icon: "book-open" as const },
   { href: "/student/courses", label: "My courses", icon: "graduation-cap" as const },
+  { href: "/student/materials", label: "Learning materials", icon: "download" as const },
   { href: "/student/recordings", label: "Recordings", icon: "video" as const },
   { href: "/student/assignments", label: "Assignments", icon: "file-text" as const },
   { href: "/student/payments", label: "My payments", icon: "credit-card" as const },

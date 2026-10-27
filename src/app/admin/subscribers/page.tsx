@@ -32,11 +32,11 @@ export default async function AdminSubscribersPage() {
   const subscribers = listNewsletterSubscribers();
 
   return (
-    <main className="py-6">
+    <div className="py-6">
       <SubscribersManagerView
         initialSubscribers={subscribers}
         userRole={session.role}
       />
-    </main>
+    </div>
   );
 }

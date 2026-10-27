@@ -42,6 +42,35 @@ export interface NewsletterSubscriber {
   source?: string;
 }
 
+export interface ImpersonationAuditLog {
+  id: string;
+  actorEmail: string;
+  actorRole: string;
+  targetUserId?: string;
+  targetEmail: string;
+  targetName: string;
+  targetRole: string;
+  action: "impersonation_started" | "impersonation_ended";
+  timestamp: string;
+}
+
+export interface LearningMaterial {
+  id: string;
+  title: string;
+  description: string;
+  fileName: string;
+  fileUrl: string;
+  fileType: "pdf" | "ppt" | "docx" | "link";
+  fileSizeBytes?: number;
+  cohortId?: string;
+  cohortName?: string;
+  unitCode?: string;
+  tutorId: string;
+  tutorName: string;
+  published: boolean;
+  createdAt: string;
+}
+
 export interface PersistedRecordsStore {
   learners: Learner[];
   enrolments: Enrolment[];
@@ -66,6 +95,8 @@ export interface PersistedRecordsStore {
   subscribers?: NewsletterSubscriber[];
   colorSwatches?: ColorSwatch[];
   siteTheme?: any;
+  impersonationLogs?: ImpersonationAuditLog[];
+  learningMaterials?: LearningMaterial[];
 }
 
 import { type ColorSwatch, DEFAULT_COLOR_SWATCHES } from "./colorSwatches";
@@ -2264,6 +2295,182 @@ export async function deleteColorSwatch(swatchId: string): Promise<boolean> {
   }
   return false;
 }
+
+// --------------------------------------------------------------------------
+// Impersonation Audit Logs & Security
+// --------------------------------------------------------------------------
+
+export async function recordImpersonationAuditLog(log: ImpersonationAuditLog): Promise<void> {
+  const store = loadPersistedRecords();
+  if (!store.impersonationLogs) {
+    store.impersonationLogs = [];
+  }
+  store.impersonationLogs.unshift(log);
+
+  // Keep last 250 log entries to prevent unbound growth
+  if (store.impersonationLogs.length > 250) {
+    store.impersonationLogs = store.impersonationLogs.slice(0, 250);
+  }
+
+  const filePath = getStoreFilePath();
+  fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+  await syncStoreSnapshotToNeon(store);
+}
+
+export function listImpersonationAuditLogs(): ImpersonationAuditLog[] {
+  const store = loadPersistedRecords();
+  return store.impersonationLogs || [];
+}
+
+export function findUserForImpersonation(userIdOrEmail: string): PersistedUserRecord | null {
+  const target = userIdOrEmail.trim().toLowerCase();
+  const allUsers = listAllPlatformUsers();
+
+  // 1. Direct match in platform users
+  const direct = allUsers.find(
+    (u) => u.id === userIdOrEmail || u.email.toLowerCase() === target
+  );
+  if (direct) return direct;
+
+  // 2. Check learners repository
+  const store = loadPersistedRecords();
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { seedLearners } = require("@/lib/repositories/seedData");
+  const allLearners = [...(store.learners || []), ...seedLearners];
+  const matchedLearner = allLearners.find(
+    (l) => l.id === userIdOrEmail || l.email.toLowerCase() === target
+  );
+
+  if (matchedLearner) {
+    return {
+      id: matchedLearner.id,
+      email: matchedLearner.email,
+      name: `${matchedLearner.firstName} ${matchedLearner.lastName}`,
+      role: "student",
+      learnerId: matchedLearner.id,
+      createdAt: matchedLearner.createdAt || new Date().toISOString(),
+    };
+  }
+
+  return null;
+}
+
+// --------------------------------------------------------------------------
+// Tutor File Cabinet & Student Learning Materials
+// --------------------------------------------------------------------------
+
+export const DEFAULT_LEARNING_MATERIALS: LearningMaterial[] = [
+  {
+    id: "mat-safeguarding-guide",
+    title: "Unit 1: Mandatory Safeguarding & Duty of Care Study Guide",
+    description: "Core lecture slides, statutory legal definitions, Care Act 2014 summaries, and case study critique guidance.",
+    fileName: "Unit_1_Safeguarding_Adult_Care_2026.pdf",
+    fileUrl: "/documents/sample-safeguarding-guide.pdf",
+    fileType: "pdf",
+    fileSizeBytes: 2450000,
+    cohortId: "class-adult-care-apr26",
+    cohortName: "Diploma in Adult Care - Evening Cohort",
+    unitCode: "MOD-01",
+    tutorId: "user-tutor-eleanor",
+    tutorName: "Dr. Eleanor Vance",
+    published: true,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "mat-gcse-maths-pack",
+    title: "GCSE Maths Foundation & Higher Tier Revision Pack (Paper 2)",
+    description: "Official mark scheme breakdown, algebra formula sheets, and 20 practice questions with step-by-step solutions.",
+    fileName: "GCSE_Maths_Mastery_Pack_AQA_Edexcel.docx",
+    fileUrl: "/documents/sample-gcse-maths-pack.docx",
+    fileType: "docx",
+    fileSizeBytes: 1250000,
+    cohortId: "class-tutoring-kids",
+    cohortName: "Academic Tutoring (Kids & GCSE)",
+    unitCode: "TUT-GCSE",
+    tutorId: "user-tutor-eleanor",
+    tutorName: "Dr. Eleanor Vance",
+    published: true,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "mat-eyfs-observations",
+    title: "Early Years Educator: EYFS Statutory Framework & Workplace Observation Checklist",
+    description: "Assessor guidance on building direct observation testimonies and portfolio evidence across nursery environments.",
+    fileName: "EYFS_Observation_Witness_Guidance.pptx",
+    fileUrl: "/documents/sample-eyfs-observation.pptx",
+    fileType: "ppt",
+    fileSizeBytes: 3800000,
+    cohortId: "class-cypw-apr26",
+    cohortName: "Early Years & Childcare Cohort",
+    unitCode: "EYFS-02",
+    tutorId: "user-tutor-eleanor",
+    tutorName: "Dr. Eleanor Vance",
+    published: true,
+    createdAt: new Date().toISOString(),
+  },
+];
+
+export function listLearningMaterials(cohortId?: string, tutorId?: string): LearningMaterial[] {
+  const store = loadPersistedRecords();
+  let materials = store.learningMaterials && store.learningMaterials.length > 0
+    ? [...store.learningMaterials]
+    : [...DEFAULT_LEARNING_MATERIALS];
+
+  if (cohortId && cohortId !== "all") {
+    materials = materials.filter((m) => !m.cohortId || m.cohortId === cohortId);
+  }
+  if (tutorId && tutorId !== "all") {
+    materials = materials.filter((m) => m.tutorId === tutorId);
+  }
+
+  return materials;
+}
+
+export async function saveLearningMaterial(
+  material: Omit<LearningMaterial, "id" | "createdAt"> & { id?: string }
+): Promise<LearningMaterial> {
+  const store = loadPersistedRecords();
+  if (!store.learningMaterials) {
+    store.learningMaterials = [...DEFAULT_LEARNING_MATERIALS];
+  }
+
+  const id = material.id || `mat-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+  const record: LearningMaterial = {
+    ...material,
+    id,
+    createdAt: new Date().toISOString(),
+  };
+
+  const existingIdx = store.learningMaterials.findIndex((m) => m.id === id);
+  if (existingIdx >= 0) {
+    store.learningMaterials[existingIdx] = record;
+  } else {
+    store.learningMaterials.unshift(record);
+  }
+
+  const filePath = getStoreFilePath();
+  fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+  await syncStoreSnapshotToNeon(store);
+  return record;
+}
+
+export async function deleteLearningMaterial(id: string): Promise<boolean> {
+  const store = loadPersistedRecords();
+  if (!store.learningMaterials) {
+    store.learningMaterials = [...DEFAULT_LEARNING_MATERIALS];
+  }
+
+  const initialLen = store.learningMaterials.length;
+  store.learningMaterials = store.learningMaterials.filter((m) => m.id !== id);
+  if (store.learningMaterials.length !== initialLen) {
+    const filePath = getStoreFilePath();
+    fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+    await syncStoreSnapshotToNeon(store);
+    return true;
+  }
+  return false;
+}
+
 
 
 

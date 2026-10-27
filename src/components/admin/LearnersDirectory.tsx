@@ -9,18 +9,25 @@ import {
   archiveLearnerAction,
   restoreLearnerAction,
   deleteLearnerPermanentlyAction,
+  adminEnrolNewStudentAction,
 } from "@/app/admin/actions";
+import { impersonateUserAction } from "@/app/super/actions";
+import type { Course } from "@/content/types";
 
 interface Props {
   initialLearners: Learner[];
   initialEnrolments: Enrolment[];
   classes: ClassCohort[];
+  availableCourses?: Course[];
+  userRole?: string;
 }
 
 export const LearnersDirectory: React.FC<Props> = ({
   initialLearners,
   initialEnrolments,
   classes,
+  availableCourses = [],
+  userRole = "owner_admin",
 }) => {
   const [learners, setLearners] = useState<Learner[]>(initialLearners);
   const [enrolments, setEnrolments] = useState<Enrolment[]>(initialEnrolments);
@@ -43,7 +50,69 @@ export const LearnersDirectory: React.FC<Props> = ({
   // View Details Modal State
   const [selectedLearner, setSelectedLearner] = useState<Learner | null>(null);
 
+  // Impersonation state
+  const [isImpersonatingId, setIsImpersonatingId] = useState<string | null>(null);
+
+  // Enrol New Student Modal State
+  const [isEnrolModalOpen, setIsEnrolModalOpen] = useState(false);
+  const [isEnrolling, setIsEnrolling] = useState(false);
+  const [enrolFirstName, setEnrolFirstName] = useState("");
+  const [enrolLastName, setEnrolLastName] = useState("");
+  const [enrolEmail, setEnrolEmail] = useState("");
+  const [enrolPhone, setEnrolPhone] = useState("");
+  const [enrolDob, setEnrolDob] = useState("");
+  const [enrolAddress, setEnrolAddress] = useState("");
+  const [enrolPostcode, setEnrolPostcode] = useState("");
+  const [enrolEmergencyName, setEnrolEmergencyName] = useState("");
+  const [enrolEmergencyPhone, setEnrolEmergencyPhone] = useState("");
+
+  const [enrolCourseId, setEnrolCourseId] = useState(
+    availableCourses[0]?.id || "course-adult-care"
+  );
+  const selectedCourseObj = availableCourses.find((c) => c.id === enrolCourseId) || availableCourses[0];
+  const courseLevelsList = selectedCourseObj?.levels || [];
+  const [enrolLevelLabel, setEnrolLevelLabel] = useState(
+    courseLevelsList[0]?.level_label || "Level 3"
+  );
+  const selectedLevelObj = courseLevelsList.find((l) => l.level_label === enrolLevelLabel) || courseLevelsList[0];
+
+  const [enrolClassId, setEnrolClassId] = useState(classes[0]?.id || "class-adult-care-apr26");
+  const [enrolTutor, setEnrolTutor] = useState("Dr. Eleanor Vance");
+  const [enrolTiming, setEnrolTiming] = useState<"evening" | "afternoon" | "self_paced">("evening");
+  const [enrolFundingType, setEnrolFundingType] = useState<"self_pay" | "funded" | "sponsored">("self_pay");
+  const [enrolPlanType, setEnrolPlanType] = useState<"full" | "instalments">("instalments");
+  const [enrolPrice, setEnrolPrice] = useState(
+    selectedLevelObj ? selectedLevelObj.price_gbp.toString() : "1250"
+  );
+  const [enrolDeposit, setEnrolDeposit] = useState(
+    selectedLevelObj?.plans?.[0]?.deposit_value !== undefined
+      ? selectedLevelObj.plans[0].deposit_value.toString()
+      : "150"
+  );
+  const [enrolMonths, setEnrolMonths] = useState("6");
+  const [enrolPaymentMethod, setEnrolPaymentMethod] = useState<"card" | "bacs" | "employer" | "funded">("card");
+  const [enrolPaymentStatus, setEnrolPaymentStatus] = useState<"paid" | "pending">("paid");
+  const [enrolCreatedSuccess, setEnrolCreatedSuccess] = useState<{
+    name: string;
+    email: string;
+    tempPass: string;
+    studentId: string;
+  } | null>(null);
+
   const [feedback, setFeedback] = useState<string | null>(null);
+
+  const handleImpersonate = async (userIdOrEmail: string, name: string) => {
+    setIsImpersonatingId(userIdOrEmail);
+    try {
+      const res = await impersonateUserAction(userIdOrEmail);
+      if (res.redirectUrl) {
+        window.location.href = res.redirectUrl;
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to impersonate student");
+      setIsImpersonatingId(null);
+    }
+  };
 
   const openMoveModal = (enr: Enrolment) => {
     setMovingEnrolment(enr);
@@ -218,17 +287,31 @@ export const LearnersDirectory: React.FC<Props> = ({
           })}
         </div>
 
-        <div className="relative w-full sm:w-72">
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by learner name, email, or course..."
-            className="w-full pl-8 pr-3 py-1.5 text-xs rounded-sm border border-line bg-white text-ink focus:outline-none focus:ring-1 focus:ring-navy-900"
-          />
-          <span className="absolute left-2.5 top-2 text-ink-soft">
-            <Icon name="search" size={14} />
-          </span>
+        <div className="flex items-center gap-2">
+          <div className="relative w-full sm:w-72">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by learner name, email, or course..."
+              className="w-full pl-8 pr-3 py-1.5 text-xs rounded-sm border border-line bg-white text-ink focus:outline-none focus:ring-1 focus:ring-navy-900"
+            />
+            <span className="absolute left-2.5 top-2 text-ink-soft">
+              <Icon name="search" size={14} />
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setEnrolCreatedSuccess(null);
+              setIsEnrolModalOpen(true);
+            }}
+            className="px-3.5 py-1.5 bg-navy-900 hover:bg-navy-700 text-white rounded-sm text-xs font-semibold flex items-center gap-1.5 transition-colors whitespace-nowrap shadow-sm cursor-pointer shrink-0"
+          >
+            <Icon name="plus" size={14} />
+            <span>Enrol New Student</span>
+          </button>
         </div>
       </div>
 
@@ -327,7 +410,18 @@ export const LearnersDirectory: React.FC<Props> = ({
                         {new Date(learner.enrolmentDate).toLocaleDateString("en-GB")}
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            disabled={isImpersonatingId === learner.id || isImpersonatingId === learner.email}
+                            onClick={() => handleImpersonate(learner.email || learner.id, `${learner.firstName} ${learner.lastName}`)}
+                            className="px-2 py-1 rounded-sm border border-gold-500 bg-gold-300/20 hover:bg-gold-500 hover:text-navy-900 text-navy-900 text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                            title="View Student Portal as this learner"
+                          >
+                            <Icon name="eye" size={12} />
+                            <span>{isImpersonatingId === learner.id || isImpersonatingId === learner.email ? "Loading..." : "View as Student"}</span>
+                          </button>
+
                           <button
                             type="button"
                             onClick={() => setSelectedLearner(learner)}
@@ -748,6 +842,414 @@ export const LearnersDirectory: React.FC<Props> = ({
           </div>
         );
       })()}
+      {/* Enrol New Student Modal */}
+      {isEnrolModalOpen && (
+        <div className="fixed inset-0 bg-ink/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-md border border-line shadow-xl max-w-2xl w-full p-6 space-y-4 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-line pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded bg-navy-900 text-white flex items-center justify-center font-bold">
+                  <Icon name="user" size={16} />
+                </div>
+                <div>
+                  <h3 className="font-heading font-bold text-lg text-navy-900">
+                    Enrol New Student &amp; Issue Portal Credentials
+                  </h3>
+                  <p className="text-xs text-ink-soft">
+                    Creates the student profile, registers qualification enrolment, and dispatches the welcome induction email.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsEnrolModalOpen(false)}
+                className="text-ink-soft hover:text-navy-900 text-lg font-bold p-1 cursor-pointer"
+              >
+                &times;
+              </button>
+            </div>
+
+            {enrolCreatedSuccess ? (
+              <div className="space-y-4 py-4">
+                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-sm text-xs space-y-2">
+                  <strong className="text-sm font-bold text-emerald-900 block flex items-center gap-1.5">
+                    <Icon name="check-circle" size={16} className="text-emerald-700" />
+                    <span>Student Onboarded &amp; Induction Dispatched!</span>
+                  </strong>
+                  <p className="text-emerald-800 leading-relaxed">
+                    Student account for <strong>{enrolCreatedSuccess.name}</strong> has been created. A welcome email containing induction materials and portal access instructions has been dispatched.
+                  </p>
+                  <div className="p-3 bg-white rounded border border-emerald-300/60 font-mono text-xs space-y-1">
+                    <div><strong>Student ID:</strong> {enrolCreatedSuccess.studentId}</div>
+                    <div><strong>Portal Login:</strong> {enrolCreatedSuccess.email}</div>
+                    <div><strong>Temporary Password:</strong> <span className="bg-gold-300/40 px-1.5 py-0.5 rounded font-bold text-navy-900">{enrolCreatedSuccess.tempPass}</span></div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEnrolCreatedSuccess(null);
+                      setIsEnrolModalOpen(false);
+                    }}
+                    className="px-4 py-2 bg-navy-900 text-white rounded-sm font-semibold text-xs hover:bg-navy-700 cursor-pointer"
+                  >
+                    Done &amp; View in Directory
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!enrolFirstName.trim() || !enrolLastName.trim() || !enrolEmail.trim()) {
+                    alert("Please provide the student's name and email address.");
+                    return;
+                  }
+
+                  setIsEnrolling(true);
+                  try {
+                    const priceNum = parseFloat(enrolPrice) || 1250;
+                    const depNum = parseFloat(enrolDeposit) || 150;
+                    const monthsNum = parseInt(enrolMonths, 10) || 6;
+                    const monthlyNum = Math.round((priceNum - depNum) / monthsNum);
+
+                    const res = await adminEnrolNewStudentAction({
+                      firstName: enrolFirstName,
+                      lastName: enrolLastName,
+                      email: enrolEmail,
+                      phone: enrolPhone,
+                      dateOfBirth: enrolDob || undefined,
+                      addressLine1: enrolAddress || undefined,
+                      postcode: enrolPostcode || undefined,
+                      emergencyContactName: enrolEmergencyName || undefined,
+                      emergencyContactPhone: enrolEmergencyPhone || undefined,
+                      courseId: enrolCourseId,
+                      courseTitle: selectedCourseObj?.title || "Accredited Qualification",
+                      levelLabel: enrolLevelLabel,
+                      classId: enrolClassId,
+                      className: classes.find((c) => c.id === enrolClassId)?.name || "Evening Cohort",
+                      tutorName: enrolTutor,
+                      sessionTiming: enrolTiming,
+                      fundingType: enrolFundingType,
+                      paymentPlanType: enrolPlanType,
+                      totalPrice: priceNum,
+                      depositAmount: depNum,
+                      monthlyAmount: monthlyNum,
+                      months: monthsNum,
+                      paymentMethod: enrolPaymentMethod,
+                      paymentStatus: enrolPaymentStatus,
+                    });
+
+                    if (res.success && res.learner && res.enrolment) {
+                      setLearners((prev) => [res.learner, ...prev]);
+                      setEnrolments((prev) => [res.enrolment, ...prev]);
+                      setEnrolCreatedSuccess({
+                        name: `${res.learner.firstName} ${res.learner.lastName}`,
+                        email: res.learner.email,
+                        tempPass: res.tempPassword,
+                        studentId: res.learner.id,
+                      });
+                      setFeedback(`Student ${res.learner.firstName} ${res.learner.lastName} enrolled successfully.`);
+                    }
+                  } catch (err) {
+                    alert(err instanceof Error ? err.message : "Failed to enrol student.");
+                  } finally {
+                    setIsEnrolling(false);
+                  }
+                }}
+                className="overflow-y-auto pr-1 space-y-4 text-xs flex-1"
+              >
+                {/* 1. Student Personal Details */}
+                <div className="space-y-3 p-3.5 bg-paper rounded-sm border border-line">
+                  <h4 className="font-bold text-navy-900 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                    <Icon name="user" size={13} className="text-gold-700" />
+                    <span>1. Student Identity &amp; Contact Details</span>
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-navy-900 mb-1">First Name *</label>
+                      <input
+                        type="text"
+                        required
+                        value={enrolFirstName}
+                        onChange={(e) => setEnrolFirstName(e.target.value)}
+                        placeholder="e.g. Sarah"
+                        className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-navy-900 mb-1">Last Name *</label>
+                      <input
+                        type="text"
+                        required
+                        value={enrolLastName}
+                        onChange={(e) => setEnrolLastName(e.target.value)}
+                        placeholder="e.g. Jenkins"
+                        className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-navy-900 mb-1">Email Address *</label>
+                      <input
+                        type="email"
+                        required
+                        value={enrolEmail}
+                        onChange={(e) => setEnrolEmail(e.target.value)}
+                        placeholder="sarah.jenkins@example.com"
+                        className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-navy-900 mb-1">Phone Number *</label>
+                      <input
+                        type="tel"
+                        required
+                        value={enrolPhone}
+                        onChange={(e) => setEnrolPhone(e.target.value)}
+                        placeholder="+44 7700 900123"
+                        className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-navy-900 mb-1">Date of Birth</label>
+                      <input
+                        type="date"
+                        value={enrolDob}
+                        onChange={(e) => setEnrolDob(e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-navy-900 mb-1">Postcode (Ofqual Cert)</label>
+                      <input
+                        type="text"
+                        value={enrolPostcode}
+                        onChange={(e) => setEnrolPostcode(e.target.value)}
+                        placeholder="GL1 1UG"
+                        className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-navy-900 mb-1">Home / Postal Address</label>
+                    <input
+                      type="text"
+                      value={enrolAddress}
+                      onChange={(e) => setEnrolAddress(e.target.value)}
+                      placeholder="Flat 3B, Brunswick Square, Gloucester"
+                      className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
+                    />
+                  </div>
+                </div>
+
+                {/* 2. Course & Cohort Assignment */}
+                <div className="space-y-3 p-3.5 bg-paper rounded-sm border border-line">
+                  <h4 className="font-bold text-navy-900 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                    <Icon name="book-open" size={13} className="text-gold-700" />
+                    <span>2. Qualification &amp; Academic Cohort Assignment</span>
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="sm:col-span-2">
+                      <label className="block text-[11px] font-semibold text-navy-900 mb-1">Selected Qualification *</label>
+                      <select
+                        value={enrolCourseId}
+                        onChange={(e) => {
+                          const cid = e.target.value;
+                          setEnrolCourseId(cid);
+                          const c = availableCourses.find((x) => x.id === cid);
+                          if (c && c.levels && c.levels.length > 0) {
+                            setEnrolLevelLabel(c.levels[0].level_label);
+                            setEnrolPrice(c.levels[0].price_gbp.toString());
+                            if (c.levels[0].plans && c.levels[0].plans.length > 0) {
+                              setEnrolDeposit(c.levels[0].plans[0].deposit_value.toString());
+                            }
+                          }
+                        }}
+                        className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-medium"
+                      >
+                        {availableCourses.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.title} ({c.category})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-semibold text-navy-900 mb-1">Qualification Level</label>
+                      <select
+                        value={enrolLevelLabel}
+                        onChange={(e) => {
+                          const lvl = e.target.value;
+                          setEnrolLevelLabel(lvl);
+                          const found = courseLevelsList.find((l) => l.level_label === lvl);
+                          if (found) {
+                            setEnrolPrice(found.price_gbp.toString());
+                          }
+                        }}
+                        className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-medium"
+                      >
+                        {courseLevelsList.map((lvl) => (
+                          <option key={lvl.level_label} value={lvl.level_label}>
+                            {lvl.level_label} (£{lvl.price_gbp})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-semibold text-navy-900 mb-1">Class Cohort Group</label>
+                      <select
+                        value={enrolClassId}
+                        onChange={(e) => {
+                          const cid = e.target.value;
+                          setEnrolClassId(cid);
+                          const cl = classes.find((c) => c.id === cid);
+                          if (cl?.tutorName) setEnrolTutor(cl.tutorName);
+                        }}
+                        className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
+                      >
+                        {classes.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name} ({c.scheduleDescription || c.intakeLabel})
+                          </option>
+                        ))}
+                        <option value="class-tutoring-kids">1-on-1 Academic Tutoring (After-School / Sat)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-semibold text-navy-900 mb-1">Assigned Tutor</label>
+                      <input
+                        type="text"
+                        value={enrolTutor}
+                        onChange={(e) => setEnrolTutor(e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-semibold text-navy-900 mb-1">Session Timing</label>
+                      <select
+                        value={enrolTiming}
+                        onChange={(e) => setEnrolTiming(e.target.value as any)}
+                        className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
+                      >
+                        <option value="evening">Evening Session (18:30 – 20:30)</option>
+                        <option value="afternoon">Afternoon Session (14:00 – 16:00)</option>
+                        <option value="self_paced">Flexible / 1-on-1 Tutoring</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Tuition Fee & Payment Plan */}
+                <div className="space-y-3 p-3.5 bg-paper rounded-sm border border-line">
+                  <h4 className="font-bold text-navy-900 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                    <Icon name="credit-card" size={13} className="text-gold-700" />
+                    <span>3. Tuition Fee &amp; Payment Structure</span>
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-navy-900 mb-1">Funding Classification</label>
+                      <select
+                        value={enrolFundingType}
+                        onChange={(e) => setEnrolFundingType(e.target.value as any)}
+                        className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
+                      >
+                        <option value="self_pay">Self-Pay Student</option>
+                        <option value="funded">Government / AEB Funded</option>
+                        <option value="sponsored">Workplace / Employer Sponsored</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-semibold text-navy-900 mb-1">Payment Schedule</label>
+                      <select
+                        value={enrolPlanType}
+                        onChange={(e) => setEnrolPlanType(e.target.value as any)}
+                        className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
+                      >
+                        <option value="instalments">Monthly 0% Instalments</option>
+                        <option value="full">Full Upfront Payment</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-semibold text-navy-900 mb-1">Total Tuition Fee (£)</label>
+                      <input
+                        type="number"
+                        value={enrolPrice}
+                        onChange={(e) => setEnrolPrice(e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-mono font-bold text-navy-900"
+                      />
+                    </div>
+
+                    {enrolPlanType === "instalments" && (
+                      <>
+                        <div>
+                          <label className="block text-[11px] font-semibold text-navy-900 mb-1">Deposit Today (£)</label>
+                          <input
+                            type="number"
+                            value={enrolDeposit}
+                            onChange={(e) => setEnrolDeposit(e.target.value)}
+                            className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-semibold text-navy-900 mb-1">Spread Months</label>
+                          <select
+                            value={enrolMonths}
+                            onChange={(e) => setEnrolMonths(e.target.value)}
+                            className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-mono"
+                          >
+                            <option value="3">3 Months</option>
+                            <option value="6">6 Months</option>
+                            <option value="10">10 Months</option>
+                            <option value="12">12 Months</option>
+                          </select>
+                        </div>
+                      </>
+                    )}
+
+                    <div>
+                      <label className="block text-[11px] font-semibold text-navy-900 mb-1">Deposit Payment Status</label>
+                      <select
+                        value={enrolPaymentStatus}
+                        onChange={(e) => setEnrolPaymentStatus(e.target.value as any)}
+                        className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
+                      >
+                        <option value="paid">Paid (Card / Bank Transfer)</option>
+                        <option value="pending">Pending Invoice / First Payment</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-line">
+                  <button
+                    type="button"
+                    onClick={() => setIsEnrolModalOpen(false)}
+                    className="px-3.5 py-2 rounded-sm border border-line bg-paper text-ink-soft hover:text-ink font-semibold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isEnrolling}
+                    className="px-4 py-2 rounded-sm bg-navy-900 hover:bg-navy-700 text-white font-bold transition-colors disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Icon name="check" size={14} />
+                    <span>{isEnrolling ? "Processing Enrolment..." : "Confirm & Send Welcome Email"}</span>
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

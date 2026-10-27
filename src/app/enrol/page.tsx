@@ -37,7 +37,7 @@ export default async function EnrolPage({ searchParams }: PageProps) {
   const cohortSchedule = getCohortSchedule();
 
   return (
-    <main className="bg-paper min-h-screen py-6">
+    <div className="bg-paper min-h-screen py-6">
       <Suspense fallback={<div className="max-w-4xl mx-auto p-12 text-center text-ink-soft">Loading enrolment form...</div>}>
         <EnrolmentClient
           courses={publishedCourses.length > 0 ? publishedCourses : allCourses}
@@ -59,6 +59,6 @@ export default async function EnrolPage({ searchParams }: PageProps) {
           }
         />
       </Suspense>
-    </main>
+    </div>
   );
 }

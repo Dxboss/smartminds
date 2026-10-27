@@ -17,6 +17,9 @@ export const CourseOverview: React.FC<CourseOverviewProps> = ({
     course.type === "tutoring" ||
     course.id.toLowerCase().includes("tutoring");
 
+  const hideGlh = isTutoring || course.show_glh === false;
+  const hideWorkplace = isTutoring || course.show_workplace_assessment === false;
+
   return (
     <div className="space-y-8">
       {/* Course Overview & Educational Description */}
@@ -118,13 +121,15 @@ export const CourseOverview: React.FC<CourseOverviewProps> = ({
 
               <div className="p-3.5 bg-paper rounded-sm border border-line">
                 <span className="font-mono text-[10px] uppercase tracking-wider text-ink-soft block mb-1">
-                  Guided Learning Hours
+                  {hideGlh ? "Study Commitment" : "Guided Learning Hours"}
                 </span>
                 <strong className="text-base font-heading font-bold text-navy-900 block">
-                  {selectedLevel.guided_learning_hours} GLH
+                  {hideGlh
+                    ? course.session_duration_info || "Flexible weekly study"
+                    : `${selectedLevel.guided_learning_hours} GLH`}
                 </strong>
                 <span className="text-[11px] text-ink-soft mt-0.5 block">
-                  Live lectures + guided reading
+                  {hideGlh ? "Interactive online sessions" : "Live lectures + guided reading"}
                 </span>
               </div>
 
@@ -158,6 +163,8 @@ export const CourseOverview: React.FC<CourseOverviewProps> = ({
           >
             {isTutoring
               ? "How your child's tutoring and progress reviews work"
+              : hideWorkplace
+              ? "How your academic assessment & tutor feedback works"
               : "How your assessment & workplace observation works"}
           </Heading>
         </div>
@@ -167,7 +174,7 @@ export const CourseOverview: React.FC<CourseOverviewProps> = ({
             <>
               <div className="space-y-1.5 p-3.5 bg-white rounded-sm border border-line">
                 <strong className="text-navy-900 block font-semibold text-xs">
-                  Diagnostic Assessment & Gap Analysis:
+                  Diagnostic Assessment &amp; Gap Analysis:
                 </strong>
                 <p className="text-ink-soft leading-relaxed text-[11px]">
                   Every pupil begins with a structured diagnostic review in English or Mathematics to identify specific gaps in foundation knowledge, aligning with their exam board (AQA, Edexcel, OCR, 11+).
@@ -180,6 +187,26 @@ export const CourseOverview: React.FC<CourseOverviewProps> = ({
                 </strong>
                 <p className="text-ink-soft leading-relaxed text-[11px]">
                   Parents receive regular written updates tracking topic comprehension, homework completion, exam technique improvements, and target grade progression milestones.
+                </p>
+              </div>
+            </>
+          ) : hideWorkplace ? (
+            <>
+              <div className="space-y-1.5 p-3.5 bg-white rounded-sm border border-line">
+                <strong className="text-navy-900 block font-semibold text-xs">
+                  Assignment &amp; Coursework Assessment:
+                </strong>
+                <p className="text-ink-soft leading-relaxed text-[11px]">
+                  You will complete unit assignments, case studies, and reflective exercises submitted directly through the online learner portal for constructive assessor grading.
+                </p>
+              </div>
+
+              <div className="space-y-1.5 p-3.5 bg-white rounded-sm border border-line">
+                <strong className="text-navy-900 block font-semibold text-xs">
+                  No Workplace Observation Required:
+                </strong>
+                <p className="text-ink-soft leading-relaxed text-[11px]">
+                  All units are 100% assignment and portfolio assessed. You do not need to be employed in a workplace or arrange in-person observations to achieve this qualification.
                 </p>
               </div>
             </>

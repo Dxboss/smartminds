@@ -49,7 +49,7 @@ export const ImpersonationBanner: React.FC<ImpersonationBannerProps> = ({ user }
             Viewing as <span className="font-bold underline">{user.name}</span> ({user.email} &bull; {user.role})
           </span>
           <span className="text-amber-200 text-[11px] hidden sm:inline">
-            (Initiated by {user.impersonatorEmail || "Superadmin"})
+            (Initiated by {user.impersonatorEmail || (user.originalRole === "owner_admin" ? "College Admin" : "Superadmin")})
           </span>
         </div>
       </div>
@@ -61,7 +61,13 @@ export const ImpersonationBanner: React.FC<ImpersonationBannerProps> = ({ user }
         className="px-3 py-1 rounded bg-white text-amber-900 hover:bg-amber-50 font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
       >
         <Icon name="arrow-left" size={13} />
-        <span>{isPending ? "Exiting..." : "Exit Impersonation & Return to Superadmin"}</span>
+        <span>
+          {isPending
+            ? "Exiting..."
+            : user.originalRole === "owner_admin"
+            ? "Exit Impersonation & Return to Admin"
+            : "Exit Impersonation & Return to Superadmin"}
+        </span>
       </button>
     </div>
   );

@@ -97,6 +97,12 @@ export interface Course {
   banner_bg_color?: string;
   banner_text_color?: string;
   accent_color?: string;
+  show_glh?: boolean;
+  show_workplace_assessment?: boolean;
+  show_career_progression?: boolean;
+  show_video_showcase?: boolean;
+  show_dbs_guarantee?: boolean;
+  show_exam_boards?: boolean;
   levels: CourseLevel[];
 }
 
