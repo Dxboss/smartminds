@@ -29,6 +29,18 @@ export class PostgresTemplateRepo implements TemplateRepo {
         allowed_placeholders: string[];
       }[];
 
+      if (!rows || rows.length === 0) {
+        const { seedTemplates } = await import("../seedData");
+        for (const t of seedTemplates) {
+          await sql`
+            INSERT INTO message_templates (id, key, title, category, subject, body_template, allowed_placeholders, updated_at)
+            VALUES (${t.id}, ${t.key}, ${t.title}, ${t.category}, ${t.subject}, ${t.bodyTemplate}, ${JSON.stringify(t.allowedPlaceholders)}, now())
+            ON CONFLICT (key) DO NOTHING;
+          `.catch(() => {});
+        }
+        return seedTemplates;
+      }
+
       return rows.map((r) => ({
         id: r.id,
         key: r.key,

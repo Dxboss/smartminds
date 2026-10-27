@@ -70,8 +70,8 @@ export const TemplateMessageComposer: React.FC<Props> = ({
   // Live Rendered Preview
   const renderedSubject = useMemo(() => {
     if (!selectedTemplate) return "";
-    let s = selectedTemplate.subject;
-    for (const ph of selectedTemplate.allowedPlaceholders) {
+    let s = selectedTemplate.subject || "";
+    for (const ph of selectedTemplate.allowedPlaceholders || []) {
       const v = placeholderValues[ph] || (dispatchMode === "broadcast" && ph === "first_name" ? "{Recipient Name}" : `{${ph}}`);
       s = s.replace(new RegExp(`\\{${ph}\\}`, "g"), v);
     }
@@ -80,8 +80,8 @@ export const TemplateMessageComposer: React.FC<Props> = ({
 
   const renderedBody = useMemo(() => {
     if (!selectedTemplate) return "";
-    let b = selectedTemplate.bodyTemplate;
-    for (const ph of selectedTemplate.allowedPlaceholders) {
+    let b = selectedTemplate.bodyTemplate || "";
+    for (const ph of selectedTemplate.allowedPlaceholders || []) {
       const v = placeholderValues[ph] || (dispatchMode === "broadcast" && ph === "first_name" ? "{Recipient First Name}" : `{${ph}}`);
       b = b.replace(new RegExp(`\\{${ph}\\}`, "g"), v);
     }
@@ -137,7 +137,7 @@ export const TemplateMessageComposer: React.FC<Props> = ({
       }
 
       setFeedback(
-        `Approved template "${selectedTemplate.title}" dispatched to ${recipientEmail} and logged in Outbox.`
+        `Approved template "${selectedTemplate?.title || "Notification"}" dispatched to ${recipientEmail} and logged in Outbox.`
       );
       setTimeout(() => setFeedback(null), 5000);
 
@@ -229,11 +229,15 @@ export const TemplateMessageComposer: React.FC<Props> = ({
                 }}
                 className="w-full px-3 py-2 rounded-sm border border-line bg-paper text-navy-900 font-semibold focus:outline-none focus:ring-1 focus:ring-navy-900"
               >
-                {templates.map((t) => (
-                  <option key={t.key} value={t.key}>
-                    {t.title} ({t.category.toUpperCase()})
-                  </option>
-                ))}
+                {templates.length === 0 ? (
+                  <option value="">No templates available</option>
+                ) : (
+                  templates.map((t) => (
+                    <option key={t.key} value={t.key}>
+                      {t.title} ({t.category.toUpperCase()})
+                    </option>
+                  ))
+                )}
               </select>
             </div>
 
@@ -329,8 +333,7 @@ export const TemplateMessageComposer: React.FC<Props> = ({
               <span className="font-bold text-navy-900 block uppercase tracking-wider text-[11px]">
                 Allowed Placeholders for this template
               </span>
-
-              {selectedTemplate.allowedPlaceholders.map((ph) => {
+              {(selectedTemplate?.allowedPlaceholders || []).map((ph) => {
                 const label = ph.replace(/_/g, " ");
                 return (
                   <div key={ph}>

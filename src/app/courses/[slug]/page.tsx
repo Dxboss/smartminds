@@ -60,9 +60,9 @@ export default async function CourseDetailPage({ params }: CoursePageProps) {
   }
 
   return (
-    <main>
+    <div>
       <CourseStructuredData course={course} />
       <CourseDetailClient course={course} allCourses={allCourses} />
-    </main>
+    </div>
   );
 }

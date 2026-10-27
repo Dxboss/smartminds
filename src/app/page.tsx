@@ -24,12 +24,12 @@ export default async function HomePage() {
   const liveCourses = getLiveCourses();
 
   return (
-    <main className="bg-paper text-ink min-h-screen">
+    <div className="bg-paper text-ink min-h-screen">
       {sections
         .filter((sec) => sec.enabled)
         .map((sec) => (
           <SectionRenderer key={sec.id} section={sec} courses={liveCourses} />
         ))}
-    </main>
+    </div>
   );
 }

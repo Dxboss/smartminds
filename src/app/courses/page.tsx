@@ -65,7 +65,7 @@ export default async function CoursesPage() {
 
   if (customSections && customSections.length > 0) {
     return (
-      <main className="bg-paper text-ink min-h-screen">
+      <div className="bg-paper text-ink min-h-screen">
         <Suspense
           fallback={
             <div className="bg-paper min-h-[50vh] flex items-center justify-center text-ink-soft text-sm">
@@ -84,12 +84,12 @@ export default async function CoursesPage() {
               />
             ))}
         </Suspense>
-      </main>
+      </div>
     );
   }
 
   return (
-    <main>
+    <div>
       <Suspense
         fallback={
           <div className="bg-paper min-h-[50vh] flex items-center justify-center text-ink-soft text-sm">
@@ -99,6 +99,6 @@ export default async function CoursesPage() {
       >
         <CoursesListingView initialCourses={publishedCourses} initialFaculties={faculties} />
       </Suspense>
-    </main>
+    </div>
   );
 }
