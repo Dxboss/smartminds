@@ -23,6 +23,9 @@ import {
 import {
   savePersistedCohort,
   savePersistedClassSession,
+  savePersistedAssignment,
+  deletePersistedAssignment,
+  savePersistedSubmission,
   saveLearningMaterial,
   deleteLearningMaterial,
 } from "@/lib/persistedData";
@@ -299,8 +302,14 @@ export async function createAssignmentAction(data: {
   deadline: string;
 }) {
   const session = await getServerSession();
-  if (!session || (session.role !== "tutor" && session.role !== "owner_admin" && session.role !== "super_admin")) {
-    throw new Error("Unauthorized: Tutor session required.");
+  if (
+    !session ||
+    (session.role !== "tutor" &&
+      session.role !== "admin_staff" &&
+      session.role !== "owner_admin" &&
+      session.role !== "super_admin")
+  ) {
+    throw new Error("Unauthorized: Tutor or Admin session required.");
   }
 
   const tutorId = session.tutorId || "tutor-001";
@@ -319,6 +328,7 @@ export async function createAssignmentAction(data: {
   };
 
   seedAssignments.push(newAssignment);
+  savePersistedAssignment(newAssignment);
 
   // Trigger simulated email notifications to all enrolled learners in this cohort
   const classEnrolments = seedEnrolments.filter((e) => e.classId === data.classId);
@@ -342,6 +352,30 @@ export async function createAssignmentAction(data: {
   revalidatePath("/staff/assignments");
   revalidatePath("/student/assignments");
   return { success: true, assignmentId: newAssignment.id };
+}
+
+export async function deleteAssignmentAction(assignmentId: string) {
+  const session = await getServerSession();
+  if (
+    !session ||
+    (session.role !== "tutor" &&
+      session.role !== "admin_staff" &&
+      session.role !== "owner_admin" &&
+      session.role !== "super_admin")
+  ) {
+    throw new Error("Unauthorized: Tutor or Admin session required.");
+  }
+
+  const idx = seedAssignments.findIndex((a) => a.id === assignmentId);
+  if (idx >= 0) {
+    seedAssignments.splice(idx, 1);
+  }
+  deletePersistedAssignment(assignmentId);
+
+  revalidatePath("/staff");
+  revalidatePath("/staff/assignments");
+  revalidatePath("/student/assignments");
+  return { success: true };
 }
 
 export async function remindNotSubmittedAction(
@@ -390,6 +424,7 @@ export async function markSubmissionAction(
   sub.feedback = data.feedback;
   sub.markedAt = new Date().toISOString();
   sub.markedByTutorId = session.tutorId || "tutor-001";
+  savePersistedSubmission(sub);
 
   // If achieved, update enrolment completed units
   if (data.outcome === "achieved") {

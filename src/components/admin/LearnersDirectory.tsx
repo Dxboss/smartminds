@@ -2,7 +2,13 @@
 
 import React, { useState } from "react";
 import { Icon } from "@/components/ui/Icon";
-import { Learner, Enrolment, ClassCohort, LearnerPaymentPlanSummary } from "@/lib/repositories/types";
+import {
+  Learner,
+  Enrolment,
+  ClassCohort,
+  LearnerPaymentPlanSummary,
+  UserProfile,
+} from "@/lib/repositories/types";
 import {
   moveLearnerClassAction,
   assignLearnerTutorAndSessionAction,
@@ -20,6 +26,7 @@ interface Props {
   initialEnrolments: Enrolment[];
   initialPaymentPlans?: LearnerPaymentPlanSummary[];
   classes: ClassCohort[];
+  tutors?: UserProfile[];
   availableCourses?: Course[];
   userRole?: string;
 }
@@ -29,6 +36,7 @@ export const LearnersDirectory: React.FC<Props> = ({
   initialEnrolments,
   initialPaymentPlans = [],
   classes,
+  tutors = [],
   availableCourses = [],
   userRole = "owner_admin",
 }) => {
@@ -42,7 +50,9 @@ export const LearnersDirectory: React.FC<Props> = ({
   // Tutor & Cohort Allocation Modal State
   const [movingEnrolment, setMovingEnrolment] = useState<Enrolment | null>(null);
   const [targetClassId, setTargetClassId] = useState<string>(classes[0]?.id || "");
-  const [selectedTutor, setSelectedTutor] = useState<string>("Dr. Eleanor Vance");
+  const [selectedTutor, setSelectedTutor] = useState<string>(
+    tutors[0]?.name || "Unassigned / TBA"
+  );
   const [selectedTiming, setSelectedTiming] = useState<"afternoon" | "evening">("evening");
   const [isMoving, setIsMoving] = useState(false);
 
@@ -676,15 +686,17 @@ export const LearnersDirectory: React.FC<Props> = ({
                   onChange={(e) => setSelectedTutor(e.target.value)}
                   className="w-full px-3 py-2 rounded-sm border border-line bg-paper text-ink font-semibold focus:outline-none focus:ring-1 focus:ring-navy-900"
                 >
-                  <option value="Dr. Eleanor Vance">
-                    Dr. Eleanor Vance (Lead Healthcare Assessor)
-                  </option>
-                  <option value="Marcus Vance">
-                    Marcus Vance (Lead Education & Training Assessor)
-                  </option>
-                  <option value="Dr. Sarah Jenkins">
-                    Dr. Sarah Jenkins (Clinical Practice & Safeguarding)
-                  </option>
+                  <option value="Unassigned / TBA">Unassigned / TBA</option>
+                  {tutors.map((t) => (
+                    <option key={t.id} value={t.name}>
+                      {t.name} ({t.email})
+                    </option>
+                  ))}
+                  {selectedTutor &&
+                    selectedTutor !== "Unassigned / TBA" &&
+                    !tutors.some((t) => t.name === selectedTutor) && (
+                      <option value={selectedTutor}>{selectedTutor}</option>
+                    )}
                 </select>
               </div>
 
@@ -726,12 +738,22 @@ export const LearnersDirectory: React.FC<Props> = ({
                 </label>
                 <select
                   value={targetClassId}
-                  onChange={(e) => setTargetClassId(e.target.value)}
+                  onChange={(e) => {
+                    const cid = e.target.value;
+                    setTargetClassId(cid);
+                    const matchedCohort = classes.find((c) => c.id === cid);
+                    if (matchedCohort?.tutorName) {
+                      setSelectedTutor(matchedCohort.tutorName);
+                    }
+                    if (matchedCohort?.sessionTiming) {
+                      setSelectedTiming(matchedCohort.sessionTiming);
+                    }
+                  }}
                   className="w-full px-3 py-2 rounded-sm border border-line bg-paper text-ink font-semibold focus:outline-none focus:ring-1 focus:ring-navy-900"
                 >
                   {classes.map((cls) => (
                     <option key={cls.id} value={cls.id}>
-                      {cls.name} ({cls.intakeLabel})
+                      {cls.name} ({cls.scheduleDescription || cls.intakeLabel})
                     </option>
                   ))}
                 </select>
@@ -1363,12 +1385,23 @@ export const LearnersDirectory: React.FC<Props> = ({
 
                     <div>
                       <label className="block text-[11px] font-semibold text-navy-900 mb-1">Assigned Tutor</label>
-                      <input
-                        type="text"
+                      <select
                         value={enrolTutor}
                         onChange={(e) => setEnrolTutor(e.target.value)}
                         className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
-                      />
+                      >
+                        <option value="Unassigned / TBA">Unassigned / TBA</option>
+                        {tutors.map((t) => (
+                          <option key={t.id} value={t.name}>
+                            {t.name} ({t.email})
+                          </option>
+                        ))}
+                        {enrolTutor &&
+                          enrolTutor !== "Unassigned / TBA" &&
+                          !tutors.some((t) => t.name === enrolTutor) && (
+                            <option value={enrolTutor}>{enrolTutor}</option>
+                          )}
+                      </select>
                     </div>
 
                     <div>

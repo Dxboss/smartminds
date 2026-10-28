@@ -2,6 +2,7 @@
 
 import { getServerSession } from "@/lib/session";
 import { seedSubmissions } from "@/lib/repositories/seedData";
+import { savePersistedSubmission } from "@/lib/persistedData";
 import { revalidatePath } from "next/cache";
 
 export async function uploadCourseworkAction(formData: {
@@ -23,7 +24,7 @@ export async function uploadCourseworkAction(formData: {
   );
 
   const newSub = {
-    id: `sub-demo-${Date.now()}`,
+    id: existingIdx >= 0 ? seedSubmissions[existingIdx].id : `sub-demo-${Date.now()}`,
     assignmentId: formData.assignmentId,
     learnerId,
     learnerName: session.name,
@@ -40,8 +41,10 @@ export async function uploadCourseworkAction(formData: {
       ...seedSubmissions[existingIdx],
       ...newSub,
     };
+    savePersistedSubmission(seedSubmissions[existingIdx]);
   } else {
     seedSubmissions.push(newSub);
+    savePersistedSubmission(newSub);
   }
 
   revalidatePath(`/student/assignments/${formData.assignmentId}`);

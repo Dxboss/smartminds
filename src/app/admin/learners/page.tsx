@@ -1,8 +1,8 @@
 import React from "react";
 import { redirect } from "next/navigation";
 import { getServerSession } from "@/lib/session";
-import { getLearnerRepo, getEnrolmentRepo } from "@/lib/repositories";
-import { seedClasses } from "@/lib/repositories/seedData";
+import { getLearnerRepo, getEnrolmentRepo, getUserRepo } from "@/lib/repositories";
+import { getPersistedCohorts } from "@/lib/persistedData";
 import { LearnersDirectory } from "@/components/admin/LearnersDirectory";
 
 
@@ -23,14 +23,19 @@ export default async function AdminLearnersPage() {
 
   const learnerRepo = getLearnerRepo();
   const enrolmentRepo = getEnrolmentRepo();
+  const userRepo = getUserRepo();
   const { getCourseRepo } = await import("@/lib/repositories");
   const courseRepo = getCourseRepo();
 
-  const [learners, enrolments, allCourses] = await Promise.all([
+  const [learners, enrolments, allCourses, staffAndTutors] = await Promise.all([
     learnerRepo.listLearners(session),
     enrolmentRepo.listEnrolments(session),
     courseRepo.listCourses(),
+    userRepo.listStaffAndTutors(session),
   ]);
+
+  const cohorts = getPersistedCohorts();
+  const tutors = staffAndTutors.filter((u) => u.role === "tutor" && u.active !== false);
 
   let paymentPlans: any[] = [];
   if (session.role === "owner_admin" || session.role === "super_admin") {
@@ -60,7 +65,8 @@ export default async function AdminLearnersPage() {
         initialLearners={learners}
         initialEnrolments={enrolments}
         initialPaymentPlans={paymentPlans}
-        classes={seedClasses}
+        classes={cohorts}
+        tutors={tutors}
         availableCourses={availableCourses}
         userRole={session.role}
       />

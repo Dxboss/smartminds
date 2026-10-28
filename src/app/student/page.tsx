@@ -42,8 +42,15 @@ export default async function StudentDashboardPage() {
 
   // Derive class and session for this learner
   const primaryEnrolment = enrolments[0];
-  const assignedClass = seedClasses.find((c) => c.id === primaryEnrolment?.classId);
-  const nextSession = seedSessions.find((s) => s.classId === assignedClass?.id);
+  const assignedClass = primaryEnrolment
+    ? seedClasses.find((c) => c.id === primaryEnrolment.classId) ||
+      seedClasses.find((c) => c.courseId === primaryEnrolment.courseId)
+    : undefined;
+  const nextSession = assignedClass
+    ? seedSessions.find(
+        (s) => s.classId === assignedClass.id || (s as any).cohortId === assignedClass.id
+      )
+    : undefined;
 
   const isParentAccount =
     learner?.learnerType === "child" || Boolean(learner?.childName);
@@ -53,16 +60,22 @@ export default async function StudentDashboardPage() {
 
   const cohortSchedule = getCohortSchedule();
   const effectiveZoomLink =
-    primaryEnrolment?.sessionTiming === "evening"
-      ? cohortSchedule.evening.zoomUrl || nextSession?.zoomLink || "https://zoom.us"
-      : cohortSchedule.afternoon.zoomUrl || nextSession?.zoomLink || "https://zoom.us";
+    (assignedClass as any)?.zoomLink ||
+    nextSession?.zoomLink ||
+    (primaryEnrolment?.sessionTiming === "evening"
+      ? cohortSchedule.evening.zoomUrl || "https://zoom.us"
+      : cohortSchedule.afternoon.zoomUrl || "https://zoom.us");
 
   // Assignments due & submissions for this learner
   const mySubmissions = seedSubmissions.filter((s) => s.learnerId === learnerId);
   const markedResults = mySubmissions.filter((s) => s.status === "marked");
-  const pendingAssignments = seedAssignments.filter(
-    (a) => a.classId === assignedClass?.id && !mySubmissions.some((s) => s.assignmentId === a.id && s.status === "marked")
-  );
+  const pendingAssignments = assignedClass?.id
+    ? seedAssignments.filter(
+        (a) =>
+          a.classId === assignedClass.id &&
+          !mySubmissions.some((s) => s.assignmentId === a.id && s.status === "marked")
+      )
+    : [];
 
   // Check upcoming/overdue payment status
   const unpaidItems = paymentSummary?.schedule?.filter((s) => s.status !== "paid") || [];

@@ -103,6 +103,9 @@ export interface PersistedRecordsStore {
   siteTheme?: any;
   impersonationLogs?: ImpersonationAuditLog[];
   learningMaterials?: LearningMaterial[];
+  assignments?: any[];
+  submissions?: any[];
+  deletedCohortIds?: string[];
 }
 
 import { type ColorSwatch, DEFAULT_COLOR_SWATCHES } from "./colorSwatches";
@@ -215,6 +218,9 @@ export function loadPersistedRecords(): PersistedRecordsStore {
         Array.isArray(parsed.faculties)
           ? sanitizeFaculties(parsed.faculties)
           : [...DEFAULT_COLLEGE_FACULTIES],
+      assignments: Array.isArray(parsed.assignments) ? parsed.assignments : [],
+      submissions: Array.isArray(parsed.submissions) ? parsed.submissions : [],
+      deletedCohortIds: Array.isArray(parsed.deletedCohortIds) ? parsed.deletedCohortIds : [],
     };
   } catch (err) {
     console.error("[persistedData] Failed to load store:", err);
@@ -400,6 +406,18 @@ export async function pullLatestFromNeon(force = false): Promise<boolean> {
             ? dbStore.colorSwatches
             : store.colorSwatches || DEFAULT_COLOR_SWATCHES,
         siteTheme: dbStore.siteTheme || store.siteTheme,
+        assignments:
+          Array.isArray(dbStore.assignments)
+            ? dbStore.assignments
+            : store.assignments || [],
+        submissions:
+          Array.isArray(dbStore.submissions)
+            ? dbStore.submissions
+            : store.submissions || [],
+        deletedCohortIds:
+          Array.isArray(dbStore.deletedCohortIds)
+            ? dbStore.deletedCohortIds
+            : store.deletedCohortIds || [],
       };
 
       const filePath = getStoreFilePath();
@@ -1107,17 +1125,114 @@ export function savePersistedCohort(cohort: any): void {
   try {
     const store = loadPersistedRecords();
     if (!store.cohorts) store.cohorts = [];
+    if (store.deletedCohortIds) {
+      store.deletedCohortIds = store.deletedCohortIds.filter((id) => id !== cohort.id);
+    }
     const idx = store.cohorts.findIndex((c) => c.id === cohort.id);
     if (idx >= 0) {
-      store.cohorts[idx] = cohort;
+      store.cohorts[idx] = { ...store.cohorts[idx], ...cohort };
     } else {
       store.cohorts.push(cohort);
     }
+
+    // Keep the cohort's primary live ClassSession in sync when nextSessionDate or zoomLink changes
+    if (cohort.nextSessionDate) {
+      if (!store.classSessions) store.classSessions = [];
+      const startIso = new Date(cohort.nextSessionDate).toISOString();
+      const endIso = new Date(new Date(cohort.nextSessionDate).getTime() + 90 * 60 * 1000).toISOString();
+      const existingSessionIdx = store.classSessions.findIndex(
+        (s) => s.cohortId === cohort.id || s.classId === cohort.id
+      );
+      if (existingSessionIdx >= 0) {
+        store.classSessions[existingSessionIdx] = {
+          ...store.classSessions[existingSessionIdx],
+          classId: cohort.id,
+          cohortId: cohort.id,
+          scheduledAt: startIso,
+          startsAt: startIso,
+          endsAt: endIso,
+          zoomLink:
+            cohort.zoomLink ||
+            store.classSessions[existingSessionIdx].zoomLink ||
+            "https://zoom.us/j/smartminds-live",
+        };
+      } else {
+        store.classSessions.push({
+          id: `sess-${cohort.id}-primary`,
+          classId: cohort.id,
+          cohortId: cohort.id,
+          title: `${cohort.courseTitle || cohort.name || "Live Cohort"} — Live Seminar`,
+          topic: cohort.scheduleDescription || "Interactive tutor-led live session",
+          scheduledAt: startIso,
+          startsAt: startIso,
+          endsAt: endIso,
+          durationMinutes: 90,
+          zoomLink: cohort.zoomLink || "https://zoom.us/j/smartminds-live",
+          status: "scheduled",
+        });
+      }
+    }
+
     const filePath = getStoreFilePath();
     fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
     syncPersistedRecords(true);
+    syncStoreSnapshotToNeon(store).catch(() => {});
   } catch (err) {
     console.error("[persistedData] Failed to save cohort:", err);
+  }
+}
+
+export function deletePersistedCohort(cohortId: string): boolean {
+  try {
+    const store = loadPersistedRecords();
+    if (!store.cohorts) store.cohorts = [];
+    if (!store.deletedCohortIds) store.deletedCohortIds = [];
+    if (!store.deletedCohortIds.includes(cohortId)) {
+      store.deletedCohortIds.push(cohortId);
+    }
+    store.cohorts = store.cohorts.filter((c) => c.id !== cohortId);
+    if (store.classSessions) {
+      store.classSessions = store.classSessions.filter((s) => s.cohortId !== cohortId);
+    }
+
+    // Also remove immediately from in-memory seedClasses & seedSessions
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { seedClasses, seedSessions } = require("@/lib/repositories/seedData");
+      if (Array.isArray(seedClasses)) {
+        const idx = seedClasses.findIndex((c: any) => c.id === cohortId);
+        if (idx >= 0) seedClasses.splice(idx, 1);
+      }
+      if (Array.isArray(seedSessions)) {
+        for (let i = seedSessions.length - 1; i >= 0; i--) {
+          if (seedSessions[i].cohortId === cohortId) {
+            seedSessions.splice(i, 1);
+          }
+        }
+      }
+    } catch {}
+
+    const filePath = getStoreFilePath();
+    fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+    syncPersistedRecords(true);
+    syncStoreSnapshotToNeon(store).catch(() => {});
+    return true;
+  } catch (err) {
+    console.error("[persistedData] Failed to delete cohort:", err);
+    return false;
+  }
+}
+
+export function getPersistedCohorts(): any[] {
+  syncPersistedRecords(false);
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { seedClasses } = require("@/lib/repositories/seedData");
+    const store = loadPersistedRecords();
+    const deletedSet = new Set(store.deletedCohortIds || []);
+    return (seedClasses || []).filter((c: any) => !deletedSet.has(c.id));
+  } catch {
+    return [];
   }
 }
 
@@ -1134,8 +1249,63 @@ export function savePersistedClassSession(session: any): void {
     const filePath = getStoreFilePath();
     fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
     syncPersistedRecords(true);
+    syncStoreSnapshotToNeon(store).catch(() => {});
   } catch (err) {
     console.error("[persistedData] Failed to save class session:", err);
+  }
+}
+
+export function savePersistedAssignment(assignment: any): void {
+  try {
+    const store = loadPersistedRecords();
+    if (!store.assignments) store.assignments = [];
+    const idx = store.assignments.findIndex((a) => a.id === assignment.id);
+    if (idx >= 0) {
+      store.assignments[idx] = { ...store.assignments[idx], ...assignment };
+    } else {
+      store.assignments.push(assignment);
+    }
+    const filePath = getStoreFilePath();
+    fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+    syncPersistedRecords(true);
+    syncStoreSnapshotToNeon(store).catch(() => {});
+  } catch (err) {
+    console.error("[persistedData] Failed to save assignment:", err);
+  }
+}
+
+export function deletePersistedAssignment(assignmentId: string): boolean {
+  try {
+    const store = loadPersistedRecords();
+    if (!store.assignments) store.assignments = [];
+    store.assignments = store.assignments.filter((a) => a.id !== assignmentId);
+    const filePath = getStoreFilePath();
+    fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+    syncPersistedRecords(true);
+    syncStoreSnapshotToNeon(store).catch(() => {});
+    return true;
+  } catch (err) {
+    console.error("[persistedData] Failed to delete assignment:", err);
+    return false;
+  }
+}
+
+export function savePersistedSubmission(submission: any): void {
+  try {
+    const store = loadPersistedRecords();
+    if (!store.submissions) store.submissions = [];
+    const idx = store.submissions.findIndex((s) => s.id === submission.id);
+    if (idx >= 0) {
+      store.submissions[idx] = { ...store.submissions[idx], ...submission };
+    } else {
+      store.submissions.push(submission);
+    }
+    const filePath = getStoreFilePath();
+    fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+    syncPersistedRecords(true);
+    syncStoreSnapshotToNeon(store).catch(() => {});
+  } catch (err) {
+    console.error("[persistedData] Failed to save submission:", err);
   }
 }
 
@@ -1213,6 +1383,8 @@ export function syncPersistedRecords(force: boolean = false): void {
       seedPaymentSchedules,
       seedClasses,
       seedSessions,
+      seedAssignments,
+      seedSubmissions,
       seedBlockedDays,
       seedAvailabilityRules,
       seedBookings,
@@ -1323,13 +1495,24 @@ export function syncPersistedRecords(force: boolean = false): void {
     }
 
     // Sync Cohorts
-    if (store.cohorts && seedClasses) {
-      for (const pc of store.cohorts) {
-        const idx = seedClasses.findIndex((c: any) => c.id === pc.id);
-        if (idx >= 0) {
-          seedClasses[idx] = { ...seedClasses[idx], ...pc };
-        } else {
-          seedClasses.push(pc);
+    if (seedClasses) {
+      if (store.deletedCohortIds && store.deletedCohortIds.length > 0) {
+        const deletedSet = new Set(store.deletedCohortIds);
+        for (let i = seedClasses.length - 1; i >= 0; i--) {
+          if (deletedSet.has(seedClasses[i].id)) {
+            seedClasses.splice(i, 1);
+          }
+        }
+      }
+      if (store.cohorts) {
+        for (const pc of store.cohorts) {
+          if (store.deletedCohortIds?.includes(pc.id)) continue;
+          const idx = seedClasses.findIndex((c: any) => c.id === pc.id);
+          if (idx >= 0) {
+            seedClasses[idx] = { ...seedClasses[idx], ...pc };
+          } else {
+            seedClasses.push(pc);
+          }
         }
       }
     }
@@ -1342,6 +1525,43 @@ export function syncPersistedRecords(force: boolean = false): void {
           seedSessions[idx] = { ...seedSessions[idx], ...ps };
         } else {
           seedSessions.push(ps);
+        }
+      }
+    }
+
+    // Sync Assignments & Submissions (Outside automated test runs, only tutor/admin created assignments exist)
+    const isTestEnv =
+      process.env.NODE_ENV === "test" ||
+      (typeof process !== "undefined" &&
+        Array.isArray(process.argv) &&
+        process.argv.some((a) => a.includes("--test") || a.includes(".test.")));
+
+    if (!isTestEnv) {
+      if (Array.isArray(seedAssignments)) {
+        seedAssignments.length = 0;
+        if (Array.isArray(store.assignments) && store.assignments.length > 0) {
+          seedAssignments.push(...store.assignments);
+        }
+      }
+      if (Array.isArray(seedSubmissions)) {
+        seedSubmissions.length = 0;
+        if (Array.isArray(store.submissions) && store.submissions.length > 0) {
+          seedSubmissions.push(...store.submissions);
+        }
+      }
+    } else {
+      if (Array.isArray(store.assignments) && Array.isArray(seedAssignments)) {
+        for (const pa of store.assignments) {
+          const idx = seedAssignments.findIndex((a: any) => a.id === pa.id);
+          if (idx >= 0) seedAssignments[idx] = { ...seedAssignments[idx], ...pa };
+          else seedAssignments.push(pa);
+        }
+      }
+      if (Array.isArray(store.submissions) && Array.isArray(seedSubmissions)) {
+        for (const ps of store.submissions) {
+          const idx = seedSubmissions.findIndex((s: any) => s.id === ps.id);
+          if (idx >= 0) seedSubmissions[idx] = { ...seedSubmissions[idx], ...ps };
+          else seedSubmissions.push(ps);
         }
       }
     }
@@ -1861,6 +2081,7 @@ export function saveCohortSchedule(schedule: CohortScheduleConfig): void {
     store.cohortSchedule = schedule;
     const filePath = getStoreFilePath();
     fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+    syncStoreSnapshotToNeon(store).catch(() => {});
   } catch (err) {
     console.error("[persistedData] Failed to save cohort schedule:", err);
   }

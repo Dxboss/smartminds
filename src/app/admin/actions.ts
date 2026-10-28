@@ -1642,6 +1642,7 @@ export async function createCohortAction(cohortData: {
   tutorName: string;
   intakeLabel: string;
   scheduleDescription: string;
+  nextSessionDate?: string;
   sessionTiming?: "afternoon" | "evening";
   zoomLink?: string;
 }) {
@@ -1659,9 +1660,92 @@ export async function createCohortAction(cohortData: {
   seedClasses.push(newCohort);
   savePersistedCohort(newCohort);
 
+  revalidatePath("/admin/availability");
+  revalidatePath("/admin/learners");
   revalidatePath("/admin/staff");
   revalidatePath("/staff");
+  revalidatePath("/student");
   return { success: true, cohort: newCohort };
+}
+
+export async function updateCohortAction(
+  cohortId: string,
+  updates: {
+    name?: string;
+    courseId?: string;
+    courseLevelLabel?: string;
+    tutorId?: string;
+    tutorName?: string;
+    intakeLabel?: string;
+    scheduleDescription?: string;
+    nextSessionDate?: string;
+    sessionTiming?: "afternoon" | "evening";
+    zoomLink?: string;
+  }
+) {
+  const session = await getServerSession();
+  assertAdminAuthorized(session);
+
+  const { seedClasses, seedEnrolments } = await import("@/lib/repositories/seedData");
+  const { savePersistedCohort, savePersistedRecord } = await import("@/lib/persistedData");
+
+  const idx = seedClasses.findIndex((c) => c.id === cohortId);
+  const existing = idx >= 0 ? seedClasses[idx] : { id: cohortId };
+  const updatedCohort = {
+    ...existing,
+    ...updates,
+    id: cohortId,
+  } as any;
+
+  if (idx >= 0) {
+    seedClasses[idx] = updatedCohort;
+  } else {
+    seedClasses.push(updatedCohort);
+  }
+
+  savePersistedCohort(updatedCohort);
+
+  // Sync any enrolments linked to this cohort so students see the updated tutor & timing
+  for (const enr of seedEnrolments) {
+    if (enr.classId === cohortId) {
+      let modified = false;
+      if (updates.tutorName !== undefined && enr.tutorName !== updates.tutorName) {
+        enr.tutorName = updates.tutorName;
+        modified = true;
+      }
+      if (updates.sessionTiming !== undefined && enr.sessionTiming !== updates.sessionTiming) {
+        enr.sessionTiming = updates.sessionTiming;
+        modified = true;
+      }
+      if (modified) {
+        try {
+          savePersistedRecord({ enrolment: enr });
+        } catch {}
+      }
+    }
+  }
+
+  revalidatePath("/admin/availability");
+  revalidatePath("/admin/learners");
+  revalidatePath("/admin/staff");
+  revalidatePath("/staff");
+  revalidatePath("/student");
+  return { success: true, cohort: updatedCohort };
+}
+
+export async function deleteCohortAction(cohortId: string) {
+  const session = await getServerSession();
+  assertAdminAuthorized(session);
+
+  const { deletePersistedCohort } = await import("@/lib/persistedData");
+  deletePersistedCohort(cohortId);
+
+  revalidatePath("/admin/availability");
+  revalidatePath("/admin/learners");
+  revalidatePath("/admin/staff");
+  revalidatePath("/staff");
+  revalidatePath("/student");
+  return { success: true };
 }
 
 export async function saveVisualBuilderSectionsAction(
