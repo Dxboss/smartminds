@@ -10,14 +10,19 @@ import {
   UserProfile,
 } from "@/lib/repositories/types";
 import { Icon } from "@/components/ui/Icon";
-import {
-  toggleBlockedDayAction,
-  updateAvailabilityRulesAction,
-  updateCohortScheduleAdminAction,
-  createCohortAction,
-  updateCohortAction,
-  deleteCohortAction,
-} from "@/app/admin/actions";
+
+async function callCohortsApi(action: string, payload: Record<string, any>) {
+  const res = await fetch("/api/admin/cohorts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action, payload }),
+  });
+  const data = await res.json();
+  if (!res.ok || data?.success === false) {
+    throw new Error(data?.error || "Failed to save cohort update.");
+  }
+  return data;
+}
 
 interface AvailabilityManagerViewProps {
   initialRules: AvailabilityRule[];
@@ -108,10 +113,19 @@ export function AvailabilityManagerView({
   const openEditCohortModal = (cohort: ClassCohort) => {
     setEditingCohort(cohort);
     setShowCreateCohort(false);
+    const matchedCourse =
+      courses.find((c) => c.id === cohort.courseId) || defaultCourse;
+    const courseLevels = (matchedCourse?.levels || [])
+      .map((l) => l.level_label)
+      .filter(Boolean);
+    const initialLevel =
+      cohort.courseLevelLabel && courseLevels.includes(cohort.courseLevelLabel)
+        ? cohort.courseLevelLabel
+        : courseLevels[0] || cohort.courseLevelLabel || "Level 3";
     setCohortForm({
       name: cohort.name || "",
       courseId: cohort.courseId || defaultCourse?.id || "",
-      courseLevelLabel: cohort.courseLevelLabel || "Level 3 Diploma",
+      courseLevelLabel: initialLevel,
       tutorId: cohort.tutorId || "",
       tutorName: cohort.tutorName || "Unassigned / TBA",
       intakeLabel: cohort.intakeLabel || "",
@@ -126,10 +140,13 @@ export function AvailabilityManagerView({
     setEditingCohort(null);
     setShowCreateCohort(true);
     const firstCourse = courses[0];
+    const firstLevel = firstCourse?.levels?.[0]?.level_label || "Level 3";
     setCohortForm({
-      name: firstCourse ? `${firstCourse.title} — Evening Cohort` : "New Course Cohort",
+      name: firstCourse
+        ? `${firstCourse.title} (${firstLevel}) — May 2026 Intake`
+        : "New Course Cohort",
       courseId: firstCourse?.id || "",
-      courseLevelLabel: firstCourse?.levels?.[0]?.level_label || "Level 3 Diploma",
+      courseLevelLabel: firstLevel,
       tutorId: tutors[0]?.id || "",
       tutorName: tutors[0]?.name || "Unassigned / TBA",
       intakeLabel: "May 2026 Intake",
@@ -149,17 +166,20 @@ export function AvailabilityManagerView({
           : undefined;
 
         if (editingCohort) {
-          const res = await updateCohortAction(editingCohort.id, {
-            name: cohortForm.name.trim(),
-            courseId: cohortForm.courseId,
-            courseLevelLabel: cohortForm.courseLevelLabel.trim(),
-            tutorId: cohortForm.tutorId,
-            tutorName: cohortForm.tutorName,
-            intakeLabel: cohortForm.intakeLabel.trim(),
-            scheduleDescription: cohortForm.scheduleDescription.trim(),
-            nextSessionDate: nextIso,
-            sessionTiming: cohortForm.sessionTiming,
-            zoomLink: cohortForm.zoomLink.trim() || undefined,
+          const res = await callCohortsApi("update_cohort", {
+            cohortId: editingCohort.id,
+            updates: {
+              name: cohortForm.name.trim(),
+              courseId: cohortForm.courseId,
+              courseLevelLabel: cohortForm.courseLevelLabel.trim(),
+              tutorId: cohortForm.tutorId,
+              tutorName: cohortForm.tutorName,
+              intakeLabel: cohortForm.intakeLabel.trim(),
+              scheduleDescription: cohortForm.scheduleDescription.trim(),
+              nextSessionDate: nextIso,
+              sessionTiming: cohortForm.sessionTiming,
+              zoomLink: cohortForm.zoomLink.trim() || undefined,
+            },
           });
           if (res.success && res.cohort) {
             setCohorts((prev) =>
@@ -170,7 +190,7 @@ export function AvailabilityManagerView({
             setTimeout(() => setToastMessage(null), 4000);
           }
         } else {
-          const res = await createCohortAction({
+          const res = await callCohortsApi("create_cohort", {
             name: cohortForm.name.trim(),
             courseId: cohortForm.courseId,
             courseLevelLabel: cohortForm.courseLevelLabel.trim(),
@@ -199,7 +219,7 @@ export function AvailabilityManagerView({
     if (!window.confirm(`Remove cohort "${cohort.name}"?`)) return;
     startTransition(async () => {
       try {
-        const res = await deleteCohortAction(cohort.id);
+        const res = await callCohortsApi("delete_cohort", { cohortId: cohort.id });
         if (res.success) {
           setCohorts((prev) => prev.filter((c) => c.id !== cohort.id));
           setToastMessage(`Removed cohort "${cohort.name}".`);
@@ -214,7 +234,9 @@ export function AvailabilityManagerView({
   const handleSaveCohortSchedule = () => {
     startTransition(async () => {
       try {
-        const result = await updateCohortScheduleAdminAction(cohortSchedule);
+        const result = await callCohortsApi("update_schedule", {
+          schedule: cohortSchedule,
+        });
         if (result.success) {
           setToastMessage("Live class cohort schedules and Zoom accounts updated successfully.");
           setTimeout(() => setToastMessage(null), 4000);
@@ -238,7 +260,7 @@ export function AvailabilityManagerView({
   const handleSaveRules = () => {
     startTransition(async () => {
       try {
-        const result = await updateAvailabilityRulesAction(rules);
+        const result = await callCohortsApi("update_rules", { rules });
         if (result.success) {
           setToastMessage("College consultation schedule updated successfully.");
           setTimeout(() => setToastMessage(null), 4000);
@@ -253,10 +275,10 @@ export function AvailabilityManagerView({
     if (!newBlockedDate) return;
     startTransition(async () => {
       try {
-        const result = await toggleBlockedDayAction(
-          newBlockedDate,
-          newBlockedReason.trim() || undefined
-        );
+        const result = await callCohortsApi("toggle_blocked_day", {
+          date: newBlockedDate,
+          reason: newBlockedReason.trim() || undefined,
+        });
         if (result.success && result.blockedDays) {
           setBlockedDays(result.blockedDays);
           setNewBlockedDate("");
@@ -275,7 +297,7 @@ export function AvailabilityManagerView({
   const handleRemoveBlockedDay = (date: string) => {
     startTransition(async () => {
       try {
-        const result = await toggleBlockedDayAction(date);
+        const result = await callCohortsApi("toggle_blocked_day", { date });
         if (result.success && result.blockedDays) {
           setBlockedDays(result.blockedDays);
           setToastMessage(`Date ${date} unblocked.`);
@@ -968,23 +990,11 @@ export function AvailabilityManagerView({
                       const fromCourse = (selectedCourse?.levels || [])
                         .map((l) => l.level_label)
                         .filter(Boolean);
-                      const standardLevels = [
-                        "Level 2",
-                        "Level 3",
-                        "Level 4",
-                        "Level 5",
-                        "All Levels (Level 2 – Level 5)",
-                        "CPD / Short Course",
-                        "1-to-1 Academic Tutoring",
-                      ];
-                      const options = [...fromCourse];
-                      for (const std of standardLevels) {
-                        if (!options.some((o) => o.toLowerCase() === std.toLowerCase())) {
-                          options.push(std);
-                        }
-                      }
+                      const options =
+                        fromCourse.length > 0 ? [...fromCourse] : ["Level 3"];
                       if (
                         cohortForm.courseLevelLabel &&
+                        fromCourse.length === 0 &&
                         !options.some(
                           (o) => o.toLowerCase() === cohortForm.courseLevelLabel.toLowerCase()
                         )

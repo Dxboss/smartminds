@@ -29,7 +29,15 @@ export default async function AdminAvailabilityPage() {
   const bookingRepo = getBookingRepo();
   const courseRepo = getCourseRepo();
   const userRepo = getUserRepo();
-  const { getCohortSchedule, getPersistedCohorts } = await import("@/lib/persistedData");
+  const {
+    getCohortSchedule,
+    getPersistedCohorts,
+    pullLatestFromNeon,
+    syncPersistedRecords,
+  } = await import("@/lib/persistedData");
+
+  await pullLatestFromNeon();
+  syncPersistedRecords(false);
 
   const [rules, blockedDays, cohortSchedule, courses, staffAndTutors] = await Promise.all([
     bookingRepo.getAvailabilityRules(),

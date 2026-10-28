@@ -1770,23 +1770,17 @@ export const LearnersDirectory: React.FC<Props> = ({
                         }}
                         className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-medium"
                       >
-                        {courseLevelsList.map((lvl) => (
-                          <option key={lvl.level_label} value={lvl.level_label}>
-                            {lvl.level_label} (£{lvl.price_gbp})
-                          </option>
-                        ))}
-                        {["Level 2", "Level 3", "Level 4", "Level 5", "Level 6", "Level 7", "CPD / Short Course", "1-to-1 Academic Tutoring"]
-                          .filter(
-                            (std) =>
-                              !courseLevelsList.some(
-                                (l) => l.level_label.toLowerCase() === std.toLowerCase()
-                              )
-                          )
-                          .map((std) => (
-                            <option key={std} value={std}>
-                              {std} (Set custom fee below)
+                        {courseLevelsList.length > 0 ? (
+                          courseLevelsList.map((lvl) => (
+                            <option key={lvl.level_label} value={lvl.level_label}>
+                              {lvl.level_label} (£{lvl.price_gbp})
                             </option>
-                          ))}
+                          ))
+                        ) : (
+                          <option value={enrolLevelLabel || "Level 3"}>
+                            {enrolLevelLabel || "Level 3"}
+                          </option>
+                        )}
                       </select>
                     </div>
 
@@ -2299,23 +2293,17 @@ export const LearnersDirectory: React.FC<Props> = ({
                           }}
                           className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-medium"
                         >
-                          {editCourseLevels.map((lvl) => (
-                            <option key={lvl.level_label} value={lvl.level_label}>
-                              {lvl.level_label} (£{lvl.price_gbp})
-                            </option>
-                          ))}
-                          {["Level 2", "Level 3", "Level 4", "Level 5", "Level 6", "Level 7", "CPD / Short Course"]
-                            .filter(
-                              (std) =>
-                                !editCourseLevels.some(
-                                  (l) => l.level_label.toLowerCase() === std.toLowerCase()
-                                )
-                            )
-                            .map((std) => (
-                              <option key={std} value={std}>
-                                {std}
+                          {editCourseLevels.length > 0 ? (
+                            editCourseLevels.map((lvl) => (
+                              <option key={lvl.level_label} value={lvl.level_label}>
+                                {lvl.level_label} (£{lvl.price_gbp})
                               </option>
-                            ))}
+                            ))
+                          ) : (
+                            <option value={editLevelLabel || "Level 3"}>
+                              {editLevelLabel || "Level 3"}
+                            </option>
+                          )}
                         </select>
                       </div>
 

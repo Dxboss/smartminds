@@ -29,13 +29,12 @@ function getCourseLevelLabelsForTutor(course?: Course): string[] {
   const fromCourse = (course?.levels || [])
     .map((l) => l.level_label)
     .filter(Boolean);
-  const merged = [...fromCourse];
-  for (const std of STANDARD_TEACHER_LEVELS) {
-    if (!merged.some((m) => m.toLowerCase() === std.toLowerCase())) {
-      merged.push(std);
-    }
+  if (fromCourse.length > 0) {
+    return fromCourse.length > 1
+      ? [...fromCourse, `All Levels (${fromCourse.join(", ")})`]
+      : fromCourse;
   }
-  return merged;
+  return STANDARD_TEACHER_LEVELS;
 }
 
 interface Props {
