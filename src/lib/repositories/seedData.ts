@@ -2075,7 +2075,7 @@ export const defaultFooterConfig: FooterConfig = {
   siteName: "Smartminds",
   tagline: "Training College",
   bioText:
-    "UK professional training provider delivering 100% online distance learning with certified tutors and assessors for Ofqual-regulated qualifications, CPD courses, and private tutoring.",
+    "UK professional training provider delivering blended learning and live online distance learning with certified tutors and assessors for Ofqual-regulated qualifications, CPD courses, and private tutoring.",
   badge1: "Live Online Classes",
   badge2: "UK Registered Provider",
   showNewsletter: true,

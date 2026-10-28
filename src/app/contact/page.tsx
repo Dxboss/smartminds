@@ -162,7 +162,7 @@ export default function ContactPage() {
                       {siteConfig.contact.address}
                     </span>
                     <span className="text-[11px] text-ink-soft block mt-0.5">
-                      All courses and student tuition delivered 100% online nationwide.
+                      Courses and student tuition delivered via blended learning and live online classes nationwide.
                     </span>
                   </div>
                 </div>

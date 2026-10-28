@@ -43,7 +43,7 @@ export const VideoSlotPlaceholder: React.FC<VideoSlotPlaceholderProps> = ({
             </span>
           </div>
           <span className="text-xs text-white/70 font-mono">
-            Smartminds Training College • 100% Online Distance Learning
+            Smartminds Training College • Blended &amp; Online Distance Learning
           </span>
         </div>
 

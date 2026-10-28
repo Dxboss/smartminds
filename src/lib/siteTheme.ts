@@ -36,6 +36,17 @@ export function setCachedSiteTheme(theme: SiteThemeData): void {
   lastCacheTimestamp = typeof performance !== "undefined" ? performance.now() : 0;
 }
 
+function sanitizeFooterTheme(footer: Partial<FooterConfig>): Partial<FooterConfig> {
+  const result = { ...defaultFooterConfig, ...footer };
+  if (result.bioText && /100%\s*online/i.test(result.bioText)) {
+    result.bioText = result.bioText.replace(
+      /100%\s*online\s*distance\s*learning/gi,
+      "blended learning and live online distance learning"
+    ).replace(/100%\s*online/gi, "blended learning and live online");
+  }
+  return result;
+}
+
 /**
  * Asynchronously fetch site theme from Neon PostgreSQL system_store table.
  * Primary source of truth: Database ALWAYS wins over static disk files.
@@ -68,7 +79,7 @@ export async function getPersistentSiteThemeAsync(): Promise<SiteThemeData> {
           const dbTheme = (typeof rawVal === "string" ? JSON.parse(rawVal) : rawVal) as Partial<SiteThemeData>;
           const resolved: SiteThemeData = {
             headerNav: { ...defaultHeaderNavConfig, ...(dbTheme.headerNav || {}) },
-            footer: { ...defaultFooterConfig, ...(dbTheme.footer || {}) },
+            footer: sanitizeFooterTheme(dbTheme.footer || {}),
           };
           setCachedSiteTheme(resolved);
           return resolved;
@@ -102,7 +113,7 @@ export function getPersistentSiteTheme(): SiteThemeData {
     if (store && store.siteTheme && (store.siteTheme.headerNav || store.siteTheme.footer)) {
       return {
         headerNav: { ...defaultHeaderNavConfig, ...(store.siteTheme.headerNav || {}) },
-        footer: { ...defaultFooterConfig, ...(store.siteTheme.footer || {}) },
+        footer: sanitizeFooterTheme(store.siteTheme.footer || {}),
       };
     }
   } catch {}
@@ -114,7 +125,7 @@ export function getPersistentSiteTheme(): SiteThemeData {
       const parsed = JSON.parse(raw);
       return {
         headerNav: { ...defaultHeaderNavConfig, ...(parsed.headerNav || {}) },
-        footer: { ...defaultFooterConfig, ...(parsed.footer || {}) },
+        footer: sanitizeFooterTheme(parsed.footer || {}),
       };
     }
   } catch (err) {
@@ -123,7 +134,7 @@ export function getPersistentSiteTheme(): SiteThemeData {
 
   return {
     headerNav: defaultHeaderNavConfig,
-    footer: defaultFooterConfig,
+    footer: sanitizeFooterTheme(defaultFooterConfig),
   };
 }
 

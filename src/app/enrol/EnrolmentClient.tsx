@@ -963,7 +963,7 @@ export const EnrolmentClient: React.FC<Props> = ({
                 <div className="p-3 rounded-xs bg-navy-50/60 border border-navy-900/10 flex items-center gap-2 text-xs text-navy-900">
                   <Icon name="globe" size={14} className="text-navy-900 shrink-0" />
                   <span>
-                    <strong>100% Online Study:</strong> No physical travel or campus attendance required. All teaching, tutor tutorials, and coursework submissions occur online.
+                    <strong>Blended &amp; Online Study:</strong> Flexible tutor-led online seminars and supported assessment guided by qualified assessors.
                   </span>
                 </div>
               )}

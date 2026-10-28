@@ -79,7 +79,7 @@ export const siteConfig: SiteConfig = {
   legalLine:
     "Smartminds Training College is a trading name of Smartminds Empire Ltd, Company No. 13492661",
   description:
-    "UK professional training provider delivering 100% online distance learning with certified tutors and assessors for Ofqual-regulated qualifications, CPD courses, and private tutoring.",
+    "UK professional training provider delivering blended learning and live online distance learning with certified tutors and assessors for Ofqual-regulated qualifications, CPD courses, and private tutoring.",
   contact: {
     phone: "+441452225225",
     phoneDisplay: "01452 225 225",

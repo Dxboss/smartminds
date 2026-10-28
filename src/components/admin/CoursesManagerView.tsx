@@ -1561,7 +1561,7 @@ export function CoursesManagerView({
                         ) : (
                           <span className="px-1.5 py-0.5 rounded-xs bg-slate-100 text-slate-800 border border-slate-300 text-[10px] font-bold flex items-center gap-1">
                             <Icon name="video" size={11} className="text-slate-700" />
-                            <span>100% Online</span>
+                            <span>Blended / Online</span>
                           </span>
                         )}
                       </div>
