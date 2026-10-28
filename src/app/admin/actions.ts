@@ -324,7 +324,7 @@ export async function archiveLearnerAction(learnerId: string, reason?: string) {
 
   // Sync to persisted records
   try {
-    const { loadPersistedRecords } = await import("@/lib/persistedData");
+    const { loadPersistedRecords, syncPersistedRecords, syncStoreSnapshotToNeon } = await import("@/lib/persistedData");
     const store = loadPersistedRecords();
     const pLearner = store.learners?.find((l) => l.id === learnerId);
     if (pLearner) {
@@ -335,6 +335,8 @@ export async function archiveLearnerAction(learnerId: string, reason?: string) {
       const path = await import("path");
       const filePath = path.join(process.cwd(), "data", "persisted_records.json");
       fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+      syncPersistedRecords(true);
+      await syncStoreSnapshotToNeon(store);
     }
   } catch (err) {
     console.error("[archiveLearnerAction] Persist sync error:", err);
@@ -355,7 +357,7 @@ export async function restoreLearnerAction(learnerId: string) {
 
   // Sync to persisted records
   try {
-    const { loadPersistedRecords } = await import("@/lib/persistedData");
+    const { loadPersistedRecords, syncPersistedRecords, syncStoreSnapshotToNeon } = await import("@/lib/persistedData");
     const store = loadPersistedRecords();
     const pLearner = store.learners?.find((l) => l.id === learnerId);
     if (pLearner) {
@@ -366,6 +368,8 @@ export async function restoreLearnerAction(learnerId: string) {
       const path = await import("path");
       const filePath = path.join(process.cwd(), "data", "persisted_records.json");
       fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+      syncPersistedRecords(true);
+      await syncStoreSnapshotToNeon(store);
     }
   } catch (err) {
     console.error("[restoreLearnerAction] Persist sync error:", err);
@@ -388,33 +392,17 @@ export async function deleteLearnerPermanentlyAction(learnerId: string) {
   }
 
   try {
-    const { loadPersistedRecords } = await import("@/lib/persistedData");
-    const store = loadPersistedRecords();
-    if (store.learners) {
-      store.learners = store.learners.filter((l) => l.id !== learnerId);
-    }
-    if (store.enrolments) {
-      store.enrolments = store.enrolments.filter((e) => e.learnerId !== learnerId);
-    }
-    if (store.paymentRecords) {
-      store.paymentRecords = store.paymentRecords.filter((p) => p.learnerId !== learnerId);
-    }
-    if (store.paymentSchedules) {
-      store.paymentSchedules = store.paymentSchedules.filter((p) => p.learnerId !== learnerId);
-    }
-    const fs = await import("fs");
-    const path = await import("path");
-    const filePath = path.join(process.cwd(), "data", "persisted_records.json");
-    fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
-    const { syncPersistedRecords, syncStoreSnapshotToNeon } = await import("@/lib/persistedData");
-    syncPersistedRecords(true);
-    await syncStoreSnapshotToNeon(store);
+    const { deleteUserFromStore } = await import("@/lib/persistedData");
+    deleteUserFromStore(learnerId);
   } catch (err) {
     console.error("[deleteLearnerPermanentlyAction] Error:", err);
   }
 
+  revalidatePath("/admin");
   revalidatePath("/admin/learners");
+  revalidatePath("/admin/payments");
   revalidatePath("/staff");
+  revalidatePath("/super");
   return { success: true };
 }
 
@@ -940,12 +928,19 @@ export async function removeStaffMemberAction(userId: string) {
   }
 
   const { getUserRepo } = await import("@/lib/repositories");
+  const { deleteUserFromStore } = await import("@/lib/persistedData");
   const userRepo = getUserRepo();
-  await userRepo.deleteUser(session, userId);
+  try {
+    await userRepo.deleteUser(session, userId);
+  } catch {}
+  deleteUserFromStore(userId);
 
   revalidatePath("/admin");
   revalidatePath("/admin/staff");
   revalidatePath("/admin/tutors");
+  revalidatePath("/admin/availability");
+  revalidatePath("/admin/learners");
+  revalidatePath("/staff");
   return { success: true };
 }
 

@@ -204,6 +204,9 @@ export async function deletePlatformUserAction(userIdOrEmail: string) {
   revalidatePath("/super");
   revalidatePath("/admin");
   revalidatePath("/admin/staff");
+  revalidatePath("/admin/learners");
+  revalidatePath("/admin/payments");
+  revalidatePath("/admin/availability");
   return { success };
 }
 

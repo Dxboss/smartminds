@@ -2266,15 +2266,39 @@ export function deleteUserFromStore(userIdOrEmail: string): boolean {
 
     const cleanQuery = userIdOrEmail.toLowerCase().trim();
     const matchedUser = store.userCredentials.find(
-      (u) => u.id === userIdOrEmail || u.email.toLowerCase() === cleanQuery
+      (u) =>
+        u.id === userIdOrEmail ||
+        u.learnerId === userIdOrEmail ||
+        u.tutorId === userIdOrEmail ||
+        u.email.toLowerCase() === cleanQuery
     );
-    const targetEmail = matchedUser?.email?.toLowerCase() || cleanQuery;
-    const targetLearnerId = matchedUser?.learnerId || userIdOrEmail;
+    const matchedLearner = (store.learners || []).find(
+      (l) =>
+        l.id === userIdOrEmail ||
+        l.userId === userIdOrEmail ||
+        l.email?.toLowerCase() === cleanQuery
+    );
+
+    const targetEmail =
+      matchedUser?.email?.toLowerCase() ||
+      matchedLearner?.email?.toLowerCase() ||
+      cleanQuery;
+    const targetUserId = matchedUser?.id || matchedLearner?.userId || userIdOrEmail;
+    const targetLearnerId = matchedUser?.learnerId || matchedLearner?.id || userIdOrEmail;
+    const targetTutorId = matchedUser?.tutorId || userIdOrEmail;
+    const targetNameLower = (
+      matchedUser?.name ||
+      (matchedLearner ? `${matchedLearner.firstName} ${matchedLearner.lastName}` : "")
+    )
+      .trim()
+      .toLowerCase();
 
     const initialLen = store.userCredentials.length;
     store.userCredentials = store.userCredentials.filter(
       (u) =>
         u.id !== userIdOrEmail &&
+        u.id !== targetUserId &&
+        u.learnerId !== targetLearnerId &&
         u.email.toLowerCase() !== cleanQuery &&
         u.email.toLowerCase() !== targetEmail
     );
@@ -2285,18 +2309,106 @@ export function deleteUserFromStore(userIdOrEmail: string): boolean {
           l.id !== userIdOrEmail &&
           l.id !== targetLearnerId &&
           l.userId !== userIdOrEmail &&
+          l.userId !== targetUserId &&
           l.email?.toLowerCase() !== cleanQuery &&
           l.email?.toLowerCase() !== targetEmail
       );
     }
 
+    // Remove student enrolments, payment schedules, payment records, and submissions
+    if (Array.isArray(store.enrolments)) {
+      store.enrolments = store.enrolments
+        .filter((e) => e.learnerId !== targetLearnerId && e.learnerId !== userIdOrEmail)
+        .map((e) => {
+          // If the deleted user was a tutor assigned to this student enrolment, unassign cleanly
+          if (
+            e.tutorId === targetTutorId ||
+            e.tutorId === targetUserId ||
+            (targetNameLower && e.tutorName?.trim().toLowerCase() === targetNameLower)
+          ) {
+            return {
+              ...e,
+              tutorId: "unassigned",
+              tutorName: "Unassigned / TBA",
+            };
+          }
+          return e;
+        });
+    }
+
+    if (Array.isArray(store.paymentRecords)) {
+      store.paymentRecords = store.paymentRecords.filter(
+        (p) => p.learnerId !== targetLearnerId && p.learnerId !== userIdOrEmail
+      );
+    }
+
+    if (Array.isArray(store.paymentSchedules)) {
+      store.paymentSchedules = store.paymentSchedules.filter(
+        (p) => p.learnerId !== targetLearnerId && p.learnerId !== userIdOrEmail
+      );
+    }
+
+    if (Array.isArray(store.submissions)) {
+      store.submissions = store.submissions.filter(
+        (s) => s.learnerId !== targetLearnerId && s.learnerId !== userIdOrEmail
+      );
+    }
+
+    // If the deleted user was a tutor, unassign them from any cohorts
+    if (Array.isArray(store.cohorts)) {
+      store.cohorts = store.cohorts.map((c) => {
+        if (
+          c.tutorId === targetTutorId ||
+          c.tutorId === targetUserId ||
+          c.tutorId === userIdOrEmail ||
+          (targetNameLower && c.tutorName?.trim().toLowerCase() === targetNameLower)
+        ) {
+          return {
+            ...c,
+            tutorId: "unassigned",
+            tutorName: "Unassigned / TBA",
+          };
+        }
+        return c;
+      });
+    }
+
+    // If the deleted user was assigned to any consultation bookings, unassign them
+    if (Array.isArray(store.bookings)) {
+      store.bookings = store.bookings.map((b) => {
+        if (
+          b.assignedStaffId === targetUserId ||
+          b.assignedStaffId === userIdOrEmail ||
+          (targetNameLower && b.assignedStaffName?.trim().toLowerCase() === targetNameLower)
+        ) {
+          return {
+            ...b,
+            assignedStaffId: undefined,
+            assignedStaffName: undefined,
+          };
+        }
+        return b;
+      });
+    }
+
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { seedUsers, seedLearners } = require("@/lib/repositories/seedData");
+      const {
+        seedUsers,
+        seedLearners,
+        seedEnrolments,
+        seedPaymentRecords,
+        seedPaymentSchedules,
+        seedSubmissions,
+        seedClasses,
+        seedBookings,
+      } = require("@/lib/repositories/seedData");
       if (Array.isArray(seedUsers)) {
         for (let i = seedUsers.length - 1; i >= 0; i--) {
           if (
             seedUsers[i].id === userIdOrEmail ||
+            seedUsers[i].id === targetUserId ||
+            seedUsers[i].learnerId === targetLearnerId ||
             seedUsers[i].email?.toLowerCase() === cleanQuery ||
             seedUsers[i].email?.toLowerCase() === targetEmail
           ) {
@@ -2309,10 +2421,85 @@ export function deleteUserFromStore(userIdOrEmail: string): boolean {
           if (
             seedLearners[i].id === userIdOrEmail ||
             seedLearners[i].id === targetLearnerId ||
+            seedLearners[i].userId === targetUserId ||
             seedLearners[i].email?.toLowerCase() === cleanQuery ||
             seedLearners[i].email?.toLowerCase() === targetEmail
           ) {
             seedLearners.splice(i, 1);
+          }
+        }
+      }
+      if (Array.isArray(seedEnrolments)) {
+        for (let i = seedEnrolments.length - 1; i >= 0; i--) {
+          if (
+            seedEnrolments[i].learnerId === targetLearnerId ||
+            seedEnrolments[i].learnerId === userIdOrEmail
+          ) {
+            seedEnrolments.splice(i, 1);
+          } else if (
+            seedEnrolments[i].tutorId === targetTutorId ||
+            seedEnrolments[i].tutorId === targetUserId ||
+            (targetNameLower &&
+              seedEnrolments[i].tutorName?.trim().toLowerCase() === targetNameLower)
+          ) {
+            seedEnrolments[i].tutorId = "unassigned";
+            seedEnrolments[i].tutorName = "Unassigned / TBA";
+          }
+        }
+      }
+      if (Array.isArray(seedPaymentRecords)) {
+        for (let i = seedPaymentRecords.length - 1; i >= 0; i--) {
+          if (
+            seedPaymentRecords[i].learnerId === targetLearnerId ||
+            seedPaymentRecords[i].learnerId === userIdOrEmail
+          ) {
+            seedPaymentRecords.splice(i, 1);
+          }
+        }
+      }
+      if (Array.isArray(seedPaymentSchedules)) {
+        for (let i = seedPaymentSchedules.length - 1; i >= 0; i--) {
+          if (
+            seedPaymentSchedules[i].learnerId === targetLearnerId ||
+            seedPaymentSchedules[i].learnerId === userIdOrEmail
+          ) {
+            seedPaymentSchedules.splice(i, 1);
+          }
+        }
+      }
+      if (Array.isArray(seedSubmissions)) {
+        for (let i = seedSubmissions.length - 1; i >= 0; i--) {
+          if (
+            seedSubmissions[i].learnerId === targetLearnerId ||
+            seedSubmissions[i].learnerId === userIdOrEmail
+          ) {
+            seedSubmissions.splice(i, 1);
+          }
+        }
+      }
+      if (Array.isArray(seedClasses)) {
+        for (const cls of seedClasses) {
+          if (
+            cls.tutorId === targetTutorId ||
+            cls.tutorId === targetUserId ||
+            cls.tutorId === userIdOrEmail ||
+            (targetNameLower && cls.tutorName?.trim().toLowerCase() === targetNameLower)
+          ) {
+            cls.tutorId = "unassigned";
+            cls.tutorName = "Unassigned / TBA";
+          }
+        }
+      }
+      if (Array.isArray(seedBookings)) {
+        for (const b of seedBookings) {
+          if (
+            b.assignedStaffId === targetUserId ||
+            b.assignedStaffId === userIdOrEmail ||
+            (targetNameLower &&
+              b.assignedStaffName?.trim().toLowerCase() === targetNameLower)
+          ) {
+            b.assignedStaffId = undefined;
+            b.assignedStaffName = undefined;
           }
         }
       }
@@ -2324,19 +2511,37 @@ export function deleteUserFromStore(userIdOrEmail: string): boolean {
     syncStoreSnapshotToNeon(store).catch(() => { });
 
     try {
-      import("@/lib/db").then(({ isDbConfigured, sql }) => {
+      import("@/lib/db").then(async ({ isDbConfigured, sql }) => {
         if (isDbConfigured) {
-          sql`
-            DELETE FROM user_credentials
-            WHERE id = ${userIdOrEmail}
-               OR LOWER(email) = ${cleanQuery}
-               OR LOWER(email) = ${targetEmail}
+          await sql`
+            DELETE FROM payment_schedules
+            WHERE learner_id = ${targetLearnerId}
+               OR learner_id = ${userIdOrEmail}
           `.catch(() => { });
-          sql`
+          await sql`
+            DELETE FROM payments
+            WHERE learner_id = ${targetLearnerId}
+               OR learner_id = ${userIdOrEmail}
+          `.catch(() => { });
+          await sql`
+            DELETE FROM enrolments
+            WHERE learner_id = ${targetLearnerId}
+               OR learner_id = ${userIdOrEmail}
+          `.catch(() => { });
+          await sql`
             DELETE FROM learners
             WHERE id = ${userIdOrEmail}
                OR id = ${targetLearnerId}
                OR user_id = ${userIdOrEmail}
+               OR user_id = ${targetUserId}
+               OR LOWER(email) = ${cleanQuery}
+               OR LOWER(email) = ${targetEmail}
+          `.catch(() => { });
+          await sql`
+            DELETE FROM user_credentials
+            WHERE id = ${userIdOrEmail}
+               OR id = ${targetUserId}
+               OR learner_id = ${targetLearnerId}
                OR LOWER(email) = ${cleanQuery}
                OR LOWER(email) = ${targetEmail}
           `.catch(() => { });
@@ -2344,7 +2549,11 @@ export function deleteUserFromStore(userIdOrEmail: string): boolean {
       });
     } catch { }
 
-    return store.userCredentials.length !== initialLen || Boolean(matchedUser);
+    return (
+      store.userCredentials.length !== initialLen ||
+      Boolean(matchedUser) ||
+      Boolean(matchedLearner)
+    );
   } catch (err) {
     console.error("[persistedData] Failed to delete user:", err);
     return false;

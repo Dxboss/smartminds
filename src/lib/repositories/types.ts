@@ -98,6 +98,7 @@ export interface Enrolment {
   classId: string;
   sessionTiming?: "afternoon" | "evening";
   preferredTimeSlot?: string;
+  tutorId?: string;
   tutorName?: string;
   trainingLocation?: string;
   enrolledAt: string;
