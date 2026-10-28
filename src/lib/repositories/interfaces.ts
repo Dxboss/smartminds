@@ -99,6 +99,15 @@ export interface PaymentRepo {
       notes?: string;
     }
   ): Promise<PaymentRecord>;
+  reportInstalmentBankTransfer(
+    actor: SessionUser,
+    data: {
+      scheduleItemId: string;
+      reference: string;
+      receiptUrl?: string;
+      receiptFileName?: string;
+    }
+  ): Promise<PaymentScheduleItem>;
   confirmScheduleBankTransfer(
     actor: SessionUser,
     data: {

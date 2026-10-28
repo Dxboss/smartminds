@@ -2305,9 +2305,58 @@ export async function confirmScheduleBankTransferAction(data: {
   const paymentRepo = getPaymentRepo();
   const record = await paymentRepo.confirmScheduleBankTransfer(session, data);
 
+  // Send automated payment receipt confirmation to student
+  try {
+    const { sendEmail } = await import("@/lib/email");
+    const { seedLearners, demoOutbox } = await import("@/lib/repositories/seedData");
+    const { loadPersistedRecords } = await import("@/lib/persistedData");
+    let learnerEmail: string | undefined;
+    let learnerFirstName = "Student";
+
+    const sLearner = seedLearners.find((l) => l.id === record.learnerId);
+    if (sLearner?.email) {
+      learnerEmail = sLearner.email;
+      learnerFirstName = sLearner.firstName;
+    } else {
+      const store = loadPersistedRecords();
+      const pLearner = (store.learners || []).find((l) => l.id === record.learnerId);
+      if (pLearner?.email) {
+        learnerEmail = pLearner.email;
+        learnerFirstName = pLearner.firstName || "Student";
+      }
+    }
+
+    if (learnerEmail) {
+      const emailBody = `Dear ${learnerFirstName},\n\nWe have verified and confirmed your bank transfer payment of £${record.amountGbp.toFixed(2)}.\n\nReceipt Reference: ${record.reference}\nCourse: ${record.courseTitle || "Qualification"}\nStatus: Paid\nDate Confirmed: ${new Date().toLocaleDateString("en-GB")}\n\nYour instalment schedule has been updated in your Student Portal. Thank you for keeping your account up to date.\n\nFinance & Accounts\nSmartminds Training College`;
+
+      await sendEmail({
+        to: learnerEmail,
+        department: "finance",
+        subject: `Payment Confirmed: Official Receipt (${record.reference})`,
+        text: emailBody,
+        templateKey: "transfer_confirmed_student",
+        triggerEvent: "Admin Confirmed Bank Transfer",
+      });
+
+      demoOutbox.unshift({
+        id: `outbox-trf-approved-${Date.now()}`,
+        recipientEmail: learnerEmail,
+        recipientName: record.learnerName || learnerFirstName,
+        subject: `Payment Confirmed: Official Receipt (${record.reference})`,
+        renderedBody: emailBody,
+        templateKey: "transfer_confirmed_student",
+        sentAt: new Date().toISOString(),
+        triggerEvent: "Admin Confirmed Bank Transfer",
+      });
+    }
+  } catch (emailErr) {
+    console.warn("[confirmScheduleBankTransferAction] Email confirmation warning:", emailErr);
+  }
+
   try {
     revalidatePath("/admin/payments");
     revalidatePath("/student/payments");
+    revalidatePath("/student");
     revalidatePath("/admin");
   } catch { }
 
@@ -2326,9 +2375,58 @@ export async function queryBankTransferAction(data: {
   const paymentRepo = getPaymentRepo();
   const updatedItem = await paymentRepo.queryBankTransfer(session, data);
 
+  // Send action-required query email to the student
+  try {
+    const { sendEmail } = await import("@/lib/email");
+    const { seedLearners, demoOutbox } = await import("@/lib/repositories/seedData");
+    const { loadPersistedRecords } = await import("@/lib/persistedData");
+    let learnerEmail: string | undefined;
+    let learnerFirstName = "Student";
+
+    const sLearner = seedLearners.find((l) => l.id === updatedItem.learnerId);
+    if (sLearner?.email) {
+      learnerEmail = sLearner.email;
+      learnerFirstName = sLearner.firstName;
+    } else {
+      const store = loadPersistedRecords();
+      const pLearner = (store.learners || []).find((l) => l.id === updatedItem.learnerId);
+      if (pLearner?.email) {
+        learnerEmail = pLearner.email;
+        learnerFirstName = pLearner.firstName || "Student";
+      }
+    }
+
+    if (learnerEmail) {
+      const emailBody = `Dear ${learnerFirstName},\n\nOur Finance team is reviewing your reported bank transfer for Instalment ${updatedItem.instalmentNumber} of ${updatedItem.totalInstalments} (£${updatedItem.amountGbp.toFixed(2)}), but requires additional clarification.\n\nNote from Finance Officer:\n"${data.reason}"\n\nPlease log in to your Student Portal under Payments to double-check your bank transfer reference and re-upload payment proof if needed. Your grace period remains active.\n\nFinance & Student Accounts\nSmartminds Training College`;
+
+      await sendEmail({
+        to: learnerEmail,
+        department: "finance",
+        subject: `Action Required: Bank Transfer Query (Instalment ${updatedItem.instalmentNumber})`,
+        text: emailBody,
+        templateKey: "transfer_queried_student",
+        triggerEvent: "Admin Queried Bank Transfer",
+      });
+
+      demoOutbox.unshift({
+        id: `outbox-query-${Date.now()}`,
+        recipientEmail: learnerEmail,
+        recipientName: learnerFirstName,
+        subject: `Action Required: Bank Transfer Query (Instalment ${updatedItem.instalmentNumber})`,
+        renderedBody: emailBody,
+        templateKey: "transfer_queried_student",
+        sentAt: new Date().toISOString(),
+        triggerEvent: "Admin Queried Bank Transfer",
+      });
+    }
+  } catch (emailErr) {
+    console.warn("[queryBankTransferAction] Email query warning:", emailErr);
+  }
+
   try {
     revalidatePath("/admin/payments");
     revalidatePath("/student/payments");
+    revalidatePath("/student");
     revalidatePath("/admin");
   } catch { }
 

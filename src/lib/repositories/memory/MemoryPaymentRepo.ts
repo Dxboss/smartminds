@@ -392,6 +392,52 @@ export class MemoryPaymentRepo implements PaymentRepo {
     return { ...newRecord };
   }
 
+  async reportInstalmentBankTransfer(
+    actor: SessionUser,
+    data: {
+      scheduleItemId: string;
+      reference: string;
+      receiptUrl?: string;
+      receiptFileName?: string;
+    }
+  ): Promise<PaymentScheduleItem> {
+    this.assertNoAdminOrTutorAccess(actor);
+
+    const item =
+      seedPaymentSchedules.find((s) => s.id === data.scheduleItemId) ||
+      this.schedules.find((s) => s.id === data.scheduleItemId);
+
+    if (!item) {
+      throw new Error(`Schedule item ${data.scheduleItemId} not found.`);
+    }
+
+    if (actor.role === "student" && actor.learnerId && item.learnerId !== actor.learnerId) {
+      throw new PermissionDeniedError("Students can only report transfers for their own instalments.");
+    }
+
+    const now = new Date().toISOString();
+    item.status = "awaiting_confirmation";
+    item.reportedTransfer = {
+      reference: data.reference,
+      receiptUrl: data.receiptUrl,
+      receiptFileName: data.receiptFileName,
+      reportedAt: now,
+    };
+    delete item.adminQuery;
+
+    updatePaymentScheduleStatusInStore(item.id, {
+      status: "awaiting_confirmation",
+      reportedTransfer: item.reportedTransfer,
+      adminQuery: undefined,
+    });
+
+    savePersistedRecord({
+      paymentSchedules: [item],
+    });
+
+    return { ...item };
+  }
+
   async confirmScheduleBankTransfer(
     actor: SessionUser,
     data: {

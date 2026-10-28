@@ -75,6 +75,7 @@ export function PaymentsLedgerView({
   const [receiptPreviewModal, setReceiptPreviewModal] = useState<{
     schedule: PaymentScheduleItem;
     learnerName: string;
+    courseTitle?: string;
   } | null>(null);
   const [queryModalSchedule, setQueryModalSchedule] =
     useState<PaymentScheduleItem | null>(null);
@@ -1205,8 +1206,8 @@ export function PaymentsLedgerView({
                                                   : s.status === "action_required" || s.adminQuery
                                                   ? "QUERY SENT"
                                                   : s.status === "awaiting_confirmation" || s.reportedTransfer
-                                                  ? "REPORTED"
-                                                  : s.status}
+                                                  ? "REPORTED (Awaiting Confirmation)"
+                                                  : s.status.toUpperCase()}
                                               </span>
                                             </td>
                                             <td className="py-2.5 px-3 text-ink-soft">
@@ -1224,36 +1225,38 @@ export function PaymentsLedgerView({
                                                 <div className="flex items-center justify-end gap-1 flex-wrap">
                                                   {(s.status === "awaiting_confirmation" || s.reportedTransfer) && (
                                                     <>
-                                                      {s.reportedTransfer?.receiptUrl && (
-                                                        <button
-                                                          type="button"
-                                                          onClick={() =>
-                                                            setReceiptPreviewModal({
-                                                              schedule: s,
-                                                              learnerName: p.learnerName || s.learnerId,
-                                                            })
-                                                          }
-                                                          className="px-2 py-0.5 text-[10px] font-bold text-navy-900 bg-amber-100 hover:bg-amber-200 rounded-xs border border-amber-300"
-                                                        >
-                                                          Receipt
-                                                        </button>
-                                                      )}
+                                                      <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                          setReceiptPreviewModal({
+                                                            schedule: s,
+                                                            learnerName: p.learnerName || s.learnerId,
+                                                            courseTitle: p.courseTitle,
+                                                          })
+                                                        }
+                                                        className="px-2 py-0.5 text-[10px] font-bold text-navy-900 bg-amber-100 hover:bg-amber-200 rounded-xs border border-amber-300 inline-flex items-center gap-1 shadow-2xs"
+                                                      >
+                                                        <Icon name="eye" size={11} />
+                                                        <span>View Receipt</span>
+                                                      </button>
                                                       <button
                                                         type="button"
                                                         onClick={() => handleConfirmScheduleTransfer(s.id)}
-                                                        className="px-2 py-0.5 text-[10px] font-bold text-white bg-emerald-700 hover:bg-emerald-800 rounded-xs"
+                                                        className="px-2 py-0.5 text-[10px] font-bold text-white bg-emerald-700 hover:bg-emerald-800 rounded-xs inline-flex items-center gap-1 shadow-2xs"
                                                       >
-                                                        Confirm
+                                                        <Icon name="check" size={11} />
+                                                        <span>Confirm & Mark Paid</span>
                                                       </button>
                                                       <button
                                                         type="button"
                                                         onClick={() => {
                                                           setQueryModalSchedule(s);
-                                                          setQueryReasonInput("Funds have not appeared on the college bank statement yet");
+                                                          setQueryReasonInput("Funds haven't arrived or the transfer reference was incorrect. Please double-check your bank transfer.");
                                                         }}
-                                                        className="px-2 py-0.5 text-[10px] font-bold text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-xs"
+                                                        className="px-2 py-0.5 text-[10px] font-bold text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-xs inline-flex items-center gap-1"
                                                       >
-                                                        Query
+                                                        <Icon name="info" size={11} />
+                                                        <span>Query</span>
                                                       </button>
                                                     </>
                                                   )}
@@ -1562,6 +1565,7 @@ export function PaymentsLedgerView({
                   ) : (
                     filteredSchedules.map((s) => {
                       const learner = learners.find((l) => l.id === s.learnerId);
+                      const enrolment = enrolments.find((e) => e.id === s.enrolmentId);
                       const isOverdue = s.status === "overdue";
                       return (
                         <tr
@@ -1609,7 +1613,7 @@ export function PaymentsLedgerView({
                                 : s.status === "action_required" || s.adminQuery
                                 ? "QUERY SENT"
                                 : s.status === "awaiting_confirmation" || s.reportedTransfer
-                                ? "TRANSFER REPORTED"
+                                ? "REPORTED (Awaiting Confirmation)"
                                 : s.status.toUpperCase()}
                             </span>
                             {s.reportedTransfer && (
@@ -1623,38 +1627,40 @@ export function PaymentsLedgerView({
                               <div className="flex items-center justify-end gap-1.5 flex-wrap">
                                 {(s.status === "awaiting_confirmation" || s.reportedTransfer) && (
                                   <>
-                                    {s.reportedTransfer?.receiptUrl && (
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          setReceiptPreviewModal({
-                                            schedule: s,
-                                            learnerName: learner ? `${learner.firstName} ${learner.lastName}` : s.learnerId,
-                                          })
-                                        }
-                                        className="px-2 py-1 text-xs font-bold text-navy-900 bg-amber-100 hover:bg-amber-200 rounded-sm border border-amber-300 transition-colors"
-                                      >
-                                        View Receipt
-                                      </button>
-                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setReceiptPreviewModal({
+                                          schedule: s,
+                                          learnerName: learner ? `${learner.firstName} ${learner.lastName}` : s.learnerId,
+                                          courseTitle: s.courseTitle || enrolment?.courseTitle || "Course",
+                                        })
+                                      }
+                                      className="px-2.5 py-1 text-xs font-bold text-navy-900 bg-amber-100 hover:bg-amber-200 rounded-sm border border-amber-300 transition-colors inline-flex items-center gap-1.5 shadow-2xs"
+                                    >
+                                      <Icon name="eye" size={14} />
+                                      <span>View Receipt</span>
+                                    </button>
                                     <button
                                       type="button"
                                       onClick={() => handleConfirmScheduleTransfer(s.id)}
                                       disabled={isPending}
-                                      className="px-2.5 py-1 text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 rounded-sm transition-colors shadow-xs"
+                                      className="px-2.5 py-1 text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 rounded-sm transition-colors shadow-xs inline-flex items-center gap-1"
                                     >
-                                      Confirm Receipt
+                                      <Icon name="check" size={14} />
+                                      <span>Confirm & Mark Paid</span>
                                     </button>
                                     <button
                                       type="button"
                                       onClick={() => {
                                         setQueryModalSchedule(s);
-                                        setQueryReasonInput("Funds have not appeared on the college bank statement yet");
+                                        setQueryReasonInput("Funds haven't arrived or the transfer reference was incorrect. Please double-check your bank transfer.");
                                       }}
                                       disabled={isPending}
-                                      className="px-2 py-1 text-xs font-bold text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-sm transition-colors"
+                                      className="px-2 py-1 text-xs font-bold text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-sm transition-colors inline-flex items-center gap-1"
                                     >
-                                      Can't Find / Query
+                                      <Icon name="info" size={14} />
+                                      <span>Query Transfer</span>
                                     </button>
                                   </>
                                 )}
@@ -2314,16 +2320,18 @@ export function PaymentsLedgerView({
           <div className="bg-white rounded-md border border-line shadow-2xl max-w-lg w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-start justify-between border-b border-line pb-3">
               <div>
-                <h3 className="font-heading text-lg font-bold text-navy-900">
-                  Uploaded Payment Proof
+                <h3 className="font-heading text-lg font-bold text-navy-900 flex items-center gap-2">
+                  <Icon name="eye" size={20} className="text-navy-900" />
+                  Payment Proof Preview
                 </h3>
-                <p className="text-xs text-ink-soft">
-                  {receiptPreviewModal.learnerName} · Instalment {receiptPreviewModal.schedule.instalmentNumber} of {receiptPreviewModal.schedule.totalInstalments} ({formatCurrency(receiptPreviewModal.schedule.amountGbp)})
+                <p className="text-xs text-ink-soft mt-0.5">
+                  {receiptPreviewModal.learnerName} · {receiptPreviewModal.courseTitle || "Course"} · Instalment {receiptPreviewModal.schedule.instalmentNumber} of {receiptPreviewModal.schedule.totalInstalments} ({formatCurrency(receiptPreviewModal.schedule.amountGbp)})
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setReceiptPreviewModal(null)}
+                aria-label="Close payment proof preview"
                 className="text-ink-soft hover:text-navy-900 p-1"
               >
                 <Icon name="close" size={18} />
@@ -2331,46 +2339,84 @@ export function PaymentsLedgerView({
             </div>
 
             <div className="space-y-3">
-              <div className="p-3 bg-paper rounded-sm border border-line text-xs space-y-1">
+              {/* Learner details & course, reported reference code, reported timestamp */}
+              <div className="p-3 bg-paper rounded-sm border border-line text-xs space-y-1.5">
                 <div className="flex justify-between">
-                  <span className="text-ink-soft">Reported Reference:</span>
-                  <span className="font-mono font-bold text-navy-900">{receiptPreviewModal.schedule.reportedTransfer?.reference}</span>
+                  <span className="text-ink-soft">Learner:</span>
+                  <strong className="text-navy-900">{receiptPreviewModal.learnerName}</strong>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-ink-soft">Reported Date:</span>
-                  <span>{receiptPreviewModal.schedule.reportedTransfer?.reportedAt ? new Date(receiptPreviewModal.schedule.reportedTransfer.reportedAt).toLocaleString("en-GB") : "—"}</span>
+                  <span className="text-ink-soft">Course:</span>
+                  <span className="font-semibold text-navy-900">{receiptPreviewModal.courseTitle || "Course"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-ink-soft">Instalment Due:</span>
+                  <span className="font-semibold text-navy-900">
+                    Instalment {receiptPreviewModal.schedule.instalmentNumber} of {receiptPreviewModal.schedule.totalInstalments} ({formatCurrency(receiptPreviewModal.schedule.amountGbp)})
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-ink-soft">Reported Reference Code:</span>
+                  <span className="font-mono font-bold text-navy-900">{receiptPreviewModal.schedule.reportedTransfer?.reference || "—"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-ink-soft">Reported Timestamp:</span>
+                  <span className="font-mono text-ink">{receiptPreviewModal.schedule.reportedTransfer?.reportedAt ? new Date(receiptPreviewModal.schedule.reportedTransfer.reportedAt).toLocaleString("en-GB") : "—"}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-ink-soft">Document Name:</span>
-                  <span className="font-semibold">{receiptPreviewModal.schedule.reportedTransfer?.receiptFileName || "payment-proof.png"}</span>
+                  <span className="font-semibold text-navy-900">{receiptPreviewModal.schedule.reportedTransfer?.receiptFileName || "payment-proof.png"}</span>
                 </div>
               </div>
 
-              {receiptPreviewModal.schedule.reportedTransfer?.receiptUrl && (
-                <div className="border border-line rounded-sm p-2 bg-paper/50 text-center">
-                  {receiptPreviewModal.schedule.reportedTransfer.receiptUrl.startsWith("data:image") ? (
-                    <img
-                      src={receiptPreviewModal.schedule.reportedTransfer.receiptUrl}
-                      alt="Uploaded receipt proof"
-                      className="max-h-72 w-auto mx-auto rounded-sm border border-line object-contain"
-                    />
+              {/* Full Image Preview or PDF Download Button */}
+              {receiptPreviewModal.schedule.reportedTransfer?.receiptUrl ? (
+                <div className="border border-line rounded-sm p-3 bg-paper/50 text-center space-y-2">
+                  {receiptPreviewModal.schedule.reportedTransfer.receiptUrl.startsWith("data:image") ||
+                  /\.(png|jpe?g|webp|gif)($|\?)/i.test(receiptPreviewModal.schedule.reportedTransfer.receiptUrl) ? (
+                    <div className="space-y-2">
+                      <img
+                        src={receiptPreviewModal.schedule.reportedTransfer.receiptUrl}
+                        alt="Uploaded bank receipt proof"
+                        className="max-h-80 w-auto mx-auto rounded-sm border border-line object-contain shadow-2xs"
+                      />
+                      <a
+                        href={receiptPreviewModal.schedule.reportedTransfer.receiptUrl}
+                        download={receiptPreviewModal.schedule.reportedTransfer.receiptFileName || "payment-receipt.png"}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-navy-900 hover:text-navy-700 border border-line rounded-sm bg-white"
+                      >
+                        <Icon name="download" size={14} />
+                        Download Full Image
+                      </a>
+                    </div>
                   ) : (
-                    <div className="p-8 text-center space-y-2">
-                      <Icon name="download" size={32} className="mx-auto text-navy-900" />
-                      <p className="text-xs font-semibold text-navy-900">Document Proof Attached</p>
+                    <div className="p-8 text-center space-y-3">
+                      <Icon name="file-text" size={36} className="mx-auto text-navy-900" />
+                      <div>
+                        <p className="text-sm font-bold text-navy-900">PDF Document Proof Attached</p>
+                        <p className="text-xs text-ink-soft">{receiptPreviewModal.schedule.reportedTransfer.receiptFileName || "payment-receipt.pdf"}</p>
+                      </div>
                       <a
                         href={receiptPreviewModal.schedule.reportedTransfer.receiptUrl}
                         download={receiptPreviewModal.schedule.reportedTransfer.receiptFileName || "payment-receipt.pdf"}
-                        className="inline-block px-3 py-1 bg-navy-900 text-white rounded-sm text-xs font-bold"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-navy-900 text-white rounded-sm text-xs font-bold hover:bg-navy-700 shadow-sm"
                       >
-                        Download / View Document
+                        <Icon name="download" size={16} />
+                        Download Document
                       </a>
                     </div>
                   )}
                 </div>
+              ) : (
+                <div className="p-4 rounded-sm bg-amber-50 border border-amber-200 text-amber-900 text-xs">
+                  Notice reported with reference code <strong>{receiptPreviewModal.schedule.reportedTransfer?.reference || "—"}</strong> without an uploaded file. Please verify in the college bank statement.
+                </div>
               )}
             </div>
 
+            {/* Admin One-Click Actions inside the Modal */}
             <div className="flex items-center justify-end gap-2 pt-3 border-t border-line">
               <button
                 type="button"
@@ -2378,18 +2424,21 @@ export function PaymentsLedgerView({
                   const s = receiptPreviewModal.schedule;
                   setReceiptPreviewModal(null);
                   setQueryModalSchedule(s);
-                  setQueryReasonInput("Funds have not appeared on the college bank statement yet");
+                  setQueryReasonInput("Funds haven't arrived or the transfer reference was incorrect. Please double-check your bank transfer.");
                 }}
-                className="px-3 py-2 text-xs font-bold text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-sm"
+                className="px-3 py-2 text-xs font-bold text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-sm inline-flex items-center gap-1.5"
               >
-                Can't Find / Query
+                <Icon name="info" size={14} />
+                <span>Query Transfer</span>
               </button>
               <button
                 type="button"
                 onClick={() => handleConfirmScheduleTransfer(receiptPreviewModal.schedule.id)}
-                className="px-4 py-2 bg-emerald-700 text-white rounded-sm text-xs font-bold hover:bg-emerald-800 transition-colors shadow-sm"
+                disabled={isPending}
+                className="px-4 py-2 bg-emerald-700 text-white rounded-sm text-xs font-bold hover:bg-emerald-800 transition-colors shadow-sm inline-flex items-center gap-1.5"
               >
-                Confirm Receipt & Settle
+                <Icon name="check" size={16} />
+                <span>Confirm & Mark Paid</span>
               </button>
             </div>
           </div>

@@ -1083,12 +1083,52 @@ export function updatePaymentScheduleStatusInStore(
     const idx = store.paymentSchedules.findIndex((s) => s.id === scheduleId);
     if (idx >= 0) {
       store.paymentSchedules[idx] = { ...store.paymentSchedules[idx], ...updates };
-      const filePath = getStoreFilePath();
-      fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
-      syncPersistedRecords(true);
-      return true;
+    } else {
+      const { seedPaymentSchedules } = require("@/lib/repositories/seedData");
+      const seedItem = seedPaymentSchedules.find((s: any) => s.id === scheduleId);
+      if (seedItem) {
+        store.paymentSchedules.push({ ...seedItem, ...updates });
+      } else {
+        store.paymentSchedules.push({ id: scheduleId, ...updates } as any);
+      }
     }
-    return false;
+    const filePath = getStoreFilePath();
+    fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+    syncPersistedRecords(true);
+
+    try {
+      const { seedPaymentSchedules } = require("@/lib/repositories/seedData");
+      const seedIdx = seedPaymentSchedules.findIndex((s: any) => s.id === scheduleId);
+      if (seedIdx >= 0) {
+        seedPaymentSchedules[seedIdx] = { ...seedPaymentSchedules[seedIdx], ...updates };
+      }
+    } catch {
+      // In-memory update optional
+    }
+
+    if (process.env.DATABASE_URL) {
+      (async () => {
+        try {
+          const { isDbConfigured, sql } = await import("@/lib/db");
+          if (!isDbConfigured) return;
+          const updatedItem = (store.paymentSchedules || []).find((s) => s.id === scheduleId);
+          if (updatedItem) {
+            await sql`
+              UPDATE payment_schedules
+              SET status = ${updatedItem.status || "due"},
+                  paid_at = ${updatedItem.paidAt ? new Date(updatedItem.paidAt).toISOString() : null},
+                  data = ${JSON.stringify(updatedItem)}::jsonb,
+                  updated_at = now()
+              WHERE id = ${scheduleId};
+            `;
+          }
+        } catch (dbErr) {
+          console.warn("[Neon DB] updatePaymentScheduleStatusInStore warning:", dbErr);
+        }
+      })();
+    }
+
+    return true;
   } catch (err) {
     console.error("[persistedData] Failed to update schedule status:", err);
     return false;

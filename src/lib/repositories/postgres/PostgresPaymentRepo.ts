@@ -562,9 +562,23 @@ export class PostgresPaymentRepo implements PaymentRepo {
     this.assertOwnerOrSuper(actor);
 
     const now = new Date().toISOString();
+    const { seedLearners, seedEnrolments, seedPaymentRecords, seedPaymentSchedules } = await import("../seedData");
+    const { updatePaymentScheduleStatusInStore, savePersistedRecord } = await import("@/lib/persistedData");
+
+    let item: PaymentScheduleItem | undefined;
+    let learnerName = "Learner";
+    let courseTitle = "Course";
+
     if (!isDbConfigured) {
-      const item = seedPaymentSchedules.find((s) => s.id === data.scheduleItemId);
+      item = seedPaymentSchedules.find((s) => s.id === data.scheduleItemId);
       if (!item) throw new Error(`Schedule item ${data.scheduleItemId} not found.`);
+
+      const learner = seedLearners.find((l) => l.id === item!.learnerId);
+      const enrolment = seedEnrolments.find((e) => e.id === item!.enrolmentId);
+      if (learner) learnerName = `${learner.firstName} ${learner.lastName}`;
+      if (enrolment) courseTitle = enrolment.courseTitle;
+      if (item.courseTitle) courseTitle = item.courseTitle;
+
       item.status = "paid";
       item.paidAt = now;
       delete item.adminQuery;
@@ -572,17 +586,25 @@ export class PostgresPaymentRepo implements PaymentRepo {
       const record: PaymentRecord = {
         id: `pay-sch-${Date.now()}`,
         learnerId: item.learnerId,
-        learnerName: "Learner",
-        courseTitle: "Course",
+        learnerName,
+        courseTitle,
         enrolmentId: item.enrolmentId,
         amountGbp: item.amountGbp,
         status: "paid",
         method: "bank_transfer",
-        reference: `SCHED-${item.instalmentNumber}-${data.scheduleItemId}`,
-        notes: data.notes || "Instalment bank transfer confirmed by Director",
+        reference: item.reportedTransfer?.reference || `TRF-CONF-${Date.now().toString().slice(-6)}`,
+        notes: data.notes || `Instalment ${item.instalmentNumber} of ${item.totalInstalments} bank transfer confirmed`,
         paidAt: now,
       };
       seedPaymentRecords.unshift(record);
+
+      updatePaymentScheduleStatusInStore(item.id, {
+        status: "paid",
+        paidAt: now,
+        adminQuery: undefined,
+      });
+      savePersistedRecord({ paymentRecord: record });
+
       return record;
     }
 
@@ -591,23 +613,45 @@ export class PostgresPaymentRepo implements PaymentRepo {
         SELECT data FROM payment_schedules WHERE id = ${data.scheduleItemId} LIMIT 1;
       `) as { data: PaymentScheduleItem }[];
 
-      const item = rows[0]?.data;
+      item = rows[0]?.data;
       if (!item) {
-        throw new Error(`Payment schedule item ${data.scheduleItemId} not found.`);
+        const fallback = seedPaymentSchedules.find((s) => s.id === data.scheduleItemId);
+        if (!fallback) throw new Error(`Payment schedule item ${data.scheduleItemId} not found.`);
+        item = { ...fallback };
       }
+
+      try {
+        const lRows = (await sql`SELECT data FROM learners WHERE id = ${item.learnerId} LIMIT 1;`) as any[];
+        if (lRows[0]?.data) {
+          learnerName = `${lRows[0].data.firstName} ${lRows[0].data.lastName}`;
+        } else {
+          const l = seedLearners.find((x) => x.id === item!.learnerId);
+          if (l) learnerName = `${l.firstName} ${l.lastName}`;
+        }
+        const eRows = (await sql`SELECT data FROM enrolments WHERE id = ${item.enrolmentId} LIMIT 1;`) as any[];
+        if (eRows[0]?.data?.courseTitle) {
+          courseTitle = eRows[0].data.courseTitle;
+        } else {
+          const e = seedEnrolments.find((x) => x.id === item!.enrolmentId);
+          if (e) courseTitle = e.courseTitle;
+        }
+      } catch {
+        // Fallback to defaults
+      }
+      if (item.courseTitle) courseTitle = item.courseTitle;
 
       const paymentId = `pay-sch-${Date.now()}`;
       const record: PaymentRecord = {
         id: paymentId,
         learnerId: item.learnerId,
-        learnerName: "Learner",
-        courseTitle: "Course",
+        learnerName,
+        courseTitle,
         enrolmentId: item.enrolmentId,
         amountGbp: item.amountGbp,
         status: "paid",
         method: "bank_transfer",
-        reference: `SCHED-${item.instalmentNumber}-${data.scheduleItemId}`,
-        notes: data.notes || "Instalment bank transfer confirmed by Director",
+        reference: item.reportedTransfer?.reference || `TRF-CONF-${Date.now().toString().slice(-6)}`,
+        notes: data.notes || `Instalment ${item.instalmentNumber} of ${item.totalInstalments} bank transfer confirmed`,
         paidAt: now,
       };
 
@@ -629,6 +673,19 @@ export class PostgresPaymentRepo implements PaymentRepo {
         WHERE id = ${data.scheduleItemId};
       `;
 
+      updatePaymentScheduleStatusInStore(item.id, {
+        status: "paid",
+        paidAt: now,
+        adminQuery: undefined,
+      });
+      savePersistedRecord({ paymentRecord: record });
+
+      const seedIdx = seedPaymentSchedules.findIndex((s) => s.id === item!.id);
+      if (seedIdx >= 0) {
+        seedPaymentSchedules[seedIdx] = { ...seedPaymentSchedules[seedIdx], ...item };
+      }
+      seedPaymentRecords.unshift(record);
+
       return record;
     } catch (err) {
       if (err instanceof PermissionDeniedError) throw err;
@@ -649,6 +706,8 @@ export class PostgresPaymentRepo implements PaymentRepo {
     this.assertNoAdminOrTutorAccess(actor);
 
     const now = new Date().toISOString();
+    const { updatePaymentScheduleStatusInStore, savePersistedRecord } = await import("@/lib/persistedData");
+
     if (!isDbConfigured) {
       const item = seedPaymentSchedules.find((s) => s.id === data.scheduleItemId);
       if (!item) throw new Error(`Schedule item ${data.scheduleItemId} not found.`);
@@ -659,6 +718,15 @@ export class PostgresPaymentRepo implements PaymentRepo {
         receiptFileName: data.receiptFileName,
         reportedAt: now,
       };
+      delete item.adminQuery;
+
+      updatePaymentScheduleStatusInStore(item.id, {
+        status: "awaiting_confirmation",
+        reportedTransfer: item.reportedTransfer,
+        adminQuery: undefined,
+      });
+      savePersistedRecord({ paymentSchedules: [item] });
+
       return item;
     }
 
@@ -667,8 +735,12 @@ export class PostgresPaymentRepo implements PaymentRepo {
         SELECT data FROM payment_schedules WHERE id = ${data.scheduleItemId} LIMIT 1;
       `) as { data: PaymentScheduleItem }[];
 
-      const item = rows[0]?.data;
-      if (!item) throw new Error(`Payment schedule item ${data.scheduleItemId} not found.`);
+      let item = rows[0]?.data;
+      if (!item) {
+        const fallback = seedPaymentSchedules.find((s) => s.id === data.scheduleItemId);
+        if (!fallback) throw new Error(`Payment schedule item ${data.scheduleItemId} not found.`);
+        item = { ...fallback };
+      }
 
       item.status = "awaiting_confirmation";
       item.reportedTransfer = {
@@ -677,14 +749,42 @@ export class PostgresPaymentRepo implements PaymentRepo {
         receiptFileName: data.receiptFileName,
         reportedAt: now,
       };
+      delete item.adminQuery;
 
       await sql`
-        UPDATE payment_schedules
-        SET status = 'awaiting_confirmation',
-            data = ${JSON.stringify(item)}::jsonb,
-            updated_at = now()
-        WHERE id = ${data.scheduleItemId};
+        INSERT INTO payment_schedules (
+          id, enrolment_id, learner_id, instalment_number, due_date, amount, status, data, updated_at
+        )
+        VALUES (
+          ${item.id},
+          ${item.enrolmentId || "enr-unknown"},
+          ${item.learnerId || "lrn-unknown"},
+          ${Number(item.instalmentNumber || 1)},
+          ${item.dueDate ? new Date(item.dueDate).toISOString() : new Date().toISOString()},
+          ${Number(item.amountGbp || 0)},
+          'awaiting_confirmation',
+          ${JSON.stringify(item)}::jsonb,
+          now()
+        )
+        ON CONFLICT (id) DO UPDATE SET
+          status = 'awaiting_confirmation',
+          data = ${JSON.stringify(item)}::jsonb,
+          updated_at = now();
       `;
+
+      updatePaymentScheduleStatusInStore(item.id, {
+        status: "awaiting_confirmation",
+        reportedTransfer: item.reportedTransfer,
+        adminQuery: undefined,
+      });
+      savePersistedRecord({ paymentSchedules: [item] });
+
+      const seedIdx = seedPaymentSchedules.findIndex((s) => s.id === item!.id);
+      if (seedIdx >= 0) {
+        seedPaymentSchedules[seedIdx] = { ...seedPaymentSchedules[seedIdx], ...item };
+      } else {
+        seedPaymentSchedules.push(item);
+      }
 
       return item;
     } catch (err) {
@@ -701,6 +801,8 @@ export class PostgresPaymentRepo implements PaymentRepo {
     this.assertOwnerOrSuper(actor);
 
     const now = new Date().toISOString();
+    const { updatePaymentScheduleStatusInStore, savePersistedRecord } = await import("@/lib/persistedData");
+
     if (!isDbConfigured) {
       const item = seedPaymentSchedules.find((s) => s.id === data.scheduleItemId);
       if (!item) throw new Error(`Schedule item ${data.scheduleItemId} not found.`);
@@ -710,6 +812,13 @@ export class PostgresPaymentRepo implements PaymentRepo {
         queriedAt: now,
         queriedBy: actor.name || actor.email,
       };
+
+      updatePaymentScheduleStatusInStore(item.id, {
+        status: "action_required",
+        adminQuery: item.adminQuery,
+      });
+      savePersistedRecord({ paymentSchedules: [item] });
+
       return item;
     }
 
@@ -718,8 +827,12 @@ export class PostgresPaymentRepo implements PaymentRepo {
         SELECT data FROM payment_schedules WHERE id = ${data.scheduleItemId} LIMIT 1;
       `) as { data: PaymentScheduleItem }[];
 
-      const item = rows[0]?.data;
-      if (!item) throw new Error(`Payment schedule item ${data.scheduleItemId} not found.`);
+      let item = rows[0]?.data;
+      if (!item) {
+        const fallback = seedPaymentSchedules.find((s) => s.id === data.scheduleItemId);
+        if (!fallback) throw new Error(`Payment schedule item ${data.scheduleItemId} not found.`);
+        item = { ...fallback };
+      }
 
       item.status = "action_required";
       item.adminQuery = {
@@ -735,6 +848,17 @@ export class PostgresPaymentRepo implements PaymentRepo {
             updated_at = now()
         WHERE id = ${data.scheduleItemId};
       `;
+
+      updatePaymentScheduleStatusInStore(item.id, {
+        status: "action_required",
+        adminQuery: item.adminQuery,
+      });
+      savePersistedRecord({ paymentSchedules: [item] });
+
+      const seedIdx = seedPaymentSchedules.findIndex((s) => s.id === item!.id);
+      if (seedIdx >= 0) {
+        seedPaymentSchedules[seedIdx] = { ...seedPaymentSchedules[seedIdx], ...item };
+      }
 
       return item;
     } catch (err) {

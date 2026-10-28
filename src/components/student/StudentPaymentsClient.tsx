@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useTransition } from "react";
-import { LearnerPaymentPlanSummary } from "@/lib/repositories/types";
+import { LearnerPaymentPlanSummary, PaymentScheduleItem } from "@/lib/repositories/types";
 import { formatCurrency } from "@/content/pricing";
 import { Icon } from "@/components/ui/Icon";
 import {
@@ -44,9 +44,13 @@ export function StudentPaymentsClient({
   const [notice, setNotice] = useState<string | null>(null);
   const [stripeSuccessRef, setStripeSuccessRef] = useState<string | null>(null);
   const [reportedIds, setReportedIds] = useState<string[]>([]);
+  const [selectedScheduleItem, setSelectedScheduleItem] =
+    useState<PaymentScheduleItem | null>(null);
 
   // Find next unpaid instalment
   const nextUnpaid = planSummary.schedule.find((s) => s.status !== "paid");
+  const activeModalItem = selectedScheduleItem || nextUnpaid;
+
   const days = nextUnpaid ? daysUntil(nextUnpaid.dueDate) : null;
   const isOverdue =
     !!nextUnpaid &&
@@ -60,7 +64,9 @@ export function StudentPaymentsClient({
 
   // Time-gated: Card payment unlocks 7 days before due date, or anytime if overdue / in grace
   const isCardPaymentUnlocked =
-    !!nextUnpaid && (isOverdue || (days !== null && days <= 7));
+    !!activeModalItem &&
+    (activeModalItem.status === "overdue" ||
+      daysUntil(activeModalItem.dueDate) <= 7);
 
   const bank = collegeBankSettings || {
     bankName: "Barclays Bank UK PLC",
@@ -93,7 +99,11 @@ export function StudentPaymentsClient({
     reader.readAsDataURL(file);
   };
 
-  const openPaymentModal = (defaultTab: "choose" | "stripe" | "transfer" = "transfer") => {
+  const openPaymentModal = (
+    defaultTab: "choose" | "stripe" | "transfer" = "transfer",
+    targetItem?: PaymentScheduleItem
+  ) => {
+    setSelectedScheduleItem(targetItem || null);
     setModalError(null);
     setNotice(null);
     setPayerRef("");
@@ -104,17 +114,25 @@ export function StudentPaymentsClient({
   };
 
   const handleReportBankTransfer = () => {
-    if (!nextUnpaid) return;
+    if (!activeModalItem) return;
     setModalError(null);
     startTransition(async () => {
       try {
         const res = await reportBankTransferAction({
-          scheduleItemId: nextUnpaid.id,
+          scheduleItemId: activeModalItem.id,
           payerReference: payerRef || planSummary.learnerId || "Student ID",
           receiptUrl: receiptDataUrl || undefined,
           receiptFileName: receiptFileName || undefined,
         });
-        setReportedIds((prev) => [...prev, nextUnpaid.id]);
+        setReportedIds((prev) => [...prev, activeModalItem.id]);
+        activeModalItem.status = "awaiting_confirmation";
+        activeModalItem.reportedTransfer = {
+          reference: payerRef || planSummary.learnerId || "Student ID",
+          receiptUrl: receiptDataUrl || undefined,
+          receiptFileName: receiptFileName || undefined,
+          reportedAt: new Date().toISOString(),
+        };
+        delete activeModalItem.adminQuery;
         setNotice(res.noticeReference);
       } catch (err: unknown) {
         setModalError(
@@ -127,12 +145,12 @@ export function StudentPaymentsClient({
   };
 
   const handlePayWithStripe = () => {
-    if (!nextUnpaid) return;
+    if (!activeModalItem) return;
     setModalError(null);
     startTransition(async () => {
       try {
         const res = await payInstalmentWithStripeAction(
-          nextUnpaid.id,
+          activeModalItem.id,
           window.location.origin
         );
         if (res.checkoutUrl) {
@@ -457,7 +475,7 @@ export function StudentPaymentsClient({
                           {itemCardUnlocked ? (
                             <button
                               type="button"
-                              onClick={() => openPaymentModal("stripe")}
+                              onClick={() => openPaymentModal("stripe", item)}
                               className="px-2.5 py-1 text-[11px] font-bold rounded-sm bg-navy-900 text-white hover:bg-navy-700"
                             >
                               Pay by Card
@@ -469,7 +487,7 @@ export function StudentPaymentsClient({
                           )}
                           <button
                             type="button"
-                            onClick={() => openPaymentModal("transfer")}
+                            onClick={() => openPaymentModal("transfer", item)}
                             className="px-2 py-1 text-[11px] font-semibold text-ink-soft hover:text-navy-900 border border-line rounded-sm"
                           >
                             Transfer
@@ -511,7 +529,7 @@ export function StudentPaymentsClient({
       </section>
 
       {/* Modal: Payment & Proof Submission */}
-      {isModalOpen && nextUnpaid && (
+      {isModalOpen && activeModalItem && (
         <div
           role="dialog"
           aria-modal="true"
@@ -522,10 +540,10 @@ export function StudentPaymentsClient({
             <div className="flex items-start justify-between gap-4 border-b border-line pb-3">
               <div>
                 <h3 id="pay-modal-title" className="font-heading text-xl font-bold text-navy-900">
-                  {notice ? "Transfer Notice Received" : `Pay Instalment ${nextUnpaid.instalmentNumber}`}
+                  {notice ? "Transfer Notice Received" : `Pay Instalment ${activeModalItem.instalmentNumber}`}
                 </h3>
                 <p className="text-xs text-ink-soft">
-                  Amount: <strong className="text-navy-900">{formatCurrency(nextUnpaid.amountGbp)}</strong> · Due {nextUnpaid.dueDate}
+                  Amount: <strong className="text-navy-900">{formatCurrency(activeModalItem.amountGbp)}</strong> · Due {activeModalItem.dueDate}
                 </p>
               </div>
               <button
@@ -617,7 +635,7 @@ export function StudentPaymentsClient({
                             <span>
                               {isPending
                                 ? "Processing Secure Payment..."
-                                : `Confirm & Pay ${formatCurrency(nextUnpaid.amountGbp)}`}
+                                : `Confirm & Pay ${formatCurrency(activeModalItem.amountGbp)}`}
                             </span>
                           </button>
                         </div>
@@ -626,9 +644,9 @@ export function StudentPaymentsClient({
                       <div className="p-4 bg-amber-50 rounded-sm border border-amber-200 text-amber-900 text-xs space-y-2">
                         <p className="font-bold">Card payment unlocks 7 days before due date</p>
                         <p>
-                          This instalment is due on <strong>{nextUnpaid.dueDate}</strong>. Card payment will unlock automatically on{" "}
+                          This instalment is due on <strong>{activeModalItem.dueDate}</strong>. Card payment will unlock automatically on{" "}
                           <strong>
-                            {new Date(new Date(nextUnpaid.dueDate).getTime() - 7 * 86400000).toLocaleDateString("en-GB")}
+                            {new Date(new Date(activeModalItem.dueDate).getTime() - 7 * 86400000).toLocaleDateString("en-GB")}
                           </strong>. In the meantime, you can transfer via BACS below.
                         </p>
                       </div>

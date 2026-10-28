@@ -10,6 +10,8 @@ import {
 import { siteConfig } from "@/content/siteConfig";
 import { formatCurrency } from "@/content/pricing";
 import { getStripeClient } from "@/lib/stripe";
+import { getPaymentRepo } from "@/lib/repositories";
+import { sendEmail } from "@/lib/email";
 
 export interface ReportBankTransferInput {
   scheduleItemId: string;
@@ -37,56 +39,98 @@ export async function reportBankTransferAction(input: ReportBankTransferInput) {
     learnerId = found?.id;
   }
   if (!learnerId) {
-    throw new Error("No learner record is linked to this account.");
-  }
-
-  const item = seedPaymentSchedules.find((s) => s.id === input.scheduleItemId);
-  if (!item || item.learnerId !== learnerId) {
-    throw new Error("Instalment not found on your account.");
-  }
-  if (item.status === "paid") {
-    throw new Error("This instalment is already marked as paid.");
+    try {
+      const { loadPersistedRecords } = await import("@/lib/persistedData");
+      const store = loadPersistedRecords();
+      const pFound = (store.learners || []).find(
+        (l) => l.email?.toLowerCase() === session.email.toLowerCase()
+      );
+      learnerId = pFound?.id;
+    } catch {
+      // Ignore
+    }
   }
 
   const notifiedAt = new Date().toISOString();
   const noticeRef = `TRF-${Date.now().toString().slice(-6)}`;
-  const payerRef = input.payerReference?.trim().slice(0, 60) || "Student ID";
+  const payerRef = input.payerReference?.trim().slice(0, 60) || session.learnerId || "Student ID";
 
-  item.status = "awaiting_confirmation";
-  item.reportedTransfer = {
+  const paymentRepo = getPaymentRepo();
+  const updatedItem = await paymentRepo.reportInstalmentBankTransfer(session, {
+    scheduleItemId: input.scheduleItemId,
     reference: payerRef,
     receiptUrl: input.receiptUrl,
     receiptFileName: input.receiptFileName,
-    reportedAt: notifiedAt,
-  };
-  delete item.adminQuery;
-
-  const { updatePaymentScheduleStatusInStore } = await import("@/lib/persistedData");
-  updatePaymentScheduleStatusInStore(item.id, {
-    status: "awaiting_confirmation",
-    reportedTransfer: item.reportedTransfer,
-    adminQuery: undefined,
   });
 
-  // Alert the owner so they can verify the bank statement and confirm.
+  const financeEmail = "finance@smartmindstraining.co.uk";
+  let attachmentContent: string | undefined;
+  let attachmentType: string | undefined;
+  if (input.receiptUrl && input.receiptUrl.startsWith("data:")) {
+    const parts = input.receiptUrl.split(";base64,");
+    if (parts.length === 2) {
+      attachmentType = parts[0].replace("data:", "") || "image/png";
+      attachmentContent = parts[1];
+    }
+  }
+
+  // Live email to Finance department (finance@smartmindstraining.co.uk)
+  try {
+    await sendEmail({
+      to: financeEmail,
+      department: "finance",
+      subject: `Payment proof uploaded: ${session.name} — Instalment ${updatedItem.instalmentNumber} of ${updatedItem.totalInstalments}`,
+      text: `Dear Finance Team,\n\n${session.name} (${session.email}) has submitted a bank transfer payment notice and uploaded payment proof for verification.\n\nLearner: ${session.name}\nLearner Email: ${session.email}\nCourse: ${updatedItem.courseTitle || "Course"}\nInstalment: ${updatedItem.instalmentNumber} of ${updatedItem.totalInstalments}\nAmount Due: ${formatCurrency(updatedItem.amountGbp)}\nDue Date: ${updatedItem.dueDate}\nBank Transfer Reference: ${payerRef}\nReceipt Document: ${input.receiptFileName || "Attached"}\nTracking Notice: ${noticeRef}\nTimestamp: ${new Date(notifiedAt).toLocaleString("en-GB")}\n\nPlease review the attached receipt proof and verify the funds in the college bank account:\nGo to Admin Portal → Financial Ledger (/admin/payments) to view the receipt and click 'Confirm & Mark Paid'.\n\nSmartminds Automated Financial System`,
+      attachments:
+        attachmentContent && attachmentType
+          ? [
+              {
+                filename: input.receiptFileName || "payment-proof.png",
+                content: attachmentContent,
+                content_type: attachmentType,
+              },
+            ]
+          : undefined,
+      templateKey: "transfer_reported_owner",
+      triggerEvent: "Student Reported Bank Transfer",
+    });
+  } catch (emailErr) {
+    console.warn("[studentPaymentActions] Live finance email error:", emailErr);
+  }
+
+  // Alert the finance team in demo outbox
   demoOutbox.unshift({
     id: `outbox-transfer-${Date.now()}`,
-    recipientEmail: siteConfig.contact.email,
-    recipientName: "Student Accounts",
-    subject: `Transfer reported: ${session.name}, instalment ${item.instalmentNumber} of ${item.totalInstalments}`,
-    renderedBody: `${session.name} (${session.email}) reports sending a bank transfer.\n\nInstalment: ${item.instalmentNumber} of ${item.totalInstalments}\nAmount due: ${formatCurrency(item.amountGbp)}\nDue date: ${item.dueDate}\nPayer reference: ${payerRef}\nReceipt uploaded: ${input.receiptFileName || "None (reference only)"}\nNotice: ${noticeRef}\n\nCheck the bank statement or preview the uploaded receipt, then confirm receipt in Payments Ledger (/admin/payments). The instalment stays unpaid until you confirm.`,
+    recipientEmail: financeEmail,
+    recipientName: "Smartminds Finance & Accounts",
+    subject: `Payment proof uploaded: ${session.name} — Instalment ${updatedItem.instalmentNumber} of ${updatedItem.totalInstalments}`,
+    renderedBody: `${session.name} (${session.email}) reports sending a bank transfer.\n\nInstalment: ${updatedItem.instalmentNumber} of ${updatedItem.totalInstalments}\nAmount due: ${formatCurrency(updatedItem.amountGbp)}\nDue date: ${updatedItem.dueDate}\nPayer reference: ${payerRef}\nReceipt uploaded: ${input.receiptFileName || "None (reference only)"}\nNotice: ${noticeRef}\n\nCheck the bank statement or preview the uploaded receipt, then confirm receipt in Payments Ledger (/admin/payments). The instalment stays unpaid until confirmed.`,
     templateKey: "transfer_reported_owner",
     sentAt: notifiedAt,
     triggerEvent: "Student Reported Bank Transfer",
   });
 
-  // Acknowledge to the student.
+  // Live acknowledgment to the student
+  try {
+    await sendEmail({
+      to: session.email,
+      department: "finance",
+      subject: `We have your payment notice (${noticeRef})`,
+      text: `Dear ${session.name},\n\nThank you for letting us know you have sent ${formatCurrency(updatedItem.amountGbp)} for instalment ${updatedItem.instalmentNumber} of ${updatedItem.totalInstalments}.${input.receiptFileName ? ` Your payment proof (${input.receiptFileName}) was received and routed to finance.` : ""}\n\nOur Finance team will verify the payment against our bank account and dispatch your official receipt, usually within one working business day.\n\nNotice reference: ${noticeRef}\n\nFinance & Student Accounts\nSmartminds Training College`,
+      templateKey: "transfer_reported_student",
+      triggerEvent: "Student Reported Bank Transfer",
+    });
+  } catch (ackErr) {
+    console.warn("[studentPaymentActions] Student ack email error:", ackErr);
+  }
+
+  // Acknowledge to the student in demo outbox
   demoOutbox.unshift({
     id: `outbox-transfer-ack-${Date.now()}`,
     recipientEmail: session.email,
     recipientName: session.name,
     subject: `We have your transfer notice (${noticeRef})`,
-    renderedBody: `Dear ${session.name},\n\nThanks for letting us know you have sent ${formatCurrency(item.amountGbp)} for instalment ${item.instalmentNumber} of ${item.totalInstalments}.${input.receiptFileName ? ` Your payment proof (${input.receiptFileName}) was received.` : ""}\n\nStudent Accounts will confirm once it shows on our statement, usually within one working day. You will get a receipt by email then.\n\nNotice reference: ${noticeRef}\n\nStudent Accounts\nSmartminds Training College`,
+    renderedBody: `Dear ${session.name},\n\nThanks for letting us know you have sent ${formatCurrency(updatedItem.amountGbp)} for instalment ${updatedItem.instalmentNumber} of ${updatedItem.totalInstalments}.${input.receiptFileName ? ` Your payment proof (${input.receiptFileName}) was received.` : ""}\n\nStudent Accounts will confirm once it shows on our statement, usually within one working day. You will get a receipt by email then.\n\nNotice reference: ${noticeRef}\n\nStudent Accounts\nSmartminds Training College`,
     templateKey: "transfer_reported_student",
     sentAt: notifiedAt,
     triggerEvent: "Student Reported Bank Transfer",
@@ -95,6 +139,8 @@ export async function reportBankTransferAction(input: ReportBankTransferInput) {
   try {
     revalidatePath("/admin/payments");
     revalidatePath("/student/payments");
+    revalidatePath("/student");
+    revalidatePath("/admin");
   } catch {}
 
   return { success: true, noticeReference: noticeRef, notifiedAt };
