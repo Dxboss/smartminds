@@ -1981,22 +1981,38 @@ export function syncPersistedRecords(force: boolean = false): void {
       }
     }
 
-    // Sync Sessions
-    if (store.classSessions && seedSessions) {
-      for (const ps of store.classSessions) {
-        const idx = seedSessions.findIndex((s: any) => s.id === ps.id);
-        if (idx >= 0) {
-          seedSessions[idx] = { ...seedSessions[idx], ...ps };
-        } else {
-          seedSessions.push(ps);
-        }
-      }
-    }
-
-    // Sync Assignments & Submissions (Outside automated test runs, only tutor/admin created assignments exist)
+    // Sync Assignments, Submissions & Sessions (Outside automated test runs, only real created items exist)
     const isTestEnv = isAutomatedTestEnv();
 
     if (!isTestEnv) {
+      const DEMO_SESSION_IDS = new Set([
+        "session-care-01",
+        "session-lead-01",
+        "session-ey-01",
+        "session-mh-01",
+      ]);
+      const DEMO_ASSIGNMENT_IDS = new Set([
+        "assign-care-301",
+        "assign-lead-501",
+        "assign-ey-302",
+      ]);
+      const DEMO_SUBMISSION_IDS = new Set([
+        "sub-001",
+        "sub-002",
+        "sub-003",
+      ]);
+
+      if (Array.isArray(seedSessions)) {
+        seedSessions.length = 0;
+        if (Array.isArray(store.classSessions) && store.classSessions.length > 0) {
+          const cleanSessions = store.classSessions.filter(
+            (s: any) =>
+              !DEMO_SESSION_IDS.has(s.id) &&
+              !(typeof s.recordingUrl === "string" && s.recordingUrl.includes("stream.smartmindstraining.co.uk/sessions/"))
+          );
+          seedSessions.push(...cleanSessions);
+        }
+      }
       if (Array.isArray(seedLearners)) {
         for (let i = seedLearners.length - 1; i >= 0; i--) {
           if (isFictionalDemoRecord(seedLearners[i])) seedLearners.splice(i, 1);
@@ -2025,16 +2041,35 @@ export function syncPersistedRecords(force: boolean = false): void {
       if (Array.isArray(seedAssignments)) {
         seedAssignments.length = 0;
         if (Array.isArray(store.assignments) && store.assignments.length > 0) {
-          seedAssignments.push(...store.assignments);
+          const cleanAssignments = store.assignments.filter(
+            (a: any) => !DEMO_ASSIGNMENT_IDS.has(a.id)
+          );
+          seedAssignments.push(...cleanAssignments);
         }
       }
       if (Array.isArray(seedSubmissions)) {
         seedSubmissions.length = 0;
         if (Array.isArray(store.submissions) && store.submissions.length > 0) {
-          seedSubmissions.push(...store.submissions);
+          const cleanSubmissions = store.submissions.filter(
+            (s: any) =>
+              !DEMO_SUBMISSION_IDS.has(s.id) &&
+              !DEMO_ASSIGNMENT_IDS.has(s.assignmentId) &&
+              !isFictionalDemoRecord(s)
+          );
+          seedSubmissions.push(...cleanSubmissions);
         }
       }
     } else {
+      if (store.classSessions && seedSessions) {
+        for (const ps of store.classSessions) {
+          const idx = seedSessions.findIndex((s: any) => s.id === ps.id);
+          if (idx >= 0) {
+            seedSessions[idx] = { ...seedSessions[idx], ...ps };
+          } else {
+            seedSessions.push(ps);
+          }
+        }
+      }
       if (Array.isArray(store.assignments) && Array.isArray(seedAssignments)) {
         for (const pa of store.assignments) {
           const idx = seedAssignments.findIndex((a: any) => a.id === pa.id);
@@ -3544,17 +3579,42 @@ export const DEFAULT_LEARNING_MATERIALS: LearningMaterial[] = [
   },
 ];
 
-export function listLearningMaterials(cohortId?: string, tutorId?: string): LearningMaterial[] {
+const DEMO_MATERIAL_IDS = new Set([
+  "mat-safeguarding-guide",
+  "mat-gcse-maths-pack",
+  "mat-eyfs-observations",
+]);
+
+function isDemoMaterial(m: LearningMaterial): boolean {
+  if (!m) return false;
+  if (DEMO_MATERIAL_IDS.has(m.id)) return true;
+  if (m.tutorId === "user-tutor-eleanor" || m.tutorName === "Dr. Eleanor Vance") return true;
+  return false;
+}
+
+export function listLearningMaterials(cohortId?: string, tutorId?: string, tutorName?: string): LearningMaterial[] {
   const store = loadPersistedRecords();
-  let materials = store.learningMaterials && store.learningMaterials.length > 0
-    ? [...store.learningMaterials]
-    : [...DEFAULT_LEARNING_MATERIALS];
+  const isTest = isAutomatedTestEnv();
+  let materials = isTest
+    ? store.learningMaterials && store.learningMaterials.length > 0
+      ? [...store.learningMaterials]
+      : [...DEFAULT_LEARNING_MATERIALS]
+    : (store.learningMaterials || []).filter((m) => !isDemoMaterial(m));
 
   if (cohortId && cohortId !== "all") {
     materials = materials.filter((m) => !m.cohortId || m.cohortId === cohortId);
   }
   if (tutorId && tutorId !== "all") {
-    materials = materials.filter((m) => m.tutorId === tutorId);
+    const cleanName = (tutorName || "").trim().toLowerCase();
+    const firstName = cleanName.split(" ")[0] || "";
+    materials = materials.filter((m) => {
+      if (m.tutorId === tutorId) return true;
+      const mTutor = (m.tutorName || "").trim().toLowerCase();
+      if (cleanName && mTutor) {
+        if (mTutor === cleanName || (firstName.length >= 3 && mTutor === firstName)) return true;
+      }
+      return false;
+    });
   }
 
   return materials;
@@ -3565,7 +3625,9 @@ export async function saveLearningMaterial(
 ): Promise<LearningMaterial> {
   const store = loadPersistedRecords();
   if (!store.learningMaterials) {
-    store.learningMaterials = [...DEFAULT_LEARNING_MATERIALS];
+    store.learningMaterials = [];
+  } else if (!isAutomatedTestEnv()) {
+    store.learningMaterials = store.learningMaterials.filter((m) => !isDemoMaterial(m));
   }
 
   const id = material.id || `mat-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
@@ -3583,7 +3645,7 @@ export async function saveLearningMaterial(
   }
 
   const filePath = getStoreFilePath();
-  fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+  writeStoreToDisk(filePath, store);
   await syncStoreSnapshotToNeon(store);
   return record;
 }
@@ -3591,18 +3653,77 @@ export async function saveLearningMaterial(
 export async function deleteLearningMaterial(id: string): Promise<boolean> {
   const store = loadPersistedRecords();
   if (!store.learningMaterials) {
-    store.learningMaterials = [...DEFAULT_LEARNING_MATERIALS];
+    store.learningMaterials = [];
   }
 
   const initialLen = store.learningMaterials.length;
-  store.learningMaterials = store.learningMaterials.filter((m) => m.id !== id);
+  store.learningMaterials = store.learningMaterials.filter((m) => m.id !== id && !isDemoMaterial(m));
   if (store.learningMaterials.length !== initialLen) {
     const filePath = getStoreFilePath();
-    fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+    writeStoreToDisk(filePath, store);
     await syncStoreSnapshotToNeon(store);
     return true;
   }
   return false;
+}
+
+export function getCohortsForTutor(session: {
+  id?: string;
+  tutorId?: string;
+  name?: string;
+  role?: string;
+}): any[] {
+  syncPersistedRecords(false);
+  const allCohorts = getPersistedCohorts();
+  if (
+    session.role === "owner_admin" ||
+    session.role === "super_admin" ||
+    session.role === "admin_staff"
+  ) {
+    return allCohorts;
+  }
+
+  const tutorId = session.tutorId || session.id || "";
+  const cleanName = (session.name || "").trim().toLowerCase();
+  const firstName = cleanName.split(" ")[0] || "";
+
+  // Also check enrolments where this tutor is assigned to a student in that cohort
+  const store = loadPersistedRecords();
+  const enrolmentCohortIds = new Set<string>();
+  const allEnrolments = [...(store.enrolments || [])];
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { seedEnrolments } = require("@/lib/repositories/seedData");
+    if (Array.isArray(seedEnrolments)) {
+      allEnrolments.push(...seedEnrolments);
+    }
+  } catch {}
+
+  for (const e of allEnrolments) {
+    if (!e?.classId) continue;
+    const eTutorId = (e as any).tutorId || "";
+    const eTutorName = ((e as any).tutorName || "").trim().toLowerCase();
+    if (
+      (tutorId && (eTutorId === tutorId || eTutorId === session.id)) ||
+      (cleanName &&
+        eTutorName &&
+        (eTutorName === cleanName ||
+          (firstName.length >= 3 && (eTutorName === firstName || eTutorName.startsWith(firstName + " ")))))
+    ) {
+      enrolmentCohortIds.add(e.classId);
+    }
+  }
+
+  return allCohorts.filter((c: any) => {
+    if (tutorId && (c.tutorId === tutorId || c.tutorId === session.id)) return true;
+    if (enrolmentCohortIds.has(c.id)) return true;
+    const cTutor = (c.tutorName || "").trim().toLowerCase();
+    if (!cTutor || !cleanName) return false;
+    return (
+      cTutor === cleanName ||
+      (firstName.length >= 3 && (cTutor === firstName || cTutor.startsWith(firstName + " ")))
+    );
+  });
 }
 
 // --------------------------------------------------------------------------

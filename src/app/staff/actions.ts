@@ -28,12 +28,37 @@ import {
   savePersistedSubmission,
   saveLearningMaterial,
   deleteLearningMaterial,
+  getPersistedCohorts,
+  pullLatestFromNeon,
+  syncPersistedRecords,
 } from "@/lib/persistedData";
 import { createZoomMeetingForClass, isZoomConfigured } from "@/lib/zoom";
 import { getCloudflareStreamAdminDownloadUrl } from "@/lib/cloudflareStream";
 
 // In-memory attendance map: `${sessionId}_${learnerId}` -> boolean
 const sessionAttendance: Record<string, boolean> = {};
+
+function findOrCreateSession(sessionId: string) {
+  let s = seedSessions.find((item) => item.id === sessionId);
+  if (!s && sessionId.startsWith("session-new-")) {
+    const classId = sessionId.replace("session-new-", "");
+    const allCohorts = [...getPersistedCohorts(), ...seedClasses];
+    const cls = allCohorts.find((c) => c.id === classId);
+    if (cls) {
+      s = {
+        id: sessionId,
+        classId: cls.id,
+        title: `Live Class Session: ${cls.name}`,
+        scheduledAt: cls.nextSessionDate || new Date().toISOString(),
+        durationMinutes: 120,
+        zoomLink: cls.zoomLink || "",
+        attendanceTracked: true,
+      };
+      seedSessions.push(s);
+    }
+  }
+  return s;
+}
 
 export async function updateSessionScheduleAction(
   sessionId: string,
@@ -51,7 +76,10 @@ export async function updateSessionScheduleAction(
     throw new Error("Unauthorized: Tutor session required.");
   }
 
-  const s = seedSessions.find((item) => item.id === sessionId);
+  await pullLatestFromNeon();
+  syncPersistedRecords(false);
+
+  const s = findOrCreateSession(sessionId);
   if (!s) throw new Error(`Session ${sessionId} not found.`);
 
   if (data.scheduledAt) s.scheduledAt = data.scheduledAt;
@@ -59,7 +87,8 @@ export async function updateSessionScheduleAction(
   if (data.title) s.title = data.title;
   if (data.recordingUrl !== undefined) s.recordingUrl = data.recordingUrl;
 
-  const cls = seedClasses.find((c) => c.id === s.classId);
+  const allCohorts = [...getPersistedCohorts(), ...seedClasses];
+  const cls = allCohorts.find((c) => c.id === s.classId);
 
   // If recurring link update requested, update the cohort's recurring Zoom link
   if (data.updateCohortRecurringLink && data.zoomLink && cls) {
@@ -162,13 +191,18 @@ export async function updateSessionRecordingAction(
     throw new Error("Unauthorized: Tutor session required.");
   }
 
-  const s = seedSessions.find((item) => item.id === sessionId);
+  await pullLatestFromNeon();
+  syncPersistedRecords(false);
+
+  const s = findOrCreateSession(sessionId);
   if (!s) throw new Error(`Session ${sessionId} not found.`);
 
   s.recordingUrl = recordingUrl;
+  savePersistedClassSession(s);
 
   // Dispatch immediate recording ready email to enrolled cohort learners
-  const cls = seedClasses.find((c) => c.id === s.classId);
+  const allCohorts = [...getPersistedCohorts(), ...seedClasses];
+  const cls = allCohorts.find((c) => c.id === s.classId);
   const classEnrolments = seedEnrolments.filter((e) => e.classId === s.classId);
   const baseUrl = getBaseUrl();
 
@@ -226,10 +260,14 @@ export async function sendClassSessionReminderAction(sessionId: string) {
     throw new Error("Unauthorized: Tutor session required.");
   }
 
-  const s = seedSessions.find((item) => item.id === sessionId);
+  await pullLatestFromNeon();
+  syncPersistedRecords(false);
+
+  const s = findOrCreateSession(sessionId);
   if (!s) throw new Error(`Session ${sessionId} not found.`);
 
-  const cls = seedClasses.find((c) => c.id === s.classId);
+  const allCohorts = [...getPersistedCohorts(), ...seedClasses];
+  const cls = allCohorts.find((c) => c.id === s.classId);
   const classEnrolments = seedEnrolments.filter((e) => e.classId === s.classId);
   const baseUrl = getBaseUrl();
 
@@ -312,8 +350,12 @@ export async function createAssignmentAction(data: {
     throw new Error("Unauthorized: Tutor or Admin session required.");
   }
 
-  const tutorId = session.tutorId || "tutor-001";
-  const cls = seedClasses.find((c) => c.id === data.classId);
+  await pullLatestFromNeon();
+  syncPersistedRecords(false);
+
+  const tutorId = session.tutorId || session.id || "tutor-001";
+  const allCohorts = [...getPersistedCohorts(), ...seedClasses];
+  const cls = allCohorts.find((c) => c.id === data.classId);
   if (!cls) throw new Error(`Cohort ${data.classId} not found.`);
 
   const newAssignment = {
@@ -468,10 +510,14 @@ export async function createAutomatedZoomMeetingAction(sessionId: string) {
     throw new Error("Unauthorized: Staff session required.");
   }
 
-  const s = seedSessions.find((item) => item.id === sessionId);
+  await pullLatestFromNeon();
+  syncPersistedRecords(false);
+
+  const s = findOrCreateSession(sessionId);
   if (!s) throw new Error(`Session ${sessionId} not found.`);
 
-  const cls = seedClasses.find((c) => c.id === s.classId);
+  const allCohorts = [...getPersistedCohorts(), ...seedClasses];
+  const cls = allCohorts.find((c) => c.id === s.classId);
 
   if (!isZoomConfigured()) {
     return {
@@ -578,12 +624,16 @@ export async function saveMaterialAction(data: {
     throw new Error("Unauthorized: Tutor access required to manage materials.");
   }
 
+  await pullLatestFromNeon();
+  syncPersistedRecords(false);
+
   const tutorId = session.tutorId || session.id || "user-tutor-eleanor";
-  const tutorName = session.name || "Dr. Eleanor Vance";
+  const tutorName = session.name || "Course Tutor";
 
   let cohortName = data.cohortName;
   if (data.cohortId && !cohortName) {
-    const cls = seedClasses.find((c) => c.id === data.cohortId);
+    const allCohorts = [...getPersistedCohorts(), ...seedClasses];
+    const cls = allCohorts.find((c) => c.id === data.cohortId);
     cohortName = cls ? cls.name : "Assigned Cohort";
   }
 

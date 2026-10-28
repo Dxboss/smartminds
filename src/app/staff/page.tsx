@@ -2,7 +2,8 @@ import React from "react";
 import Link from "next/link";
 import { getServerSession } from "@/lib/session";
 import { getLearnerRepo, getTaskRepo } from "@/lib/repositories";
-import { seedClasses, seedAssignments } from "@/lib/repositories/seedData";
+import { seedAssignments } from "@/lib/repositories/seedData";
+import { getCohortsForTutor, pullLatestFromNeon, syncPersistedRecords } from "@/lib/persistedData";
 import { Icon } from "@/components/ui/Icon";
 
 
@@ -10,18 +11,12 @@ export default async function StaffDashboardPage() {
   const session = await getServerSession();
   if (!session) return null;
 
+  await pullLatestFromNeon();
+  syncPersistedRecords(false);
+
   const tutorId = session.tutorId || "tutor-001";
-  const cleanName = (session.name || "").trim().toLowerCase();
-  const tutorFirstName = cleanName.split(" ")[0] || "";
-  const myClasses = seedClasses.filter((c) => {
-    if (c.tutorId === tutorId) return true;
-    const cTutor = (c.tutorName || "").trim().toLowerCase();
-    if (!cTutor || !cleanName) return false;
-    return (
-      cTutor === cleanName ||
-      (tutorFirstName.length >= 3 && cTutor === tutorFirstName)
-    );
-  });
+  const myClasses = getCohortsForTutor(session);
+  const myClassIds = new Set(myClasses.map((c) => c.id));
 
   const learnerRepo = getLearnerRepo();
   const taskRepo = getTaskRepo();
@@ -29,7 +24,9 @@ export default async function StaffDashboardPage() {
   // Repository enforces that tutor only receives learners in their own assigned classes
   const myLearners = await learnerRepo.listLearners(session);
   const myTasks = await taskRepo.listTasks(session);
-  const myAssignments = seedAssignments.filter((a) => a.tutorId === tutorId);
+  const myAssignments = seedAssignments.filter(
+    (a) => a.tutorId === tutorId || a.tutorId === session.id || myClassIds.has(a.classId)
+  );
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
@@ -210,16 +207,6 @@ export default async function StaffDashboardPage() {
                 </div>
               </div>
             )}
-          </div>
-
-          {/* Privacy Note */}
-          <div className="p-4 rounded-sm bg-navy-900/5 border border-line text-xs text-ink-soft space-y-1">
-            <span className="font-bold text-navy-900 block">
-              Teaching Role Privacy Barrier
-            </span>
-            <p className="leading-relaxed">
-              Tutors see only their own assigned classes and learners. Course pricing, student balances, and college financial records are restricted to the owner admin.
-            </p>
           </div>
         </div>
       </div>

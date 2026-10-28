@@ -9,6 +9,7 @@ import {
   seedLearners,
   seedSubmissions,
 } from "@/lib/repositories/seedData";
+import { getCohortsForTutor, pullLatestFromNeon, syncPersistedRecords } from "@/lib/persistedData";
 import { SubmissionsGradingTable } from "@/components/staff/SubmissionsGradingTable";
 import { Icon } from "@/components/ui/Icon";
 
@@ -33,22 +34,29 @@ export default async function TutorAssignmentSubmissionsPage({ params }: Props) 
     redirect("/login");
   }
 
+  await pullLatestFromNeon();
+  syncPersistedRecords(false);
+
   const assignment = seedAssignments.find((a) => a.id === id);
   if (!assignment) {
     notFound();
   }
 
   const tutorId = session.tutorId || "tutor-001";
+  const myClasses = getCohortsForTutor(session);
+  const myClassIds = new Set(myClasses.map((c) => c.id));
+
   // Tutor isolation: only see assignments for their own classes
   if (
     session.role === "tutor" &&
     assignment.tutorId !== tutorId &&
-    assignment.tutorId !== session.id
+    assignment.tutorId !== session.id &&
+    !myClassIds.has(assignment.classId)
   ) {
     notFound();
   }
 
-  const cls = seedClasses.find((c) => c.id === assignment.classId);
+  const cls = myClasses.find((c) => c.id === assignment.classId) || seedClasses.find((c) => c.id === assignment.classId);
   const classEnrolments = seedEnrolments.filter((e) => e.classId === assignment.classId);
   const learnerIds = new Set(classEnrolments.map((e) => e.learnerId));
   const enrolledLearners = seedLearners.filter((l) => learnerIds.has(l.id));

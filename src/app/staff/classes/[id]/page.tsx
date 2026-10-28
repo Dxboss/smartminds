@@ -4,6 +4,12 @@ import { notFound } from "next/navigation";
 import { getServerSession } from "@/lib/session";
 import { getLearnerRepo } from "@/lib/repositories";
 import { seedClasses, seedSessions, seedEnrolments } from "@/lib/repositories/seedData";
+import {
+  getCohortsForTutor,
+  getPersistedCohorts,
+  pullLatestFromNeon,
+  syncPersistedRecords,
+} from "@/lib/persistedData";
 import { ClassSessionEditor } from "@/components/staff/ClassSessionEditor";
 import { Icon } from "@/components/ui/Icon";
 
@@ -16,16 +22,20 @@ export default async function TutorClassDetailPage({ params }: PageProps) {
   const session = await getServerSession();
   if (!session) return null;
 
-  const { id } = await params;
-  const tutorId = session.tutorId || "tutor-001";
+  await pullLatestFromNeon();
+  syncPersistedRecords(false);
 
-  const cls = seedClasses.find((c) => c.id === id);
+  const { id } = await params;
+
+  const myClasses = getCohortsForTutor(session);
+  const allCohorts = [...getPersistedCohorts(), ...seedClasses];
+  const cls = myClasses.find((c) => c.id === id) || allCohorts.find((c) => c.id === id);
   if (!cls) {
     notFound();
   }
 
-  // Enforce security rule: Tutors see only their own classes
-  if (session.role === "tutor" && cls.tutorId !== tutorId) {
+  // Enforce security rule: Tutors see only their own assigned classes
+  if (session.role === "tutor" && !myClasses.some((c) => c.id === cls.id)) {
     notFound();
   }
 

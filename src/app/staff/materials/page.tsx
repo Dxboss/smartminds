@@ -2,8 +2,12 @@ import React from "react";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getServerSession } from "@/lib/session";
-import { seedClasses } from "@/lib/repositories/seedData";
-import { listLearningMaterials } from "@/lib/persistedData";
+import {
+  getCohortsForTutor,
+  listLearningMaterials,
+  pullLatestFromNeon,
+  syncPersistedRecords,
+} from "@/lib/persistedData";
 import { TutorMaterialsManager } from "@/components/staff/TutorMaterialsManager";
 import { Icon } from "@/components/ui/Icon";
 
@@ -19,18 +23,19 @@ export default async function StaffMaterialsPage() {
     redirect("/login?from=/staff/materials");
   }
 
-  const tutorId = session.tutorId || session.id || "user-tutor-eleanor";
+  await pullLatestFromNeon();
+  syncPersistedRecords(false);
+
+  const tutorId = session.tutorId || session.id || "tutor-001";
   const isOwnerOrSuper = session.role === "owner_admin" || session.role === "super_admin";
 
-  const tutorClasses = isOwnerOrSuper
-    ? seedClasses.map((c) => ({ id: c.id, name: c.name }))
-    : seedClasses
-        .filter((c) => c.tutorId === tutorId || !c.tutorId)
-        .map((c) => ({ id: c.id, name: c.name }));
+  const assignedCohorts = getCohortsForTutor(session);
+  const tutorClasses = assignedCohorts.map((c) => ({ id: c.id, name: c.name }));
 
   const materials = listLearningMaterials(
     undefined,
-    isOwnerOrSuper ? undefined : tutorId
+    isOwnerOrSuper ? undefined : tutorId,
+    isOwnerOrSuper ? undefined : session.name
   );
 
   return (
@@ -54,7 +59,7 @@ export default async function StaffMaterialsPage() {
       <TutorMaterialsManager
         initialMaterials={materials}
         tutorClasses={tutorClasses}
-        currentTutorName={session.name || "Dr. Eleanor Vance"}
+        currentTutorName={session.name || "Course Tutor"}
       />
     </div>
   );

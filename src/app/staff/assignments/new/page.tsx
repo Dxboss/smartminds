@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { getServerSession } from "@/lib/session";
-import { seedClasses } from "@/lib/repositories/seedData";
+import { getCohortsForTutor, pullLatestFromNeon, syncPersistedRecords } from "@/lib/persistedData";
 import { CreateAssignmentForm } from "@/components/staff/CreateAssignmentForm";
 import { Icon } from "@/components/ui/Icon";
 
@@ -10,10 +10,10 @@ export default async function NewAssignmentPage() {
   const session = await getServerSession();
   if (!session) return null;
 
-  const tutorId = session.tutorId || "tutor-001";
-  const myClasses = seedClasses.filter(
-    (c) => c.tutorId === tutorId || session.role === "owner_admin" || session.role === "super_admin"
-  );
+  await pullLatestFromNeon();
+  syncPersistedRecords(false);
+
+  const myClasses = getCohortsForTutor(session);
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">

@@ -4,9 +4,9 @@ import { getServerSession } from "@/lib/session";
 import {
   seedAssignments,
   seedSubmissions,
-  seedClasses,
   seedEnrolments,
 } from "@/lib/repositories/seedData";
+import { getCohortsForTutor, pullLatestFromNeon, syncPersistedRecords } from "@/lib/persistedData";
 import { Icon } from "@/components/ui/Icon";
 
 
@@ -14,11 +14,14 @@ export default async function TutorAssignmentsPage() {
   const session = await getServerSession();
   if (!session) return null;
 
+  await pullLatestFromNeon();
+  syncPersistedRecords(false);
+
   const tutorId = session.tutorId || "tutor-001";
-  const myClasses = seedClasses.filter((c) => c.tutorId === tutorId);
+  const myClasses = getCohortsForTutor(session);
   const myClassIds = new Set(myClasses.map((c) => c.id));
   const myAssignments = seedAssignments.filter(
-    (a) => a.tutorId === tutorId || myClassIds.has(a.classId)
+    (a) => a.tutorId === tutorId || a.tutorId === session.id || myClassIds.has(a.classId)
   );
 
   return (
@@ -56,7 +59,7 @@ export default async function TutorAssignmentsPage() {
             No coursework assignments created yet
           </h2>
           <p className="text-xs text-ink-soft max-w-md mx-auto">
-            Create an assignment brief for your cohort. When published, an automated notification is simulated to all enrolled students.
+            Create an assignment brief for your cohort. When published, enrolled students in the selected cohort are notified automatically.
           </p>
           <div className="pt-2">
             <Link

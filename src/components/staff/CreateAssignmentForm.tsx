@@ -143,16 +143,11 @@ export const CreateAssignmentForm: React.FC<Props> = ({ classes }) => {
         </div>
       </div>
 
-      {/* Simulated Outbox Notice per PRD 12.5 */}
-      <div className="p-4 rounded-sm bg-blue-50 border border-blue-200 text-xs text-blue-900 space-y-1.5">
-        <div className="flex items-center gap-2 font-bold">
-          <Icon name="mail" size={16} className="text-blue-700" />
-          <span>Simulated Outbox Dispatch Preview</span>
-        </div>
-        <p className="leading-relaxed">
-          Creating this assignment will automatically dispatch simulated email notifications to all enrolled students in{" "}
-          <strong>{selectedClass?.name || "the selected cohort"}</strong>. Dispatched emails will immediately appear in the demo <strong>Outbox</strong> panel.
-        </p>
+      <div className="p-3.5 rounded-sm bg-paper border border-line text-xs text-ink-soft flex items-center gap-2">
+        <Icon name="mail" size={15} className="text-navy-900 shrink-0" />
+        <span>
+          Enrolled students in <strong>{selectedClass?.name || "the selected cohort"}</strong> will receive an email notification as soon as this assignment is published.
+        </span>
       </div>
 
       <div className="flex items-center justify-between pt-2">

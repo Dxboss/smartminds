@@ -140,6 +140,16 @@ export function StudentMaterialsView({
           >
             Word & Briefs
           </button>
+          <button
+            onClick={() => setFilterType("link")}
+            className={`px-3 py-1.5 rounded-sm text-xs font-semibold transition-colors cursor-pointer ${
+              filterType === "link"
+                ? "bg-navy-900 text-white"
+                : "bg-paper text-navy-900 border border-line hover:border-navy-900"
+            }`}
+          >
+            Resource Links
+          </button>
         </div>
 
         <div className="relative w-full sm:w-64">
@@ -212,13 +222,13 @@ export function StudentMaterialsView({
 
                   <a
                     href={mat.fileUrl}
-                    download={mat.fileName}
+                    download={mat.fileType === "link" ? undefined : mat.fileName}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="w-full py-2 px-3 rounded-sm bg-navy-900 text-white text-xs font-semibold hover:bg-navy-700 transition-colors flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
                   >
-                    <Icon name="download" size={14} />
-                    <span>Download study material</span>
+                    <Icon name={mat.fileType === "link" ? "external-link" : "download"} size={14} />
+                    <span>{mat.fileType === "link" ? "Open resource link" : "Download study material"}</span>
                   </a>
                 </div>
               </div>

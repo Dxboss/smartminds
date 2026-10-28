@@ -1,7 +1,8 @@
 import React from "react";
 import { redirect } from "next/navigation";
 import { getServerSession } from "@/lib/session";
-import { seedClasses, seedSessions } from "@/lib/repositories/seedData";
+import { seedSessions } from "@/lib/repositories/seedData";
+import { getCohortsForTutor, pullLatestFromNeon, syncPersistedRecords } from "@/lib/persistedData";
 import { RecordingsManager, RecordingSessionItem } from "@/components/staff/RecordingsManager";
 
 
@@ -20,13 +21,11 @@ export default async function TutorRecordingsPage() {
     redirect("/login");
   }
 
-  const tutorId = session.tutorId || "tutor-001";
+  await pullLatestFromNeon();
+  syncPersistedRecords(false);
 
   // Tutor isolation: only see classes belonging to this tutor
-  const myClasses =
-    session.role === "tutor"
-      ? seedClasses.filter((c) => c.tutorId === tutorId || c.tutorId === session.id)
-      : seedClasses;
+  const myClasses = getCohortsForTutor(session);
 
   const myClassIds = new Set(myClasses.map((c) => c.id));
   const mySessions = seedSessions.filter((s) => myClassIds.has(s.classId));

@@ -32,7 +32,7 @@ export function TutorMaterialsManager({
   const [fileType, setFileType] = useState<"pdf" | "ppt" | "docx" | "link">("pdf");
   const [fileName, setFileName] = useState("");
   const [fileUrl, setFileUrl] = useState("");
-  const [fileSizeBytes, setFileSizeBytes] = useState<number>(1850000);
+  const [fileSizeBytes, setFileSizeBytes] = useState<number>(0);
   const [published, setPublished] = useState(true);
 
   // File picker handler
@@ -46,10 +46,20 @@ export function TutorMaterialsManager({
       else if (ext === "ppt" || ext === "pptx") setFileType("ppt");
       else if (ext === "doc" || ext === "docx") setFileType("docx");
 
-      // In demo mode, simulate document storage URL
-      setFileUrl(`/documents/${encodeURIComponent(file.name)}`);
+      // Read file as data URL if under 4MB so students can download the real uploaded document
+      if (file.size <= 4 * 1024 * 1024) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (typeof reader.result === "string") {
+            setFileUrl(reader.result);
+          }
+        };
+        reader.readAsDataURL(file);
+      } else {
+        setFileUrl(`/documents/${encodeURIComponent(file.name)}`);
+      }
+
       if (!title) {
-        // Derive clean title from filename
         const cleanName = file.name
           .replace(/\.[^/.]+$/, "")
           .replace(/[-_]/g, " ")
@@ -59,38 +69,20 @@ export function TutorMaterialsManager({
     }
   };
 
-  const handleUseSample = (preset: "safeguarding" | "revision" | "observation") => {
-    if (preset === "safeguarding") {
-      setTitle("Unit 1: Safeguarding & Mandatory Duty of Care Slides");
-      setDescription("Comprehensive lecture slide pack covering the Care Act 2014, statutory boundaries, and case studies.");
-      setUnitCode("MOD-01");
-      setFileType("pdf");
-      setFileName("Unit_1_Safeguarding_Adult_Care_2026.pdf");
-      setFileUrl("/documents/sample-safeguarding-guide.pdf");
-      setFileSizeBytes(2450000);
-    } else if (preset === "revision") {
-      setTitle("GCSE Maths Foundation & Higher Paper 2 Worked Answers");
-      setDescription("Full mark-scheme walkthrough with algebraic method marks, formula reference sheets, and 20 practice questions.");
-      setUnitCode("TUT-GCSE");
-      setFileType("docx");
-      setFileName("GCSE_Maths_Mastery_Pack_AQA_Edexcel.docx");
-      setFileUrl("/documents/sample-gcse-maths-pack.docx");
-      setFileSizeBytes(1250000);
-    } else {
-      setTitle("Early Years Educator: Direct Workplace Observation Evidence Sheet");
-      setDescription("Guidance and witness testimony templates for recording nursery setting observations and portfolio building.");
-      setUnitCode("EYFS-02");
-      setFileType("ppt");
-      setFileName("EYFS_Observation_Witness_Guidance.pptx");
-      setFileUrl("/documents/sample-eyfs-observation.pptx");
-      setFileSizeBytes(3800000);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !fileName.trim()) {
-      setErrorMsg("Please provide a material title and select or specify a document file.");
+    if (!title.trim()) {
+      setErrorMsg("Please provide a material title.");
+      return;
+    }
+
+    if (fileType === "link") {
+      if (!fileUrl.trim()) {
+        setErrorMsg("Please enter the external resource URL (https://...).");
+        return;
+      }
+    } else if (!fileName.trim()) {
+      setErrorMsg("Please select a document file to upload.");
       return;
     }
 
@@ -98,6 +90,14 @@ export function TutorMaterialsManager({
     setErrorMsg(null);
 
     const selectedClassObj = tutorClasses.find((c) => c.id === cohortId);
+    const resolvedFileName =
+      fileType === "link"
+        ? fileName.trim() || fileUrl.trim()
+        : fileName.trim();
+    const resolvedFileUrl =
+      fileType === "link"
+        ? fileUrl.trim()
+        : fileUrl.trim() || `/documents/${encodeURIComponent(resolvedFileName)}`;
 
     try {
       const res = await saveMaterialAction({
@@ -107,9 +107,9 @@ export function TutorMaterialsManager({
         cohortId: cohortId || undefined,
         cohortName: selectedClassObj ? selectedClassObj.name : "All Assigned Cohorts",
         fileType,
-        fileName: fileName.trim(),
-        fileUrl: fileUrl.trim() || `/documents/${encodeURIComponent(fileName.trim())}`,
-        fileSizeBytes,
+        fileName: resolvedFileName,
+        fileUrl: resolvedFileUrl,
+        fileSizeBytes: fileType === "link" ? undefined : fileSizeBytes,
         published,
       });
 
@@ -122,6 +122,7 @@ export function TutorMaterialsManager({
         setUnitCode("");
         setFileName("");
         setFileUrl("");
+        setFileSizeBytes(0);
       }
     } catch (err: any) {
       setErrorMsg(err.message || "Failed to save learning material.");
@@ -345,13 +346,13 @@ export function TutorMaterialsManager({
                 <div className="flex items-center gap-2 self-start md:self-center">
                   <a
                     href={mat.fileUrl}
-                    download={mat.fileName}
+                    download={mat.fileType === "link" ? undefined : mat.fileName}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="px-3 py-1.5 rounded-sm bg-paper border border-line text-navy-900 text-xs font-semibold hover:bg-navy-900 hover:text-white transition-colors inline-flex items-center gap-1.5 cursor-pointer"
                   >
-                    <Icon name="download" size={13} />
-                    <span>Download</span>
+                    <Icon name={mat.fileType === "link" ? "external-link" : "download"} size={13} />
+                    <span>{mat.fileType === "link" ? "Open link" : "Download"}</span>
                   </a>
 
                   <button
@@ -392,36 +393,6 @@ export function TutorMaterialsManager({
                 {errorMsg}
               </div>
             )}
-
-            {/* Quick Presets */}
-            <div className="p-3 rounded-sm bg-paper border border-line space-y-2">
-              <span className="text-[11px] font-bold text-navy-900 uppercase tracking-wider block">
-                Quick sample study packs:
-              </span>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleUseSample("safeguarding")}
-                  className="px-2.5 py-1 rounded-sm bg-white border border-line text-navy-900 text-[11px] font-semibold hover:border-navy-900 transition-colors cursor-pointer"
-                >
-                  Safeguarding slides (PDF)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleUseSample("revision")}
-                  className="px-2.5 py-1 rounded-sm bg-white border border-line text-navy-900 text-[11px] font-semibold hover:border-navy-900 transition-colors cursor-pointer"
-                >
-                  GCSE Maths pack (DOCX)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleUseSample("observation")}
-                  className="px-2.5 py-1 rounded-sm bg-white border border-line text-navy-900 text-[11px] font-semibold hover:border-navy-900 transition-colors cursor-pointer"
-                >
-                  EYFS observation guide (PPT)
-                </button>
-              </div>
-            </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
@@ -484,38 +455,20 @@ export function TutorMaterialsManager({
                 />
               </div>
 
-              {/* File upload selector */}
-              <div className="space-y-2 border-t border-line pt-3">
-                <label className="block text-xs font-semibold text-navy-900">
-                  Select file to upload (PDF, PPT, DOCX) *
-                </label>
-
-                <div className="flex items-center gap-3">
-                  <input
-                    type="file"
-                    id="material-upload-input"
-                    accept=".pdf,.ppt,.pptx,.doc,.docx"
-                    onChange={handleFileChange}
-                    className="text-xs text-ink-soft file:mr-3 file:py-1.5 file:px-3 file:rounded-sm file:border-0 file:text-xs file:font-semibold file:bg-navy-900 file:text-white hover:file:bg-navy-700 cursor-pointer"
-                  />
-                </div>
-
-                {fileName && (
-                  <div className="p-2.5 rounded-sm bg-navy-900/5 border border-navy-900/10 flex items-center justify-between text-xs">
-                    <span className="font-mono text-navy-900">{fileName}</span>
-                    <span className="text-ink-soft">{formatFileSize(fileSizeBytes)}</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-line pt-3">
                 <div>
                   <label className="block text-xs font-semibold text-navy-900 mb-1">
                     Document format
                   </label>
                   <select
                     value={fileType}
-                    onChange={(e) => setFileType(e.target.value as any)}
+                    onChange={(e) => {
+                      const nextType = e.target.value as "pdf" | "ppt" | "docx" | "link";
+                      setFileType(nextType);
+                      if (nextType === "link" && fileUrl.startsWith("/documents/")) {
+                        setFileUrl("");
+                      }
+                    }}
                     className="w-full text-xs rounded-sm border border-line px-3 py-2 text-navy-900 focus:outline-none focus:ring-1 focus:ring-navy-900 bg-paper"
                   >
                     <option value="pdf">PDF document (.pdf)</option>
@@ -537,6 +490,52 @@ export function TutorMaterialsManager({
                   </label>
                 </div>
               </div>
+
+              {/* Conditional File Upload OR External Link Input */}
+              {fileType === "link" ? (
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-navy-900">
+                    External resource URL *
+                  </label>
+                  <input
+                    type="url"
+                    required
+                    value={fileUrl}
+                    onChange={(e) => {
+                      setFileUrl(e.target.value);
+                      setFileName(e.target.value);
+                    }}
+                    placeholder="https://..."
+                    className="w-full text-xs font-mono rounded-sm border border-line px-3 py-2 text-navy-900 focus:outline-none focus:ring-1 focus:ring-navy-900 bg-paper"
+                  />
+                  <p className="text-[11px] text-ink-soft">
+                    Paste the full web address (e.g. Google Drive, OneDrive, Gov.uk statutory guidance, or article URL).
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <label className="block text-xs font-semibold text-navy-900">
+                    Select file to upload (PDF, PPT, DOCX) *
+                  </label>
+
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="file"
+                      id="material-upload-input"
+                      accept=".pdf,.ppt,.pptx,.doc,.docx"
+                      onChange={handleFileChange}
+                      className="text-xs text-ink-soft file:mr-3 file:py-1.5 file:px-3 file:rounded-sm file:border-0 file:text-xs file:font-semibold file:bg-navy-900 file:text-white hover:file:bg-navy-700 cursor-pointer"
+                    />
+                  </div>
+
+                  {fileName && (
+                    <div className="p-2.5 rounded-sm bg-navy-900/5 border border-navy-900/10 flex items-center justify-between text-xs">
+                      <span className="font-mono text-navy-900">{fileName}</span>
+                      <span className="text-ink-soft">{formatFileSize(fileSizeBytes)}</span>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-line">
                 <button

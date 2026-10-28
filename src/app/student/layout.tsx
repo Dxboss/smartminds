@@ -9,6 +9,7 @@ import { Icon } from "@/components/ui/Icon";
 
 
 import { PortalSidebarLayout } from "@/components/portal/PortalSidebarLayout";
+import { pullLatestFromNeon, syncPersistedRecords } from "@/lib/persistedData";
 
 
 export const metadata: Metadata = {
@@ -54,6 +55,9 @@ export default async function StudentLayout({
   ) {
     redirect("/login");
   }
+
+  await pullLatestFromNeon();
+  syncPersistedRecords(false);
 
   return (
     <PortalSidebarLayout
