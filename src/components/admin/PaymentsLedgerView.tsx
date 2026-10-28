@@ -77,6 +77,17 @@ export function PaymentsLedgerView({
     learnerName: string;
     courseTitle?: string;
   } | null>(null);
+  const [paidReceiptModal, setPaidReceiptModal] = useState<{
+    receiptRef: string;
+    learnerName: string;
+    learnerEmail?: string;
+    courseTitle: string;
+    amountGbp: number;
+    paidAt: string;
+    method?: string;
+    instalmentText?: string;
+    notes?: string;
+  } | null>(null);
   const [queryModalSchedule, setQueryModalSchedule] =
     useState<PaymentScheduleItem | null>(null);
   const [queryReasonInput, setQueryReasonInput] = useState(
@@ -1426,15 +1437,36 @@ export function PaymentsLedgerView({
                           {r.notes || "—"}
                         </td>
                         <td className="py-3 px-4 text-right">
-                          <button
-                            type="button"
-                            onClick={() => handleDeletePaymentRecord(r.id)}
-                            disabled={isPending}
-                            className="p-1 rounded-xs text-ink-soft hover:text-red-700 hover:bg-red-50 transition-colors cursor-pointer"
-                            title="Delete test payment record"
-                          >
-                            <Icon name="trash" size={14} />
-                          </button>
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPaidReceiptModal({
+                                  receiptRef: r.reference,
+                                  learnerName: r.learnerName,
+                                  learnerEmail: learners.find((l) => l.id === r.learnerId)?.email,
+                                  courseTitle: r.courseTitle,
+                                  amountGbp: r.amountGbp,
+                                  paidAt: r.paidAt,
+                                  method: r.method,
+                                  notes: r.notes,
+                                });
+                              }}
+                              className="px-2.5 py-1 text-xs font-semibold text-navy-900 bg-paper hover:bg-gold-300 rounded-sm border border-line transition-colors inline-flex items-center gap-1 shadow-2xs cursor-pointer"
+                            >
+                              <Icon name="file-text" size={13} />
+                              <span>View Receipt</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeletePaymentRecord(r.id)}
+                              disabled={isPending}
+                              className="p-1 rounded-xs text-ink-soft hover:text-red-700 hover:bg-red-50 transition-colors cursor-pointer"
+                              title="Delete test payment record"
+                            >
+                              <Icon name="trash" size={14} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -1623,6 +1655,35 @@ export function PaymentsLedgerView({
                             )}
                           </td>
                           <td className="py-3 px-4 text-right">
+                            {s.status === "paid" && (
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const matchingRecord = records.find(
+                                      (r) =>
+                                        r.learnerId === s.learnerId &&
+                                        (r.courseTitle === s.courseTitle || Math.abs(r.amountGbp - s.amountGbp) < 0.01)
+                                    );
+                                    setPaidReceiptModal({
+                                      receiptRef: matchingRecord?.reference || `REC-${s.id.slice(-6).toUpperCase()}`,
+                                      learnerName: learner ? `${learner.firstName} ${learner.lastName}` : s.learnerId,
+                                      learnerEmail: learner?.email,
+                                      courseTitle: s.courseTitle || enrolment?.courseTitle || "Professional Qualification Course",
+                                      amountGbp: s.amountGbp,
+                                      paidAt: s.paidAt || matchingRecord?.paidAt || new Date().toISOString(),
+                                      method: matchingRecord?.method || s.method || "bank_transfer",
+                                      instalmentText: `Instalment ${s.instalmentNumber} of ${s.totalInstalments}`,
+                                      notes: matchingRecord?.notes,
+                                    });
+                                  }}
+                                  className="px-2.5 py-1 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-sm border border-emerald-300 transition-colors inline-flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                                >
+                                  <Icon name="file-text" size={13} />
+                                  <span>View Receipt</span>
+                                </button>
+                              </div>
+                            )}
                             {s.status !== "paid" && (
                               <div className="flex items-center justify-end gap-1.5 flex-wrap">
                                 {(s.status === "awaiting_confirmation" || s.reportedTransfer) && (
@@ -1708,78 +1769,21 @@ export function PaymentsLedgerView({
 
       {/* Tab 3: Banking Gateway & Payment Rails */}
       {activeTab === "gateway" && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Stripe Card & Digital Wallets Status (Environment Managed) */}
-          <div className="bg-white rounded-md border border-line p-6 space-y-6 shadow-sm">
-            <div className="flex items-center justify-between border-b border-line pb-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="font-heading text-xl font-bold text-navy-900">
-                    Stripe Checkout & Card Processing
-                  </h2>
-                  <span className="px-2 py-0.5 rounded-sm text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 inline-flex items-center gap-1">
-                    <Icon name="check-circle" size={12} />
-                    Connected
-                  </span>
-                </div>
-                <p className="text-xs text-ink-soft mt-0.5">
-                  Direct payment rails for Credit/Debit Cards, Apple Pay, and Google Pay.
-                </p>
-              </div>
-            </div>
-
-            <div className="space-y-4 text-xs">
-              <div className="p-4 rounded-sm bg-paper border border-line space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-navy-900 uppercase tracking-wider text-[11px]">
-                    Infrastructure Status
-                  </span>
-                  <span className="text-[11px] font-mono text-emerald-700 font-bold">
-                    Hostinger Env Vars (Encrypted)
-                  </span>
-                </div>
-                <p className="text-ink-soft leading-relaxed text-[11px]">
-                  All sensitive payment credentials (<code className="font-mono text-navy-900 font-bold">STRIPE_SECRET_KEY</code>, <code className="font-mono text-navy-900 font-bold">STRIPE_WEBHOOK_SECRET</code>, and <code className="font-mono text-navy-900 font-bold">NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY</code>) are securely injected at server level. They are never exposed in browser forms or stored in client-accessible database fields.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 pt-1">
-                <div className="p-3 rounded-sm border border-line bg-paper/50">
-                  <span className="text-[10px] uppercase font-bold text-ink-soft block mb-1">Supported Cards</span>
-                  <span className="font-semibold text-navy-900 block">Visa, Mastercard, Amex</span>
-                </div>
-                <div className="p-3 rounded-sm border border-line bg-paper/50">
-                  <span className="text-[10px] uppercase font-bold text-ink-soft block mb-1">Digital Wallets</span>
-                  <span className="font-semibold text-navy-900 block">Apple Pay & Google Pay</span>
-                </div>
-                <div className="p-3 rounded-sm border border-line bg-paper/50">
-                  <span className="text-[10px] uppercase font-bold text-ink-soft block mb-1">Settlement</span>
-                  <span className="font-semibold text-navy-900 block">Instant Verification</span>
-                </div>
-                <div className="p-3 rounded-sm border border-line bg-paper/50">
-                  <span className="text-[10px] uppercase font-bold text-ink-soft block mb-1">Webhook Events</span>
-                  <span className="font-semibold text-emerald-700 block">Auto-Sync Enabled</span>
-                </div>
-              </div>
-
-              <div className="p-3 rounded-sm bg-emerald-50/50 border border-emerald-200 text-emerald-900 text-[11px] flex items-start gap-2">
-                <Icon name="shield-check" size={16} className="text-emerald-700 mt-0.5 flex-shrink-0" />
-                <p>
-                  Card payments made by students in the Student Portal or upon registration settle immediately and mark their instalment as paid without requiring manual bank statement checks.
-                </p>
-              </div>
-            </div>
-          </div>
-
+        <div className="max-w-2xl mx-auto space-y-6">
           {/* College BACS Bank Account Details */}
-          <div className="bg-white rounded-md border border-line p-6 space-y-6 shadow-sm">
-            <div className="border-b border-line pb-4">
-              <h2 className="font-heading text-xl font-bold text-navy-900">
-                College Bank Account (BACS Invoices)
-              </h2>
-              <p className="text-xs text-ink-soft mt-0.5">
-                Bank account details automatically attached to learner tuition invoices.
-              </p>
+          <div className="bg-white rounded-md border border-line p-6 sm:p-8 space-y-6 shadow-sm">
+            <div className="border-b border-line pb-4 flex items-center justify-between">
+              <div>
+                <h2 className="font-heading text-xl font-bold text-navy-900">
+                  College Bank Account (BACS Invoices)
+                </h2>
+                <p className="text-xs text-ink-soft mt-0.5">
+                  Bank account details automatically attached to learner tuition invoices and student transfer notices.
+                </p>
+              </div>
+              <div className="w-9 h-9 rounded-sm bg-navy-900 text-gold-300 flex items-center justify-center shrink-0">
+                <Icon name="credit-card" size={18} />
+              </div>
             </div>
 
             <div className="space-y-4">
@@ -1845,14 +1849,24 @@ export function PaymentsLedgerView({
               </div>
             </div>
 
+            <div className="p-3.5 bg-paper rounded-sm border border-line text-xs text-ink-soft space-y-1">
+              <span className="font-semibold text-navy-900 block">
+                BACS Invoice & Student Portal Integration:
+              </span>
+              <p>
+                Learners selecting bank transfer receive these bank details along with their personalized payment reference code. When they upload transfer receipts, notices route straight to the Finance Ledger for approval.
+              </p>
+            </div>
+
             <div className="pt-4 border-t border-line flex justify-end">
               <button
                 type="button"
                 onClick={handleSaveGateway}
                 disabled={isPending}
-                className="px-5 py-2.5 bg-navy-900 text-white rounded-sm text-xs font-bold hover:bg-navy-700 transition-colors shadow-sm disabled:opacity-50"
+                className="px-5 py-2.5 bg-navy-900 text-white rounded-sm text-xs font-bold hover:bg-navy-700 transition-colors shadow-sm disabled:opacity-50 inline-flex items-center gap-2 cursor-pointer"
               >
-                {isPending ? "Saving..." : "Save Bank Account Details"}
+                <Icon name="check" size={14} />
+                <span>{isPending ? "Saving..." : "Save Bank Account Details"}</span>
               </button>
             </div>
           </div>
@@ -2423,6 +2437,135 @@ export function PaymentsLedgerView({
                 <Icon name="check" size={16} />
                 <span>Confirm & Mark Paid</span>
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Official Tuition Payment Receipt Modal */}
+      {paidReceiptModal && (
+        <div className="fixed inset-0 z-50 bg-navy-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-md border border-line shadow-2xl max-w-lg w-full p-6 space-y-5 animate-fade-in">
+            {/* Header */}
+            <div className="flex items-start justify-between border-b border-line pb-4">
+              <div>
+                <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-emerald-50 text-emerald-800 text-[11px] font-bold border border-emerald-200 mb-1">
+                  <Icon name="check-circle" size={12} />
+                  <span>Verified & Cleared Payment</span>
+                </div>
+                <h3 className="font-heading text-xl font-bold text-navy-900">
+                  Tuition Payment Receipt
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPaidReceiptModal(null)}
+                aria-label="Close receipt modal"
+                className="text-ink-soft hover:text-navy-900 p-1 cursor-pointer"
+              >
+                <Icon name="close" size={18} />
+              </button>
+            </div>
+
+            {/* Receipt Voucher Body */}
+            <div className="border border-line rounded-sm p-4 bg-paper/60 space-y-4">
+              <div className="flex items-center justify-between border-b border-line pb-3">
+                <div>
+                  <span className="font-heading font-bold text-navy-900 tracking-wider text-sm block">
+                    SMARTMINDS TRAINING COLLEGE
+                  </span>
+                  <span className="text-[11px] text-ink-soft">
+                    Registered Vocational & Further Education Centre
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] uppercase font-bold text-ink-soft block">Receipt Reference</span>
+                  <span className="font-mono text-xs font-bold text-navy-900">
+                    {paidReceiptModal.receiptRef}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <span className="text-ink-soft block text-[11px]">Learner:</span>
+                  <strong className="text-navy-900 block">{paidReceiptModal.learnerName}</strong>
+                  {paidReceiptModal.learnerEmail && (
+                    <span className="text-ink-soft text-[11px] block">{paidReceiptModal.learnerEmail}</span>
+                  )}
+                </div>
+                <div>
+                  <span className="text-ink-soft block text-[11px]">Payment Date:</span>
+                  <span className="font-medium text-navy-900 block">
+                    {new Date(paidReceiptModal.paidAt).toLocaleDateString("en-GB", {
+                      day: "numeric",
+                      month: "long",
+                      year: "numeric",
+                    })}
+                  </span>
+                </div>
+                <div className="col-span-2">
+                  <span className="text-ink-soft block text-[11px]">Course Enrolment:</span>
+                  <span className="font-semibold text-navy-900 block">
+                    {paidReceiptModal.courseTitle}
+                  </span>
+                  {paidReceiptModal.instalmentText && (
+                    <span className="text-[11px] text-ink-soft block">
+                      {paidReceiptModal.instalmentText}
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <span className="text-ink-soft block text-[11px]">Payment Method:</span>
+                  <span className="font-semibold text-navy-900 capitalize">
+                    {paidReceiptModal.method === "stripe"
+                      ? "Debit / Credit Card (Stripe)"
+                      : paidReceiptModal.method === "bank_transfer"
+                      ? "BACS Bank Transfer"
+                      : paidReceiptModal.method || "Bank Transfer"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-ink-soft block text-[11px]">Payment Status:</span>
+                  <span className="inline-flex items-center gap-1 font-bold text-emerald-700 text-xs">
+                    <Icon name="check" size={13} />
+                    Cleared & Settled
+                  </span>
+                </div>
+              </div>
+
+              <div className="border-t border-line pt-3 flex items-center justify-between">
+                <span className="font-bold text-xs uppercase tracking-wider text-navy-900">
+                  Total Cleared Amount:
+                </span>
+                <span className="font-heading text-xl font-bold text-navy-900">
+                  {formatCurrency(paidReceiptModal.amountGbp)}
+                </span>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center justify-between pt-2 border-t border-line">
+              <span className="text-[11px] text-ink-soft">
+                Official document generated by Smartminds Finance System
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="px-3.5 py-1.5 text-xs font-semibold text-navy-900 bg-paper hover:bg-line border border-line rounded-sm inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <Icon name="download" size={13} />
+                  <span>Print / Save PDF</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaidReceiptModal(null)}
+                  className="px-4 py-1.5 text-xs font-bold text-white bg-navy-900 hover:bg-navy-700 rounded-sm transition-colors cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>

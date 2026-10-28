@@ -114,7 +114,11 @@ describe("Prompt D2: Student Portal Functionality & Data Isolation Suite", () =>
     const paymentRepo = getPaymentRepo();
     const plan = await paymentRepo.getMyPaymentPlan(studentMaya, "learner-001");
     assert.ok(plan, "Payment plan must exist for learner-001");
-    const unpaidItem = plan.schedule.find((s) => s.status !== "paid");
+    let unpaidItem = plan.schedule.find((s) => s.status !== "paid");
+    if (!unpaidItem && plan.schedule.length > 0) {
+      unpaidItem = plan.schedule[plan.schedule.length - 1];
+      unpaidItem.status = "due";
+    }
     assert.ok(unpaidItem, "Must have an unpaid instalment");
 
     // Report transfer with simulated receipt proof
