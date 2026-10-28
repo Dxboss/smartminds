@@ -10,14 +10,41 @@ import { Icon } from "@/components/ui/Icon";
 import { Button } from "@/components/ui/Button";
 
 import { type FacultyRecord, DEFAULT_COLLEGE_FACULTIES } from "@/content/faculties";
+import { resolveSectionBg } from "@/components/ui/sectionBg";
+import {
+  resolveTypography,
+  resolveSubheadlineTypography,
+  resolveBadgeStyles,
+} from "@/components/ui/typographyUtils";
+import { EditableElementWrapper } from "@/components/admin/EditableElementWrapper";
 
 interface CoursesListingViewProps {
   initialCourses: Course[];
   initialFaculties?: FacultyRecord[];
   customHeadline?: string;
   customSubheadline?: string;
+  bgColor?: string;
+  badgeText?: string;
+  badgeColor?: string;
+  badgeBgColor?: string;
+  badgeFontFamily?: string;
+  badgeWeight?: string;
+  headlineFontFamily?: string;
+  headlineFontSize?: string;
+  headlineFontWeight?: string;
+  headlineFontStyle?: string;
+  headlineColor?: string;
+  headlineTransform?: string;
+  headlineAlign?: string;
+  subheadlineFontFamily?: string;
+  subheadlineFontSize?: string;
+  subheadlineFontWeight?: string;
+  subheadlineFontStyle?: string;
+  subheadlineColor?: string;
+  subheadlineAlign?: string;
   isEditor?: boolean;
-  onSelectElement?: (elementKey: "headline" | "subheadline") => void;
+  selectedElementKey?: string | null;
+  onSelectElement?: (elementKey: "headline" | "subheadline" | "badge") => void;
 }
 
 /**
@@ -161,7 +188,27 @@ const CoursesListingContent: React.FC<CoursesListingViewProps> = ({
   initialFaculties,
   customHeadline,
   customSubheadline,
+  bgColor,
+  badgeText,
+  badgeColor,
+  badgeBgColor,
+  badgeFontFamily,
+  badgeWeight,
+  headlineFontFamily,
+  headlineFontSize,
+  headlineFontWeight,
+  headlineFontStyle,
+  headlineColor,
+  headlineTransform,
+  headlineAlign,
+  subheadlineFontFamily,
+  subheadlineFontSize,
+  subheadlineFontWeight,
+  subheadlineFontStyle,
+  subheadlineColor,
+  subheadlineAlign,
   isEditor,
+  selectedElementKey,
   onSelectElement,
 }) => {
   const searchParams = useSearchParams();
@@ -366,48 +413,117 @@ const CoursesListingContent: React.FC<CoursesListingViewProps> = ({
     selectedLevel !== "All" ||
     searchQuery.trim().length > 0;
 
+  const { bgClass, isDark, style } = resolveSectionBg(bgColor as any, "paper");
+  const { className: hlClass, style: hlStyle } = resolveTypography({
+    fontFamily: headlineFontFamily as any,
+    fontSize: headlineFontSize as any,
+    fontWeight: headlineFontWeight as any,
+    fontStyle: headlineFontStyle as any,
+    color: headlineColor,
+    transform: headlineTransform as any,
+    align: headlineAlign as any,
+    isDark,
+    defaultFamily: "heading",
+    defaultSize: "xl",
+    defaultWeight: "extrabold",
+  });
+  const { className: subClass, style: subStyle } = resolveSubheadlineTypography({
+    fontFamily: subheadlineFontFamily as any,
+    fontSize: subheadlineFontSize as any,
+    fontWeight: subheadlineFontWeight as any,
+    fontStyle: subheadlineFontStyle as any,
+    color: subheadlineColor,
+    align: subheadlineAlign as any,
+    isDark,
+    defaultFamily: "body",
+    defaultSize: "md",
+    defaultWeight: "normal",
+  });
+  const { className: badgeClass, style: badgeStyle } = resolveBadgeStyles({
+    color: badgeColor,
+    bgColor: badgeBgColor,
+    fontFamily: badgeFontFamily as any,
+    weight: badgeWeight as any,
+    isDark,
+    variant: isDark ? "gold" : "navy",
+  });
+
   return (
-    <div className="bg-paper py-10 md:py-16">
+    <div style={style} className={`${bgClass} py-10 md:py-16`}>
       <Container>
         {/* Breadcrumb & Topic Pills Header */}
         <div className="mb-8 space-y-4">
-          <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs text-ink-soft">
-            <Link href="/" className="hover:text-navy-900 transition-colors">Home</Link>
+          <nav
+            aria-label="Breadcrumb"
+            className={`flex items-center gap-2 text-xs ${
+              isDark ? "text-paper/75" : "text-ink-soft"
+            }`}
+          >
+            <Link
+              href="/"
+              className={
+                isDark
+                  ? "hover:text-white transition-colors"
+                  : "hover:text-navy-900 transition-colors"
+              }
+            >
+              Home
+            </Link>
             <span>/</span>
-            <span className="text-navy-900 font-medium">Courses</span>
+            <span className={`font-medium ${isDark ? "text-white" : "text-navy-900"}`}>
+              Courses
+            </span>
             <span>/</span>
-            <span className="text-gold-500 font-semibold">{selectedCategory === "All" ? "All Programmes" : selectedCategory}</span>
+            <span className="text-gold-500 font-semibold">
+              {selectedCategory === "All" ? "All Programmes" : selectedCategory}
+            </span>
           </nav>
 
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div>
-              <h1
-                onClick={(e) => {
-                  if (isEditor && onSelectElement) {
-                    e.stopPropagation();
-                    onSelectElement("headline");
-                  }
-                }}
-                className={`font-heading text-3xl sm:text-4xl font-extrabold text-navy-900 tracking-tight ${
-                  isEditor ? "cursor-pointer hover:outline hover:outline-dashed hover:outline-1 hover:outline-gold-500 rounded-xs" : ""
-                }`}
+              {badgeText && (
+                <EditableElementWrapper
+                  isEditor={isEditor}
+                  isSelected={isEditor && selectedElementKey === "badge"}
+                  label="Catalog Badge"
+                  onClick={() => onSelectElement?.("badge")}
+                  className="inline-block mb-2"
+                >
+                  <span
+                    style={badgeStyle}
+                    className={`inline-flex items-center px-2.5 py-0.5 rounded-sm text-xs uppercase tracking-wider ${badgeClass}`}
+                  >
+                    {badgeText}
+                  </span>
+                </EditableElementWrapper>
+              )}
+              <EditableElementWrapper
+                isEditor={isEditor}
+                isSelected={isEditor && selectedElementKey === "headline"}
+                label="Catalog Headline"
+                onClick={() => onSelectElement?.("headline")}
               >
-                {customHeadline || "British Regulated Qualifications & Diplomas"}
-              </h1>
-              <p
-                onClick={(e) => {
-                  if (isEditor && onSelectElement) {
-                    e.stopPropagation();
-                    onSelectElement("subheadline");
-                  }
-                }}
-                className={`text-ink-soft text-sm sm:text-base max-w-2xl mt-1 ${
-                  isEditor ? "cursor-pointer hover:outline hover:outline-dashed hover:outline-1 hover:outline-gold-500 rounded-xs" : ""
-                }`}
+                <h1
+                  style={hlStyle}
+                  className={`tracking-tight ${hlClass}`}
+                >
+                  {customHeadline || "British Regulated Qualifications & Diplomas"}
+                </h1>
+              </EditableElementWrapper>
+              <EditableElementWrapper
+                isEditor={isEditor}
+                isSelected={isEditor && selectedElementKey === "subheadline"}
+                label="Catalog Subheadline"
+                onClick={() => onSelectElement?.("subheadline")}
               >
-                {customSubheadline ||
-                  "Explore Ofqual-regulated frameworks with live tutor seminars, coursework assessments, and 0% interest monthly payment plans."}
-              </p>
+                <p
+                  style={subStyle}
+                  className={`max-w-2xl mt-1 ${subClass}`}
+                >
+                  {customSubheadline ||
+                    "Explore Ofqual-regulated frameworks with live tutor seminars, coursework assessments, and 0% interest monthly payment plans."}
+                </p>
+              </EditableElementWrapper>
             </div>
 
             {/* Quick Search Bar */}

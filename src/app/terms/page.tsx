@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { getPublishedCmsPageSections } from "@/lib/persistedData";
+import { getPublishedCmsPageSections, pullLatestFromNeon } from "@/lib/persistedData";
 import { SectionRenderer } from "@/components/cms/SectionRenderer";
 import { Container } from "@/components/ui/Container";
 import { Heading } from "@/components/ui/Heading";
@@ -15,7 +15,8 @@ export const metadata: Metadata = {
   },
 };
 
-export default function TermsPage() {
+export default async function TermsPage() {
+  await pullLatestFromNeon();
   const sections = getPublishedCmsPageSections("/terms");
 
   if (sections && sections.length > 0) {

@@ -6,7 +6,7 @@ import { Eyebrow } from "@/components/ui/Eyebrow";
 import { Tag } from "@/components/ui/Tag";
 import { Icon } from "@/components/ui/Icon";
 import { FundedEligibilityForm } from "@/components/forms/FundedEligibilityForm";
-import { getPublishedCmsPageSections } from "@/lib/persistedData";
+import { getPublishedCmsPageSections, pullLatestFromNeon } from "@/lib/persistedData";
 import { SectionRenderer } from "@/components/cms/SectionRenderer";
 
 export const metadata: Metadata = {
@@ -25,7 +25,8 @@ export const metadata: Metadata = {
   },
 };
 
-export default function FundingPage() {
+export default async function FundingPage() {
+  await pullLatestFromNeon();
   const customSections = getPublishedCmsPageSections("/funding");
   if (customSections && customSections.length > 0) {
     return (

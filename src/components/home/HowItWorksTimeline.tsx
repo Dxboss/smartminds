@@ -51,16 +51,23 @@ const STEPS: Step[] = [
 
 import { BuilderSectionItem } from "@/lib/repositories/seedData";
 import { EditableElementWrapper } from "@/components/admin/EditableElementWrapper";
+import { resolveSectionBg, SectionBgColor } from "@/components/ui/sectionBg";
 import {
   resolveCardContainerStyles,
   resolveTypography,
   resolveSubheadlineTypography,
+  resolveBadgeStyles,
 } from "@/components/ui/typographyUtils";
 
 export interface HowItWorksTimelineProps {
   headline?: string;
   subheadline?: string;
-  bgColor?: "white" | "paper" | "navy" | "cream";
+  badgeText?: string;
+  badgeColor?: string;
+  badgeBgColor?: string;
+  badgeFontFamily?: string;
+  badgeWeight?: string;
+  bgColor?: SectionBgColor;
   columns?: 2 | 3 | 4;
   items?: BuilderSectionItem[];
   headlineFontFamily?: string;
@@ -97,6 +104,11 @@ export interface HowItWorksTimelineProps {
 export const HowItWorksTimeline: React.FC<HowItWorksTimelineProps> = ({
   headline = "How it works: from consultation to qualification",
   subheadline = "Our structured route gives you personal tutor support from day one, fitting around your working week with both live classes and 24/7 access to recordings.",
+  badgeText,
+  badgeColor,
+  badgeBgColor,
+  badgeFontFamily,
+  badgeWeight,
   bgColor = "white",
   columns = 4,
   items,
@@ -118,7 +130,16 @@ export const HowItWorksTimeline: React.FC<HowItWorksTimelineProps> = ({
   selectedElementItemIndex,
   onSelectElement,
 }) => {
-  const isDark = bgColor === "navy";
+  const { isDark } = resolveSectionBg(bgColor, "white");
+
+  const { className: badgeClass, style: badgeStyle } = resolveBadgeStyles({
+    color: badgeColor,
+    bgColor: badgeBgColor,
+    fontFamily: badgeFontFamily as any,
+    weight: badgeWeight as any,
+    isDark,
+    variant: isDark ? "gold" : "navy",
+  });
 
   const { className: hlClass, style: hlStyle } = resolveTypography({
     fontFamily: headlineFontFamily as any,
@@ -185,8 +206,12 @@ export const HowItWorksTimeline: React.FC<HowItWorksTimelineProps> = ({
             onClick={() => onSelectElement?.("badge")}
             className="inline-block mb-2"
           >
-            <Eyebrow tone={isDark ? "gold" : "navy"}>
-              The Learning Journey
+            <Eyebrow
+              tone={isDark ? "gold" : "navy"}
+              style={badgeStyle}
+              className={badgeColor || badgeBgColor ? badgeClass : ""}
+            >
+              {badgeText || "The Learning Journey"}
             </Eyebrow>
           </EditableElementWrapper>
 

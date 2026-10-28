@@ -7,12 +7,29 @@ import {
   AccreditationBadgeRow,
   AccreditationBadgeItem,
 } from "@/components/accreditation/AccreditationLogos";
-import { resolveSectionBg, SectionBgColor } from "@/components/ui/sectionBg";
+import { resolveSectionBg, SectionBgColor, resolveItemColor } from "@/components/ui/sectionBg";
 import { EditableElementWrapper } from "@/components/admin/EditableElementWrapper";
+import {
+  resolveTypography,
+  resolveSubheadlineTypography,
+} from "@/components/ui/typographyUtils";
 
 export interface TrustStripProps {
   headline?: string;
   subheadline?: string;
+  badgeText?: string;
+  badgeColor?: string;
+  badgeBgColor?: string;
+  headlineFontFamily?: string;
+  headlineFontSize?: string;
+  headlineFontWeight?: string;
+  headlineFontStyle?: string;
+  headlineColor?: string;
+  subheadlineFontFamily?: string;
+  subheadlineFontSize?: string;
+  subheadlineFontWeight?: string;
+  subheadlineFontStyle?: string;
+  subheadlineColor?: string;
   items?: AccreditationBadgeItem[];
   bgColor?: SectionBgColor;
   columnRatio?: "50-50" | "60-40" | "70-30" | "40-60" | "33-67";
@@ -37,6 +54,19 @@ export interface TrustStripProps {
 export const TrustStrip: React.FC<TrustStripProps> = ({
   headline,
   subheadline,
+  badgeText,
+  badgeColor,
+  badgeBgColor,
+  headlineFontFamily,
+  headlineFontSize,
+  headlineFontWeight,
+  headlineFontStyle,
+  headlineColor,
+  subheadlineFontFamily,
+  subheadlineFontSize,
+  subheadlineFontWeight,
+  subheadlineFontStyle,
+  subheadlineColor,
   items,
   bgColor = "white",
   columnRatio = "60-40",
@@ -48,6 +78,11 @@ export const TrustStrip: React.FC<TrustStripProps> = ({
 }) => {
   const isImageLeft = mediaPosition === "left";
   const { bgClass, isDark, style: bgStyle } = resolveSectionBg(bgColor, "white");
+
+  const resolvedHeadlineColor = headlineColor ? resolveItemColor(headlineColor) : undefined;
+  const resolvedSubheadlineColor = subheadlineColor ? resolveItemColor(subheadlineColor) : undefined;
+  const resolvedBadgeColor = badgeColor ? resolveItemColor(badgeColor) : undefined;
+  const resolvedBadgeBg = badgeBgColor ? resolveItemColor(badgeBgColor) : undefined;
 
   // Determine width balance based on columnRatio
   const getRatioClasses = (ratio?: string) => {
@@ -136,7 +171,10 @@ export const TrustStrip: React.FC<TrustStripProps> = ({
               </div>
 
               {/* Rating info & Writeup: strict max-w and text wrapping to prevent any overflow */}
-              <div className="min-w-0 max-w-[230px] sm:max-w-[260px] lg:max-w-[290px]">
+              <div
+                style={resolvedBadgeBg ? { backgroundColor: resolvedBadgeBg } : undefined}
+                className="min-w-0 max-w-[230px] sm:max-w-[260px] lg:max-w-[290px]"
+              >
                 <div className="flex items-center gap-1 text-gold-500 mb-0.5">
                   {[...Array(5)].map((_, i) => (
                     <Icon
@@ -147,14 +185,16 @@ export const TrustStrip: React.FC<TrustStripProps> = ({
                     />
                   ))}
                   <span
+                    style={resolvedBadgeColor ? { color: resolvedBadgeColor } : undefined}
                     className={`font-heading font-bold text-sm ml-1 flex-shrink-0 ${
                       isDark ? "text-white" : "text-navy-900"
                     }`}
                   >
-                    {siteConfig.reviews.ratingValue}
+                    {badgeText || siteConfig.reviews.ratingValue}
                   </span>
                 </div>
                 <p
+                  style={resolvedSubheadlineColor ? { color: resolvedSubheadlineColor } : undefined}
                   className={`text-xs leading-snug whitespace-normal break-words line-clamp-2 ${
                     isDark ? "text-paper/80" : "text-ink-soft"
                   }`}
@@ -186,6 +226,7 @@ export const TrustStrip: React.FC<TrustStripProps> = ({
               className="p-1 -m-1 rounded-sm"
             >
               <span
+                style={resolvedHeadlineColor ? { color: resolvedHeadlineColor } : undefined}
                 className={`text-[11px] font-semibold uppercase tracking-wider block ${
                   isDark ? "text-paper/70" : "text-ink-soft"
                 }`}

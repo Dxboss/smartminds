@@ -6,6 +6,7 @@ import {
   getAllPublishedCmsPages,
   getPublishedCmsPageSections,
   getLiveCourses,
+  pullLatestFromNeon,
 } from "@/lib/persistedData";
 
 
@@ -71,6 +72,7 @@ export async function generateMetadata({
   }
 
   const path = "/" + slug;
+  await pullLatestFromNeon();
   const sections = getPublishedCmsPageSections(path);
 
   if (!sections || sections.length === 0) {
@@ -116,6 +118,7 @@ async function CmsPageContent({
   }
 
   const path = "/" + slug;
+  await pullLatestFromNeon();
   const sections = getPublishedCmsPageSections(path);
 
   if (!sections || sections.length === 0) {

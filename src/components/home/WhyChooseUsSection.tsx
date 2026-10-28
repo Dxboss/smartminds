@@ -15,6 +15,10 @@ import { BuilderSectionItem } from "@/lib/repositories/seedData";
 export interface WhyChooseUsProps {
   id?: string;
   badgeText?: string;
+  badgeColor?: string;
+  badgeBgColor?: string;
+  badgeFontFamily?: string;
+  badgeWeight?: string;
   headline?: string;
   subheadline?: string;
   items?: BuilderSectionItem[];
@@ -24,8 +28,16 @@ export interface WhyChooseUsProps {
   buttonTextColor?: string;
   buttonHoverBgColor?: string;
   buttonHoverTextColor?: string;
+  buttonFontFamily?: string;
+  buttonFontWeight?: string;
+  buttonTextTransform?: string;
+  buttonIcon?: string;
+  buttonIconPosition?: string;
+  buttonRadius?: string;
+  buttonSize?: string;
   trustNote?: string;
   trustNoteIcon?: string;
+  trustNoteColor?: string;
   image?: string;
   image2?: string;
   image3?: string;
@@ -39,11 +51,14 @@ export interface WhyChooseUsProps {
   headlineFontWeight?: "normal" | "medium" | "semibold" | "bold" | "extrabold";
   headlineFontStyle?: "normal" | "italic";
   headlineColor?: "auto" | "navy" | "white" | "gold" | "ink_soft" | (string & {});
+  headlineTransform?: "normal" | "none" | "uppercase" | "capitalize";
+  headlineAlign?: "left" | "center" | "right";
   subheadlineFontFamily?: "heading" | "body" | "serif";
   subheadlineFontSize?: "sm" | "md" | "lg" | "xl";
   subheadlineFontWeight?: "normal" | "medium" | "semibold" | "bold";
   subheadlineFontStyle?: "normal" | "italic";
   subheadlineColor?: "auto" | "navy" | "white" | "gold" | "ink_soft" | (string & {});
+  subheadlineAlign?: "left" | "center" | "right";
   paddingDensity?: "compact" | "normal" | "spacious";
   mediaPosition?: "left" | "right";
   isEditor?: boolean;
@@ -90,6 +105,10 @@ const DEFAULT_ITEMS: BuilderSectionItem[] = [
 export const WhyChooseUsSection: React.FC<WhyChooseUsProps> = ({
   id = "sec-why-choose-us",
   badgeText = "WHY CHOOSE US?",
+  badgeColor,
+  badgeBgColor,
+  badgeFontFamily,
+  badgeWeight,
   headline = "Innovative and effective learning approaches",
   subheadline = "Educate the ultimate destination for knowledge seekers and educators alike. We are committed to transforming vocational training through interactive live evening classes, accredited UK qualifications, and dedicated assessor support.",
   items = DEFAULT_ITEMS,
@@ -99,8 +118,16 @@ export const WhyChooseUsSection: React.FC<WhyChooseUsProps> = ({
   buttonTextColor,
   buttonHoverBgColor,
   buttonHoverTextColor,
+  buttonFontFamily,
+  buttonFontWeight,
+  buttonTextTransform,
+  buttonIcon,
+  buttonIconPosition,
+  buttonRadius,
+  buttonSize,
   trustNote = "24/7 Hrs Ready to our support team",
   trustNoteIcon = "star",
+  trustNoteColor,
   image = "/images/hero-student-thumbsup.jpg",
   image2 = "/images/promo-woman-card.jpg",
   image3 = "/images/hero-learner.jpg",
@@ -114,11 +141,14 @@ export const WhyChooseUsSection: React.FC<WhyChooseUsProps> = ({
   headlineFontWeight = "bold",
   headlineFontStyle,
   headlineColor,
+  headlineTransform,
+  headlineAlign,
   subheadlineFontFamily,
   subheadlineFontSize = "md",
   subheadlineFontWeight = "normal",
   subheadlineFontStyle,
   subheadlineColor,
+  subheadlineAlign,
   paddingDensity = "normal",
   mediaPosition = "right",
   isEditor = false,
@@ -134,6 +164,8 @@ export const WhyChooseUsSection: React.FC<WhyChooseUsProps> = ({
     fontWeight: headlineFontWeight,
     fontStyle: headlineFontStyle,
     color: headlineColor,
+    transform: headlineTransform as any,
+    align: headlineAlign,
     isDark,
     defaultFamily: "heading",
     defaultSize: "xl",
@@ -146,18 +178,27 @@ export const WhyChooseUsSection: React.FC<WhyChooseUsProps> = ({
     fontWeight: subheadlineFontWeight,
     fontStyle: subheadlineFontStyle,
     color: subheadlineColor,
+    align: subheadlineAlign,
     isDark,
     defaultFamily: "body",
     defaultSize: "md",
     defaultWeight: "normal",
   });
 
+  const resolvedBadgeColor = badgeColor ? resolveItemColor(badgeColor) : undefined;
+  const resolvedBadgeBg = badgeBgColor ? resolveItemColor(badgeBgColor) : undefined;
+  const resolvedTrustNoteColor = trustNoteColor ? resolveItemColor(trustNoteColor) : undefined;
+  const resolvedBtnBg = buttonBgColor ? resolveItemColor(buttonBgColor) : undefined;
+  const resolvedBtnText = buttonTextColor ? resolveItemColor(buttonTextColor) : undefined;
+  const resolvedBtnHoverBg = buttonHoverBgColor ? resolveItemColor(buttonHoverBgColor) : undefined;
+  const resolvedBtnHoverText = buttonHoverTextColor ? resolveItemColor(buttonHoverTextColor) : undefined;
+
   const paddingClass =
     paddingDensity === "compact"
       ? "py-10 md:py-14"
       : paddingDensity === "spacious"
-      ? "py-20 md:py-28"
-      : "py-14 md:py-20";
+        ? "py-20 md:py-28"
+        : "py-14 md:py-20";
 
   const displayedItems = items && items.length > 0 ? items : DEFAULT_ITEMS;
   const isMediaLeft = mediaPosition === "left";
@@ -242,9 +283,8 @@ export const WhyChooseUsSection: React.FC<WhyChooseUsProps> = ({
               LEFT COLUMN: CONTENT & INTERACTIVE PILLS
               ========================================================================= */}
           <div
-            className={`lg:col-span-6 space-y-6 ${
-              isMediaLeft ? "lg:order-2" : "lg:order-1"
-            }`}
+            className={`lg:col-span-6 space-y-6 ${isMediaLeft ? "lg:order-2" : "lg:order-1"
+              }`}
           >
             {/* 1. EYEBROW TAG WITH SMALL SQUARE */}
             {badgeText && (
@@ -255,14 +295,25 @@ export const WhyChooseUsSection: React.FC<WhyChooseUsProps> = ({
                     onSelectElement("badge");
                   }
                 }}
-                className={`inline-flex items-center gap-2 ${
-                  isEditor
+                style={
+                  resolvedBadgeBg
+                    ? { backgroundColor: resolvedBadgeBg, padding: "2px 8px", borderRadius: "4px" }
+                    : undefined
+                }
+                className={`inline-flex items-center gap-2 ${isEditor
                     ? "cursor-pointer group/badge relative rounded-xs hover:outline hover:outline-dashed hover:outline-2 hover:outline-gold-500 p-0.5 -m-0.5"
                     : ""
-                }`}
+                  }`}
               >
-                <span className="inline-block w-2.5 h-2.5 rounded-2xs bg-emerald-500 shrink-0" />
-                <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-emerald-800">
+                <span
+                  style={resolvedBadgeColor ? { backgroundColor: resolvedBadgeColor } : undefined}
+                  className="inline-block w-2.5 h-2.5 rounded-2xs bg-emerald-500 shrink-0"
+                />
+                <span
+                  style={resolvedBadgeColor ? { color: resolvedBadgeColor } : undefined}
+                  className={`text-xs sm:text-sm font-bold uppercase tracking-wider ${isDark ? "text-gold-300" : "text-emerald-800"
+                    }`}
+                >
                   {badgeText}
                 </span>
                 {isEditor && (
@@ -354,15 +405,13 @@ export const WhyChooseUsSection: React.FC<WhyChooseUsProps> = ({
                       }
                     }}
                     style={resolvedPillBg ? { backgroundColor: resolvedPillBg, borderColor: "transparent" } : undefined}
-                    className={`group/pill relative flex items-center gap-3.5 px-4 sm:px-5 py-3 rounded-xl sm:rounded-2xl border transition-all duration-200 ${surfaceClass} ${
-                      isSelected
+                    className={`group/pill relative flex items-center gap-3.5 px-4 sm:px-5 py-3 rounded-xl sm:rounded-2xl border transition-all duration-200 ${surfaceClass} ${isSelected
                         ? "ring-2 ring-gold-500 border-navy-900 shadow-md"
                         : ""
-                    } ${
-                      isEditor
+                      } ${isEditor
                         ? "cursor-pointer hover:outline hover:outline-dashed hover:outline-2 hover:outline-gold-500"
                         : ""
-                    }`}
+                      }`}
                   >
                     {/* Circle Checkmark Icon */}
                     <div
@@ -379,32 +428,30 @@ export const WhyChooseUsSection: React.FC<WhyChooseUsProps> = ({
                     <div className="min-w-0 flex-1">
                       <span
                         style={resolvedTitleCol ? { color: resolvedTitleCol } : undefined}
-                        className={`font-heading text-base sm:text-lg font-bold block leading-tight ${
-                          resolvedTitleCol
+                        className={`font-heading text-base sm:text-lg font-bold block leading-tight ${resolvedTitleCol
                             ? ""
                             : item.titleColor === "white"
-                            ? "text-white"
-                            : item.titleColor === "gold"
-                            ? "text-gold-700"
-                            : item.titleColor === "ink_soft"
-                            ? "text-ink-soft"
-                            : "text-navy-900"
-                        }`}
+                              ? "text-white"
+                              : item.titleColor === "gold"
+                                ? "text-gold-700"
+                                : item.titleColor === "ink_soft"
+                                  ? "text-ink-soft"
+                                  : "text-navy-900"
+                          }`}
                       >
                         {item.title}
                       </span>
                       {item.desc && (
                         <span
                           style={resolvedDescCol ? { color: resolvedDescCol } : undefined}
-                          className={`text-xs block mt-0.5 leading-snug ${
-                            resolvedDescCol
+                          className={`text-xs block mt-0.5 leading-snug ${resolvedDescCol
                               ? ""
                               : item.descColor === "white"
-                              ? "text-white/80"
-                              : item.descColor === "navy"
-                              ? "text-navy-900"
-                              : "text-ink-soft"
-                          }`}
+                                ? "text-white/80"
+                                : item.descColor === "navy"
+                                  ? "text-navy-900"
+                                  : "text-ink-soft"
+                            }`}
                         >
                           {item.desc}
                         </span>
@@ -431,11 +478,12 @@ export const WhyChooseUsSection: React.FC<WhyChooseUsProps> = ({
                       onSelectElement("floatingBadge");
                     }
                   }}
-                  className={`inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-emerald-900 ${
-                    isEditor
+                  style={resolvedTrustNoteColor ? { color: resolvedTrustNoteColor } : undefined}
+                  className={`inline-flex items-center gap-2 text-xs sm:text-sm font-semibold ${isDark ? "text-paper/90" : "text-emerald-900"
+                    } ${isEditor
                       ? "cursor-pointer group/trust relative rounded-xs hover:outline hover:outline-dashed hover:outline-2 hover:outline-gold-500 p-0.5 -m-0.5"
                       : ""
-                  }`}
+                    }`}
                 >
                   <span className="text-emerald-500 font-bold text-base leading-none">
                     ✱
@@ -459,26 +507,29 @@ export const WhyChooseUsSection: React.FC<WhyChooseUsProps> = ({
                         onSelectElement("button");
                       }
                     }}
-                    className={`inline-block ${
-                      isEditor
+                    className={`inline-block ${isEditor
                         ? "cursor-pointer group/btn relative rounded-full hover:outline hover:outline-dashed hover:outline-2 hover:outline-gold-500"
                         : ""
-                    }`}
+                      }`}
                   >
                     <Link
                       href={buttonLink || "/courses"}
                       style={{
-                        backgroundColor: buttonBgColor || undefined,
-                        color: buttonTextColor || undefined,
-                        ...(buttonHoverBgColor ? { ["--btn-hover-bg" as any]: buttonHoverBgColor } : {}),
-                        ...(buttonHoverTextColor ? { ["--btn-hover-text" as any]: buttonHoverTextColor } : {}),
+                        backgroundColor: resolvedBtnBg || undefined,
+                        color: resolvedBtnText || undefined,
+                        ...(resolvedBtnHoverBg ? { ["--btn-hover-bg" as any]: resolvedBtnHoverBg } : {}),
+                        ...(resolvedBtnHoverText ? { ["--btn-hover-text" as any]: resolvedBtnHoverText } : {}),
                       }}
-                      className={`inline-flex items-center gap-2.5 px-7 py-3.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-heading font-bold text-sm tracking-wider uppercase shadow-md transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 min-h-[44px] ${
-                        buttonHoverBgColor || buttonHoverTextColor ? "btn-custom-hover" : ""
-                      }`}
+                      className={`inline-flex items-center gap-2.5 px-7 py-3.5 ${buttonRadius === "sm"
+                          ? "rounded-sm"
+                          : buttonRadius === "md"
+                            ? "rounded-md"
+                            : "rounded-full"
+                        } bg-emerald-600 hover:bg-emerald-700 text-white font-heading font-bold text-sm tracking-wider uppercase shadow-md transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 min-h-[44px] ${resolvedBtnHoverBg || resolvedBtnHoverText ? "btn-custom-hover" : ""
+                        }`}
                     >
                       <span>{buttonText}</span>
-                      <Icon name="arrow-right" size={16} />
+                      <Icon name={(buttonIcon as IconName) || "arrow-right"} size={16} />
                     </Link>
                     {isEditor && (
                       <span className="hidden group-hover/btn:inline-flex absolute -top-5 left-0 z-30 px-1.5 py-0.5 rounded-xs bg-navy-900 text-gold-300 text-[9px] font-bold shadow-xs whitespace-nowrap">
@@ -495,9 +546,8 @@ export const WhyChooseUsSection: React.FC<WhyChooseUsProps> = ({
               RIGHT COLUMN: SIGNATURE 3-CIRCLE OVERLAPPING COMPOSITION
               ========================================================================= */}
           <div
-            className={`lg:col-span-6 relative ${
-              isMediaLeft ? "lg:order-1" : "lg:order-2"
-            }`}
+            className={`lg:col-span-6 relative ${isMediaLeft ? "lg:order-1" : "lg:order-2"
+              }`}
           >
             {/* Top Right Triangular Dotted Pattern */}
             <div className="absolute top-2 right-4 sm:right-8 grid grid-cols-5 gap-1.5 opacity-60 z-0 pointer-events-none">
@@ -519,11 +569,10 @@ export const WhyChooseUsSection: React.FC<WhyChooseUsProps> = ({
                     onSelectElement("image");
                   }
                 }}
-                className={`absolute top-[4%] left-[10%] w-[50%] aspect-square rounded-full border-[6px] border-amber-500 shadow-xl overflow-hidden z-10 bg-line transition-transform duration-300 hover:scale-[1.02] ${
-                  isEditor
+                className={`absolute top-[4%] left-[10%] w-[50%] aspect-square rounded-full border-[6px] border-amber-500 shadow-xl overflow-hidden z-10 bg-line transition-transform duration-300 hover:scale-[1.02] ${isEditor
                     ? "cursor-pointer group/c1 hover:ring-4 hover:ring-gold-500"
                     : ""
-                }`}
+                  }`}
               >
                 <Image
                   src={image || "/images/hero-student-thumbsup.jpg"}
@@ -547,11 +596,10 @@ export const WhyChooseUsSection: React.FC<WhyChooseUsProps> = ({
                     onSelectElement("image");
                   }
                 }}
-                className={`absolute top-[18%] right-[4%] w-[46%] aspect-square rounded-full border-[6px] border-emerald-500 shadow-xl overflow-hidden z-20 bg-line transition-transform duration-300 hover:scale-[1.02] ${
-                  isEditor
+                className={`absolute top-[18%] right-[4%] w-[46%] aspect-square rounded-full border-[6px] border-emerald-500 shadow-xl overflow-hidden z-20 bg-line transition-transform duration-300 hover:scale-[1.02] ${isEditor
                     ? "cursor-pointer group/c2 hover:ring-4 hover:ring-gold-500"
                     : ""
-                }`}
+                  }`}
               >
                 <Image
                   src={image2 || "/images/promo-woman-card.jpg"}
@@ -575,11 +623,10 @@ export const WhyChooseUsSection: React.FC<WhyChooseUsProps> = ({
                     onSelectElement("image");
                   }
                 }}
-                className={`absolute bottom-[4%] left-[16%] w-[52%] aspect-square rounded-full border-[6px] border-sky-400 shadow-2xl overflow-hidden z-30 bg-line transition-transform duration-300 hover:scale-[1.02] ${
-                  isEditor
+                className={`absolute bottom-[4%] left-[16%] w-[52%] aspect-square rounded-full border-[6px] border-sky-400 shadow-2xl overflow-hidden z-30 bg-line transition-transform duration-300 hover:scale-[1.02] ${isEditor
                     ? "cursor-pointer group/c3 hover:ring-4 hover:ring-gold-500"
                     : ""
-                }`}
+                  }`}
               >
                 <Image
                   src={image3 || "/images/hero-learner.jpg"}
@@ -611,11 +658,10 @@ export const WhyChooseUsSection: React.FC<WhyChooseUsProps> = ({
                       onSelectElement("floatingBadge");
                     }
                   }}
-                  className={`absolute bottom-[6%] right-[2%] z-40 bg-white rounded-xl shadow-2xl p-3.5 sm:p-4 border border-line/40 flex items-center gap-3 transition-transform duration-200 hover:-translate-y-0.5 ${
-                    isEditor
+                  className={`absolute bottom-[6%] right-[2%] z-40 bg-white rounded-xl shadow-2xl p-3.5 sm:p-4 border border-line/40 flex items-center gap-3 transition-transform duration-200 hover:-translate-y-0.5 ${isEditor
                       ? "cursor-pointer group/exp hover:outline hover:outline-dashed hover:outline-2 hover:outline-gold-500"
                       : ""
-                  }`}
+                    }`}
                 >
                   <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-xs">
                     <Icon

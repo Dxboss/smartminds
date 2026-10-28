@@ -7,7 +7,7 @@ import { Eyebrow } from "@/components/ui/Eyebrow";
 import { Tag } from "@/components/ui/Tag";
 import { Icon } from "@/components/ui/Icon";
 import { Button } from "@/components/ui/Button";
-import { getPublishedCmsPageSections } from "@/lib/persistedData";
+import { getPublishedCmsPageSections, pullLatestFromNeon } from "@/lib/persistedData";
 import { SectionRenderer } from "@/components/cms/SectionRenderer";
 import { WhyChooseUsSection } from "@/components/home";
 
@@ -26,7 +26,8 @@ export const metadata: Metadata = {
   },
 };
 
-export default function AboutPage() {
+export default async function AboutPage() {
+  await pullLatestFromNeon();
   const customSections = getPublishedCmsPageSections("/about");
   if (customSections && customSections.length > 0) {
     return (

@@ -6,7 +6,7 @@ import { Eyebrow } from "@/components/ui/Eyebrow";
 import { Icon } from "@/components/ui/Icon";
 import { Tag } from "@/components/ui/Tag";
 import { GeneralContactForm } from "@/components/forms/GeneralContactForm";
-import { getPublishedCmsPageSections } from "@/lib/persistedData";
+import { getPublishedCmsPageSections, pullLatestFromNeon } from "@/lib/persistedData";
 import { SectionRenderer } from "@/components/cms/SectionRenderer";
 
 export const metadata: Metadata = {
@@ -24,7 +24,8 @@ export const metadata: Metadata = {
   },
 };
 
-export default function ContactPage() {
+export default async function ContactPage() {
+  await pullLatestFromNeon();
   const customSections = getPublishedCmsPageSections("/contact");
   if (customSections && customSections.length > 0) {
     return (

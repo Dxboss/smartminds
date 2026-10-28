@@ -20,13 +20,31 @@ import { EditableElementWrapper } from "@/components/admin/EditableElementWrappe
 import {
   resolveTypography,
   resolveSubheadlineTypography,
+  resolveBadgeStyles,
 } from "@/components/ui/typographyUtils";
+import { IconName } from "@/components/ui/Icon";
 
 export interface FeaturedCoursesProps {
   headline?: string;
   subheadline?: string;
+  badgeText?: string;
+  badgeColor?: string;
+  badgeBgColor?: string;
+  badgeFontFamily?: string;
+  badgeWeight?: string;
   buttonText?: string;
   buttonLink?: string;
+  buttonBgColor?: string;
+  buttonTextColor?: string;
+  buttonHoverBgColor?: string;
+  buttonHoverTextColor?: string;
+  buttonFontFamily?: string;
+  buttonFontWeight?: string;
+  buttonTextTransform?: string;
+  buttonIcon?: string;
+  buttonIconPosition?: string;
+  buttonRadius?: string;
+  buttonSize?: string;
   bgColor?: SectionBgColor;
   columns?: 2 | 3 | 4;
   rows?: 1 | 2 | 3 | 4 | "all";
@@ -74,8 +92,24 @@ const CATEGORY_TABS = [
 export const FeaturedCourses: React.FC<FeaturedCoursesProps> = ({
   headline = "Popular Courses",
   subheadline = "Explore our most requested British diplomas. Every programme features live tutor-led sessions, continuous mentor support, and flexible instalment schedules.",
+  badgeText,
+  badgeColor,
+  badgeBgColor,
+  badgeFontFamily,
+  badgeWeight,
   buttonText = "Browse complete qualification catalogue",
   buttonLink = "/courses",
+  buttonBgColor,
+  buttonTextColor,
+  buttonHoverBgColor,
+  buttonHoverTextColor,
+  buttonFontFamily,
+  buttonFontWeight,
+  buttonTextTransform,
+  buttonIcon,
+  buttonIconPosition,
+  buttonRadius,
+  buttonSize,
   bgColor = "white",
   columns = 4,
   rows = 2,
@@ -103,6 +137,20 @@ export const FeaturedCourses: React.FC<FeaturedCoursesProps> = ({
   const [selectedCategory, setSelectedCategory] = useState("all");
 
   const { isDark } = resolveSectionBg(bgColor, "white");
+
+  const { className: badgeClass, style: badgeStyle } = resolveBadgeStyles({
+    color: badgeColor,
+    bgColor: badgeBgColor,
+    fontFamily: badgeFontFamily as any,
+    weight: badgeWeight as any,
+    isDark,
+    variant: isDark ? "gold" : "navy",
+  });
+
+  const resolvedBtnBg = buttonBgColor ? resolveItemColor(buttonBgColor) : undefined;
+  const resolvedBtnText = buttonTextColor ? resolveItemColor(buttonTextColor) : undefined;
+  const resolvedBtnHoverBg = buttonHoverBgColor ? resolveItemColor(buttonHoverBgColor) : undefined;
+  const resolvedBtnHoverText = buttonHoverTextColor ? resolveItemColor(buttonHoverTextColor) : undefined;
 
   const { className: hlClass, style: hlStyle } = resolveTypography({
     fontFamily: headlineFontFamily as any,
@@ -217,6 +265,23 @@ export const FeaturedCourses: React.FC<FeaturedCoursesProps> = ({
       <Container>
         {/* Section Header: Centered with Orange Wave Accent matching Inspiration */}
         <div className="text-center max-w-2xl mx-auto mb-10">
+          {badgeText && (
+            <EditableElementWrapper
+              isEditor={isEditor}
+              isSelected={isEditor && selectedElementKey === "badge"}
+              label="Courses Eyebrow"
+              onClick={() => onSelectElement?.("badge")}
+              className="inline-block mb-2"
+            >
+              <Eyebrow
+                tone={isDark ? "gold" : "navy"}
+                style={badgeStyle}
+                className={badgeColor || badgeBgColor ? badgeClass : ""}
+              >
+                {badgeText}
+              </Eyebrow>
+            </EditableElementWrapper>
+          )}
           <EditableElementWrapper
             isEditor={isEditor}
             isSelected={isEditor && selectedElementKey === "headline"}
@@ -299,10 +364,34 @@ export const FeaturedCourses: React.FC<FeaturedCoursesProps> = ({
           >
             <Link
               href={buttonLink || "/courses"}
-              className="inline-flex items-center justify-center px-8 py-3.5 rounded-full border border-teal-300 text-[#0B4D4E] hover:bg-teal-50 hover:border-teal-500 font-heading font-bold text-sm tracking-wide transition-all shadow-xs"
+              style={{
+                backgroundColor: resolvedBtnBg || undefined,
+                color: resolvedBtnText || undefined,
+                ...(resolvedBtnHoverBg ? { ["--btn-hover-bg" as any]: resolvedBtnHoverBg } : {}),
+                ...(resolvedBtnHoverText ? { ["--btn-hover-text" as any]: resolvedBtnHoverText } : {}),
+              }}
+              className={`inline-flex items-center justify-center px-8 py-3.5 ${
+                buttonRadius === "sm"
+                  ? "rounded-sm"
+                  : buttonRadius === "md"
+                  ? "rounded-md"
+                  : "rounded-full"
+              } border ${
+                resolvedBtnBg
+                  ? "border-transparent"
+                  : isDark
+                  ? "border-gold-500 text-gold-300 hover:bg-white/10"
+                  : "border-teal-300 text-[#0B4D4E] hover:bg-teal-50 hover:border-teal-500"
+              } font-heading font-bold text-sm tracking-wide transition-all shadow-xs ${
+                resolvedBtnHoverBg || resolvedBtnHoverText ? "btn-custom-hover" : ""
+              }`}
             >
               <span>{buttonText || "View All Courses"}</span>
-              <Icon name="arrow-right" size={15} className="ml-2 text-[#0B4D4E]" />
+              <Icon
+                name={(buttonIcon as IconName) || "arrow-right"}
+                size={15}
+                className="ml-2"
+              />
             </Link>
           </EditableElementWrapper>
         </div>

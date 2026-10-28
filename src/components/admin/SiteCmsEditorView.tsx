@@ -857,16 +857,54 @@ export const SiteCmsEditorView: React.FC<Props> = ({
       index?: number;
     }[] = [];
 
-    if (sec.badgeText || sec.type === "pricing" || sec.type === "cta_banner" || sec.type === "testimonials" || sec.type === "choose_path") {
+    if (
+      sec.badgeText ||
+      sec.eyebrow ||
+      sec.type === "pricing" ||
+      sec.type === "cta_banner" ||
+      sec.type === "testimonials" ||
+      sec.type === "choose_path" ||
+      sec.type === "page_header" ||
+      sec.type === "about_story" ||
+      sec.type === "accreditations_block" ||
+      sec.type === "team_grid" ||
+      sec.type === "how_it_works" ||
+      sec.type === "faq_accordion" ||
+      sec.type === "courses_listing" ||
+      sec.type === "featured_courses" ||
+      sec.type === "why_smartminds"
+    ) {
       list.push({
         key: "badge",
         label: sec.type === "trust_strip" ? "Rating Eyebrow" : "Eyebrow Badge",
-        sublabel: sec.badgeText || (
-          sec.type === "pricing" ? "Honest, Transparent Pricing" :
-          sec.type === "cta_banner" ? "Personalised Guidance" :
-          sec.type === "testimonials" ? "Learner Experiences" :
-          sec.type === "choose_path" ? "Course Pathways" : undefined
-        ),
+        sublabel:
+          sec.badgeText ||
+          sec.eyebrow ||
+          (sec.type === "pricing"
+            ? "Honest, Transparent Pricing"
+            : sec.type === "cta_banner"
+            ? "Personalised Guidance"
+            : sec.type === "testimonials"
+            ? "Learner Experiences"
+            : sec.type === "choose_path"
+            ? "Course Pathways"
+            : sec.type === "about_story"
+            ? "Our Academic Heritage"
+            : sec.type === "accreditations_block"
+            ? "Quality Assurance"
+            : sec.type === "team_grid"
+            ? "Academic Governance"
+            : sec.type === "how_it_works"
+            ? "Your Learning Journey"
+            : sec.type === "faq_accordion"
+            ? "Common Questions"
+            : sec.type === "courses_listing"
+            ? "Regulated UK Qualifications & CPD"
+            : sec.type === "featured_courses"
+            ? "Explore Courses"
+            : sec.type === "why_smartminds"
+            ? "Why Choose Us"
+            : undefined),
         icon: "sparkles",
       });
     }
@@ -4916,15 +4954,37 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                   ) : (
                     /* STANDARD SECTION CONTENT FIELDS (Hero, Trust, Pricing, etc.) */
                     <>
-                      {selectedSection.badgeText !== undefined && (
+                      {(selectedSection.badgeText !== undefined ||
+                        selectedSection.eyebrow !== undefined ||
+                        [
+                          "page_header",
+                          "about_story",
+                          "accreditations_block",
+                          "team_grid",
+                          "how_it_works",
+                          "faq_accordion",
+                          "courses_listing",
+                          "featured_courses",
+                          "why_smartminds",
+                          "choose_path",
+                          "pricing",
+                          "testimonials",
+                          "cta_banner",
+                        ].includes(selectedSection.type)) && (
                         <div>
                           <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
                             Eyebrow / Badge Text
                           </label>
                           <input
                             type="text"
-                            value={selectedSection.badgeText || ""}
-                            onChange={(e) => updateSelectedField("badgeText", e.target.value)}
+                            value={selectedSection.badgeText ?? selectedSection.eyebrow ?? ""}
+                            onChange={(e) => {
+                              updateSelectedField("badgeText", e.target.value);
+                              if (selectedSection.eyebrow !== undefined) {
+                                updateSelectedField("eyebrow", e.target.value);
+                              }
+                            }}
+                            placeholder="Enter eyebrow badge copy..."
                             className="w-full px-3 py-1.5 border border-line rounded-sm text-xs focus:outline-none focus:border-navy-900"
                           />
                         </div>
@@ -5319,17 +5379,39 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                   selectedSection.type === "testimonials" ||
                   selectedSection.type === "video_spotlight" ||
                   selectedSection.type === "contact_block" ||
-                  selectedSection.type === "composite_block"
+                  selectedSection.type === "composite_block" ||
+                  selectedSection.type === "page_header" ||
+                  selectedSection.type === "about_story" ||
+                  selectedSection.type === "team_grid" ||
+                  selectedSection.type === "legal_notice" ||
+                  selectedSection.type === "contact_split" ||
+                  selectedSection.type === "funding_split" ||
+                  selectedSection.type === "cpd_listing" ||
+                  selectedSection.type === "tutoring_split" ||
+                  selectedSection.type === "scheduler_block" ||
+                  selectedSection.type === "courses_listing" ||
+                  selectedSection.type === "student_benefits" ||
+                  selectedSection.type === "exclusive_bundles"
                     ? "paper"
-                    : selectedSection.type === "cta_banner"
+                    : selectedSection.type === "cta_banner" ||
+                      selectedSection.type === "staff_training"
                     ? "navy"
+                    : selectedSection.type === "why_smartminds"
+                    ? "mint"
+                    : selectedSection.type === "coral_promo"
+                    ? "coral"
                     : "white";
                 const activeBg = selectedSection.bgColor || defaultBg;
 
                 const isSplitLayout =
-                  ["hero", "trust_strip", "video_spotlight", "testimonials"].includes(
-                    selectedSection.type
-                  ) ||
+                  [
+                    "hero",
+                    "trust_strip",
+                    "video_spotlight",
+                    "testimonials",
+                    "about_story",
+                    "contact_split",
+                  ].includes(selectedSection.type) ||
                   (selectedSection.type === "composite_block" &&
                     (selectedSection.columns || 2) === 2);
 
@@ -5342,6 +5424,10 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                     "featured_courses",
                     "faq_accordion",
                     "stats_counter",
+                    "accreditations_block",
+                    "team_grid",
+                    "student_benefits",
+                    "staff_training",
                   ].includes(selectedSection.type) ||
                   (selectedSection.type === "composite_block" &&
                     (selectedSection.columns || 2) > 2);
@@ -5781,6 +5867,74 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                                 </button>
                               );
                             })}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 3. Eyebrow / Badge Color & Typography Card */}
+                      <div className="p-3 bg-paper/70 rounded-sm border border-line space-y-3">
+                        <div className="flex items-center justify-between border-b border-line pb-1.5">
+                          <strong className="text-xs font-bold text-navy-900 flex items-center gap-1">
+                            <span>Eyebrow / Badge Pill</span>
+                          </strong>
+                          <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded-xs bg-navy-900/5 text-navy-900">
+                            {selectedSection.badgeFontFamily || "heading"} • {selectedSection.badgeWeight || "bold"}
+                          </span>
+                        </div>
+
+                        <div>
+                          <ColorPalettePicker
+                            value={selectedSection.badgeColor || "auto"}
+                            onChange={(val) => updateSelectedField("badgeColor", val)}
+                            label="Badge Text / Icon Color"
+                            compact={true}
+                            showAutoOption={true}
+                            defaultColor="auto"
+                            allowCustomHex={true}
+                          />
+                        </div>
+
+                        <div>
+                          <ColorPalettePicker
+                            value={selectedSection.badgeBgColor || "auto"}
+                            onChange={(val) => updateSelectedField("badgeBgColor", val)}
+                            label="Badge Background Pill Color"
+                            compact={true}
+                            showAutoOption={true}
+                            defaultColor="auto"
+                            allowCustomHex={true}
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-1">
+                              Font Family
+                            </label>
+                            <select
+                              value={selectedSection.badgeFontFamily || "heading"}
+                              onChange={(e) => updateSelectedField("badgeFontFamily", e.target.value)}
+                              className="w-full px-2 py-1 text-xs border border-line rounded-xs bg-white font-medium"
+                            >
+                              <option value="heading">Saira Condensed</option>
+                              <option value="body">Source Sans 3</option>
+                              <option value="serif">Collegiate Serif</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-semibold text-ink-soft uppercase mb-1">
+                              Font Weight
+                            </label>
+                            <select
+                              value={selectedSection.badgeWeight || "bold"}
+                              onChange={(e) => updateSelectedField("badgeWeight", e.target.value)}
+                              className="w-full px-2 py-1 text-xs border border-line rounded-xs bg-white font-medium"
+                            >
+                              <option value="normal">Normal (400)</option>
+                              <option value="medium">Medium (500)</option>
+                              <option value="semibold">Semibold (600)</option>
+                              <option value="bold">Bold (700)</option>
+                            </select>
                           </div>
                         </div>
                       </div>

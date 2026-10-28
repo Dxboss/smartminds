@@ -4,7 +4,7 @@ import { Heading } from "@/components/ui/Heading";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 import { Tag } from "@/components/ui/Tag";
 import { NativeScheduler } from "@/components/booking/NativeScheduler";
-import { getLiveCourses, getPublishedCmsPageSections } from "@/lib/persistedData";
+import { getLiveCourses, getPublishedCmsPageSections, pullLatestFromNeon } from "@/lib/persistedData";
 import { SectionRenderer } from "@/components/cms/SectionRenderer";
 
 export const metadata: Metadata = {
@@ -19,7 +19,8 @@ export const metadata: Metadata = {
   },
 };
 
-export default function BookPage() {
+export default async function BookPage() {
+  await pullLatestFromNeon();
   const liveCourses = getLiveCourses();
   const customSections = getPublishedCmsPageSections("/book");
   if (customSections && customSections.length > 0) {

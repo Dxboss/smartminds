@@ -407,6 +407,177 @@ export const getDefaultItemsForSection = (type: string): BuilderSectionItem[] =>
       },
     ];
   }
+  if (type === "accreditations_block") {
+    return [
+      {
+        title: "Qualifi",
+        desc: "Ofqual-recognised British awarding organisation regulating vocational and higher diplomas.",
+        badge: "Regulated Awarding Body",
+        icon: "shield-check",
+      },
+      {
+        title: "CACHE / NCFE",
+        desc: "Specialist national qualifications in health, adult social care, childcare, and education.",
+        badge: "Care & Early Years",
+        icon: "award",
+      },
+      {
+        title: "OTHM Qualifications",
+        desc: "UK regulated higher education pathways and professional management qualifications.",
+        badge: "Regulated Pathways",
+        icon: "graduation-cap",
+      },
+      {
+        title: "Pearson Edexcel",
+        desc: "Nationally recognised BTEC, Functional Skills, and vocational qualifications.",
+        badge: "Vocational & Academic",
+        icon: "check-circle",
+      },
+    ];
+  }
+  if (type === "team_grid") {
+    return [
+      {
+        title: "Academic Leadership",
+        subtitle: "Curriculum & Quality Assurance",
+        desc: "Overseeing Internal Quality Assurance (IQA), awarding-body compliance, and assessment standards.",
+        badge: "IQA Certified",
+        icon: "award",
+      },
+      {
+        title: "Health & Social Care Faculty",
+        subtitle: "Senior Care Assessors",
+        desc: "Experienced registered care managers and CQC compliance specialists guiding Levels 2 to 5.",
+        badge: "Sector Practitioners",
+        icon: "users",
+      },
+      {
+        title: "Education & Early Years Faculty",
+        subtitle: "Teacher Trainers & Early Years Assessors",
+        desc: "Qualified teachers and nursery leaders supporting AET, CAVA, IQA, and Early Years cohorts.",
+        badge: "Qualified Assessors",
+        icon: "graduation-cap",
+      },
+    ];
+  }
+  if (type === "funding_split") {
+    return [
+      {
+        number: "Option 01",
+        title: "Pay in full — 10% tuition fee discount",
+        subtitle: "Best value for self-funded learners",
+        desc: "Settle your course fees upfront upon enrolment and receive an automatic 10% reduction on total tuition.",
+        badge: "Save 10% Instantly",
+        icon: "check-circle",
+      },
+      {
+        number: "Option 02",
+        title: "0% interest monthly instalment plans",
+        subtitle: "Spread your tuition across 3, 6, or 12 months",
+        desc: "Pay an initial enrolment deposit followed by fixed, interest-free monthly payments.",
+        badge: "0% APR • No Credit Check",
+        icon: "calendar",
+      },
+      {
+        number: "Option 03",
+        title: "Employer sponsorship & corporate invoice",
+        subtitle: "For care homes, schools, and NHS trusts",
+        desc: "Your employer can fund your qualification directly via official company purchase order and 30-day invoice.",
+        badge: "Employer Funded",
+        icon: "shield-check",
+      },
+    ];
+  }
+  if (type === "tutoring_split") {
+    return [
+      {
+        title: "GCSE & A-Level Exam Preparation",
+        subtitle: "Mathematics, English, and Sciences",
+        desc: "Structured revision, past-paper walkthroughs, and exam board technique aligned to Edexcel, AQA, and OCR.",
+        badge: "Key Stage 4 & 5",
+        icon: "graduation-cap",
+      },
+      {
+        title: "Functional Skills English & Maths",
+        subtitle: "Levels 1 & 2 Exam Readiness",
+        desc: "Focused 1-to-1 coaching for adult learners preparing for regulated Functional Skills assessments.",
+        badge: "Adult Numeracy & Literacy",
+        icon: "book-open",
+      },
+      {
+        title: "1-to-1 Diploma Portfolio Mentorship",
+        subtitle: "Care, Education & Assessor Qualifications",
+        desc: "Dedicated academic guidance for learners completing RQF Level 2 to Level 5 workplace portfolios.",
+        badge: "Vocational Support",
+        icon: "users",
+      },
+    ];
+  }
+  if (type === "scheduler_block") {
+    return [
+      {
+        title: "Course & Level Matching",
+        desc: "Confirm whether Level 2, Level 3, Level 4, or Level 5 matches your current role and career goals.",
+        icon: "compass",
+      },
+      {
+        title: "Clear Tuition & Instalment Breakdown",
+        desc: "Get exact monthly payment figures or an official employer sponsorship quote with zero obligation.",
+        icon: "credit-card",
+      },
+      {
+        title: "Placement & Assessment Guidance",
+        desc: "Learn how workplace observations, live evening classes, and portfolio evidence work around your shifts.",
+        icon: "check-circle",
+      },
+    ];
+  }
+  if (type === "how_it_works") {
+    return [
+      {
+        number: "01",
+        title: "Speak with an Advisor",
+        desc: "Book a free 15-minute call to verify the right qualification level for your job role.",
+        badge: "15 Mins • Free",
+        icon: "phone",
+      },
+      {
+        number: "02",
+        title: "Select Your Payment Plan",
+        desc: "Enrol with a 10% upfront discount, 0% interest monthly instalments, or employer invoice.",
+        badge: "0% Interest Options",
+        icon: "credit-card",
+      },
+      {
+        number: "03",
+        title: "Attend Live Evening Classes",
+        desc: "Join interactive online classes and submit coursework through your 24/7 student portal.",
+        badge: "Blended Learning",
+        icon: "video",
+      },
+      {
+        number: "04",
+        title: "Achieve Your Qualification",
+        desc: "Complete your assessor-guided portfolio with zero exams and receive your regulated certificate.",
+        badge: "Ofqual Regulated",
+        icon: "award",
+      },
+    ];
+  }
+  if (type === "faq_accordion") {
+    return [
+      {
+        title: "Are your qualifications nationally recognised in the UK?",
+        desc: "Yes. Our diploma and certificate courses are regulated by Ofqual through recognised British awarding bodies.",
+        tag: "Accreditation",
+      },
+      {
+        title: "Can I pay my course fees in monthly instalments?",
+        desc: "Yes. We offer 0% interest monthly payment plans across all courses, or 10% off when paying in full.",
+        tag: "Tuition & Funding",
+      },
+    ];
+  }
   return [];
 };
 
@@ -1278,8 +1449,13 @@ export const FocusedElementInspector: React.FC<FocusedElementInspectorProps> = (
                 </label>
                 <input
                   type="text"
-                  value={section.badgeText || ""}
-                  onChange={(e) => updateField("badgeText", e.target.value)}
+                  value={section.badgeText ?? section.eyebrow ?? ""}
+                  onChange={(e) => {
+                    updateField("badgeText", e.target.value);
+                    if (section.eyebrow !== undefined) {
+                      updateField("eyebrow", e.target.value);
+                    }
+                  }}
                   className="w-full px-3 py-1.5 border border-line rounded-sm text-xs bg-white font-medium focus:outline-none focus:border-navy-900"
                   placeholder="e.g. British Accredited Training"
                 />

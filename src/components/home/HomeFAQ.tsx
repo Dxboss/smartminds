@@ -12,6 +12,7 @@ import { resolveSectionBg, SectionBgColor, resolveItemColor } from "@/components
 import {
   resolveTypography,
   resolveSubheadlineTypography,
+  resolveBadgeStyles,
 } from "@/components/ui/typographyUtils";
 import { EditableElementWrapper } from "@/components/admin/EditableElementWrapper";
 
@@ -80,9 +81,14 @@ const FAQ_ITEMS: FAQItem[] = [
 export interface HomeFAQProps {
   headline?: string;
   subheadline?: string;
+  badgeText?: string;
+  badgeColor?: string;
+  badgeBgColor?: string;
+  badgeFontFamily?: string;
+  badgeWeight?: string;
   items?: { title: string; desc?: string; tag?: string; cardBg?: string; cardBorder?: string; titleColor?: string; descColor?: string; [key: string]: any }[];
   bgColor?: SectionBgColor;
-  columns?: 2 | 3 | 4;
+  columns?: 1 | 2 | 3 | 4;
   headlineFontFamily?: string;
   headlineFontSize?: string;
   headlineFontWeight?: string;
@@ -116,6 +122,11 @@ export interface HomeFAQProps {
 export const HomeFAQ: React.FC<HomeFAQProps> = ({
   headline = "Everything you need to know before enrolling",
   subheadline = "Clear answers about class schedules, Ofqual accreditation, flexible instalment plans, and tutor support.",
+  badgeText,
+  badgeColor,
+  badgeBgColor,
+  badgeFontFamily,
+  badgeWeight,
   items,
   bgColor = "white",
   columns = 4,
@@ -139,6 +150,15 @@ export const HomeFAQ: React.FC<HomeFAQProps> = ({
 }) => {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
   const { isDark } = resolveSectionBg(bgColor, "white");
+
+  const { className: badgeClass, style: badgeStyle } = resolveBadgeStyles({
+    color: badgeColor,
+    bgColor: badgeBgColor,
+    fontFamily: badgeFontFamily as any,
+    weight: badgeWeight as any,
+    isDark,
+    variant: isDark ? "gold" : "navy",
+  });
 
   const { className: hlClass, style: hlStyle } = resolveTypography({
     fontFamily: headlineFontFamily as any,
@@ -189,9 +209,21 @@ export const HomeFAQ: React.FC<HomeFAQProps> = ({
       <Container>
         {/* Section Header */}
         <div className="text-center max-w-2xl mx-auto mb-12">
-          <Eyebrow tone={isDark ? "gold" : "navy"} className="mb-2">
-            Frequently Asked Questions
-          </Eyebrow>
+          <EditableElementWrapper
+            isEditor={isEditor}
+            isSelected={isEditor && selectedElementKey === "badge"}
+            label="FAQ Eyebrow"
+            onClick={() => onSelectElement?.("badge")}
+            className="inline-block mb-2"
+          >
+            <Eyebrow
+              tone={isDark ? "gold" : "navy"}
+              style={badgeStyle}
+              className={badgeColor || badgeBgColor ? badgeClass : ""}
+            >
+              {badgeText || "Frequently Asked Questions"}
+            </Eyebrow>
+          </EditableElementWrapper>
           <EditableElementWrapper
             isEditor={isEditor}
             isSelected={isEditor && selectedElementKey === "headline"}
