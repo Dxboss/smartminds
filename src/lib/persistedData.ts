@@ -12,6 +12,9 @@ import {
   CohortScheduleConfig,
   EnquiryLead,
   PaymentGatewaySettings,
+  TutoringAttendanceRecord,
+  TutoringDeliveryMode,
+  TutoringAttendanceStatus,
 } from "@/lib/repositories/types";
 import type { Course } from "@/content/types";
 import type { BlogPost } from "@/content/blog";
@@ -124,6 +127,8 @@ export interface PersistedRecordsStore {
   assignments?: any[];
   submissions?: any[];
   deletedCohortIds?: string[];
+  tutoringAttendance?: TutoringAttendanceRecord[];
+  deletedTutoringAttendanceIds?: string[];
 }
 
 import { type ColorSwatch, DEFAULT_COLOR_SWATCHES } from "./colorSwatches";
@@ -700,6 +705,20 @@ export async function pullLatestFromNeon(force = false): Promise<boolean> {
           ),
           deletedCohortIds: Array.from(
             new Set([...(store.deletedCohortIds || []), ...(dbStore.deletedCohortIds || [])])
+          ),
+          deletedTutoringAttendanceIds: Array.from(
+            new Set([
+              ...(store.deletedTutoringAttendanceIds || []),
+              ...(dbStore.deletedTutoringAttendanceIds || []),
+            ])
+          ),
+          tutoringAttendance: mergeArrayById<TutoringAttendanceRecord>(
+            store.tutoringAttendance,
+            dbStore.tutoringAttendance
+          ).filter(
+            (r) =>
+              !(store.deletedTutoringAttendanceIds || []).includes(r.id) &&
+              !(dbStore.deletedTutoringAttendanceIds || []).includes(r.id)
           ),
         };
 
@@ -4222,6 +4241,296 @@ export async function deletePersistedMediaItem(id: string): Promise<boolean> {
 
   return true;
 }
+
+export function inferTutoringDeliveryMode(
+  trainingLocation?: string,
+  explicitMode?: TutoringDeliveryMode
+): TutoringDeliveryMode {
+  if (
+    explicitMode === "online" ||
+    explicitMode === "physical_centre" ||
+    explicitMode === "room_home_request"
+  ) {
+    return explicitMode;
+  }
+  const loc = (trainingLocation || "").toLowerCase();
+  if (loc.includes("home") || loc.includes("room") || loc.includes("request") || loc.includes("visit")) {
+    return "room_home_request";
+  }
+  if (loc.includes("gloucester") || loc.includes("centre") || loc.includes("center") || loc.includes("face") || loc.includes("physical")) {
+    return "physical_centre";
+  }
+  return "online";
+}
+
+export interface OneToOneStudentAssignmentView {
+  enrolmentId: string;
+  learnerId: string;
+  studentName: string;
+  parentName?: string;
+  parentEmail: string;
+  parentPhone: string;
+  emergencyPhone?: string;
+  yearGroupOrLevel: string;
+  focusSubjects?: string;
+  dateOfBirth?: string;
+  address?: string;
+  postcode?: string;
+  tutorId?: string;
+  tutorName: string;
+  preferredTimeSlot: string;
+  deliveryMode: TutoringDeliveryMode;
+  trainingLocation: string;
+  roomOrAddress: string;
+  zoomLink?: string;
+  enrolledAt: string;
+  status: string;
+}
+
+export function getOneToOneTutoringStudentsForSession(session?: {
+  id: string;
+  tutorId?: string;
+  name: string;
+  role: string;
+}): OneToOneStudentAssignmentView[] {
+  const store = loadPersistedRecords();
+  const isTest = isAutomatedTestEnv();
+  const learners = (store.learners || []).filter((l) => isTest || !isFictionalDemoRecord(l));
+  const enrolments = (store.enrolments || []).filter((e) => isTest || !isFictionalDemoRecord(e));
+  const learnerMap = new Map(learners.map((l) => [l.id, l]));
+
+  const cleanName = (session?.name || "").trim().toLowerCase();
+  const firstName = cleanName.split(" ")[0] || "";
+  const isTutorOnly = session?.role === "tutor";
+
+  const results: OneToOneStudentAssignmentView[] = [];
+
+  for (const enr of enrolments) {
+    const isOneToOne =
+      enr.courseId === "course-tutoring-children" ||
+      enr.classId === "class-tutoring-kids" ||
+      Boolean(enr.tutoringDeliveryMode) ||
+      (enr.courseTitle || "").toLowerCase().includes("1-on-1") ||
+      (enr.courseTitle || "").toLowerCase().includes("private tutoring");
+
+    if (!isOneToOne) continue;
+
+    const learner = learnerMap.get(enr.learnerId);
+    if (!learner || learner.accessStatus === "archived") continue;
+
+    if (isTutorOnly && session) {
+      const enrTutorName = (enr.tutorName || "").trim().toLowerCase();
+      const matchesTutor =
+        (session.tutorId && enr.tutorId === session.tutorId) ||
+        enr.tutorId === session.id ||
+        (cleanName && enrTutorName === cleanName) ||
+        (firstName.length >= 3 && enrTutorName === firstName);
+      if (!matchesTutor) continue;
+    }
+
+    const deliveryMode = inferTutoringDeliveryMode(
+      enr.trainingLocation,
+      enr.tutoringDeliveryMode
+    );
+    const studentFullName =
+      learner.childName?.trim() ||
+      `${learner.firstName || ""} ${learner.lastName || ""}`.trim() ||
+      learner.email;
+    const parentFullName =
+      learner.guardianName?.trim() ||
+      (learner.learnerType === "child"
+        ? `${learner.firstName || ""} ${learner.lastName || ""}`.trim()
+        : undefined);
+
+    const defaultRoomOrAddress =
+      enr.tutoringRoomOrAddress?.trim() ||
+      (deliveryMode === "physical_centre"
+        ? "Gloucester College Centre (Room TBA)"
+        : deliveryMode === "room_home_request"
+          ? [learner.address, learner.postcode].filter(Boolean).join(", ") || "Home / Requested Room (Address on file)"
+          : enr.tutoringZoomLink || "Live 1-on-1 Zoom Classroom");
+
+    results.push({
+      enrolmentId: enr.id,
+      learnerId: learner.id,
+      studentName: studentFullName,
+      parentName: parentFullName,
+      parentEmail: learner.guardianEmail || learner.email,
+      parentPhone: learner.guardianPhone || learner.phone,
+      emergencyPhone: learner.emergencyPhone || learner.emergencyContact,
+      yearGroupOrLevel: enr.courseLevelLabel || learner.childYearGroup || "Year 7",
+      focusSubjects: learner.childConcerns || learner.notes,
+      dateOfBirth: learner.dateOfBirth,
+      address: learner.address,
+      postcode: learner.postcode,
+      tutorId: enr.tutorId,
+      tutorName: enr.tutorName || "Unassigned / TBA",
+      preferredTimeSlot: enr.preferredTimeSlot || "Saturday, 10:00am",
+      deliveryMode,
+      trainingLocation:
+        enr.trainingLocation ||
+        (deliveryMode === "physical_centre"
+          ? "Gloucester College Centre (Face-to-Face)"
+          : deliveryMode === "room_home_request"
+            ? "Home / Room Tutoring (By Request)"
+            : "Live 1-on-1 Online Interactive"),
+      roomOrAddress: defaultRoomOrAddress,
+      zoomLink: enr.tutoringZoomLink,
+      enrolledAt: enr.enrolledAt,
+      status: enr.status,
+    });
+  }
+
+  return results;
+}
+
+export function listTutoringAttendanceRecords(session?: {
+  id: string;
+  tutorId?: string;
+  name: string;
+  role: string;
+}): TutoringAttendanceRecord[] {
+  const store = loadPersistedRecords();
+  const deletedIds = new Set(store.deletedTutoringAttendanceIds || []);
+  const records = (store.tutoringAttendance || []).filter((r) => !deletedIds.has(r.id));
+
+  if (session?.role === "tutor") {
+    const cleanName = (session.name || "").trim().toLowerCase();
+    const firstName = cleanName.split(" ")[0] || "";
+    const myStudents = new Set(
+      getOneToOneTutoringStudentsForSession(session).map((s) => s.enrolmentId)
+    );
+    return records.filter((r) => {
+      const recTutorName = (r.tutorName || "").trim().toLowerCase();
+      return (
+        (session.tutorId && r.tutorId === session.tutorId) ||
+        r.tutorId === session.id ||
+        (cleanName && recTutorName === cleanName) ||
+        (firstName.length >= 3 && recTutorName === firstName) ||
+        myStudents.has(r.enrolmentId)
+      );
+    });
+  }
+
+  return records;
+}
+
+export async function saveTutoringAttendanceRecord(
+  input: Omit<TutoringAttendanceRecord, "id" | "recordedAt"> & { id?: string }
+): Promise<TutoringAttendanceRecord> {
+  const store = loadPersistedRecords();
+  if (!store.tutoringAttendance) store.tutoringAttendance = [];
+  if (!store.deletedTutoringAttendanceIds) store.deletedTutoringAttendanceIds = [];
+
+  const nowIso = new Date().toISOString();
+  const recordId =
+    input.id?.trim() || `att-1to1-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+  const existingIdx = store.tutoringAttendance.findIndex((r) => r.id === recordId);
+  const existing = existingIdx >= 0 ? store.tutoringAttendance[existingIdx] : undefined;
+
+  const saved: TutoringAttendanceRecord = {
+    id: recordId,
+    enrolmentId: input.enrolmentId,
+    learnerId: input.learnerId,
+    studentName: input.studentName.trim(),
+    parentName: input.parentName?.trim() || undefined,
+    yearGroupOrLevel: input.yearGroupOrLevel.trim(),
+    tutorId: input.tutorId,
+    tutorName: input.tutorName.trim(),
+    sessionDate: input.sessionDate,
+    timeSlot: input.timeSlot.trim(),
+    durationMinutes: Number(input.durationMinutes) || 60,
+    deliveryMode: input.deliveryMode,
+    locationOrRoom: input.locationOrRoom.trim(),
+    status: input.status,
+    topicCovered: input.topicCovered.trim(),
+    homeworkOrNotes: input.homeworkOrNotes?.trim() || undefined,
+    recordedAt: existing?.recordedAt || nowIso,
+    updatedAt: nowIso,
+  };
+
+  if (existingIdx >= 0) {
+    store.tutoringAttendance[existingIdx] = saved;
+  } else {
+    store.tutoringAttendance.unshift(saved);
+  }
+
+  store.deletedTutoringAttendanceIds = store.deletedTutoringAttendanceIds.filter(
+    (id) => id !== recordId
+  );
+
+  const filePath = getStoreFilePath();
+  writeStoreToDisk(filePath, store);
+  await syncStoreSnapshotToNeon(store).catch(() => {});
+
+  return saved;
+}
+
+export async function deleteTutoringAttendanceRecord(recordId: string): Promise<boolean> {
+  const store = loadPersistedRecords();
+  if (!store.tutoringAttendance) store.tutoringAttendance = [];
+  if (!store.deletedTutoringAttendanceIds) store.deletedTutoringAttendanceIds = [];
+
+  if (!store.deletedTutoringAttendanceIds.includes(recordId)) {
+    store.deletedTutoringAttendanceIds.push(recordId);
+  }
+  store.tutoringAttendance = store.tutoringAttendance.filter((r) => r.id !== recordId);
+
+  const filePath = getStoreFilePath();
+  writeStoreToDisk(filePath, store);
+  await syncStoreSnapshotToNeon(store).catch(() => {});
+  return true;
+}
+
+export async function updateOneToOneEnrolmentAssignment(input: {
+  enrolmentId: string;
+  learnerId?: string;
+  tutorId?: string;
+  tutorName?: string;
+  preferredTimeSlot?: string;
+  deliveryMode?: TutoringDeliveryMode;
+  roomOrAddress?: string;
+  zoomLink?: string;
+  focusSubjects?: string;
+}): Promise<boolean> {
+  const store = loadPersistedRecords();
+  if (!store.enrolments) store.enrolments = [];
+  if (!store.learners) store.learners = [];
+
+  const enr = store.enrolments.find((e) => e.id === input.enrolmentId);
+  if (!enr) return false;
+
+  if (input.tutorId !== undefined) enr.tutorId = input.tutorId;
+  if (input.tutorName !== undefined) enr.tutorName = input.tutorName;
+  if (input.preferredTimeSlot !== undefined) enr.preferredTimeSlot = input.preferredTimeSlot;
+  if (input.deliveryMode !== undefined) {
+    enr.tutoringDeliveryMode = input.deliveryMode;
+    enr.trainingLocation =
+      input.deliveryMode === "physical_centre"
+        ? "Gloucester College Centre (Face-to-Face)"
+        : input.deliveryMode === "room_home_request"
+          ? "Home / Room Tutoring (By Request)"
+          : "Live 1-on-1 Online Interactive";
+  }
+  if (input.roomOrAddress !== undefined) enr.tutoringRoomOrAddress = input.roomOrAddress;
+  if (input.zoomLink !== undefined) enr.tutoringZoomLink = input.zoomLink;
+
+  const learner = store.learners.find((l) => l.id === (input.learnerId || enr.learnerId));
+  if (learner && input.focusSubjects !== undefined) {
+    learner.childConcerns = input.focusSubjects;
+  }
+
+  const filePath = getStoreFilePath();
+  writeStoreToDisk(filePath, store);
+  syncPersistedRecords(true);
+  await savePersistedRecord({
+    learner,
+    enrolment: enr,
+  }).catch(() => {});
+  await syncStoreSnapshotToNeon(store).catch(() => {});
+  return true;
+}
+
 
 
 

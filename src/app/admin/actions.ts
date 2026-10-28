@@ -2534,13 +2534,25 @@ export async function adminEnrolNewStudentAction(data: {
   postcode?: string;
   emergencyContactName?: string;
   emergencyContactPhone?: string;
+  learnerType?: "myself" | "child";
+  childName?: string;
+  childYearGroup?: string;
+  childConcerns?: string;
+  guardianName?: string;
+  guardianPhone?: string;
   courseId: string;
   courseTitle: string;
   levelLabel: string;
   classId: string;
   className: string;
+  tutorId?: string;
   tutorName: string;
   sessionTiming: "evening" | "afternoon" | "self_paced";
+  preferredTimeSlot?: string;
+  tutoringDeliveryMode?: "online" | "physical_centre" | "room_home_request";
+  tutoringRoomOrAddress?: string;
+  tutoringZoomLink?: string;
+  trainingLocation?: string;
   fundingType: "self_pay" | "funded" | "sponsored";
   paymentPlanType: "full" | "instalments";
   totalPrice: number;
@@ -2629,6 +2641,11 @@ export async function adminEnrolNewStudentAction(data: {
       ? Number(data.months)
       : 1;
 
+  const isOneToOneCourse =
+    data.courseId === "course-tutoring-children" ||
+    data.classId === "class-tutoring-kids" ||
+    Boolean(data.tutoringDeliveryMode);
+
   const newLearner: Learner = existingLearner
     ? {
         ...existingLearner,
@@ -2643,6 +2660,13 @@ export async function adminEnrolNewStudentAction(data: {
         emergencyContact: data.emergencyContactName
           ? `${data.emergencyContactName.trim()} (${data.emergencyContactPhone?.trim() || ""})`
           : existingLearner.emergencyContact,
+        learnerType: data.learnerType || (isOneToOneCourse ? "child" : existingLearner.learnerType),
+        childName: data.childName?.trim() || existingLearner.childName,
+        childYearGroup: data.childYearGroup?.trim() || existingLearner.childYearGroup,
+        childConcerns: data.childConcerns?.trim() || existingLearner.childConcerns,
+        guardianName: data.guardianName?.trim() || existingLearner.guardianName,
+        guardianPhone: data.guardianPhone?.trim() || existingLearner.guardianPhone,
+        emergencyPhone: data.emergencyContactPhone?.trim() || existingLearner.emergencyPhone,
         accessStatus: "active",
         lastActive: new Date().toISOString(),
       }
@@ -2661,11 +2685,30 @@ export async function adminEnrolNewStudentAction(data: {
         emergencyContact: data.emergencyContactName
           ? `${data.emergencyContactName.trim()} (${data.emergencyContactPhone?.trim() || ""})`
           : undefined,
+        learnerType: data.learnerType || (isOneToOneCourse ? "child" : "myself"),
+        childName: data.childName?.trim() || (isOneToOneCourse ? `${data.firstName.trim()} ${data.lastName.trim()}` : undefined),
+        childYearGroup: data.childYearGroup?.trim() || (isOneToOneCourse ? data.levelLabel : undefined),
+        childConcerns: data.childConcerns?.trim() || undefined,
+        guardianName: data.guardianName?.trim() || undefined,
+        guardianPhone: data.guardianPhone?.trim() || undefined,
+        guardianEmail: isOneToOneCourse ? cleanEmail : undefined,
+        emergencyPhone: data.emergencyContactPhone?.trim() || undefined,
         accessStatus: "active",
         enrolmentDate: enrolmentDateStr,
         lastActive: new Date().toISOString(),
         progressPercent: 0,
       };
+
+  const effectiveDeliveryMode = data.tutoringDeliveryMode || (isOneToOneCourse ? "online" : undefined);
+  const effectiveTrainingLocation =
+    data.trainingLocation ||
+    (effectiveDeliveryMode === "physical_centre"
+      ? "Gloucester College Centre (Face-to-Face)"
+      : effectiveDeliveryMode === "room_home_request"
+        ? "Home / Room Tutoring (By Request)"
+        : effectiveDeliveryMode === "online"
+          ? "Live 1-on-1 Online Interactive"
+          : undefined);
 
   const newEnrolment: Enrolment & { planMonths?: number } = {
     id: enrolmentId,
@@ -2674,17 +2717,22 @@ export async function adminEnrolNewStudentAction(data: {
     courseSlug: data.courseId.replace(/^course-/, ""),
     courseTitle: data.courseTitle,
     courseLevelLabel: data.levelLabel || "Accredited Qualification",
-    classId: data.classId,
+    classId: isOneToOneCourse && (!data.classId || data.classId !== "class-tutoring-kids") ? "class-tutoring-kids" : data.classId,
+    tutorId: data.tutorId,
     tutorName: data.tutorName,
     sessionTiming:
       data.sessionTiming === "evening" || data.sessionTiming === "afternoon"
         ? data.sessionTiming
         : undefined,
-    preferredTimeSlot: data.sessionTiming,
+    preferredTimeSlot: data.preferredTimeSlot?.trim() || data.sessionTiming,
+    trainingLocation: effectiveTrainingLocation,
+    tutoringDeliveryMode: effectiveDeliveryMode,
+    tutoringRoomOrAddress: data.tutoringRoomOrAddress?.trim() || undefined,
+    tutoringZoomLink: data.tutoringZoomLink?.trim() || undefined,
     status: "active",
     fundingType: data.fundingType === "funded" ? "funded" : "self_pay",
     enrolledAt: enrolmentDateStr,
-    assessmentMethod: "criteria",
+    assessmentMethod: isOneToOneCourse ? "completion" : "criteria",
     completedUnits: [],
     planMonths,
   };
@@ -2952,12 +3000,20 @@ export async function updateLearnerAndEnrolmentAction(data: {
   address?: string;
   postcode?: string;
   emergencyContact?: string;
+  childName?: string;
+  childConcerns?: string;
+  guardianName?: string;
   courseId?: string;
   courseTitle?: string;
   levelLabel?: string;
   classId?: string;
+  tutorId?: string;
   tutorName?: string;
   sessionTiming?: "evening" | "afternoon" | "self_paced";
+  preferredTimeSlot?: string;
+  tutoringDeliveryMode?: "online" | "physical_centre" | "room_home_request";
+  tutoringRoomOrAddress?: string;
+  tutoringZoomLink?: string;
   fundingType?: "self_pay" | "funded" | "sponsored";
   // Optional payment plan update (Owner / Super Admin):
   updatePaymentPlan?: boolean;
@@ -3018,6 +3074,11 @@ export async function updateLearnerAndEnrolmentAction(data: {
       data.emergencyContact !== undefined
         ? data.emergencyContact.trim()
         : existingLearner.emergencyContact,
+    childName: data.childName !== undefined ? data.childName.trim() || undefined : existingLearner.childName,
+    childConcerns:
+      data.childConcerns !== undefined ? data.childConcerns.trim() || undefined : existingLearner.childConcerns,
+    guardianName:
+      data.guardianName !== undefined ? data.guardianName.trim() || undefined : existingLearner.guardianName,
   };
 
   const lIdx = store.learners.findIndex((l) => l.id === data.learnerId);
@@ -3043,6 +3104,11 @@ export async function updateLearnerAndEnrolmentAction(data: {
           ? 1
           : (existingEnr as any).planMonths;
 
+      const effectiveDeliveryMode =
+        data.tutoringDeliveryMode !== undefined
+          ? data.tutoringDeliveryMode
+          : existingEnr.tutoringDeliveryMode;
+
       updatedEnrolment = {
         ...existingEnr,
         courseId: data.courseId || existingEnr.courseId,
@@ -3050,12 +3116,31 @@ export async function updateLearnerAndEnrolmentAction(data: {
         courseTitle: data.courseTitle || existingEnr.courseTitle,
         courseLevelLabel: data.levelLabel || existingEnr.courseLevelLabel,
         classId: data.classId || existingEnr.classId,
+        tutorId: data.tutorId !== undefined ? data.tutorId : existingEnr.tutorId,
         tutorName: data.tutorName || existingEnr.tutorName,
         sessionTiming:
           data.sessionTiming === "evening" || data.sessionTiming === "afternoon"
             ? data.sessionTiming
             : undefined,
-        preferredTimeSlot: data.sessionTiming || existingEnr.preferredTimeSlot,
+        preferredTimeSlot:
+          data.preferredTimeSlot?.trim() || data.sessionTiming || existingEnr.preferredTimeSlot,
+        tutoringDeliveryMode: effectiveDeliveryMode,
+        trainingLocation:
+          effectiveDeliveryMode === "physical_centre"
+            ? "Gloucester College Centre (Face-to-Face)"
+            : effectiveDeliveryMode === "room_home_request"
+              ? "Home / Room Tutoring (By Request)"
+              : effectiveDeliveryMode === "online"
+                ? "Live 1-on-1 Online Interactive"
+                : existingEnr.trainingLocation,
+        tutoringRoomOrAddress:
+          data.tutoringRoomOrAddress !== undefined
+            ? data.tutoringRoomOrAddress.trim() || undefined
+            : existingEnr.tutoringRoomOrAddress,
+        tutoringZoomLink:
+          data.tutoringZoomLink !== undefined
+            ? data.tutoringZoomLink.trim() || undefined
+            : existingEnr.tutoringZoomLink,
         fundingType: data.fundingType === "funded" ? "funded" : "self_pay",
         planMonths,
       };

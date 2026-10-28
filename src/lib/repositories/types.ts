@@ -88,6 +88,34 @@ export interface ClassSession {
 export type EnrolmentStatus = "active" | "paused" | "completed" | "cancelled";
 export type FundingStatus = "self_pay" | "funded";
 
+export type TutoringDeliveryMode = "online" | "physical_centre" | "room_home_request";
+export type TutoringAttendanceStatus =
+  | "present"
+  | "late"
+  | "absent_unexcused"
+  | "excused_rescheduled";
+
+export interface TutoringAttendanceRecord {
+  id: string;
+  enrolmentId: string;
+  learnerId: string;
+  studentName: string;
+  parentName?: string;
+  yearGroupOrLevel: string;
+  tutorId: string;
+  tutorName: string;
+  sessionDate: string; // YYYY-MM-DD
+  timeSlot: string;
+  durationMinutes: number;
+  deliveryMode: TutoringDeliveryMode;
+  locationOrRoom: string;
+  status: TutoringAttendanceStatus;
+  topicCovered: string;
+  homeworkOrNotes?: string;
+  recordedAt: string;
+  updatedAt?: string;
+}
+
 export interface Enrolment {
   id: string;
   learnerId: string;
@@ -101,6 +129,9 @@ export interface Enrolment {
   tutorId?: string;
   tutorName?: string;
   trainingLocation?: string;
+  tutoringDeliveryMode?: TutoringDeliveryMode;
+  tutoringRoomOrAddress?: string;
+  tutoringZoomLink?: string;
   enrolledAt: string;
   status: EnrolmentStatus;
   fundingType: FundingStatus;

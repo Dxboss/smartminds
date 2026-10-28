@@ -107,6 +107,14 @@ export const LearnersDirectory: React.FC<Props> = ({
   const [enrolClassId, setEnrolClassId] = useState(classes[0]?.id || "class-adult-care-apr26");
   const [enrolTutor, setEnrolTutor] = useState("Dr. Eleanor Vance");
   const [enrolTiming, setEnrolTiming] = useState<"evening" | "afternoon" | "self_paced">("evening");
+  const [enrolChildName, setEnrolChildName] = useState("");
+  const [enrolChildConcerns, setEnrolChildConcerns] = useState("");
+  const [enrolGuardianName, setEnrolGuardianName] = useState("");
+  const [enrolTutoringSlot, setEnrolTutoringSlot] = useState("Saturday, 10:00am");
+  const [enrolTutoringDeliveryMode, setEnrolTutoringDeliveryMode] = useState<
+    "online" | "physical_centre" | "room_home_request"
+  >("physical_centre");
+  const [enrolTutoringRoomOrAddress, setEnrolTutoringRoomOrAddress] = useState("");
   const [enrolFundingType, setEnrolFundingType] = useState<"self_pay" | "funded" | "sponsored">("self_pay");
   const [enrolPlanType, setEnrolPlanType] = useState<"full" | "instalments">("instalments");
   const [enrolPrice, setEnrolPrice] = useState(
@@ -154,6 +162,14 @@ export const LearnersDirectory: React.FC<Props> = ({
   const [editClassId, setEditClassId] = useState("");
   const [editTutorName, setEditTutorName] = useState("");
   const [editTiming, setEditTiming] = useState<"evening" | "afternoon" | "self_paced">("evening");
+  const [editChildName, setEditChildName] = useState("");
+  const [editChildConcerns, setEditChildConcerns] = useState("");
+  const [editGuardianName, setEditGuardianName] = useState("");
+  const [editTutoringSlot, setEditTutoringSlot] = useState("Saturday, 10:00am");
+  const [editTutoringDeliveryMode, setEditTutoringDeliveryMode] = useState<
+    "online" | "physical_centre" | "room_home_request"
+  >("physical_centre");
+  const [editTutoringRoomOrAddress, setEditTutoringRoomOrAddress] = useState("");
   const [editFundingType, setEditFundingType] = useState<"self_pay" | "funded" | "sponsored">("self_pay");
   const [editPlanType, setEditPlanType] = useState<"full" | "instalments">("instalments");
   const [editMonths, setEditMonths] = useState<string>("6");
@@ -173,6 +189,12 @@ export const LearnersDirectory: React.FC<Props> = ({
     setEnrolPostcode("");
     setEnrolEmergencyName("");
     setEnrolEmergencyPhone("");
+    setEnrolChildName("");
+    setEnrolChildConcerns("");
+    setEnrolGuardianName("");
+    setEnrolTutoringSlot("Saturday, 10:00am");
+    setEnrolTutoringDeliveryMode("physical_centre");
+    setEnrolTutoringRoomOrAddress("");
     setEnrolIsHistorical(false);
     setIsEnrolModalOpen(true);
   };
@@ -187,6 +209,9 @@ export const LearnersDirectory: React.FC<Props> = ({
     setEnrolDob(learner.dateOfBirth || "");
     setEnrolAddress(learner.address || "");
     setEnrolPostcode(learner.postcode || "");
+    setEnrolChildName(learner.childName || "");
+    setEnrolChildConcerns(learner.childConcerns || "");
+    setEnrolGuardianName(learner.guardianName || "");
     setEnrolIsHistorical(false);
     setIsEnrolModalOpen(true);
   };
@@ -203,13 +228,25 @@ export const LearnersDirectory: React.FC<Props> = ({
     setEditClassId(enr.classId);
     setEditTutorName(
       enr.tutorName ||
-        classes.find((c) => c.id === enr.classId)?.tutorName ||
-        tutors[0]?.name ||
-        "Unassigned / TBA"
+      classes.find((c) => c.id === enr.classId)?.tutorName ||
+      tutors[0]?.name ||
+      "Unassigned / TBA"
     );
     setEditTiming(
-      (enr.sessionTiming as any) || (enr.preferredTimeSlot as any) || "evening"
+      (enr.sessionTiming as any) ||
+      (enr.courseId === "course-tutoring-children" ? "self_paced" : "evening")
     );
+    setEditTutoringSlot(enr.preferredTimeSlot || "Saturday, 10:00am");
+    const loc = (enr.trainingLocation || "").toLowerCase();
+    setEditTutoringDeliveryMode(
+      enr.tutoringDeliveryMode ||
+      (loc.includes("home") || loc.includes("room") || loc.includes("request")
+        ? "room_home_request"
+        : loc.includes("gloucester") || loc.includes("centre") || loc.includes("face")
+          ? "physical_centre"
+          : "online")
+    );
+    setEditTutoringRoomOrAddress(enr.tutoringRoomOrAddress || "");
     setEditFundingType((enr.fundingType as any) || "self_pay");
 
     const plan = paymentPlans.find(
@@ -251,6 +288,9 @@ export const LearnersDirectory: React.FC<Props> = ({
     setEditAddress(learner.address || "");
     setEditPostcode(learner.postcode || "");
     setEditEmergencyContact(learner.emergencyContact || "");
+    setEditChildName(learner.childName || "");
+    setEditChildConcerns(learner.childConcerns || "");
+    setEditGuardianName(learner.guardianName || "");
 
     const learnerEnrs = enrolments.filter((e) => e.learnerId === learner.id);
     const targetEnr = specificEnr || learnerEnrs[0];
@@ -263,6 +303,9 @@ export const LearnersDirectory: React.FC<Props> = ({
     setIsSavingEdit(true);
     try {
       const editCourseObj = availableCourses.find((c) => c.id === editCourseId);
+      const isEditOneToOne =
+        editCourseId === "course-tutoring-children" || editClassId === "class-tutoring-kids";
+      const matchedTutor = tutors.find((t) => t.name === editTutorName);
       const res = await updateLearnerAndEnrolmentAction({
         learnerId: editingLearner.id,
         enrolmentId: editEnrolmentId || undefined,
@@ -274,12 +317,19 @@ export const LearnersDirectory: React.FC<Props> = ({
         address: editAddress,
         postcode: editPostcode,
         emergencyContact: editEmergencyContact,
+        childName: isEditOneToOne ? editChildName : undefined,
+        childConcerns: isEditOneToOne ? editChildConcerns : undefined,
+        guardianName: isEditOneToOne ? editGuardianName : undefined,
         courseId: editCourseId || undefined,
         courseTitle: editCourseObj?.title || undefined,
         levelLabel: editLevelLabel || undefined,
         classId: editClassId || undefined,
+        tutorId: matchedTutor?.id || undefined,
         tutorName: editTutorName || undefined,
         sessionTiming: editTiming,
+        preferredTimeSlot: isEditOneToOne ? editTutoringSlot : undefined,
+        tutoringDeliveryMode: isEditOneToOne ? editTutoringDeliveryMode : undefined,
+        tutoringRoomOrAddress: isEditOneToOne ? editTutoringRoomOrAddress : undefined,
         fundingType: editFundingType,
         updatePaymentPlan: canManagePayments,
         paymentPlanType: editPlanType,
@@ -429,8 +479,8 @@ export const LearnersDirectory: React.FC<Props> = ({
     setTargetClassId(enr.classId);
     setSelectedTutor(
       enr.tutorName ||
-        classes.find((c) => c.id === enr.classId)?.tutorName ||
-        "Dr. Eleanor Vance"
+      classes.find((c) => c.id === enr.classId)?.tutorName ||
+      "Dr. Eleanor Vance"
     );
     setSelectedTiming(enr.sessionTiming || "evening");
   };
@@ -492,14 +542,14 @@ export const LearnersDirectory: React.FC<Props> = ({
         prev.map((enr) =>
           enr.id === movingEnrolment.id
             ? {
-                ...enr,
-                classId: targetClassId,
-                tutorName: selectedTutor,
-                sessionTiming: selectedTiming,
-                courseId: targetClass?.courseId || enr.courseId,
-                courseTitle: targetClass?.name.split(" — ")[0] || enr.courseTitle,
-                courseLevelLabel: targetClass?.courseLevelLabel || enr.courseLevelLabel,
-              }
+              ...enr,
+              classId: targetClassId,
+              tutorName: selectedTutor,
+              sessionTiming: selectedTiming,
+              courseId: targetClass?.courseId || enr.courseId,
+              courseTitle: targetClass?.name.split(" — ")[0] || enr.courseTitle,
+              courseLevelLabel: targetClass?.courseLevelLabel || enr.courseLevelLabel,
+            }
             : enr
         )
       );
@@ -570,28 +620,26 @@ export const LearnersDirectory: React.FC<Props> = ({
               tab === "archived"
                 ? learners.filter((l) => l.accessStatus === "archived").length
                 : tab === "active"
-                ? learners.filter((l) => l.accessStatus === "active").length
-                : tab === "paused"
-                ? learners.filter((l) => l.accessStatus === "paused").length
-                : undefined;
+                  ? learners.filter((l) => l.accessStatus === "active").length
+                  : tab === "paused"
+                    ? learners.filter((l) => l.accessStatus === "paused").length
+                    : undefined;
 
             return (
               <button
                 key={tab}
                 type="button"
                 onClick={() => setFilter(tab)}
-                className={`px-3 py-1.5 rounded-sm text-xs font-semibold capitalize transition-colors flex items-center gap-1.5 cursor-pointer ${
-                  filter === tab
+                className={`px-3 py-1.5 rounded-sm text-xs font-semibold capitalize transition-colors flex items-center gap-1.5 cursor-pointer ${filter === tab
                     ? "bg-navy-900 text-white"
                     : "bg-paper text-ink-soft hover:text-ink border border-line"
-                }`}
+                  }`}
               >
                 <span>{tab === "funded" ? "Workplace funded" : tab}</span>
                 {count !== undefined && count > 0 && (
                   <span
-                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                      filter === tab ? "bg-white/20 text-white" : "bg-line text-ink"
-                    }`}
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${filter === tab ? "bg-white/20 text-white" : "bg-line text-ink"
+                      }`}
                   >
                     {count}
                   </span>
@@ -664,15 +712,21 @@ export const LearnersDirectory: React.FC<Props> = ({
                   return (
                     <tr
                       key={learner.id}
-                      className={`hover:bg-paper/40 transition-colors ${
-                        isArchived ? "bg-slate-50/50 opacity-80" : ""
-                      }`}
+                      className={`hover:bg-paper/40 transition-colors ${isArchived ? "bg-slate-50/50 opacity-80" : ""
+                        }`}
                     >
                       <td className="py-3 px-4 align-top">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-bold text-navy-900 block text-sm">
-                            {learner.firstName} {learner.lastName}
+                            {learner.childName
+                              ? `${learner.childName}`
+                              : `${learner.firstName} ${learner.lastName}`}
                           </span>
+                          {learner.childName && (
+                            <span className="px-1.5 py-0.5 rounded-xs bg-gold-300/40 border border-gold-500/40 text-navy-900 text-[9px] font-bold uppercase tracking-wider">
+                              1-on-1 Pupil
+                            </span>
+                          )}
                           {learnerEnrs.length > 1 && (
                             <span className="px-1.5 py-0.5 rounded-xs bg-navy-900 text-gold-300 text-[9px] font-bold uppercase tracking-wider">
                               {learnerEnrs.length} Courses
@@ -684,6 +738,11 @@ export const LearnersDirectory: React.FC<Props> = ({
                             </span>
                           )}
                         </div>
+                        {learner.childName && (
+                          <div className="text-[11px] font-medium text-navy-900 mt-0.5">
+                            Parent/Guardian: {learner.guardianName || `${learner.firstName} ${learner.lastName}`}
+                          </div>
+                        )}
                         <div className="text-[11px] text-ink-soft">
                           <span>{learner.email}</span> · <span>{learner.phone}</span>
                         </div>
@@ -694,6 +753,21 @@ export const LearnersDirectory: React.FC<Props> = ({
                         ) : (
                           learnerEnrs.map((itemEnr, idx) => {
                             const assignedClass = classes.find((c) => c.id === itemEnr.classId);
+                            const isOneToOneEnr =
+                              itemEnr.courseId === "course-tutoring-children" ||
+                              itemEnr.classId === "class-tutoring-kids" ||
+                              Boolean(itemEnr.tutoringDeliveryMode);
+                            const locLower = (itemEnr.trainingLocation || "").toLowerCase();
+                            const deliveryModeLabel =
+                              itemEnr.tutoringDeliveryMode === "room_home_request" ||
+                                locLower.includes("home") ||
+                                locLower.includes("room")
+                                ? "Home / Room Tutoring"
+                                : itemEnr.tutoringDeliveryMode === "physical_centre" ||
+                                  locLower.includes("gloucester") ||
+                                  locLower.includes("centre")
+                                  ? "Gloucester Centre (In-Person)"
+                                  : "Live 1-on-1 Online";
                             return (
                               <div
                                 key={itemEnr.id}
@@ -722,12 +796,20 @@ export const LearnersDirectory: React.FC<Props> = ({
                                   </span>
                                   <span>·</span>
                                   <span className="capitalize font-semibold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded-xs border border-emerald-200">
-                                    {itemEnr.sessionTiming === "afternoon"
-                                      ? "Afternoon (14:00–16:00)"
-                                      : itemEnr.sessionTiming === "evening"
-                                      ? "Evening (18:30–20:30)"
-                                      : "Flexible / 1-on-1"}
+                                    {isOneToOneEnr && itemEnr.preferredTimeSlot && itemEnr.preferredTimeSlot !== "self_paced"
+                                      ? itemEnr.preferredTimeSlot
+                                      : itemEnr.sessionTiming === "afternoon"
+                                        ? "Afternoon (14:00–16:00)"
+                                        : itemEnr.sessionTiming === "evening"
+                                          ? "Evening (18:30–20:30)"
+                                          : "Flexible / 1-on-1"}
                                   </span>
+                                  {isOneToOneEnr && (
+                                    <span className="px-1.5 py-0.5 rounded-xs bg-navy-900/10 text-navy-900 font-semibold text-[10px]">
+                                      {deliveryModeLabel}
+                                      {itemEnr.tutoringRoomOrAddress ? ` — ${itemEnr.tutoringRoomOrAddress}` : ""}
+                                    </span>
+                                  )}
                                 </div>
                               </div>
                             );
@@ -736,24 +818,22 @@ export const LearnersDirectory: React.FC<Props> = ({
                       </td>
                       <td className="py-3 px-4 align-top">
                         <span
-                          className={`px-2 py-0.5 rounded-sm font-semibold text-[10px] capitalize border ${
-                            isArchived
+                          className={`px-2 py-0.5 rounded-sm font-semibold text-[10px] capitalize border ${isArchived
                               ? "bg-slate-100 text-slate-700 border-slate-300"
                               : isPaused
-                              ? "bg-amber-50 text-amber-800 border-amber-200"
-                              : "bg-emerald-50 text-emerald-800 border-emerald-200"
-                          }`}
+                                ? "bg-amber-50 text-amber-800 border-amber-200"
+                                : "bg-emerald-50 text-emerald-800 border-emerald-200"
+                            }`}
                         >
                           {learner.accessStatus}
                         </span>
                       </td>
                       <td className="py-3 px-4 align-top">
                         <span
-                          className={`px-2 py-0.5 rounded-sm text-[10px] font-semibold uppercase ${
-                            enr?.fundingType === "funded"
+                          className={`px-2 py-0.5 rounded-sm text-[10px] font-semibold uppercase ${enr?.fundingType === "funded"
                               ? "bg-gold-500/20 text-navy-900 border border-gold-500/40"
                               : "bg-paper text-ink-soft border border-line"
-                          }`}
+                            }`}
                         >
                           {enr?.fundingType === "funded" ? "Funded" : "Self-Pay"}
                         </span>
@@ -779,11 +859,10 @@ export const LearnersDirectory: React.FC<Props> = ({
                                   <>
                                     <div className="flex items-center gap-1.5 flex-wrap">
                                       <span
-                                        className={`px-1.5 py-0.5 rounded-xs text-[9px] font-bold uppercase tracking-wider border ${
-                                          pm > 1
+                                        className={`px-1.5 py-0.5 rounded-xs text-[9px] font-bold uppercase tracking-wider border ${pm > 1
                                             ? "bg-navy-900/10 text-navy-900 border-navy-900/20"
                                             : "bg-emerald-50 text-emerald-900 border-emerald-200"
-                                        }`}
+                                          }`}
                                       >
                                         {pm > 1 ? `${pm}-Month Plan` : "Full Payment"}
                                       </span>
@@ -1016,11 +1095,10 @@ export const LearnersDirectory: React.FC<Props> = ({
                   <button
                     type="button"
                     onClick={() => setSelectedTiming("afternoon")}
-                    className={`p-2.5 rounded-sm border text-left transition-all ${
-                      selectedTiming === "afternoon"
+                    className={`p-2.5 rounded-sm border text-left transition-all ${selectedTiming === "afternoon"
                         ? "border-navy-900 bg-navy-50 font-bold"
                         : "border-line bg-white hover:bg-paper"
-                    }`}
+                      }`}
                   >
                     <span className="block font-bold text-navy-900">Afternoon Session</span>
                     <span className="text-[11px] text-ink-soft">14:00 – 16:00 UK Time</span>
@@ -1028,11 +1106,10 @@ export const LearnersDirectory: React.FC<Props> = ({
                   <button
                     type="button"
                     onClick={() => setSelectedTiming("evening")}
-                    className={`p-2.5 rounded-sm border text-left transition-all ${
-                      selectedTiming === "evening"
+                    className={`p-2.5 rounded-sm border text-left transition-all ${selectedTiming === "evening"
                         ? "border-navy-900 bg-navy-50 font-bold"
                         : "border-line bg-white hover:bg-paper"
-                    }`}
+                      }`}
                   >
                     <span className="block font-bold text-navy-900">Evening Session</span>
                     <span className="text-[11px] text-ink-soft">18:30 – 20:30 UK Time</span>
@@ -1200,13 +1277,12 @@ export const LearnersDirectory: React.FC<Props> = ({
                       Learner Record
                     </span>
                     <span
-                      className={`px-2 py-0.2 rounded-sm text-[10px] font-semibold border ${
-                        selectedLearner.accessStatus === "active"
+                      className={`px-2 py-0.2 rounded-sm text-[10px] font-semibold border ${selectedLearner.accessStatus === "active"
                           ? "bg-emerald-50 text-emerald-800 border-emerald-200"
                           : selectedLearner.accessStatus === "archived"
-                          ? "bg-slate-100 text-slate-700 border-slate-300"
-                          : "bg-amber-50 text-amber-800 border-amber-200"
-                      }`}
+                            ? "bg-slate-100 text-slate-700 border-slate-300"
+                            : "bg-amber-50 text-amber-800 border-amber-200"
+                        }`}
                     >
                       {selectedLearner.accessStatus}
                     </span>
@@ -1345,8 +1421,8 @@ export const LearnersDirectory: React.FC<Props> = ({
                                   {itemEnr.fundingType === "funded"
                                     ? "Funded"
                                     : pm > 1
-                                    ? `${pm}-Month Instalment Plan`
-                                    : "Full Upfront Payment"}
+                                      ? `${pm}-Month Instalment Plan`
+                                      : "Full Upfront Payment"}
                                 </span>
                               </span>
                               {itemPlan &&
@@ -1381,11 +1457,10 @@ export const LearnersDirectory: React.FC<Props> = ({
                                 <div className="bg-paper p-2 rounded border border-line">
                                   <span className="text-ink-soft block text-[10px]">Balance Due</span>
                                   <strong
-                                    className={`font-mono ${
-                                      itemPlan.balanceRemainingGbp > 0
+                                    className={`font-mono ${itemPlan.balanceRemainingGbp > 0
                                         ? "text-amber-800"
                                         : "text-emerald-700"
-                                    }`}
+                                      }`}
                                   >
                                     £{itemPlan.balanceRemainingGbp.toLocaleString("en-GB")}
                                   </strong>
@@ -1553,6 +1628,12 @@ export const LearnersDirectory: React.FC<Props> = ({
                         ? Math.round((remainingToSpread / monthsNum) * 100) / 100
                         : remainingToSpread;
 
+                    const isEnrolOneToOne =
+                      enrolCourseId === "course-tutoring-children" ||
+                      enrolClassId === "class-tutoring-kids" ||
+                      Boolean(selectedCourseObj?.is_private_tutoring);
+                    const matchedEnrolTutor = tutors.find((t) => t.name === enrolTutor);
+
                     const res = await adminEnrolNewStudentAction({
                       existingLearnerId: enrolExistingLearner?.id,
                       firstName: enrolFirstName,
@@ -1564,13 +1645,29 @@ export const LearnersDirectory: React.FC<Props> = ({
                       postcode: enrolPostcode || undefined,
                       emergencyContactName: enrolEmergencyName || undefined,
                       emergencyContactPhone: enrolEmergencyPhone || undefined,
+                      learnerType: isEnrolOneToOne ? "child" : "myself",
+                      childName: isEnrolOneToOne
+                        ? enrolChildName.trim() || `${enrolFirstName.trim()} ${enrolLastName.trim()}`
+                        : undefined,
+                      childYearGroup: isEnrolOneToOne ? enrolLevelLabel : undefined,
+                      childConcerns: isEnrolOneToOne ? enrolChildConcerns.trim() || undefined : undefined,
+                      guardianName: isEnrolOneToOne ? enrolGuardianName.trim() || undefined : undefined,
+                      guardianPhone: isEnrolOneToOne ? enrolPhone : undefined,
                       courseId: enrolCourseId,
                       courseTitle: selectedCourseObj?.title || "Accredited Qualification",
                       levelLabel: enrolLevelLabel,
-                      classId: enrolClassId,
-                      className: classes.find((c) => c.id === enrolClassId)?.name || "Evening Cohort",
+                      classId: isEnrolOneToOne ? "class-tutoring-kids" : enrolClassId,
+                      className: isEnrolOneToOne
+                        ? "1-on-1 Academic Tutoring"
+                        : classes.find((c) => c.id === enrolClassId)?.name || "Evening Cohort",
+                      tutorId: matchedEnrolTutor?.id,
                       tutorName: enrolTutor,
-                      sessionTiming: enrolTiming,
+                      sessionTiming: isEnrolOneToOne ? "self_paced" : enrolTiming,
+                      preferredTimeSlot: isEnrolOneToOne ? enrolTutoringSlot : enrolTiming,
+                      tutoringDeliveryMode: isEnrolOneToOne ? enrolTutoringDeliveryMode : undefined,
+                      tutoringRoomOrAddress: isEnrolOneToOne
+                        ? enrolTutoringRoomOrAddress.trim() || undefined
+                        : undefined,
                       fundingType: enrolFundingType,
                       paymentPlanType: enrolPlanType,
                       totalPrice: priceNum,
@@ -1721,6 +1818,13 @@ export const LearnersDirectory: React.FC<Props> = ({
                           const cid = e.target.value;
                           setEnrolCourseId(cid);
                           const c = availableCourses.find((x) => x.id === cid);
+                          if (cid === "course-tutoring-children" || c?.is_private_tutoring) {
+                            setEnrolClassId("class-tutoring-kids");
+                            setEnrolTiming("self_paced");
+                            if (c?.tutoring_slots?.[0]) {
+                              setEnrolTutoringSlot(c.tutoring_slots[0]);
+                            }
+                          }
                           if (c && c.levels && c.levels.length > 0) {
                             const firstLvl = c.levels[0].level_label;
                             setEnrolLevelLabel(firstLvl);
@@ -1838,6 +1942,145 @@ export const LearnersDirectory: React.FC<Props> = ({
                         <option value="self_paced">Flexible / 1-on-1 Tutoring</option>
                       </select>
                     </div>
+
+                    {(enrolCourseId === "course-tutoring-children" ||
+                      enrolClassId === "class-tutoring-kids" ||
+                      Boolean(selectedCourseObj?.is_private_tutoring)) && (
+                        <div className="sm:col-span-2 p-3 rounded-sm bg-navy-900/5 border border-navy-900/15 space-y-3 mt-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-bold text-navy-900 uppercase tracking-wider">
+                              1-on-1 Private Tutoring — Child, Parent &amp; Delivery Setup
+                            </span>
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-xs bg-gold-300 text-navy-900">
+                              1-on-1 Tutoring
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-[11px] font-semibold text-navy-900 mb-1">
+                                Child / Pupil Full Name
+                              </label>
+                              <input
+                                type="text"
+                                value={enrolChildName}
+                                onChange={(e) => setEnrolChildName(e.target.value)}
+                                placeholder="Leave blank if First/Last Name above is the child's name"
+                                className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[11px] font-semibold text-navy-900 mb-1">
+                                Parent / Guardian Full Name
+                              </label>
+                              <input
+                                type="text"
+                                value={enrolGuardianName}
+                                onChange={(e) => setEnrolGuardianName(e.target.value)}
+                                placeholder="e.g. Sarah Smith (Parent/Guardian)"
+                                className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[11px] font-semibold text-navy-900 mb-1">
+                                Weekly Tutoring Day &amp; Time Slot *
+                              </label>
+                              <select
+                                value={enrolTutoringSlot}
+                                onChange={(e) => setEnrolTutoringSlot(e.target.value)}
+                                className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-medium"
+                              >
+                                {(
+                                  selectedCourseObj?.tutoring_slots || [
+                                    "Thursday, 4:00pm",
+                                    "Thursday, 5:00pm",
+                                    "Friday, 4:00pm",
+                                    "Friday, 5:00pm",
+                                    "Saturday, 9:00am",
+                                    "Saturday, 10:00am",
+                                    "Saturday, 11:00am",
+                                    "Saturday, 12:00pm",
+                                    "Saturday, 1:00pm",
+                                    "Saturday, 2:00pm",
+                                    "Saturday, 3:00pm",
+                                    "Saturday, 4:00pm",
+                                    "Saturday, 5:00pm",
+                                  ]
+                                ).map((slot) => (
+                                  <option key={slot} value={slot}>
+                                    {slot}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="block text-[11px] font-semibold text-navy-900 mb-1">
+                                1-on-1 Delivery Mode *
+                              </label>
+                              <select
+                                value={enrolTutoringDeliveryMode}
+                                onChange={(e) =>
+                                  setEnrolTutoringDeliveryMode(
+                                    e.target.value as
+                                    | "online"
+                                    | "physical_centre"
+                                    | "room_home_request"
+                                  )
+                                }
+                                className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-medium"
+                              >
+                                <option value="physical_centre">
+                                  Gloucester College Centre (In-Person Room)
+                                </option>
+                                <option value="online">
+                                  Live 1-on-1 Online (Zoom Classroom)
+                                </option>
+                                <option value="room_home_request">
+                                  Home / Room Tutoring (Requested Location)
+                                </option>
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="block text-[11px] font-semibold text-navy-900 mb-1">
+                                {enrolTutoringDeliveryMode === "physical_centre"
+                                  ? "Assigned Centre Room / Bay"
+                                  : enrolTutoringDeliveryMode === "room_home_request"
+                                    ? "Requested Home / Room Address"
+                                    : "1-on-1 Zoom Classroom Link"}
+                              </label>
+                              <input
+                                type="text"
+                                value={enrolTutoringRoomOrAddress}
+                                onChange={(e) => setEnrolTutoringRoomOrAddress(e.target.value)}
+                                placeholder={
+                                  enrolTutoringDeliveryMode === "physical_centre"
+                                    ? "e.g. Tutoring Room 2, Gloucester Centre"
+                                    : enrolTutoringDeliveryMode === "room_home_request"
+                                      ? "e.g. 14 Brunswick Square, Gloucester GL1 1UG"
+                                      : "e.g. https://zoom.us/j/1to1-classroom"
+                                }
+                                className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[11px] font-semibold text-navy-900 mb-1">
+                                Focus Subjects / Learning Notes
+                              </label>
+                              <input
+                                type="text"
+                                value={enrolChildConcerns}
+                                onChange={(e) => setEnrolChildConcerns(e.target.value)}
+                                placeholder="e.g. Maths & English SATs / GCSE Exam Prep"
+                                className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
                   </div>
                 </div>
 
@@ -1988,8 +2231,8 @@ export const LearnersDirectory: React.FC<Props> = ({
                         {enrolIsHistorical
                           ? "Amount Paid to Date (£) *"
                           : enrolPlanType === "full"
-                          ? "Amount Paid Today (£)"
-                          : "Deposit / Amount Paid (£)"}
+                            ? "Amount Paid Today (£)"
+                            : "Deposit / Amount Paid (£)"}
                       </label>
                       <input
                         type="number"
@@ -2028,10 +2271,10 @@ export const LearnersDirectory: React.FC<Props> = ({
                     const paid = enrolIsHistorical
                       ? parseFloat(enrolAmountPaidToDate) || 0
                       : enrolPaymentStatus === "pending"
-                      ? 0
-                      : enrolPlanType === "full"
-                      ? parseFloat(enrolDeposit) || total
-                      : parseFloat(enrolDeposit) || 0;
+                        ? 0
+                        : enrolPlanType === "full"
+                          ? parseFloat(enrolDeposit) || total
+                          : parseFloat(enrolDeposit) || 0;
                     const bal = Math.max(0, total - paid);
                     const mCount = enrolPlanType === "instalments" ? parseInt(enrolMonths, 10) || 6 : 1;
                     const monthlyAmt = mCount > 1 ? Math.round((bal / mCount) * 100) / 100 : bal;
@@ -2064,8 +2307,8 @@ export const LearnersDirectory: React.FC<Props> = ({
                             {bal <= 0
                               ? "Settled (£0)"
                               : enrolPlanType === "instalments"
-                              ? `£${monthlyAmt.toFixed(2)}/mo`
-                              : `£${bal.toFixed(2)} Due`}
+                                ? `£${monthlyAmt.toFixed(2)}/mo`
+                                : `£${bal.toFixed(2)} Due`}
                           </strong>
                         </div>
                       </div>
@@ -2094,8 +2337,8 @@ export const LearnersDirectory: React.FC<Props> = ({
                       {isEnrolling
                         ? "Saving Enrolment..."
                         : enrolExistingLearner
-                        ? "Add Course & Save Payment Plan"
-                        : "Confirm & Send Welcome Email"}
+                          ? "Add Course & Save Payment Plan"
+                          : "Confirm & Send Welcome Email"}
                     </span>
                   </button>
                 </div>
@@ -2355,6 +2598,143 @@ export const LearnersDirectory: React.FC<Props> = ({
                           <option value="self_paced">Flexible / 1-on-1 Tutoring</option>
                         </select>
                       </div>
+
+                      {(editCourseId === "course-tutoring-children" ||
+                        editClassId === "class-tutoring-kids") && (
+                          <div className="sm:col-span-2 p-3 rounded-sm bg-navy-900/5 border border-navy-900/15 space-y-3 mt-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] font-bold text-navy-900 uppercase tracking-wider">
+                                1-on-1 Tutoring — Child, Parent &amp; Delivery Assignment
+                              </span>
+                              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-xs bg-gold-300 text-navy-900">
+                                1-on-1 Tutoring
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-[11px] font-semibold text-navy-900 mb-1">
+                                  Child / Pupil Full Name
+                                </label>
+                                <input
+                                  type="text"
+                                  value={editChildName}
+                                  onChange={(e) => setEditChildName(e.target.value)}
+                                  placeholder="e.g. Leo Smith"
+                                  className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-[11px] font-semibold text-navy-900 mb-1">
+                                  Parent / Guardian Full Name
+                                </label>
+                                <input
+                                  type="text"
+                                  value={editGuardianName}
+                                  onChange={(e) => setEditGuardianName(e.target.value)}
+                                  placeholder="e.g. Sarah Smith"
+                                  className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-[11px] font-semibold text-navy-900 mb-1">
+                                  Weekly Tutoring Day &amp; Time Slot
+                                </label>
+                                <select
+                                  value={editTutoringSlot}
+                                  onChange={(e) => setEditTutoringSlot(e.target.value)}
+                                  className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-medium"
+                                >
+                                  {[
+                                    "Thursday, 4:00pm",
+                                    "Thursday, 5:00pm",
+                                    "Friday, 4:00pm",
+                                    "Friday, 5:00pm",
+                                    "Saturday, 9:00am",
+                                    "Saturday, 10:00am",
+                                    "Saturday, 11:00am",
+                                    "Saturday, 12:00pm",
+                                    "Saturday, 1:00pm",
+                                    "Saturday, 2:00pm",
+                                    "Saturday, 3:00pm",
+                                    "Saturday, 4:00pm",
+                                    "Saturday, 5:00pm",
+                                  ].map((slot) => (
+                                    <option key={slot} value={slot}>
+                                      {slot}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+
+                              <div>
+                                <label className="block text-[11px] font-semibold text-navy-900 mb-1">
+                                  1-on-1 Delivery Mode
+                                </label>
+                                <select
+                                  value={editTutoringDeliveryMode}
+                                  onChange={(e) =>
+                                    setEditTutoringDeliveryMode(
+                                      e.target.value as
+                                      | "online"
+                                      | "physical_centre"
+                                      | "room_home_request"
+                                    )
+                                  }
+                                  className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-medium"
+                                >
+                                  <option value="physical_centre">
+                                    Gloucester College Centre (In-Person Room)
+                                  </option>
+                                  <option value="online">
+                                    Live 1-on-1 Online (Zoom Classroom)
+                                  </option>
+                                  <option value="room_home_request">
+                                    Home / Room Tutoring (Requested Location)
+                                  </option>
+                                </select>
+                              </div>
+
+                              <div>
+                                <label className="block text-[11px] font-semibold text-navy-900 mb-1">
+                                  {editTutoringDeliveryMode === "physical_centre"
+                                    ? "Assigned Centre Room / Bay"
+                                    : editTutoringDeliveryMode === "room_home_request"
+                                      ? "Requested Home / Room Address"
+                                      : "1-on-1 Zoom Classroom Link"}
+                                </label>
+                                <input
+                                  type="text"
+                                  value={editTutoringRoomOrAddress}
+                                  onChange={(e) => setEditTutoringRoomOrAddress(e.target.value)}
+                                  placeholder={
+                                    editTutoringDeliveryMode === "physical_centre"
+                                      ? "e.g. Tutoring Room 2, Gloucester Centre"
+                                      : editTutoringDeliveryMode === "room_home_request"
+                                        ? "e.g. 14 Brunswick Square, Gloucester GL1 1UG"
+                                        : "e.g. https://zoom.us/j/1to1-classroom"
+                                  }
+                                  className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-[11px] font-semibold text-navy-900 mb-1">
+                                  Focus Subjects / Learning Notes
+                                </label>
+                                <input
+                                  type="text"
+                                  value={editChildConcerns}
+                                  onChange={(e) => setEditChildConcerns(e.target.value)}
+                                  placeholder="e.g. Maths & English SATs / GCSE Exam Prep"
+                                  className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
                     </div>
                   </div>
                 )}
@@ -2465,8 +2845,8 @@ export const LearnersDirectory: React.FC<Props> = ({
                             {bal <= 0
                               ? "Settled (£0)"
                               : editPlanType === "instalments"
-                              ? `£${monthly.toFixed(2)} / month`
-                              : `£${bal.toFixed(2)} Due`}
+                                ? `£${monthly.toFixed(2)} / month`
+                                : `£${bal.toFixed(2)} Due`}
                           </span>
                         </div>
                       );

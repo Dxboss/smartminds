@@ -56,6 +56,8 @@ export interface EnrolmentFormInput {
   guardianEmail?: string;
   childName?: string;
   childYearGroup?: string;
+  childConcerns?: string;
+  emergencyPhone?: string;
   trainingLocation?: string;
   stripeSessionId?: string;
   stripePaymentIntentId?: string;
@@ -220,6 +222,9 @@ export async function processSelfEnrolmentAction(input: EnrolmentFormInput) {
       lastName,
       email: cleanEmail,
       phone: input.phone.trim(),
+      dateOfBirth: input.dob?.trim() || undefined,
+      address: input.address?.trim() || undefined,
+      postcode: input.postcode?.trim() || undefined,
       enrolmentDate: new Date().toISOString(),
       accessStatus: "active",
       notes: `Self-enrolled: ${course.title} (${level.level_label})${input.dob ? ` | DOB: ${input.dob}` : ""}${input.address ? ` | Address: ${input.address}` : ""}${input.childName ? ` | Child: ${input.childName} (${input.childYearGroup})` : ""}${input.trainingLocation ? ` | Campus: ${input.trainingLocation}` : ""}${input.preferredTimeSlot ? ` | Preferred tutoring time: ${input.preferredTimeSlot}` : ""}`,
@@ -229,6 +234,8 @@ export async function processSelfEnrolmentAction(input: EnrolmentFormInput) {
       guardianEmail: input.guardianEmail || (input.learnerType === "child" ? cleanEmail : undefined),
       childName: input.childName,
       childYearGroup: input.childYearGroup,
+      childConcerns: input.childConcerns?.trim() || undefined,
+      emergencyPhone: input.emergencyPhone?.trim() || undefined,
       safeguardingCompleted: false,
     };
     seedLearners.push(learner);
@@ -237,11 +244,23 @@ export async function processSelfEnrolmentAction(input: EnrolmentFormInput) {
     if (input.phone) learner.phone = input.phone.trim();
     if (input.childName) learner.childName = input.childName;
     if (input.childYearGroup) learner.childYearGroup = input.childYearGroup;
+    if (input.childConcerns) learner.childConcerns = input.childConcerns.trim();
+    if (input.emergencyPhone) learner.emergencyPhone = input.emergencyPhone.trim();
   }
 
   // 4. Create or Activate Course Enrolment
   const matchingClass = seedClasses.find((c) => c.courseId === course.id);
   const classId = matchingClass ? matchingClass.id : "class-adult-care-l3";
+  const isOneToOneCourse =
+    course.id === "course-tutoring-children" || Boolean(course.is_private_tutoring);
+  const locLower = (input.trainingLocation || "").toLowerCase();
+  const inferredTutoringMode = isOneToOneCourse
+    ? locLower.includes("home") || locLower.includes("room") || locLower.includes("request")
+      ? ("room_home_request" as const)
+      : locLower.includes("gloucester") || locLower.includes("centre") || locLower.includes("face")
+        ? ("physical_centre" as const)
+        : ("online" as const)
+    : undefined;
 
   // Check if learner is already enrolled in this exact course & level
   let enrolment = seedEnrolments.find(
@@ -267,6 +286,11 @@ export async function processSelfEnrolmentAction(input: EnrolmentFormInput) {
       preferredTimeSlot: input.preferredTimeSlot,
       tutorName: matchingClass?.tutorName || "Dr. Eleanor Vance",
       trainingLocation: input.trainingLocation,
+      tutoringDeliveryMode: inferredTutoringMode,
+      tutoringRoomOrAddress:
+        inferredTutoringMode === "room_home_request"
+          ? [input.address?.trim(), input.postcode?.trim()].filter(Boolean).join(", ") || undefined
+          : undefined,
       enrolledAt: new Date().toISOString(),
       status: "active",
       fundingType: "self_pay",
@@ -278,6 +302,7 @@ export async function processSelfEnrolmentAction(input: EnrolmentFormInput) {
   } else {
     enrolment.status = "active";
     enrolment.preferredTimeSlot = input.preferredTimeSlot;
+    if (inferredTutoringMode) enrolment.tutoringDeliveryMode = inferredTutoringMode;
   }
 
   // 5. Record Payment in College Ledger
@@ -564,6 +589,8 @@ export async function createStripeCheckoutAction(input: {
   learnerType?: "myself" | "child";
   childName?: string;
   childYearGroup?: string;
+  childConcerns?: string;
+  emergencyPhone?: string;
   trainingLocation?: string;
   origin: string;
 }): Promise<{ hasStripe: boolean; checkoutUrl?: string; message?: string; error?: string }> {

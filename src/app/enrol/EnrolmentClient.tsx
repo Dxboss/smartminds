@@ -401,6 +401,8 @@ export const EnrolmentClient: React.FC<Props> = ({
           learnerType,
           childName: learnerType === "child" ? childName.trim() : undefined,
           childYearGroup: learnerType === "child" ? childYearGroup.trim() : undefined,
+          childConcerns: learnerType === "child" ? childConcerns.trim() : undefined,
+          emergencyPhone: learnerType === "child" ? emergencyPhone.trim() : undefined,
           trainingLocation: currentCourse?.training_locations?.length ? selectedLocation : undefined,
           origin: window.location.origin,
         });
@@ -435,6 +437,8 @@ export const EnrolmentClient: React.FC<Props> = ({
           learnerType,
           childName: learnerType === "child" ? childName.trim() : undefined,
           childYearGroup: learnerType === "child" ? childYearGroup.trim() : undefined,
+          childConcerns: learnerType === "child" ? childConcerns.trim() : undefined,
+          emergencyPhone: learnerType === "child" ? emergencyPhone.trim() : undefined,
           guardianName: learnerType === "child" ? effectiveName : undefined,
           guardianPhone: learnerType === "child" ? effectivePhone : undefined,
           guardianEmail: learnerType === "child" ? effectiveEmail : undefined,
@@ -911,26 +915,32 @@ export const EnrolmentClient: React.FC<Props> = ({
                 </div>
               )}
 
-              {/* Practical Training Campus Venue (Only for Blended Practical Courses like Phlebotomy and L4 CET) */}
+              {/* Practical Training Campus Venue or 1-on-1 Tutoring Delivery Mode */}
               {currentCourse?.training_locations && currentCourse.training_locations.length > 0 ? (
                 <div className="p-4 rounded-sm bg-paper border border-line space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Icon name="map-pin" size={16} className="text-navy-900" />
                       <label className="text-xs font-bold text-navy-900">
-                        {currentCourse.attendance_type === "physical_venue"
+                        {isTutoringCourse
+                          ? "Preferred 1-on-1 Tutoring Delivery Mode *"
+                          : currentCourse.attendance_type === "physical_venue"
                           ? "Campus Venue & Training Centre *"
                           : "Practical Assessment & Clinical Training Hub *"}
                       </label>
                     </div>
                     <span className="text-[10px] font-bold uppercase tracking-wider bg-gold-300/30 text-navy-900 px-2 py-0.5 rounded-xs border border-gold-500/30">
-                      {currentCourse.attendance_type === "physical_venue"
+                      {isTutoringCourse
+                        ? "Centre, Online or Home/Room"
+                        : currentCourse.attendance_type === "physical_venue"
                         ? "Campus Venue Attendance"
                         : "Mandatory Practical Sessions"}
                     </span>
                   </div>
                   <p className="text-[11px] text-ink-soft">
-                    {currentCourse.attendance_type === "physical_venue"
+                    {isTutoringCourse
+                      ? "Choose how you would like your child's 1-on-1 lessons delivered (in-person at our Gloucester Centre, live online, or requested home/room tutoring):"
+                      : currentCourse.attendance_type === "physical_venue"
                       ? "This qualification is delivered at our approved UK training campuses. Please choose your preferred campus location:"
                       : "This accredited qualification includes hands-on clinical and practical assessments. Please choose your preferred training centre:"}
                   </p>

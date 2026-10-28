@@ -3,7 +3,12 @@ import Link from "next/link";
 import { getServerSession } from "@/lib/session";
 import { getLearnerRepo, getTaskRepo } from "@/lib/repositories";
 import { seedAssignments } from "@/lib/repositories/seedData";
-import { getCohortsForTutor, pullLatestFromNeon, syncPersistedRecords } from "@/lib/persistedData";
+import {
+  getCohortsForTutor,
+  getOneToOneTutoringStudentsForSession,
+  pullLatestFromNeon,
+  syncPersistedRecords,
+} from "@/lib/persistedData";
 import { Icon } from "@/components/ui/Icon";
 
 
@@ -17,6 +22,7 @@ export default async function StaffDashboardPage() {
   const tutorId = session.tutorId || "tutor-001";
   const myClasses = getCohortsForTutor(session);
   const myClassIds = new Set(myClasses.map((c) => c.id));
+  const myOneToOneStudents = getOneToOneTutoringStudentsForSession(session);
 
   const learnerRepo = getLearnerRepo();
   const taskRepo = getTaskRepo();
@@ -45,7 +51,14 @@ export default async function StaffDashboardPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <Link
+            href="/staff/tutoring"
+            className="px-4 py-2 rounded-sm border border-navy-900 text-navy-900 text-sm font-semibold hover:bg-navy-900 hover:text-white transition-colors inline-flex items-center gap-1.5"
+          >
+            <Icon name="users" size={16} />
+            <span>1-on-1 attendance ({myOneToOneStudents.length})</span>
+          </Link>
           <Link
             href="/staff/assignments/new"
             className="px-4 py-2 rounded-sm bg-navy-900 text-white text-sm font-semibold hover:bg-navy-700 transition-colors inline-flex items-center gap-1.5 shadow-sm"

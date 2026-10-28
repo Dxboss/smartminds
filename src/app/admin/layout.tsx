@@ -32,6 +32,7 @@ const STAFF_NAV = [
   { href: "/admin/pipeline", label: "Pipeline", icon: "users" as const },
   { href: "/admin/bookings", label: "Bookings", icon: "calendar" as const },
   { href: "/admin/learners", label: "Learners", icon: "graduation-cap" as const },
+  { href: "/admin/tutoring", label: "1-on-1 tutoring", icon: "clock" as const },
   { href: "/admin/messages", label: "Messages", icon: "mail" as const },
   { href: "/admin/tasks", label: "Tasks", icon: "check-circle" as const },
 ];

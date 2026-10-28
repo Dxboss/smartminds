@@ -1602,10 +1602,11 @@ export const courses: Course[] = [
     show_video_showcase: false,
     show_dbs_guarantee: true,
     show_exam_boards: true,
-    custom_delivery_text: "Face-to-Face at Centre & Online",
+    custom_delivery_text: "Face-to-Face at Centre, Online & Home/Room Request",
     training_locations: [
       "Gloucester College Centre (Face-to-Face)",
       "Live 1-on-1 Online Interactive",
+      "Home / Room Tutoring (By Request)",
     ],
     tutoring_slots: [
       "Thursday, 4:00pm",
