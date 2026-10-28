@@ -11,7 +11,17 @@ export default async function StaffDashboardPage() {
   if (!session) return null;
 
   const tutorId = session.tutorId || "tutor-001";
-  const myClasses = seedClasses.filter((c) => c.tutorId === tutorId);
+  const cleanName = (session.name || "").trim().toLowerCase();
+  const tutorFirstName = cleanName.split(" ")[0] || "";
+  const myClasses = seedClasses.filter((c) => {
+    if (c.tutorId === tutorId) return true;
+    const cTutor = (c.tutorName || "").trim().toLowerCase();
+    if (!cTutor || !cleanName) return false;
+    return (
+      cTutor === cleanName ||
+      (tutorFirstName.length >= 3 && cTutor === tutorFirstName)
+    );
+  });
 
   const learnerRepo = getLearnerRepo();
   const taskRepo = getTaskRepo();

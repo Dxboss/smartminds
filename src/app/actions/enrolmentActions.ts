@@ -175,14 +175,40 @@ export async function processSelfEnrolmentAction(input: EnrolmentFormInput) {
   const lastName = names.slice(1).join(" ") || "Student";
   const cleanEmail = input.email.trim().toLowerCase();
 
-  let learner = seedLearners.find(
-    (l: Learner) => l.email.toLowerCase() === cleanEmail
-  );
+  const { loadPersistedRecords } = await import("@/lib/persistedData");
+  const persistedStore = loadPersistedRecords();
+
+  let learner =
+    seedLearners.find((l: Learner) => l.email.toLowerCase() === cleanEmail) ||
+    (persistedStore.learners || []).find((l: Learner) => l.email.toLowerCase() === cleanEmail);
+
+  if (!learner && process.env.DATABASE_URL) {
+    try {
+      const { isDbConfigured, sql } = await import("@/lib/db");
+      if (isDbConfigured) {
+        const rows = (await sql`
+          SELECT data FROM learners WHERE LOWER(email) = ${cleanEmail} LIMIT 1
+        `) as any[];
+        if (rows?.[0]?.data) {
+          learner = rows[0].data;
+        }
+      }
+    } catch {}
+  }
+
   const isReturningStudent = Boolean(learner);
 
-  const learnerId = learner
+  let learnerId = learner
     ? learner.id
     : `learner-${(seedLearners.length + 1).toString().padStart(3, "0")}`;
+
+  if (
+    !learner &&
+    ((persistedStore.learners || []).some((l) => l.id === learnerId) ||
+      seedLearners.some((l) => l.id === learnerId))
+  ) {
+    learnerId = `learner-${Date.now().toString(36)}-${randomBytes(2).toString("hex")}`;
+  }
 
   const studentId = `SM-${new Date().getFullYear()}-${learner ? learner.id.replace(/\D/g, "").padStart(4, "0") : Math.floor(1000 + Math.random() * 9000)}`;
 
@@ -367,8 +393,8 @@ export async function processSelfEnrolmentAction(input: EnrolmentFormInput) {
   // 7. Generate Temporary Password for New Learner
   const tempPassword = `SMT-${randomBytes(8).toString("hex").toUpperCase()}`;
 
-  // Persist to local JSON storage for cross-restart preservation
-  savePersistedRecord({
+  // Persist to local JSON storage & Neon PostgreSQL for cross-restart preservation
+  await savePersistedRecord({
     learner,
     enrolment,
     paymentRecord,
@@ -811,18 +837,43 @@ export async function verifyExistingStudentAction(identifier: string) {
     return { success: false, error: "Please enter your Student ID or email." };
   }
 
-  const { seedLearners } = await import("@/lib/repositories/seedData");
-  const { loadPersistedRecords } = await import("@/lib/persistedData");
-  const persisted = loadPersistedRecords();
+  let learner: Learner | undefined;
 
-  const allLearners = [...(persisted.learners || []), ...seedLearners];
-  const learner = allLearners.find(
-    (l) =>
-      l.email.toLowerCase() === clean ||
-      l.id.toLowerCase() === clean ||
-      (l.userId && l.userId.toLowerCase() === clean) ||
-      clean.includes(l.id.toLowerCase())
-  );
+  // 1. Check Neon PostgreSQL learners table directly when configured
+  if (process.env.DATABASE_URL) {
+    try {
+      const { isDbConfigured, sql } = await import("@/lib/db");
+      if (isDbConfigured) {
+        const rows = (await sql`
+          SELECT data FROM learners
+          WHERE LOWER(email) = ${clean}
+             OR LOWER(id) = ${clean}
+             OR LOWER(user_id) = ${clean}
+          LIMIT 1
+        `) as any[];
+        if (rows?.[0]?.data) {
+          learner = rows[0].data;
+        }
+      }
+    } catch {}
+  }
+
+  // 2. Check local persisted store & seedLearners
+  if (!learner) {
+    const { seedLearners } = await import("@/lib/repositories/seedData");
+    const { loadPersistedRecords, pullLatestFromNeon } = await import("@/lib/persistedData");
+    await pullLatestFromNeon().catch(() => {});
+    const persisted = loadPersistedRecords();
+
+    const allLearners = [...(persisted.learners || []), ...seedLearners];
+    learner = allLearners.find(
+      (l) =>
+        l.email.toLowerCase() === clean ||
+        l.id.toLowerCase() === clean ||
+        (l.userId && l.userId.toLowerCase() === clean) ||
+        clean.includes(l.id.toLowerCase())
+    );
+  }
 
   if (!learner) {
     return {

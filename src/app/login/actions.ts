@@ -272,7 +272,9 @@ export async function authenticateUser(formData: {
             redirectUrl = "/admin";
 
           return { success: true, redirectUrl };
-        } else {
+        } else if (tempPw || hash) {
+          // Only reject immediately if the DB row actually had a password stored;
+          // if data had no passwordHash/temporaryPassword yet, allow fallback to store.userCredentials
           return {
             success: false,
             error:
@@ -339,6 +341,8 @@ export async function authenticateUser(formData: {
         role: resolvedRole,
         learnerId:
           resolvedRole === "student" ? persistedCred.learnerId : undefined,
+        tutorId:
+          resolvedRole === "tutor" ? persistedCred.tutorId : undefined,
         mustChangePassword: persistedCred.mustChangePassword ?? false,
       });
 
@@ -604,9 +608,12 @@ export async function resetPasswordAction(data: {
   try {
     const {
       verifyAndConsumePasswordResetToken,
-      updateLearnerPasswordInStore,
+      updateLearnerPasswordInStoreAsync,
       loadPersistedRecords,
+      pullLatestFromNeon,
     } = await import("@/lib/persistedData");
+
+    await pullLatestFromNeon().catch(() => {});
 
     const isDirectReset =
       data.token === "self_service_direct" ||
@@ -620,17 +627,32 @@ export async function resetPasswordAction(data: {
         cleanEmail
       );
     } else {
-      // In self-service direct recovery, confirm account exists in directory
+      // In self-service direct recovery, confirm account exists in directory or Neon DB
       const store = loadPersistedRecords();
       const { seedUsers, seedLearners } = await import(
         "@/lib/repositories/seedData"
       );
-      const exists =
+      let exists =
         store.userCredentials?.some((u) => u.email.toLowerCase() === cleanEmail) ||
         store.learners?.some((l) => l.email.toLowerCase() === cleanEmail) ||
         seedUsers.some((u) => u.email.toLowerCase() === cleanEmail) ||
         seedLearners.some((l) => l.email.toLowerCase() === cleanEmail) ||
         cleanEmail.endsWith("@smartmindstraining.co.uk");
+
+      if (!exists && process.env.DATABASE_URL) {
+        try {
+          const { isDbConfigured, sql } = await import("@/lib/db");
+          if (isDbConfigured) {
+            const [uRows, lRows]: [any, any] = await Promise.all([
+              sql`SELECT id FROM user_credentials WHERE LOWER(email) = ${cleanEmail} LIMIT 1`.catch(() => []),
+              sql`SELECT id FROM learners WHERE LOWER(email) = ${cleanEmail} LIMIT 1`.catch(() => []),
+            ]);
+            if ((uRows && uRows.length > 0) || (lRows && lRows.length > 0)) {
+              exists = true;
+            }
+          }
+        } catch {}
+      }
 
       if (exists) {
         isValidToken = true;
@@ -645,8 +667,8 @@ export async function resetPasswordAction(data: {
       };
     }
 
-    // Save the updated password to persistent storage & database
-    updateLearnerPasswordInStore(cleanEmail, data.newPassword.trim());
+    // Save the updated password to persistent storage & Neon database
+    await updateLearnerPasswordInStoreAsync(cleanEmail, data.newPassword.trim());
   } catch (err) {
     console.error("[resetPasswordAction] Failed to update password in store:", err);
     return {
@@ -701,8 +723,8 @@ export async function changePasswordAction(formData: {
   }
 
   try {
-    const { updateLearnerPasswordInStore } = await import("@/lib/persistedData");
-    updateLearnerPasswordInStore(session.email, formData.newPassword.trim());
+    const { updateLearnerPasswordInStoreAsync } = await import("@/lib/persistedData");
+    await updateLearnerPasswordInStoreAsync(session.email, formData.newPassword.trim());
 
     // Update session cookie with mustChangePassword: false
     await setSessionCookie({

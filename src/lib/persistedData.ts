@@ -130,14 +130,34 @@ function sanitizeCmsPages(data: any): any {
       const cleaned = jsonStr.replace(/\/uploads\/1792616860201-cpd-logo\.png/g, "");
       return JSON.parse(cleaned);
     }
-  } catch {}
+  } catch { }
   return data;
+}
+
+let cachedStore: PersistedRecordsStore | null = null;
+let cachedStoreMtimeMs = 0;
+
+function writeStoreToDisk(filePath: string, store: PersistedRecordsStore): void {
+  try {
+    fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+    try {
+      cachedStoreMtimeMs = fs.statSync(filePath).mtimeMs;
+    } catch {
+      cachedStoreMtimeMs = Date.now();
+    }
+    cachedStore = store;
+  } catch (err) {
+    console.warn("[persistedData] Write store warning:", err);
+    cachedStore = store;
+  }
 }
 
 export function loadPersistedRecords(): PersistedRecordsStore {
   try {
     const filePath = getStoreFilePath();
     if (!fs.existsSync(filePath)) {
+      cachedStore = null;
+      cachedStoreMtimeMs = 0;
       return {
         learners: [],
         enrolments: [],
@@ -151,6 +171,15 @@ export function loadPersistedRecords(): PersistedRecordsStore {
         faculties: [...DEFAULT_COLLEGE_FACULTIES],
       };
     }
+
+    try {
+      const stat = fs.statSync(filePath);
+      if (cachedStore && stat.mtimeMs === cachedStoreMtimeMs && stat.mtimeMs > 0) {
+        return cachedStore;
+      }
+      cachedStoreMtimeMs = stat.mtimeMs;
+    } catch { }
+
     let parsed: any = null;
     for (let i = 0; i < 3; i++) {
       try {
@@ -161,10 +190,10 @@ export function loadPersistedRecords(): PersistedRecordsStore {
         if (i === 2) throw e;
         try {
           Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 15);
-        } catch {}
+        } catch { }
       }
     }
-    return {
+    const loaded: PersistedRecordsStore = {
       learners: Array.isArray(parsed.learners) ? parsed.learners : [],
       enrolments: Array.isArray(parsed.enrolments) ? parsed.enrolments : [],
       paymentRecords: Array.isArray(parsed.paymentRecords)
@@ -221,7 +250,12 @@ export function loadPersistedRecords(): PersistedRecordsStore {
       assignments: Array.isArray(parsed.assignments) ? parsed.assignments : [],
       submissions: Array.isArray(parsed.submissions) ? parsed.submissions : [],
       deletedCohortIds: Array.isArray(parsed.deletedCohortIds) ? parsed.deletedCohortIds : [],
+      colorSwatches: Array.isArray(parsed.colorSwatches) ? parsed.colorSwatches : undefined,
+      impersonationLogs: Array.isArray(parsed.impersonationLogs) ? parsed.impersonationLogs : undefined,
+      learningMaterials: Array.isArray(parsed.learningMaterials) ? parsed.learningMaterials : undefined,
     };
+    cachedStore = loaded;
+    return loaded;
   } catch (err) {
     console.error("[persistedData] Failed to load store:", err);
     return {
@@ -237,6 +271,50 @@ export function loadPersistedRecords(): PersistedRecordsStore {
       subscribers: [],
     };
   }
+}
+
+function mergeArrayById<T extends { id?: string }>(...lists: (T[] | undefined)[]): T[] {
+  const map = new Map<string, T>();
+  for (const list of lists) {
+    if (!Array.isArray(list)) continue;
+    for (const item of list) {
+      if (!item || !item.id) continue;
+      const existing = map.get(item.id);
+      map.set(item.id, existing ? { ...existing, ...item } : item);
+    }
+  }
+  return Array.from(map.values());
+}
+
+function mergeUsersByEmail(...lists: (PersistedUserRecord[] | undefined)[]): PersistedUserRecord[] {
+  const map = new Map<string, PersistedUserRecord>();
+  for (const list of lists) {
+    if (!Array.isArray(list)) continue;
+    for (const u of list) {
+      if (!u || !u.email) continue;
+      const key = u.email.toLowerCase().trim();
+      const existing = map.get(key);
+      if (existing) {
+        map.set(key, {
+          ...existing,
+          ...u,
+          id: u.id || existing.id,
+          passwordHash: u.passwordHash || existing.passwordHash,
+          temporaryPassword:
+            u.passwordHash && !u.temporaryPassword
+              ? undefined
+              : u.temporaryPassword || existing.temporaryPassword,
+          tutorId: u.tutorId || existing.tutorId,
+          learnerId: u.learnerId || existing.learnerId,
+          department: u.department || existing.department,
+          specialism: u.specialism || existing.specialism,
+        });
+      } else {
+        map.set(key, u);
+      }
+    }
+  }
+  return Array.from(map.values());
 }
 
 /**
@@ -257,13 +335,15 @@ export async function syncStoreSnapshotToNeon(store: PersistedRecordsStore): Pro
     if (!isDbConfigured) return false;
 
     await ensureDbTablesExist();
+    // Keep system_store payload lean by omitting large transient draft blobs (published CMS pages live in cms_pages table)
+    const { cmsPagesDraftData: _drafts, ...leanStore } = store;
     const timeout = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("Neon syncStoreSnapshot timeout")), 4000)
+      setTimeout(() => reject(new Error("Neon syncStoreSnapshot timeout")), 10000)
     );
     await Promise.race([
       sql`
         INSERT INTO system_store (key, value, updated_at)
-        VALUES ('master_records_store', ${JSON.stringify(store)}, now())
+        VALUES ('master_records_store', ${JSON.stringify(leanStore)}, now())
         ON CONFLICT (key) DO UPDATE SET
           value = EXCLUDED.value,
           updated_at = now();
@@ -278,12 +358,14 @@ export async function syncStoreSnapshotToNeon(store: PersistedRecordsStore): Pro
 }
 
 /**
- * Pulls master snapshot from Neon PostgreSQL if local file is missing/empty or out of sync.
- * Guarantees that Hostinger deployments and local environments restore instantly after git push.
+ * Pulls master snapshot and dedicated entity tables from Neon PostgreSQL.
+ * Guarantees that Hostinger deployments and local environments restore instantly after git push
+ * without ever overwriting records created in dedicated PostgreSQL tables.
  */
 let lastNeonPullPerf = 0;
 let lastNeonPullTimestamp = 0;
-const NEON_PULL_TTL_MS = 10000; // 10 seconds cache to avoid DB storming across concurrent components
+let pullingPromise: Promise<boolean> | null = null;
+const NEON_PULL_TTL_MS = 30000; // 30 seconds cache to avoid DB storming across concurrent components
 
 export async function pullLatestFromNeon(force = false): Promise<boolean> {
   if (process.env.NEXT_PHASE === "phase-production-build") {
@@ -295,143 +377,197 @@ export async function pullLatestFromNeon(force = false): Promise<boolean> {
     return true;
   }
 
-  try {
-    const { isDbConfigured, sql, ensureDbTablesExist } = await import("@/lib/db");
-    if (!isDbConfigured) return false;
+  if (!force && pullingPromise) {
+    return pullingPromise;
+  }
 
-    await ensureDbTablesExist();
+  pullingPromise = (async () => {
+    try {
+      const { isDbConfigured, sql, ensureDbTablesExist } = await import("@/lib/db");
+      if (!isDbConfigured) return false;
 
-    const timeout = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("Neon pullLatest timeout")), 8000)
-    );
-    const [storeRows, cmsRows]: [any, any] = await Promise.race([
-      Promise.all([
-        sql`
-          SELECT value FROM system_store WHERE key = 'master_records_store' LIMIT 1
-        `.catch((err) => {
-          console.warn("[Neon DB] system_store query error:", err);
-          return [];
-        }),
-        sql`
-          SELECT path, sections FROM cms_pages
-        `.catch((err) => {
-          console.warn("[Neon DB] cms_pages query error:", err);
-          return [];
-        }),
-      ]),
-      timeout,
-    ]);
+      await ensureDbTablesExist();
 
-    const cmsPagesFromDb: Record<string, any[]> = {};
-    if (Array.isArray(cmsRows)) {
-      for (const row of cmsRows) {
-        if (row?.path && Array.isArray(row?.sections) && row.sections.length > 0) {
-          cmsPagesFromDb[row.path] = row.sections;
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Neon pullLatest timeout")), 8000)
+      );
+      const [
+        storeRows,
+        cmsRows,
+        learnerRows,
+        enrolmentRows,
+        paymentRows,
+        scheduleRows,
+        userRows,
+      ]: [any, any, any, any, any, any, any] = await Promise.race([
+        Promise.all([
+          sql`SELECT value FROM system_store WHERE key = 'master_records_store' LIMIT 1`.catch(() => []),
+          sql`SELECT path, sections FROM cms_pages`.catch(() => []),
+          sql`SELECT data FROM learners ORDER BY created_at DESC`.catch(() => []),
+          sql`SELECT data FROM enrolments ORDER BY enrolled_at DESC`.catch(() => []),
+          sql`SELECT data FROM payments ORDER BY created_at DESC`.catch(() => []),
+          sql`SELECT data FROM payment_schedules ORDER BY due_date ASC`.catch(() => []),
+          sql`SELECT id, email, name, role, active, tutor_id, learner_id, specialism, department, data, created_at FROM user_credentials`.catch(() => []),
+        ]),
+        timeout,
+      ]);
+
+      const cmsPagesFromDb: Record<string, any[]> = {};
+      if (Array.isArray(cmsRows)) {
+        for (const row of cmsRows) {
+          if (row?.path && Array.isArray(row?.sections) && row.sections.length > 0) {
+            cmsPagesFromDb[row.path] = row.sections;
+          }
         }
       }
+
+      const learnersFromTable: Learner[] = Array.isArray(learnerRows)
+        ? learnerRows.map((r: any) => r?.data).filter(Boolean)
+        : [];
+      const enrolmentsFromTable: Enrolment[] = Array.isArray(enrolmentRows)
+        ? enrolmentRows.map((r: any) => r?.data).filter(Boolean)
+        : [];
+      const paymentsFromTable: PaymentRecord[] = Array.isArray(paymentRows)
+        ? paymentRows.map((r: any) => r?.data).filter(Boolean)
+        : [];
+      const schedulesFromTable: PaymentScheduleItem[] = Array.isArray(scheduleRows)
+        ? scheduleRows.map((r: any) => r?.data).filter(Boolean)
+        : [];
+      const usersFromTable: PersistedUserRecord[] = Array.isArray(userRows)
+        ? userRows
+          .map((r: any) => {
+            if (!r?.email) return null;
+            const extra = r.data && typeof r.data === "object" ? r.data : {};
+            return {
+              ...extra,
+              id: r.id || extra.id,
+              email: r.email,
+              name: r.name || extra.name || r.email.split("@")[0],
+              role: r.role || extra.role || "student",
+              active: r.active ?? extra.active ?? true,
+              tutorId: r.tutor_id || extra.tutorId,
+              learnerId: r.learner_id || extra.learnerId,
+              specialism: r.specialism || extra.specialism,
+              department: r.department || extra.department,
+              passwordHash: extra.passwordHash,
+              temporaryPassword: extra.temporaryPassword,
+              mustChangePassword: extra.mustChangePassword,
+              createdAt: r.created_at ? new Date(r.created_at).toISOString() : extra.createdAt || new Date().toISOString(),
+            } as PersistedUserRecord;
+          })
+          .filter(Boolean) as PersistedUserRecord[]
+        : [];
+
+      const hasData =
+        (storeRows && storeRows.length > 0 && storeRows[0]?.value) ||
+        Object.keys(cmsPagesFromDb).length > 0 ||
+        learnersFromTable.length > 0 ||
+        usersFromTable.length > 0;
+
+      if (hasData) {
+        const dbStore = ((storeRows?.[0]?.value || {}) as Partial<PersistedRecordsStore>) || {};
+        const store = loadPersistedRecords();
+
+        const mergedLearners = mergeArrayById<Learner>(
+          store.learners,
+          dbStore.learners,
+          learnersFromTable
+        );
+
+        // Also ensure every learner has a corresponding user credential record for lookup/impersonation
+        const learnerDerivedUsers: PersistedUserRecord[] = mergedLearners
+          .filter((l) => Boolean(l?.email))
+          .map((l) => ({
+            id: l.userId || `user-${l.id}`,
+            email: l.email,
+            name: `${l.firstName || ""} ${l.lastName || ""}`.trim() || l.email,
+            role: "student",
+            learnerId: l.id,
+            active: l.accessStatus !== "archived",
+            createdAt: l.enrolmentDate || new Date().toISOString(),
+          }));
+
+        const mergedUsers = mergeUsersByEmail(
+          learnerDerivedUsers,
+          store.userCredentials,
+          dbStore.userCredentials,
+          usersFromTable
+        );
+
+        const mergedStore: PersistedRecordsStore = {
+          ...store,
+          ...dbStore,
+          courseOverrides: {
+            ...(store.courseOverrides || {}),
+            ...(dbStore.courseOverrides || {}),
+          },
+          cmsPagesData: {
+            ...(store.cmsPagesData || {}),
+            ...(dbStore.cmsPagesData || {}),
+            ...cmsPagesFromDb,
+          },
+          cmsPagesDraftData: {
+            ...(store.cmsPagesDraftData || {}),
+            ...(dbStore.cmsPagesDraftData || {}),
+          },
+          faculties:
+            Array.isArray(dbStore.faculties)
+              ? sanitizeFaculties(dbStore.faculties)
+              : Array.isArray(store.faculties)
+                ? sanitizeFaculties(store.faculties)
+                : [...DEFAULT_COLLEGE_FACULTIES],
+          learners: mergedLearners,
+          subscribers: mergeArrayById(store.subscribers, dbStore.subscribers),
+          cohorts: mergeArrayById(store.cohorts, dbStore.cohorts),
+          classSessions: mergeArrayById(store.classSessions, dbStore.classSessions),
+          paymentRecords: mergeArrayById<PaymentRecord>(
+            store.paymentRecords,
+            dbStore.paymentRecords,
+            paymentsFromTable
+          ),
+          paymentSchedules: mergeArrayById<PaymentScheduleItem>(
+            store.paymentSchedules,
+            dbStore.paymentSchedules,
+            schedulesFromTable
+          ),
+          enrolments: mergeArrayById<Enrolment>(
+            store.enrolments,
+            dbStore.enrolments,
+            enrolmentsFromTable
+          ),
+          enquiries: mergeArrayById(store.enquiries, dbStore.enquiries),
+          bookings: mergeArrayById(store.bookings, dbStore.bookings),
+          blogPosts: Array.isArray(dbStore.blogPosts) ? dbStore.blogPosts : store.blogPosts,
+          userCredentials: mergedUsers,
+          colorSwatches:
+            Array.isArray(dbStore.colorSwatches) && dbStore.colorSwatches.length > 0
+              ? dbStore.colorSwatches
+              : store.colorSwatches || DEFAULT_COLOR_SWATCHES,
+          siteTheme: dbStore.siteTheme || store.siteTheme,
+          assignments: mergeArrayById(store.assignments, dbStore.assignments),
+          submissions: mergeArrayById(store.submissions, dbStore.submissions),
+          deletedCohortIds: Array.from(
+            new Set([...(store.deletedCohortIds || []), ...(dbStore.deletedCohortIds || [])])
+          ),
+        };
+
+        const filePath = getStoreFilePath();
+        writeStoreToDisk(filePath, mergedStore);
+        syncPersistedRecords(true);
+        lastNeonPullPerf = typeof performance !== "undefined" ? performance.now() : Date.now();
+        lastNeonPullTimestamp = Date.now();
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.warn("[Neon DB] Notice: pullLatestFromNeon:", err);
+      return false;
+    } finally {
+      pullingPromise = null;
     }
+  })();
 
-    if ((storeRows && storeRows.length > 0 && storeRows[0]?.value) || Object.keys(cmsPagesFromDb).length > 0) {
-      const dbStore = ((storeRows?.[0]?.value || {}) as Partial<PersistedRecordsStore>) || {};
-      const store = loadPersistedRecords();
-
-      const mergedStore: PersistedRecordsStore = {
-        ...store,
-        ...dbStore,
-        courseOverrides: {
-          ...(store.courseOverrides || {}),
-          ...(dbStore.courseOverrides || {}),
-        },
-        cmsPagesData: {
-          ...(store.cmsPagesData || {}),
-          ...(dbStore.cmsPagesData || {}),
-          ...cmsPagesFromDb,
-        },
-        cmsPagesDraftData: {
-          ...(store.cmsPagesDraftData || {}),
-          ...(dbStore.cmsPagesDraftData || {}),
-        },
-        faculties:
-          Array.isArray(dbStore.faculties)
-            ? sanitizeFaculties(dbStore.faculties)
-            : (Array.isArray(store.faculties)
-              ? sanitizeFaculties(store.faculties)
-              : [...DEFAULT_COLLEGE_FACULTIES]),
-        learners:
-          Array.isArray(dbStore.learners)
-            ? dbStore.learners
-            : store.learners,
-        subscribers:
-          Array.isArray(dbStore.subscribers)
-            ? dbStore.subscribers
-            : store.subscribers,
-        cohorts:
-          Array.isArray(dbStore.cohorts)
-            ? dbStore.cohorts
-            : store.cohorts,
-        classSessions:
-          Array.isArray(dbStore.classSessions)
-            ? dbStore.classSessions
-            : store.classSessions,
-        paymentRecords:
-          Array.isArray(dbStore.paymentRecords)
-            ? dbStore.paymentRecords
-            : store.paymentRecords,
-        paymentSchedules:
-          Array.isArray(dbStore.paymentSchedules)
-            ? dbStore.paymentSchedules
-            : store.paymentSchedules,
-        enrolments:
-          Array.isArray(dbStore.enrolments)
-            ? dbStore.enrolments
-            : store.enrolments,
-        enquiries:
-          Array.isArray(dbStore.enquiries)
-            ? dbStore.enquiries
-            : store.enquiries,
-        bookings:
-          Array.isArray(dbStore.bookings)
-            ? dbStore.bookings
-            : store.bookings,
-        blogPosts:
-          Array.isArray(dbStore.blogPosts)
-            ? dbStore.blogPosts
-            : store.blogPosts,
-        userCredentials:
-          Array.isArray(dbStore.userCredentials)
-            ? dbStore.userCredentials
-            : store.userCredentials,
-        colorSwatches:
-          Array.isArray(dbStore.colorSwatches) && dbStore.colorSwatches.length > 0
-            ? dbStore.colorSwatches
-            : store.colorSwatches || DEFAULT_COLOR_SWATCHES,
-        siteTheme: dbStore.siteTheme || store.siteTheme,
-        assignments:
-          Array.isArray(dbStore.assignments)
-            ? dbStore.assignments
-            : store.assignments || [],
-        submissions:
-          Array.isArray(dbStore.submissions)
-            ? dbStore.submissions
-            : store.submissions || [],
-        deletedCohortIds:
-          Array.isArray(dbStore.deletedCohortIds)
-            ? dbStore.deletedCohortIds
-            : store.deletedCohortIds || [],
-      };
-
-      const filePath = getStoreFilePath();
-      fs.writeFileSync(filePath, JSON.stringify(mergedStore, null, 2));
-      syncPersistedRecords(true);
-      lastNeonPullPerf = typeof performance !== "undefined" ? performance.now() : Date.now();
-      lastNeonPullTimestamp = Date.now();
-      return true;
-    }
-    return false;
-  } catch (err) {
-    console.warn("[Neon DB] Notice: pullLatestFromNeon:", err);
-    return false;
-  }
+  return pullingPromise;
 }
 
 export function savePersistedRecord(data: {
@@ -441,7 +577,10 @@ export function savePersistedRecord(data: {
   paymentSchedules?: PaymentScheduleItem[];
   tempPassword?: string;
   mustChangePassword?: boolean;
-}): void {
+}): Promise<void> {
+  let syncedUserRec: PersistedUserRecord | undefined;
+  let updatedStore: PersistedRecordsStore | undefined;
+
   try {
     const store = loadPersistedRecords();
     const filePath = getStoreFilePath();
@@ -458,25 +597,30 @@ export function savePersistedRecord(data: {
       const userIdx = store.userCredentials.findIndex(
         (u) => u.email.toLowerCase() === data.learner!.email.toLowerCase()
       );
+      const cleanTempPw = data.tempPassword?.trim();
+      const existingUser = userIdx >= 0 ? store.userCredentials[userIdx] : undefined;
       const userRec: PersistedUserRecord = {
-        id: data.learner.userId,
-        email: data.learner.email,
-        name: `${data.learner.firstName} ${data.learner.lastName}`,
+        id: data.learner.userId || existingUser?.id || `user-${data.learner.id}`,
+        email: data.learner.email.toLowerCase().trim(),
+        name: `${data.learner.firstName} ${data.learner.lastName}`.trim(),
         role: "student",
         learnerId: data.learner.id,
-        temporaryPassword: data.tempPassword,
-        mustChangePassword: data.mustChangePassword ?? true,
-        createdAt: data.learner.enrolmentDate,
+        active: data.learner.accessStatus !== "archived",
+        passwordHash: cleanTempPw ? hashPassword(cleanTempPw) : existingUser?.passwordHash,
+        temporaryPassword: cleanTempPw || existingUser?.temporaryPassword,
+        mustChangePassword: data.mustChangePassword ?? existingUser?.mustChangePassword ?? true,
+        createdAt: data.learner.enrolmentDate || existingUser?.createdAt || new Date().toISOString(),
       };
 
       if (userIdx >= 0) {
         store.userCredentials[userIdx] = {
-          ...store.userCredentials[userIdx],
+          ...existingUser,
           ...userRec,
-          temporaryPassword: data.tempPassword || store.userCredentials[userIdx].temporaryPassword,
         };
+        syncedUserRec = store.userCredentials[userIdx];
       } else {
         store.userCredentials.unshift(userRec);
+        syncedUserRec = userRec;
       }
     }
 
@@ -512,156 +656,215 @@ export function savePersistedRecord(data: {
       }
     }
 
-    fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
-
-    // Force memory sync immediately
+    writeStoreToDisk(filePath, store);
     syncPersistedRecords(true);
+    updatedStore = store;
+  } catch (err) {
+    console.error("[persistedData] Failed to save store:", err);
+  }
 
-    // Continuous Neon Cloud synchronization
-    syncStoreSnapshotToNeon(store);
+  return (async () => {
+    if (!updatedStore || !process.env.DATABASE_URL) return;
+    try {
+      const { isDbConfigured, sql, ensureDbTablesExist } = await import("@/lib/db");
+      if (!isDbConfigured) return;
+      await ensureDbTablesExist();
 
-    if (process.env.DATABASE_URL) {
-      import("@/lib/db")
-        .then(({ sql }) => {
-          if (data.learner) {
-            const l = data.learner as any;
-            const firstName = l.firstName || (l.name ? l.name.split(" ")[0] : "");
-            const lastName = l.lastName || (l.name ? l.name.slice(firstName.length).trim() : "");
-            const fullName = `${firstName} ${lastName}`.trim() || l.name || l.email;
+      const dbTasks: Promise<any>[] = [syncStoreSnapshotToNeon(updatedStore)];
 
+      if (data.learner) {
+        const l = data.learner as any;
+        const firstName = l.firstName || (l.name ? l.name.split(" ")[0] : "");
+        const lastName = l.lastName || (l.name ? l.name.slice(firstName.length).trim() : "");
+        const fullName = `${firstName} ${lastName}`.trim() || l.name || l.email;
+
+        dbTasks.push(
+          sql`
+            INSERT INTO learners (
+              id,
+              user_id,
+              first_name,
+              last_name,
+              email,
+              name,
+              phone,
+              access_status,
+              data,
+              created_at,
+              updated_at
+            )
+            VALUES (
+              ${l.id},
+              ${l.userId || null},
+              ${firstName},
+              ${lastName},
+              ${l.email.toLowerCase().trim()},
+              ${fullName},
+              ${l.phone || null},
+              ${l.accessStatus || "active"},
+              ${JSON.stringify(l)},
+              now(),
+              now()
+            )
+            ON CONFLICT (id) DO UPDATE SET
+              user_id = EXCLUDED.user_id,
+              first_name = EXCLUDED.first_name,
+              last_name = EXCLUDED.last_name,
+              email = EXCLUDED.email,
+              name = EXCLUDED.name,
+              phone = EXCLUDED.phone,
+              access_status = EXCLUDED.access_status,
+              data = EXCLUDED.data,
+              updated_at = now();
+          `.catch((err) => console.warn("[Neon DB] learners sync error:", err))
+        );
+      }
+
+      if (syncedUserRec) {
+        const u = syncedUserRec;
+        dbTasks.push(
+          sql`
+            INSERT INTO user_credentials (
+              id, email, name, role, active, learner_id, data, created_at, updated_at
+            )
+            VALUES (
+              ${u.id},
+              ${u.email.toLowerCase().trim()},
+              ${u.name},
+              ${u.role || "student"},
+              ${u.active ?? true},
+              ${u.learnerId || null},
+              ${JSON.stringify(u)}::jsonb,
+              now(),
+              now()
+            )
+            ON CONFLICT (email) DO UPDATE SET
+              name = EXCLUDED.name,
+              role = EXCLUDED.role,
+              active = EXCLUDED.active,
+              learner_id = COALESCE(EXCLUDED.learner_id, user_credentials.learner_id),
+              data = user_credentials.data || EXCLUDED.data,
+              updated_at = now();
+          `.catch((err) => console.warn("[Neon DB] user_credentials learner sync error:", err))
+        );
+      }
+
+      if (data.enrolment) {
+        const e = data.enrolment;
+        dbTasks.push(
+          sql`
+            INSERT INTO enrolments (
+              id, learner_id, course_id, course_slug, course_title, course_level_label,
+              class_id, status, funding_type, data, created_at, updated_at
+            )
+            VALUES (
+              ${e.id},
+              ${e.learnerId},
+              ${e.courseId},
+              ${e.courseSlug || e.courseId},
+              ${e.courseTitle || ""},
+              ${e.courseLevelLabel || null},
+              ${e.classId || null},
+              ${e.status || "active"},
+              ${e.fundingType || "self_pay"},
+              ${JSON.stringify(e)},
+              now(),
+              now()
+            )
+            ON CONFLICT (id) DO UPDATE SET
+              learner_id = EXCLUDED.learner_id,
+              course_id = EXCLUDED.course_id,
+              course_slug = EXCLUDED.course_slug,
+              course_title = EXCLUDED.course_title,
+              course_level_label = EXCLUDED.course_level_label,
+              class_id = EXCLUDED.class_id,
+              status = EXCLUDED.status,
+              funding_type = EXCLUDED.funding_type,
+              data = EXCLUDED.data,
+              updated_at = now();
+          `.catch((err) => console.warn("[Neon DB] enrolments sync error:", err))
+        );
+      }
+
+      if (data.paymentRecord) {
+        dbTasks.push(
+          sql`
+            INSERT INTO payments (id, enrolment_id, learner_id, amount, status, data, created_at)
+            VALUES (
+              ${data.paymentRecord.id},
+              ${data.paymentRecord.enrolmentId || null},
+              ${data.paymentRecord.learnerId || null},
+              ${data.paymentRecord.amountGbp || 0},
+              ${data.paymentRecord.status || "paid"},
+              ${JSON.stringify(data.paymentRecord)},
+              now()
+            )
+            ON CONFLICT (id) DO UPDATE SET
+              amount = EXCLUDED.amount,
+              status = EXCLUDED.status,
+              data = EXCLUDED.data;
+          `.catch((err) => console.warn("[Neon DB] payments sync error:", err))
+        );
+      }
+
+      if (data.paymentSchedules && data.paymentSchedules.length > 0) {
+        for (const sched of data.paymentSchedules) {
+          const s = sched as any;
+          dbTasks.push(
             sql`
-              INSERT INTO learners (
+              INSERT INTO payment_schedules (
                 id,
-                user_id,
-                first_name,
-                last_name,
-                email,
-                name,
-                phone,
-                access_status,
+                enrolment_id,
+                learner_id,
+                instalment_number,
+                due_date,
+                amount,
+                status,
+                paid_at,
+                payment_reference,
+                grace_expiry_date,
                 data,
                 created_at,
                 updated_at
               )
               VALUES (
-                ${l.id},
-                ${l.userId || null},
-                ${firstName},
-                ${lastName},
-                ${l.email},
-                ${fullName},
-                ${l.phone || null},
-                ${l.accessStatus || "active"},
-                ${JSON.stringify(l)},
+                ${s.id},
+                ${s.enrolmentId || "enr-unknown"},
+                ${s.learnerId || "lrn-unknown"},
+                ${Number(s.instalmentNumber || 1)},
+                ${s.dueDate ? new Date(s.dueDate).toISOString() : new Date().toISOString()},
+                ${Number(s.amountGbp ?? s.amount ?? 0)},
+                ${s.status || "due"},
+                ${s.paidAt ? new Date(s.paidAt).toISOString() : null},
+                ${s.receiptRef || s.paymentReference || null},
+                ${s.graceExpiryDate ? new Date(s.graceExpiryDate).toISOString() : null},
+                ${JSON.stringify(s)},
                 now(),
                 now()
               )
               ON CONFLICT (id) DO UPDATE SET
-                user_id = EXCLUDED.user_id,
-                first_name = EXCLUDED.first_name,
-                last_name = EXCLUDED.last_name,
-                email = EXCLUDED.email,
-                name = EXCLUDED.name,
-                phone = EXCLUDED.phone,
-                access_status = EXCLUDED.access_status,
-                data = EXCLUDED.data,
-                updated_at = now();
-            `.catch((err) => console.warn("[Neon DB] learners sync error:", err));
-          }
-
-          if (data.enrolment) {
-            sql`
-              INSERT INTO enrolments (id, learner_id, course_id, data, created_at, updated_at)
-              VALUES (
-                ${data.enrolment.id},
-                ${data.enrolment.learnerId},
-                ${data.enrolment.courseId},
-                ${JSON.stringify(data.enrolment)},
-                now(),
-                now()
-              )
-              ON CONFLICT (id) DO UPDATE SET
+                enrolment_id = EXCLUDED.enrolment_id,
                 learner_id = EXCLUDED.learner_id,
-                course_id = EXCLUDED.course_id,
-                data = EXCLUDED.data,
-                updated_at = now();
-            `.catch((err) => console.warn("[Neon DB] enrolments sync error:", err));
-          }
-
-          if (data.paymentRecord) {
-            sql`
-              INSERT INTO payments (id, enrolment_id, learner_id, amount, status, data, created_at)
-              VALUES (
-                ${data.paymentRecord.id},
-                ${data.paymentRecord.enrolmentId || null},
-                ${data.paymentRecord.learnerId || null},
-                ${data.paymentRecord.amountGbp || 0},
-                ${data.paymentRecord.status || "paid"},
-                ${JSON.stringify(data.paymentRecord)},
-                now()
-              )
-              ON CONFLICT (id) DO UPDATE SET
+                instalment_number = EXCLUDED.instalment_number,
+                due_date = EXCLUDED.due_date,
                 amount = EXCLUDED.amount,
                 status = EXCLUDED.status,
-                data = EXCLUDED.data;
-            `.catch((err) => console.warn("[Neon DB] payments sync error:", err));
-          }
+                paid_at = EXCLUDED.paid_at,
+                payment_reference = EXCLUDED.payment_reference,
+                grace_expiry_date = EXCLUDED.grace_expiry_date,
+                data = EXCLUDED.data,
+                updated_at = now();
+            `.catch((err) => console.warn("[Neon DB] payment_schedules sync error:", err))
+          );
+        }
+      }
 
-          if (data.paymentSchedules && data.paymentSchedules.length > 0) {
-            for (const sched of data.paymentSchedules) {
-              const s = sched as any;
-              sql`
-                INSERT INTO payment_schedules (
-                  id,
-                  enrolment_id,
-                  learner_id,
-                  instalment_number,
-                  due_date,
-                  amount,
-                  status,
-                  paid_at,
-                  payment_reference,
-                  grace_expiry_date,
-                  data,
-                  created_at,
-                  updated_at
-                )
-                VALUES (
-                  ${s.id},
-                  ${s.enrolmentId || "enr-unknown"},
-                  ${s.learnerId || "lrn-unknown"},
-                  ${Number(s.instalmentNumber || 1)},
-                  ${s.dueDate ? new Date(s.dueDate).toISOString() : new Date().toISOString()},
-                  ${Number(s.amountGbp ?? s.amount ?? 0)},
-                  ${s.status || "due"},
-                  ${s.paidAt ? new Date(s.paidAt).toISOString() : null},
-                  ${s.receiptRef || s.paymentReference || null},
-                  ${s.graceExpiryDate ? new Date(s.graceExpiryDate).toISOString() : null},
-                  ${JSON.stringify(s)},
-                  now(),
-                  now()
-                )
-                ON CONFLICT (id) DO UPDATE SET
-                  enrolment_id = EXCLUDED.enrolment_id,
-                  learner_id = EXCLUDED.learner_id,
-                  instalment_number = EXCLUDED.instalment_number,
-                  due_date = EXCLUDED.due_date,
-                  amount = EXCLUDED.amount,
-                  status = EXCLUDED.status,
-                  paid_at = EXCLUDED.paid_at,
-                  payment_reference = EXCLUDED.payment_reference,
-                  grace_expiry_date = EXCLUDED.grace_expiry_date,
-                  data = EXCLUDED.data,
-                  updated_at = now();
-              `.catch((err) => console.warn("[Neon DB] payment_schedules sync error:", err));
-            }
-          }
-        })
-        .catch(() => {});
+      await Promise.all(dbTasks);
+      lastNeonPullPerf = typeof performance !== "undefined" ? performance.now() : Date.now();
+    } catch (err) {
+      console.warn("[Neon DB] savePersistedRecord async sync warning:", err);
     }
-  } catch (err) {
-    console.error("[persistedData] Failed to save store:", err);
-  }
+  })();
 }
 
 export function updatePaymentScheduleStatusInStore(
@@ -686,6 +889,47 @@ export function updatePaymentScheduleStatusInStore(
   }
 }
 
+export async function syncUserCredentialToNeon(user: PersistedUserRecord): Promise<void> {
+  if (!process.env.DATABASE_URL || !user?.email) return;
+  try {
+    const { isDbConfigured, sql, ensureDbTablesExist } = await import("@/lib/db");
+    if (!isDbConfigured) return;
+    await ensureDbTablesExist();
+    const cleanEmail = user.email.toLowerCase().trim();
+    await sql`
+      INSERT INTO user_credentials (
+        id, email, name, role, active, tutor_id, learner_id, specialism, department, data, created_at, updated_at
+      )
+      VALUES (
+        ${user.id},
+        ${cleanEmail},
+        ${user.name || cleanEmail.split("@")[0]},
+        ${user.role || "student"},
+        ${user.active ?? true},
+        ${user.tutorId || null},
+        ${user.learnerId || null},
+        ${user.specialism || null},
+        ${user.department || null},
+        ${JSON.stringify(user)}::jsonb,
+        now(),
+        now()
+      )
+      ON CONFLICT (email) DO UPDATE SET
+        name = COALESCE(EXCLUDED.name, user_credentials.name),
+        role = COALESCE(EXCLUDED.role, user_credentials.role),
+        active = EXCLUDED.active,
+        tutor_id = COALESCE(EXCLUDED.tutor_id, user_credentials.tutor_id),
+        learner_id = COALESCE(EXCLUDED.learner_id, user_credentials.learner_id),
+        specialism = COALESCE(EXCLUDED.specialism, user_credentials.specialism),
+        department = COALESCE(EXCLUDED.department, user_credentials.department),
+        data = COALESCE(user_credentials.data, '{}'::jsonb) || EXCLUDED.data,
+        updated_at = now();
+    `;
+  } catch (err) {
+    console.warn("[Neon DB] user_credentials sync error:", err);
+  }
+}
+
 export function updateLearnerPasswordInStore(email: string, newPassword: string): boolean {
   try {
     const store = loadPersistedRecords();
@@ -697,21 +941,42 @@ export function updateLearnerPasswordInStore(email: string, newPassword: string)
     if (!user) {
       let role = "student";
       let name = cleanEmail.split("@")[0];
+      let learnerId: string | undefined;
+      let tutorId: string | undefined;
+
+      const matchedLearner = store.learners?.find(
+        (l) => l.email.toLowerCase() === cleanEmail
+      );
+      if (matchedLearner) {
+        name = `${matchedLearner.firstName} ${matchedLearner.lastName}`.trim() || name;
+        learnerId = matchedLearner.id;
+      }
+
       try {
         // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const { seedUsers } = require("@/lib/repositories/seedData");
+        const { seedUsers, seedLearners } = require("@/lib/repositories/seedData");
         const su = seedUsers.find((x: any) => x.email.toLowerCase() === cleanEmail);
         if (su) {
           role = su.role;
           name = su.name;
+          tutorId = su.tutorId;
+          learnerId = su.learnerId || learnerId;
+        } else if (!matchedLearner) {
+          const sl = seedLearners.find((x: any) => x.email.toLowerCase() === cleanEmail);
+          if (sl) {
+            name = `${sl.firstName} ${sl.lastName}`.trim() || name;
+            learnerId = sl.id;
+          }
         }
-      } catch {}
+      } catch { }
 
       user = {
-        id: `user-${Date.now().toString(36)}`,
+        id: matchedLearner?.userId || `user-${Date.now().toString(36)}`,
         email: cleanEmail,
         name,
         role,
+        learnerId,
+        tutorId,
         passwordHash: hashPassword(newPassword),
         mustChangePassword: false,
         createdAt: new Date().toISOString(),
@@ -724,39 +989,36 @@ export function updateLearnerPasswordInStore(email: string, newPassword: string)
     }
 
     const filePath = getStoreFilePath();
-    fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+    writeStoreToDisk(filePath, store);
     syncPersistedRecords(true);
 
     // Continuous Neon Cloud synchronization
-    syncStoreSnapshotToNeon(store);
-
-    if (process.env.DATABASE_URL && user) {
-      import("@/lib/db")
-        .then(({ sql }) => {
-          sql`
-            INSERT INTO user_credentials (id, email, role, data, updated_at)
-            VALUES (
-              ${user.id},
-              ${user.email},
-              ${user.role},
-              ${JSON.stringify(user)},
-              now()
-            )
-            ON CONFLICT (email) DO UPDATE SET
-              id = EXCLUDED.id,
-              role = EXCLUDED.role,
-              data = EXCLUDED.data,
-              updated_at = now();
-          `.catch((err) => console.warn("[Neon DB] user_credentials sync error:", err));
-        })
-        .catch(() => {});
-    }
+    syncStoreSnapshotToNeon(store).catch(() => { });
+    syncUserCredentialToNeon(user).catch(() => { });
 
     return true;
   } catch (err) {
     console.error("[persistedData] Failed to update password:", err);
     return false;
   }
+}
+
+export async function updateLearnerPasswordInStoreAsync(
+  email: string,
+  newPassword: string
+): Promise<boolean> {
+  const ok = updateLearnerPasswordInStore(email, newPassword);
+  if (!ok) return false;
+  const store = loadPersistedRecords();
+  const cleanEmail = email.toLowerCase().trim();
+  const user = store.userCredentials?.find((u) => u.email.toLowerCase() === cleanEmail);
+  if (user) {
+    await Promise.all([
+      syncUserCredentialToNeon(user),
+      syncStoreSnapshotToNeon(store),
+    ]);
+  }
+  return true;
 }
 
 export async function savePersistedCmsPage(pagePath: string, sections: any[]): Promise<boolean> {
@@ -860,7 +1122,7 @@ export function deletePersistedCmsPage(pagePath: string): boolean {
               console.warn("[Neon DB] cms_pages delete error:", err)
             );
           })
-          .catch(() => {});
+          .catch(() => { });
       }
       return true;
     }
@@ -941,7 +1203,7 @@ export function savePersistedBlogPost(post: BlogPost): void {
             console.error("[Neon DB] Failed to sync blog post to PostgreSQL:", dbErr)
           );
         })
-        .catch(() => {});
+        .catch(() => { });
     }
   } catch (err) {
     console.error("[persistedData] Failed to save blog post:", err);
@@ -971,7 +1233,7 @@ export function deletePersistedBlogPost(postIdOrSlug: string): void {
             console.error("[Neon DB] Failed to delete blog post from PostgreSQL:", dbErr)
           );
         })
-        .catch(() => {});
+        .catch(() => { });
     }
   } catch (err) {
     console.error("[persistedData] Failed to delete blog post:", err);
@@ -1143,30 +1405,30 @@ function normalizeLiveCourse(course: Course): Course {
     tuition_includes: Array.isArray(record.tuition_includes) ? record.tuition_includes : [],
     levels: Array.isArray(record.levels)
       ? record.levels
-          .filter((level) =>
-            Boolean(level) &&
-            level.price_gbp !== null &&
-            level.price_gbp !== undefined &&
-            String(level.price_gbp).trim() !== "" &&
-            Number.isFinite(Number(level.price_gbp))
-          )
-          .map((level) => ({
-            ...level,
-            course_id: level.course_id || record.id,
-            level_label: level.level_label || "Course level",
-            price_gbp: Number(level.price_gbp),
-            regular_price_gbp:
-              level.regular_price_gbp !== undefined && level.regular_price_gbp !== null
-                ? Number(level.regular_price_gbp)
-                : undefined,
-            full_pay_discount_percent:
-              level.full_pay_discount_percent !== undefined && level.full_pay_discount_percent !== null
-                ? Number(level.full_pay_discount_percent)
-                : null,
-            entry_requirements: Array.isArray(level.entry_requirements) ? level.entry_requirements : [],
-            units: Array.isArray(level.units) ? level.units : [],
-            plans: Array.isArray(level.plans) ? level.plans : [],
-          }))
+        .filter((level) =>
+          Boolean(level) &&
+          level.price_gbp !== null &&
+          level.price_gbp !== undefined &&
+          String(level.price_gbp).trim() !== "" &&
+          Number.isFinite(Number(level.price_gbp))
+        )
+        .map((level) => ({
+          ...level,
+          course_id: level.course_id || record.id,
+          level_label: level.level_label || "Course level",
+          price_gbp: Number(level.price_gbp),
+          regular_price_gbp:
+            level.regular_price_gbp !== undefined && level.regular_price_gbp !== null
+              ? Number(level.regular_price_gbp)
+              : undefined,
+          full_pay_discount_percent:
+            level.full_pay_discount_percent !== undefined && level.full_pay_discount_percent !== null
+              ? Number(level.full_pay_discount_percent)
+              : null,
+          entry_requirements: Array.isArray(level.entry_requirements) ? level.entry_requirements : [],
+          units: Array.isArray(level.units) ? level.units : [],
+          plans: Array.isArray(level.plans) ? level.plans : [],
+        }))
       : [],
   };
 }
@@ -1226,7 +1488,7 @@ export function savePersistedCohort(cohort: any): void {
     const filePath = getStoreFilePath();
     fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
     syncPersistedRecords(true);
-    syncStoreSnapshotToNeon(store).catch(() => {});
+    syncStoreSnapshotToNeon(store).catch(() => { });
   } catch (err) {
     console.error("[persistedData] Failed to save cohort:", err);
   }
@@ -1260,12 +1522,12 @@ export function deletePersistedCohort(cohortId: string): boolean {
           }
         }
       }
-    } catch {}
+    } catch { }
 
     const filePath = getStoreFilePath();
     fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
     syncPersistedRecords(true);
-    syncStoreSnapshotToNeon(store).catch(() => {});
+    syncStoreSnapshotToNeon(store).catch(() => { });
     return true;
   } catch (err) {
     console.error("[persistedData] Failed to delete cohort:", err);
@@ -1299,7 +1561,7 @@ export function savePersistedClassSession(session: any): void {
     const filePath = getStoreFilePath();
     fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
     syncPersistedRecords(true);
-    syncStoreSnapshotToNeon(store).catch(() => {});
+    syncStoreSnapshotToNeon(store).catch(() => { });
   } catch (err) {
     console.error("[persistedData] Failed to save class session:", err);
   }
@@ -1318,7 +1580,7 @@ export function savePersistedAssignment(assignment: any): void {
     const filePath = getStoreFilePath();
     fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
     syncPersistedRecords(true);
-    syncStoreSnapshotToNeon(store).catch(() => {});
+    syncStoreSnapshotToNeon(store).catch(() => { });
   } catch (err) {
     console.error("[persistedData] Failed to save assignment:", err);
   }
@@ -1332,7 +1594,7 @@ export function deletePersistedAssignment(assignmentId: string): boolean {
     const filePath = getStoreFilePath();
     fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
     syncPersistedRecords(true);
-    syncStoreSnapshotToNeon(store).catch(() => {});
+    syncStoreSnapshotToNeon(store).catch(() => { });
     return true;
   } catch (err) {
     console.error("[persistedData] Failed to delete assignment:", err);
@@ -1353,7 +1615,7 @@ export function savePersistedSubmission(submission: any): void {
     const filePath = getStoreFilePath();
     fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
     syncPersistedRecords(true);
-    syncStoreSnapshotToNeon(store).catch(() => {});
+    syncStoreSnapshotToNeon(store).catch(() => { });
   } catch (err) {
     console.error("[persistedData] Failed to save submission:", err);
   }
@@ -1682,49 +1944,66 @@ export function listAllPlatformUsers(): PersistedUserRecord[] {
         if (!existing.tutorId && su.tutorId) existing.tutorId = su.tutorId;
       }
     }
-  } catch {}
+  } catch { }
 
   return users;
 }
 
 export function createPlatformUserInStore(data: {
+  id?: string;
   name: string;
   email: string;
   role: string;
   password: string;
   department?: string;
   specialism?: string;
+  tutorId?: string;
+  learnerId?: string;
 }): PersistedUserRecord {
   const store = loadPersistedRecords();
   if (!store.userCredentials) store.userCredentials = [];
 
+  const cleanEmail = data.email.toLowerCase().trim();
+  const cleanPw = data.password.trim();
+
   const existingIdx = store.userCredentials.findIndex(
-    (u) => u.email.toLowerCase() === data.email.toLowerCase().trim()
+    (u) => u.email.toLowerCase() === cleanEmail || (data.id && u.id === data.id)
   );
+  const existing = existingIdx >= 0 ? store.userCredentials[existingIdx] : undefined;
 
   const newUser: PersistedUserRecord = {
-    id: `user-custom-${Date.now().toString(36)}`,
-    email: data.email.toLowerCase().trim(),
+    id: data.id || existing?.id || `user-custom-${Date.now().toString(36)}`,
+    email: cleanEmail,
     name: data.name.trim(),
     role: data.role,
-    passwordHash: hashPassword(data.password.trim()),
+    tutorId:
+      data.tutorId ||
+      existing?.tutorId ||
+      (data.role === "tutor" ? `tutor-${Date.now()}` : undefined),
+    learnerId: data.learnerId || existing?.learnerId,
+    department: data.department?.trim() || existing?.department,
+    specialism: data.specialism?.trim() || existing?.specialism,
+    active: true,
+    passwordHash: hashPassword(cleanPw),
+    temporaryPassword: cleanPw,
     mustChangePassword: true,
-    createdAt: new Date().toISOString(),
+    createdAt: existing?.createdAt || new Date().toISOString(),
   };
 
   if (existingIdx >= 0) {
     store.userCredentials[existingIdx] = {
-      ...store.userCredentials[existingIdx],
+      ...existing,
       ...newUser,
-      id: store.userCredentials[existingIdx].id,
     };
   } else {
     store.userCredentials.unshift(newUser);
   }
 
   const filePath = getStoreFilePath();
-  fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+  writeStoreToDisk(filePath, store);
   syncPersistedRecords(true);
+  syncStoreSnapshotToNeon(store).catch(() => { });
+  syncUserCredentialToNeon(newUser).catch(() => { });
 
   return newUser;
 }
@@ -1745,7 +2024,7 @@ export function deleteUserFromStore(userIdOrEmail: string): boolean {
       const filePath = getStoreFilePath();
       fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
       syncPersistedRecords(true);
-      syncStoreSnapshotToNeon(store).catch(() => {});
+      syncStoreSnapshotToNeon(store).catch(() => { });
       return true;
     }
     return false;
@@ -1769,12 +2048,12 @@ export function deletePaymentRecordFromStore(paymentId: string): boolean {
         const idx = seedPaymentRecords.findIndex((p: any) => p.id === paymentId);
         if (idx >= 0) seedPaymentRecords.splice(idx, 1);
       }
-    } catch {}
+    } catch { }
 
     const filePath = getStoreFilePath();
     fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
     syncPersistedRecords(true);
-    syncStoreSnapshotToNeon(store).catch(() => {});
+    syncStoreSnapshotToNeon(store).catch(() => { });
     return true;
   } catch (err) {
     console.error("[persistedData] Failed to delete payment:", err);
@@ -1829,7 +2108,7 @@ export function updatePlatformUserInStore(
           };
           store.userCredentials.push(user);
         }
-      } catch {}
+      } catch { }
     }
 
     if (!user) {
@@ -1873,12 +2152,12 @@ export function updatePlatformUserInStore(
           }
         }
       }
-    } catch {}
+    } catch { }
 
     const filePath = getStoreFilePath();
     fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
     syncPersistedRecords(true);
-    syncStoreSnapshotToNeon(store).catch(() => {});
+    syncStoreSnapshotToNeon(store).catch(() => { });
 
     // Also sync to Neon user_credentials table if configured
     try {
@@ -1893,10 +2172,10 @@ export function updatePlatformUserInStore(
                 specialism = ${user!.specialism || null},
                 active = ${user!.active !== false}
             WHERE id = ${user!.id} OR LOWER(email) = ${user!.email.toLowerCase()}
-          `.catch(() => {});
+          `.catch(() => { });
         }
       });
-    } catch {}
+    } catch { }
 
     return { success: true, user };
   } catch (err) {
@@ -1977,12 +2256,12 @@ export function purgeAllTestRecordsFromStore(): {
           millieSeed.role = "owner_admin";
         }
       }
-    } catch {}
+    } catch { }
 
     const filePath = getStoreFilePath();
     fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
     syncPersistedRecords(true);
-    syncStoreSnapshotToNeon(store).catch(() => {});
+    syncStoreSnapshotToNeon(store).catch(() => { });
 
     return {
       deletedPayments: initialPayments,
@@ -2022,14 +2301,14 @@ export function generatePlatformBackupData(): Record<string, unknown> {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { getPersistentSiteTheme } = require("@/lib/siteTheme");
     themeData = getPersistentSiteTheme();
-  } catch {}
+  } catch { }
 
   let entitlementsData = [];
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { seedEntitlements } = require("@/lib/repositories/seedData");
     entitlementsData = seedEntitlements;
-  } catch {}
+  } catch { }
 
   return {
     version: "1.0",
@@ -2074,7 +2353,7 @@ export function restorePlatformBackupData(backupData: any): {
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         const { savePersistentSiteTheme } = require("@/lib/siteTheme");
         savePersistentSiteTheme(theme);
-      } catch {}
+      } catch { }
     }
 
     syncPersistedRecords(true);
@@ -2121,7 +2400,7 @@ export function getCohortSchedule(): CohortScheduleConfig {
         },
       };
     }
-  } catch {}
+  } catch { }
   return { ...defaultCohortSchedule };
 }
 
@@ -2131,7 +2410,7 @@ export function saveCohortSchedule(schedule: CohortScheduleConfig): void {
     store.cohortSchedule = schedule;
     const filePath = getStoreFilePath();
     fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
-    syncStoreSnapshotToNeon(store).catch(() => {});
+    syncStoreSnapshotToNeon(store).catch(() => { });
   } catch (err) {
     console.error("[persistedData] Failed to save cohort schedule:", err);
   }
@@ -2154,14 +2433,14 @@ export function wipeAllDemoData(): { success: boolean; message: string } {
 
     const filePath = getStoreFilePath();
     fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
-    syncStoreSnapshotToNeon(store).catch(() => {});
+    syncStoreSnapshotToNeon(store).catch(() => { });
 
     try {
       const devLeadsPath = path.join(process.cwd(), "data", "dev_leads.json");
       fs.writeFileSync(devLeadsPath, JSON.stringify([], null, 2));
       const devEmailsPath = path.join(process.cwd(), "data", "dev_emails.json");
       fs.writeFileSync(devEmailsPath, JSON.stringify([], null, 2));
-    } catch {}
+    } catch { }
 
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -2180,7 +2459,7 @@ export function wipeAllDemoData(): { success: boolean; message: string } {
         seedData.seedUsers.length = 0;
         seedData.seedUsers.push(...allowed);
       }
-    } catch {}
+    } catch { }
 
     return {
       success: true,
@@ -2216,7 +2495,7 @@ export function saveEnquiryToStore(enquiry: EnquiryLead): void {
           seedData.seedEnquiries.unshift(enquiry);
         }
       }
-    } catch {}
+    } catch { }
   } catch (err) {
     console.error("[persistedData] Failed to save enquiry to store:", err);
   }
@@ -2242,7 +2521,7 @@ export function updateEnquiryInStore(enquiryId: string, updates: Partial<Enquiry
           seedData.seedEnquiries[sIdx] = { ...seedData.seedEnquiries[sIdx], ...updates };
         }
       }
-    } catch {}
+    } catch { }
   } catch (err) {
     console.error("[persistedData] Failed to update enquiry in store:", err);
   }
@@ -2262,7 +2541,7 @@ export function listAllEnquiries(): EnquiryLead[] {
         }
       }
     }
-  } catch {}
+  } catch { }
 
   return list.sort(
     (a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
@@ -2278,7 +2557,7 @@ export function savePasswordResetToken(
   try {
     const store = loadPersistedRecords();
     if (!store.passwordResetTokens) store.passwordResetTokens = [];
-    
+
     const now = Date.now();
     // Purge expired tokens
     store.passwordResetTokens = store.passwordResetTokens.filter((t) => t.expiresAt > now);
@@ -2377,7 +2656,7 @@ export async function saveFacultyToStore(faculty: FacultyRecord): Promise<Facult
   try {
     try {
       await pullLatestFromNeon();
-    } catch {}
+    } catch { }
     const store = loadPersistedRecords();
     if (!store.faculties || !Array.isArray(store.faculties)) {
       store.faculties = [...DEFAULT_COLLEGE_FACULTIES];
@@ -2427,14 +2706,14 @@ export async function saveFacultyToStore(faculty: FacultyRecord): Promise<Facult
               };
             }
           }
-        } catch {}
+        } catch { }
 
         try {
           const { isDbConfigured, sql } = await import("@/lib/db");
           if (isDbConfigured) {
             await sql`UPDATE course_catalog SET category = ${newName} WHERE category = ${oldName};`;
           }
-        } catch {}
+        } catch { }
       }
     } else {
       store.faculties.push({
@@ -2463,7 +2742,7 @@ export async function deleteFacultyFromStore(facultyId: string): Promise<Faculty
   try {
     try {
       await pullLatestFromNeon();
-    } catch {}
+    } catch { }
     const store = loadPersistedRecords();
     if (!store.faculties || !Array.isArray(store.faculties)) {
       store.faculties = [...DEFAULT_COLLEGE_FACULTIES];
@@ -2555,7 +2834,7 @@ export function saveNewsletterSubscriber(
               data = EXCLUDED.data;
           `.catch((err) => console.warn("[Neon DB] subscribers sync error:", err));
         })
-        .catch(() => {});
+        .catch(() => { });
     }
 
     return { success: true, isNew: true, subscriber: newSub };
@@ -2588,7 +2867,7 @@ export function deleteNewsletterSubscriber(idOrEmail: string): boolean {
               console.warn("[Neon DB] subscribers delete error:", err)
             );
           })
-          .catch(() => {});
+          .catch(() => { });
       }
       return true;
     }
@@ -2626,7 +2905,7 @@ export function toggleNewsletterSubscriberStatus(
             WHERE id = ${sub.id} OR email = ${sub.email};
           `.catch((err) => console.warn("[Neon DB] subscribers toggle error:", err));
         })
-        .catch(() => {});
+        .catch(() => { });
     }
 
     return { success: true, newStatus: sub.status };
@@ -2776,14 +3055,19 @@ export function getAuditLogsFromStore(): any[] {
 }
 
 export function findUserForImpersonation(userIdOrEmail: string): PersistedUserRecord | null {
-  const target = userIdOrEmail.trim().toLowerCase();
+  const raw = userIdOrEmail.trim();
+  const target = raw.toLowerCase();
   const allUsers = listAllPlatformUsers();
 
-  // 1. Direct match in platform users
+  // 1. Direct match in platform users (by id, email, tutorId, or learnerId)
   const direct = allUsers.find(
-    (u) => u.id === userIdOrEmail || u.email.toLowerCase() === target
+    (u) =>
+      u.id === raw ||
+      u.id.toLowerCase() === target ||
+      u.email.toLowerCase() === target ||
+      (u.tutorId && u.tutorId.toLowerCase() === target) ||
+      (u.learnerId && u.learnerId.toLowerCase() === target)
   );
-  if (direct) return direct;
 
   // 2. Check learners repository
   const store = loadPersistedRecords();
@@ -2791,21 +3075,125 @@ export function findUserForImpersonation(userIdOrEmail: string): PersistedUserRe
   const { seedLearners } = require("@/lib/repositories/seedData");
   const allLearners = [...(store.learners || []), ...seedLearners];
   const matchedLearner = allLearners.find(
-    (l) => l.id === userIdOrEmail || l.email.toLowerCase() === target
+    (l) =>
+      l.id === raw ||
+      l.id.toLowerCase() === target ||
+      (l.userId && l.userId.toLowerCase() === target) ||
+      l.email.toLowerCase() === target
   );
+
+  if (direct) {
+    if (direct.role === "student" && !direct.learnerId && matchedLearner) {
+      return { ...direct, learnerId: matchedLearner.id };
+    }
+    return direct;
+  }
 
   if (matchedLearner) {
     return {
-      id: matchedLearner.id,
+      id: matchedLearner.userId || matchedLearner.id,
       email: matchedLearner.email,
-      name: `${matchedLearner.firstName} ${matchedLearner.lastName}`,
+      name: `${matchedLearner.firstName} ${matchedLearner.lastName}`.trim(),
       role: "student",
       learnerId: matchedLearner.id,
-      createdAt: matchedLearner.createdAt || new Date().toISOString(),
+      createdAt: matchedLearner.enrolmentDate || matchedLearner.createdAt || new Date().toISOString(),
     };
   }
 
   return null;
+}
+
+export async function findUserForImpersonationAsync(
+  userIdOrEmail: string
+): Promise<PersistedUserRecord | null> {
+  const raw = userIdOrEmail.trim();
+  const target = raw.toLowerCase();
+
+  // 1. Query Neon PostgreSQL directly when configured so records in user_credentials or learners are always found
+  if (process.env.DATABASE_URL) {
+    try {
+      const { isDbConfigured, sql } = await import("@/lib/db");
+      if (isDbConfigured) {
+        const [userRows, learnerRows]: [any, any] = await Promise.all([
+          sql`
+            SELECT id, email, name, role, active, tutor_id, learner_id, specialism, department, data, created_at
+            FROM user_credentials
+            WHERE id = ${raw}
+               OR LOWER(email) = ${target}
+               OR tutor_id = ${raw}
+               OR learner_id = ${raw}
+            LIMIT 1
+          `.catch(() => []),
+          sql`
+            SELECT id, user_id, first_name, last_name, email, name, data, created_at
+            FROM learners
+            WHERE id = ${raw}
+               OR user_id = ${raw}
+               OR LOWER(email) = ${target}
+            LIMIT 1
+          `.catch(() => []),
+        ]);
+
+        const dbLearner: Learner | undefined = learnerRows?.[0]?.data;
+        if (dbLearner && dbLearner.id) {
+          // Ensure learner is present in memory & local store so /student works immediately
+          try {
+            const store = loadPersistedRecords();
+            if (!store.learners.some((l) => l.id === dbLearner.id)) {
+              store.learners.unshift(dbLearner);
+              writeStoreToDisk(getStoreFilePath(), store);
+              syncPersistedRecords(true);
+            }
+          } catch { }
+        }
+
+        if (userRows && userRows.length > 0) {
+          const r = userRows[0];
+          const extra = r.data && typeof r.data === "object" ? r.data : {};
+          const foundUser: PersistedUserRecord = {
+            ...extra,
+            id: r.id || extra.id,
+            email: r.email,
+            name:
+              r.name ||
+              extra.name ||
+              (dbLearner ? `${dbLearner.firstName} ${dbLearner.lastName}`.trim() : r.email),
+            role: r.role || extra.role || "student",
+            active: r.active ?? extra.active ?? true,
+            tutorId: r.tutor_id || extra.tutorId,
+            learnerId: r.learner_id || extra.learnerId || dbLearner?.id,
+            specialism: r.specialism || extra.specialism,
+            department: r.department || extra.department,
+            createdAt: r.created_at
+              ? new Date(r.created_at).toISOString()
+              : extra.createdAt || new Date().toISOString(),
+          };
+          return foundUser;
+        }
+
+        if (dbLearner) {
+          return {
+            id: dbLearner.userId || dbLearner.id,
+            email: dbLearner.email,
+            name: `${dbLearner.firstName || ""} ${dbLearner.lastName || ""}`.trim() || dbLearner.email,
+            role: "student",
+            learnerId: dbLearner.id,
+            createdAt: dbLearner.enrolmentDate || new Date().toISOString(),
+          };
+        }
+      }
+    } catch (err) {
+      console.warn("[impersonation] Neon lookup fallback:", err);
+    }
+  }
+
+  // 2. Fallback to local store & seed data
+  const localMatch = findUserForImpersonation(userIdOrEmail);
+  if (localMatch) return localMatch;
+
+  // 3. Final attempt: force a Neon pull and re-check
+  await pullLatestFromNeon(true).catch(() => { });
+  return findUserForImpersonation(userIdOrEmail);
 }
 
 // --------------------------------------------------------------------------

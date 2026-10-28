@@ -5,16 +5,22 @@ import { sql, isDbConfigured } from "@/lib/db";
 import { sanitizeDbError } from "@/lib/migrations";
 
 export class PostgresLearnerRepo implements LearnerRepo {
-  private async getLearnerIdsForTutor(tutorId?: string): Promise<Set<string>> {
-    if (!tutorId) return new Set();
+  private async getLearnerIdsForTutor(tutorId?: string, tutorName?: string): Promise<Set<string>> {
+    if (!tutorId && !tutorName) return new Set();
     try {
+      const cleanName = (tutorName || "").trim().toLowerCase();
+      const firstName = cleanName.split(" ")[0] || "";
       const rows = (await sql`
-        SELECT DISTINCT e.learner_id
+        SELECT DISTINCT COALESCE(e.learner_id, e.data->>'learnerId') AS learner_id
         FROM enrolments e
-        JOIN classes c ON e.class_id = c.id
-        WHERE c.tutor_id = ${tutorId};
+        LEFT JOIN classes c ON (e.class_id = c.id OR e.data->>'classId' = c.id)
+        WHERE (${tutorId || ""} <> '' AND (c.tutor_id = ${tutorId || ""} OR e.data->>'tutorId' = ${tutorId || ""}))
+           OR (${cleanName} <> '' AND (
+                LOWER(COALESCE(e.data->>'tutorName', '')) = ${cleanName}
+                OR (${firstName.length >= 3} AND LOWER(COALESCE(e.data->>'tutorName', '')) = ${firstName})
+              ));
       `) as { learner_id: string }[];
-      return new Set(rows.map((r) => r.learner_id));
+      return new Set(rows.map((r) => r.learner_id).filter(Boolean));
     } catch (err) {
       console.error("[PostgresLearnerRepo] getLearnerIdsForTutor error:", sanitizeDbError(err));
       return new Set();
@@ -32,7 +38,7 @@ export class PostgresLearnerRepo implements LearnerRepo {
 
     try {
       if (actor.role === "tutor") {
-        const allowedIds = await this.getLearnerIdsForTutor(actor.tutorId);
+        const allowedIds = await this.getLearnerIdsForTutor(actor.tutorId, actor.name);
         if (allowedIds.size === 0) return [];
 
         const idArray = Array.from(allowedIds);
@@ -60,7 +66,7 @@ export class PostgresLearnerRepo implements LearnerRepo {
         throw new PermissionDeniedError("Students may only access their own learner record.");
       }
     } else if (actor.role === "tutor") {
-      const allowedIds = await this.getLearnerIdsForTutor(actor.tutorId);
+      const allowedIds = await this.getLearnerIdsForTutor(actor.tutorId, actor.name);
       if (!allowedIds.has(id)) {
         throw new PermissionDeniedError("Tutors may only access learners enrolled in their assigned classes.");
       }

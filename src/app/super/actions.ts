@@ -57,6 +57,10 @@ export async function createPlatformUserAction(data: {
 
   const temporaryPassword = data.password?.trim() || randomBytes(18).toString("base64url");
   const user = createPlatformUserInStore({ ...data, password: temporaryPassword });
+  try {
+    const { syncUserCredentialToNeon } = await import("@/lib/persistedData");
+    await syncUserCredentialToNeon(user);
+  } catch {}
 
   // Automatically dispatch branded onboarding credentials email
   try {
@@ -242,8 +246,8 @@ export async function impersonateUserAction(userIdOrEmail: string): Promise<{ su
     };
   }
 
-  const { findUserForImpersonation, recordImpersonationAuditLog } = await import("@/lib/persistedData");
-  const target = findUserForImpersonation(userIdOrEmail);
+  const { findUserForImpersonationAsync, recordImpersonationAuditLog } = await import("@/lib/persistedData");
+  const target = await findUserForImpersonationAsync(userIdOrEmail);
 
   if (!target) {
     return {
@@ -280,6 +284,7 @@ export async function impersonateUserAction(userIdOrEmail: string): Promise<{ su
     name: target.name,
     role: target.role as UserRole,
     learnerId: target.learnerId,
+    tutorId: target.tutorId,
     isImpersonating: true,
     impersonatorEmail: session.impersonatorEmail || session.email,
     originalRole: actorRole,

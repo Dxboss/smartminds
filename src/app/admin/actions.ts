@@ -841,17 +841,20 @@ export async function inviteStaffMemberAction(data: {
 
   const tempPassword = randomBytes(18).toString("base64url");
 
-  // Persist credentials in store for immediate sign-in
+  // Persist credentials in store and Neon user_credentials table for immediate sign-in
   try {
-    const { createPlatformUserInStore } = await import("@/lib/persistedData");
-    createPlatformUserInStore({
+    const { createPlatformUserInStore, syncUserCredentialToNeon } = await import("@/lib/persistedData");
+    const persistedUser = createPlatformUserInStore({
+      id: newUser.id,
       name: newUser.name,
       email: newUser.email,
       role: newUser.role as any,
       password: tempPassword,
       department: newUser.department,
       specialism: newUser.specialism,
+      tutorId: newUser.tutorId,
     });
+    await syncUserCredentialToNeon(persistedUser);
   } catch (err) {
     console.error("[inviteStaffMemberAction] Error saving credentials to store:", err);
   }
@@ -2575,13 +2578,30 @@ export async function adminEnrolNewStudentAction(data: {
   const store = loadPersistedRecords();
 
   const cleanEmail = data.email.trim().toLowerCase();
-  const existingLearner =
+  let existingLearner =
     (data.existingLearnerId
       ? (store.learners || []).find((l) => l.id === data.existingLearnerId) ||
         seedLearners.find((l) => l.id === data.existingLearnerId)
       : undefined) ||
     (store.learners || []).find((l) => l.email.toLowerCase() === cleanEmail) ||
     seedLearners.find((l) => l.email.toLowerCase() === cleanEmail);
+
+  if (!existingLearner && process.env.DATABASE_URL) {
+    try {
+      const { isDbConfigured, sql } = await import("@/lib/db");
+      if (isDbConfigured) {
+        const rows = (await sql`
+          SELECT data FROM learners
+          WHERE LOWER(email) = ${cleanEmail}
+             OR id = ${data.existingLearnerId || ""}
+          LIMIT 1
+        `) as any[];
+        if (rows?.[0]?.data) {
+          existingLearner = rows[0].data;
+        }
+      }
+    } catch {}
+  }
 
   const isAdditionalCourse = Boolean(existingLearner);
   const learnerId = existingLearner
@@ -2832,8 +2852,8 @@ export async function adminEnrolNewStudentAction(data: {
     }
   }
 
-  // Persist student records
-  savePersistedRecord({
+  // Persist student records and await Neon sync
+  await savePersistedRecord({
     learner: newLearner,
     enrolment: newEnrolment,
     paymentRecord,
@@ -2968,9 +2988,23 @@ export async function updateLearnerAndEnrolmentAction(data: {
   if (!store.paymentRecords) store.paymentRecords = [];
   if (!store.paymentSchedules) store.paymentSchedules = [];
 
-  const existingLearner =
+  let existingLearner =
     store.learners.find((l) => l.id === data.learnerId) ||
     seedLearners.find((l) => l.id === data.learnerId);
+
+  if (!existingLearner && process.env.DATABASE_URL) {
+    try {
+      const { isDbConfigured, sql } = await import("@/lib/db");
+      if (isDbConfigured) {
+        const rows = (await sql`
+          SELECT data FROM learners WHERE id = ${data.learnerId} LIMIT 1
+        `) as any[];
+        if (rows?.[0]?.data) {
+          existingLearner = rows[0].data;
+        }
+      }
+    } catch {}
+  }
 
   if (!existingLearner) {
     return { success: false, error: "Learner not found." };
