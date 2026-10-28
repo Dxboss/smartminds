@@ -52,7 +52,9 @@ export class PostgresLearnerRepo implements LearnerRepo {
       const rows = (await sql`
         SELECT data FROM learners ORDER BY last_name ASC;
       `) as { data: Learner }[];
-      return rows.map((r) => r.data);
+      const { isAutomatedTestEnv, isFictionalDemoRecord } = await import("@/lib/persistedData");
+      const isTest = isAutomatedTestEnv();
+      return rows.map((r) => r.data).filter((l) => isTest || !isFictionalDemoRecord(l));
     } catch (err) {
       if (err instanceof PermissionDeniedError) throw err;
       console.error("[PostgresLearnerRepo] listLearners error:", sanitizeDbError(err));

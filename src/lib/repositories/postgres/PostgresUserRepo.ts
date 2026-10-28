@@ -67,7 +67,11 @@ export class PostgresUserRepo implements UserRepo {
       ORDER BY name ASC
     `) as any[];
 
-    return rows.map((r) => this.mapRowToUserProfile(r));
+    const { isAutomatedTestEnv, isFictionalDemoRecord } = await import("@/lib/persistedData");
+    const isTest = isAutomatedTestEnv();
+    return rows
+      .map((r) => this.mapRowToUserProfile(r))
+      .filter((u) => isTest || !isFictionalDemoRecord(u));
   }
 
   async inviteUser(

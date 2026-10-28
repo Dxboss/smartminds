@@ -193,17 +193,21 @@ export function loadPersistedRecords(): PersistedRecordsStore {
         } catch { }
       }
     }
+    const isTest = isAutomatedTestEnv();
+    const stripDemo = <T>(arr: T[]): T[] =>
+      isTest ? arr : arr.filter((item) => !isFictionalDemoRecord(item));
+
     const loaded: PersistedRecordsStore = {
-      learners: Array.isArray(parsed.learners) ? parsed.learners : [],
-      enrolments: Array.isArray(parsed.enrolments) ? parsed.enrolments : [],
+      learners: Array.isArray(parsed.learners) ? stripDemo(parsed.learners) : [],
+      enrolments: Array.isArray(parsed.enrolments) ? stripDemo(parsed.enrolments) : [],
       paymentRecords: Array.isArray(parsed.paymentRecords)
-        ? parsed.paymentRecords
+        ? stripDemo(parsed.paymentRecords)
         : [],
       paymentSchedules: Array.isArray(parsed.paymentSchedules)
-        ? parsed.paymentSchedules
+        ? stripDemo(parsed.paymentSchedules)
         : [],
       userCredentials: Array.isArray(parsed.userCredentials)
-        ? parsed.userCredentials
+        ? stripDemo(parsed.userCredentials)
         : [],
       passwordResetTokens: Array.isArray(parsed.passwordResetTokens)
         ? parsed.passwordResetTokens
@@ -365,7 +369,102 @@ export async function syncStoreSnapshotToNeon(store: PersistedRecordsStore): Pro
 let lastNeonPullPerf = 0;
 let lastNeonPullTimestamp = 0;
 let pullingPromise: Promise<boolean> | null = null;
+let fictionalDemoPurgedFromNeon = false;
 const NEON_PULL_TTL_MS = 30000; // 30 seconds cache to avoid DB storming across concurrent components
+
+export function isAutomatedTestEnv(): boolean {
+  return (
+    process.env.NODE_ENV === "test" ||
+    (typeof process !== "undefined" &&
+      Array.isArray(process.argv) &&
+      process.argv.some((a) => a.includes("--test") || a.includes(".test.")))
+  );
+}
+
+const FICTIONAL_DEMO_EMAILS = new Set([
+  "sarah.jenkins@smartmindstraining.co.uk",
+  "brian.miller@smartmindstraining.co.uk",
+  "fatima.almansoor@smartmindstraining.co.uk",
+  "eleanor.vance@smartmindstraining.co.uk",
+  "marcus.sterling@smartmindstraining.co.uk",
+  "amara.patel@smartmindstraining.co.uk",
+  "david.kalu@smartmindstraining.co.uk",
+  "chloe.davies@smartmindstraining.co.uk",
+  "super.admin@smartmindstraining.co.uk",
+]);
+
+const FICTIONAL_DEMO_IDS = new Set([
+  "user-admin-01",
+  "user-admin-02",
+  "user-admin-03",
+  "user-tutor-01",
+  "user-tutor-02",
+  "user-tutor-03",
+  "user-tutor-04",
+  "user-tutor-05",
+  "tutor-01",
+  "tutor-02",
+  "tutor-03",
+  "tutor-04",
+  "tutor-05",
+  "user-super-01",
+  ...Array.from({ length: 24 }, (_, i) => `user-learner-${String(i + 1).padStart(3, "0")}`),
+  ...Array.from({ length: 24 }, (_, i) => `learner-${String(i + 1).padStart(3, "0")}`),
+]);
+
+export function isFictionalDemoRecord(item: any): boolean {
+  if (!item || typeof item !== "object") return false;
+  const email = typeof item.email === "string" ? item.email.toLowerCase().trim() : "";
+  if (email && (email.endsWith("@example.com") || FICTIONAL_DEMO_EMAILS.has(email))) {
+    return true;
+  }
+  const idsToCheck = [item.id, item.userId, item.learnerId, item.tutorId];
+  for (const rawId of idsToCheck) {
+    if (typeof rawId === "string" && FICTIONAL_DEMO_IDS.has(rawId.trim())) {
+      return true;
+    }
+  }
+  return false;
+}
+
+async function purgeFictionalDemoRecordsFromNeonOnce(): Promise<void> {
+  if (fictionalDemoPurgedFromNeon || isAutomatedTestEnv()) return;
+  fictionalDemoPurgedFromNeon = true;
+  try {
+    const { isDbConfigured, sql } = await import("@/lib/db");
+    if (!isDbConfigured) return;
+    const demoEmails = Array.from(FICTIONAL_DEMO_EMAILS);
+    const demoIds = Array.from(FICTIONAL_DEMO_IDS);
+    await Promise.all([
+      sql`
+        DELETE FROM user_credentials
+        WHERE LOWER(email) LIKE '%@example.com'
+           OR LOWER(email) = ANY(${demoEmails}::text[])
+           OR id = ANY(${demoIds}::text[])
+           OR learner_id = ANY(${demoIds}::text[])
+           OR tutor_id = ANY(${demoIds}::text[])
+      `.catch(() => {}),
+      sql`
+        DELETE FROM learners
+        WHERE LOWER(email) LIKE '%@example.com'
+           OR id = ANY(${demoIds}::text[])
+           OR user_id = ANY(${demoIds}::text[])
+      `.catch(() => {}),
+      sql`
+        DELETE FROM enrolments
+        WHERE learner_id = ANY(${demoIds}::text[])
+      `.catch(() => {}),
+      sql`
+        DELETE FROM payments
+        WHERE learner_id = ANY(${demoIds}::text[])
+      `.catch(() => {}),
+      sql`
+        DELETE FROM payment_schedules
+        WHERE learner_id = ANY(${demoIds}::text[])
+      `.catch(() => {}),
+    ]);
+  } catch {}
+}
 
 export async function pullLatestFromNeon(force = false): Promise<boolean> {
   if (process.env.NEXT_PHASE === "phase-production-build") {
@@ -387,6 +486,7 @@ export async function pullLatestFromNeon(force = false): Promise<boolean> {
       if (!isDbConfigured) return false;
 
       await ensureDbTablesExist();
+      purgeFictionalDemoRecordsFromNeonOnce().catch(() => {});
 
       const timeout = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error("Neon pullLatest timeout")), 8000)
@@ -421,42 +521,59 @@ export async function pullLatestFromNeon(force = false): Promise<boolean> {
         }
       }
 
-      const learnersFromTable: Learner[] = Array.isArray(learnerRows)
-        ? learnerRows.map((r: any) => r?.data).filter(Boolean)
-        : [];
-      const enrolmentsFromTable: Enrolment[] = Array.isArray(enrolmentRows)
-        ? enrolmentRows.map((r: any) => r?.data).filter(Boolean)
-        : [];
-      const paymentsFromTable: PaymentRecord[] = Array.isArray(paymentRows)
-        ? paymentRows.map((r: any) => r?.data).filter(Boolean)
-        : [];
-      const schedulesFromTable: PaymentScheduleItem[] = Array.isArray(scheduleRows)
-        ? scheduleRows.map((r: any) => r?.data).filter(Boolean)
-        : [];
-      const usersFromTable: PersistedUserRecord[] = Array.isArray(userRows)
-        ? userRows
-          .map((r: any) => {
-            if (!r?.email) return null;
-            const extra = r.data && typeof r.data === "object" ? r.data : {};
-            return {
-              ...extra,
-              id: r.id || extra.id,
-              email: r.email,
-              name: r.name || extra.name || r.email.split("@")[0],
-              role: r.role || extra.role || "student",
-              active: r.active ?? extra.active ?? true,
-              tutorId: r.tutor_id || extra.tutorId,
-              learnerId: r.learner_id || extra.learnerId,
-              specialism: r.specialism || extra.specialism,
-              department: r.department || extra.department,
-              passwordHash: extra.passwordHash,
-              temporaryPassword: extra.temporaryPassword,
-              mustChangePassword: extra.mustChangePassword,
-              createdAt: r.created_at ? new Date(r.created_at).toISOString() : extra.createdAt || new Date().toISOString(),
-            } as PersistedUserRecord;
-          })
-          .filter(Boolean) as PersistedUserRecord[]
-        : [];
+      const isTest = isAutomatedTestEnv();
+      const filterFictional = <T>(arr: T[] | undefined): T[] => {
+        if (!Array.isArray(arr)) return [];
+        if (isTest) return arr;
+        return arr.filter((item) => !isFictionalDemoRecord(item));
+      };
+
+      const learnersFromTable: Learner[] = filterFictional(
+        Array.isArray(learnerRows)
+          ? learnerRows.map((r: any) => r?.data).filter(Boolean)
+          : []
+      );
+      const enrolmentsFromTable: Enrolment[] = filterFictional(
+        Array.isArray(enrolmentRows)
+          ? enrolmentRows.map((r: any) => r?.data).filter(Boolean)
+          : []
+      );
+      const paymentsFromTable: PaymentRecord[] = filterFictional(
+        Array.isArray(paymentRows)
+          ? paymentRows.map((r: any) => r?.data).filter(Boolean)
+          : []
+      );
+      const schedulesFromTable: PaymentScheduleItem[] = filterFictional(
+        Array.isArray(scheduleRows)
+          ? scheduleRows.map((r: any) => r?.data).filter(Boolean)
+          : []
+      );
+      const usersFromTable: PersistedUserRecord[] = filterFictional(
+        Array.isArray(userRows)
+          ? (userRows
+            .map((r: any) => {
+              if (!r?.email) return null;
+              const extra = r.data && typeof r.data === "object" ? r.data : {};
+              return {
+                ...extra,
+                id: r.id || extra.id,
+                email: r.email,
+                name: r.name || extra.name || r.email.split("@")[0],
+                role: r.role || extra.role || "student",
+                active: r.active ?? extra.active ?? true,
+                tutorId: r.tutor_id || extra.tutorId,
+                learnerId: r.learner_id || extra.learnerId,
+                specialism: r.specialism || extra.specialism,
+                department: r.department || extra.department,
+                passwordHash: extra.passwordHash,
+                temporaryPassword: extra.temporaryPassword,
+                mustChangePassword: extra.mustChangePassword,
+                createdAt: r.created_at ? new Date(r.created_at).toISOString() : extra.createdAt || new Date().toISOString(),
+              } as PersistedUserRecord;
+            })
+            .filter(Boolean) as PersistedUserRecord[])
+          : []
+      );
 
       const hasData =
         (storeRows && storeRows.length > 0 && storeRows[0]?.value) ||
@@ -469,8 +586,8 @@ export async function pullLatestFromNeon(force = false): Promise<boolean> {
         const store = loadPersistedRecords();
 
         const mergedLearners = mergeArrayById<Learner>(
-          store.learners,
-          dbStore.learners,
+          filterFictional(store.learners),
+          filterFictional(dbStore.learners),
           learnersFromTable
         );
 
@@ -489,8 +606,8 @@ export async function pullLatestFromNeon(force = false): Promise<boolean> {
 
         const mergedUsers = mergeUsersByEmail(
           learnerDerivedUsers,
-          store.userCredentials,
-          dbStore.userCredentials,
+          filterFictional(store.userCredentials),
+          filterFictional(dbStore.userCredentials),
           usersFromTable
         );
 
@@ -521,18 +638,18 @@ export async function pullLatestFromNeon(force = false): Promise<boolean> {
           cohorts: mergeArrayById(store.cohorts, dbStore.cohorts),
           classSessions: mergeArrayById(store.classSessions, dbStore.classSessions),
           paymentRecords: mergeArrayById<PaymentRecord>(
-            store.paymentRecords,
-            dbStore.paymentRecords,
+            filterFictional(store.paymentRecords),
+            filterFictional(dbStore.paymentRecords),
             paymentsFromTable
           ),
           paymentSchedules: mergeArrayById<PaymentScheduleItem>(
-            store.paymentSchedules,
-            dbStore.paymentSchedules,
+            filterFictional(store.paymentSchedules),
+            filterFictional(dbStore.paymentSchedules),
             schedulesFromTable
           ),
           enrolments: mergeArrayById<Enrolment>(
-            store.enrolments,
-            dbStore.enrolments,
+            filterFictional(store.enrolments),
+            filterFictional(dbStore.enrolments),
             enrolmentsFromTable
           ),
           enquiries: mergeArrayById(store.enquiries, dbStore.enquiries),
@@ -1842,13 +1959,34 @@ export function syncPersistedRecords(force: boolean = false): void {
     }
 
     // Sync Assignments & Submissions (Outside automated test runs, only tutor/admin created assignments exist)
-    const isTestEnv =
-      process.env.NODE_ENV === "test" ||
-      (typeof process !== "undefined" &&
-        Array.isArray(process.argv) &&
-        process.argv.some((a) => a.includes("--test") || a.includes(".test.")));
+    const isTestEnv = isAutomatedTestEnv();
 
     if (!isTestEnv) {
+      if (Array.isArray(seedLearners)) {
+        for (let i = seedLearners.length - 1; i >= 0; i--) {
+          if (isFictionalDemoRecord(seedLearners[i])) seedLearners.splice(i, 1);
+        }
+      }
+      if (Array.isArray(seedUsers)) {
+        for (let i = seedUsers.length - 1; i >= 0; i--) {
+          if (isFictionalDemoRecord(seedUsers[i])) seedUsers.splice(i, 1);
+        }
+      }
+      if (Array.isArray(seedEnrolments)) {
+        for (let i = seedEnrolments.length - 1; i >= 0; i--) {
+          if (isFictionalDemoRecord(seedEnrolments[i])) seedEnrolments.splice(i, 1);
+        }
+      }
+      if (Array.isArray(seedPaymentRecords)) {
+        for (let i = seedPaymentRecords.length - 1; i >= 0; i--) {
+          if (isFictionalDemoRecord(seedPaymentRecords[i])) seedPaymentRecords.splice(i, 1);
+        }
+      }
+      if (Array.isArray(seedPaymentSchedules)) {
+        for (let i = seedPaymentSchedules.length - 1; i >= 0; i--) {
+          if (isFictionalDemoRecord(seedPaymentSchedules[i])) seedPaymentSchedules.splice(i, 1);
+        }
+      }
       if (Array.isArray(seedAssignments)) {
         seedAssignments.length = 0;
         if (Array.isArray(store.assignments) && store.assignments.length > 0) {
@@ -1905,7 +2043,11 @@ export function syncPersistedRecords(force: boolean = false): void {
 
 export function listAllPlatformUsers(): PersistedUserRecord[] {
   const store = loadPersistedRecords();
-  const users: PersistedUserRecord[] = store.userCredentials ? [...store.userCredentials] : [];
+  const isTest = isAutomatedTestEnv();
+  const rawUsers: PersistedUserRecord[] = store.userCredentials ? [...store.userCredentials] : [];
+  const users: PersistedUserRecord[] = isTest
+    ? rawUsers
+    : rawUsers.filter((u) => !isFictionalDemoRecord(u));
 
   // Include superadmin George if not present
   if (!users.some((u) => u.email.toLowerCase() === "thegeorgedigitals@gmail.com")) {
@@ -1914,37 +2056,76 @@ export function listAllPlatformUsers(): PersistedUserRecord[] {
       email: "thegeorgedigitals@gmail.com",
       name: "David George",
       role: "super_admin",
+      active: true,
       createdAt: new Date().toISOString(),
     });
   }
 
-  // Include seed staff if not present
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { seedUsers } = require("@/lib/repositories/seedData");
-    for (const su of seedUsers) {
-      const existing = users.find((u) => u.email.toLowerCase() === su.email.toLowerCase());
+  // Ensure Centre Owner Millie Davis is always present
+  if (!users.some((u) => u.email.toLowerCase() === "millie@smartmindstraining.co.uk")) {
+    users.push({
+      id: "user-owner-01",
+      email: "millie@smartmindstraining.co.uk",
+      name: "Millie Davis",
+      role: "owner_admin",
+      department: "Executive Leadership",
+      specialism: "Centre Director & Quality Lead",
+      active: true,
+      createdAt: "2026-09-01T09:00:00Z",
+    });
+  }
+
+  // Ensure any real enrolled learners in store.learners are represented in the user directory
+  if (Array.isArray(store.learners)) {
+    for (const l of store.learners) {
+      if (!l?.email) continue;
+      if (!isTest && isFictionalDemoRecord(l)) continue;
+      const existing = users.find((u) => u.email.toLowerCase() === l.email.toLowerCase());
       if (!existing) {
         users.push({
-          id: su.id,
-          email: su.email,
-          name: su.name,
-          role: su.role,
-          learnerId: su.learnerId,
-          tutorId: su.tutorId,
-          department: su.department,
-          specialism: su.specialism,
-          active: su.active ?? true,
-          createdAt: su.createdAt || new Date().toISOString(),
+          id: l.userId || `user-${l.id}`,
+          email: l.email,
+          name: `${l.firstName || ""} ${l.lastName || ""}`.trim() || l.email,
+          role: "student",
+          learnerId: l.id,
+          active: l.accessStatus !== "archived",
+          createdAt: l.enrolmentDate || new Date().toISOString(),
         });
-      } else {
-        if (!existing.department && su.department) existing.department = su.department;
-        if (!existing.specialism && su.specialism) existing.specialism = su.specialism;
-        if (existing.active === undefined && su.active !== undefined) existing.active = su.active;
-        if (!existing.tutorId && su.tutorId) existing.tutorId = su.tutorId;
+      } else if (!existing.learnerId) {
+        existing.learnerId = l.id;
       }
     }
-  } catch { }
+  }
+
+  // Include seed staff only in automated test runs
+  if (isTest) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { seedUsers } = require("@/lib/repositories/seedData");
+      for (const su of seedUsers) {
+        const existing = users.find((u) => u.email.toLowerCase() === su.email.toLowerCase());
+        if (!existing) {
+          users.push({
+            id: su.id,
+            email: su.email,
+            name: su.name,
+            role: su.role,
+            learnerId: su.learnerId,
+            tutorId: su.tutorId,
+            department: su.department,
+            specialism: su.specialism,
+            active: su.active ?? true,
+            createdAt: su.createdAt || new Date().toISOString(),
+          });
+        } else {
+          if (!existing.department && su.department) existing.department = su.department;
+          if (!existing.specialism && su.specialism) existing.specialism = su.specialism;
+          if (existing.active === undefined && su.active !== undefined) existing.active = su.active;
+          if (!existing.tutorId && su.tutorId) existing.tutorId = su.tutorId;
+        }
+      }
+    } catch { }
+  }
 
   return users;
 }
@@ -2011,23 +2192,89 @@ export function createPlatformUserInStore(data: {
 export function deleteUserFromStore(userIdOrEmail: string): boolean {
   try {
     const store = loadPersistedRecords();
-    if (!store.userCredentials) return false;
+    if (!store.userCredentials) store.userCredentials = [];
+
+    const cleanQuery = userIdOrEmail.toLowerCase().trim();
+    const matchedUser = store.userCredentials.find(
+      (u) => u.id === userIdOrEmail || u.email.toLowerCase() === cleanQuery
+    );
+    const targetEmail = matchedUser?.email?.toLowerCase() || cleanQuery;
+    const targetLearnerId = matchedUser?.learnerId || userIdOrEmail;
 
     const initialLen = store.userCredentials.length;
     store.userCredentials = store.userCredentials.filter(
       (u) =>
         u.id !== userIdOrEmail &&
-        u.email.toLowerCase() !== userIdOrEmail.toLowerCase()
+        u.email.toLowerCase() !== cleanQuery &&
+        u.email.toLowerCase() !== targetEmail
     );
 
-    if (store.userCredentials.length !== initialLen) {
-      const filePath = getStoreFilePath();
-      fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
-      syncPersistedRecords(true);
-      syncStoreSnapshotToNeon(store).catch(() => { });
-      return true;
+    if (Array.isArray(store.learners)) {
+      store.learners = store.learners.filter(
+        (l) =>
+          l.id !== userIdOrEmail &&
+          l.id !== targetLearnerId &&
+          l.userId !== userIdOrEmail &&
+          l.email?.toLowerCase() !== cleanQuery &&
+          l.email?.toLowerCase() !== targetEmail
+      );
     }
-    return false;
+
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { seedUsers, seedLearners } = require("@/lib/repositories/seedData");
+      if (Array.isArray(seedUsers)) {
+        for (let i = seedUsers.length - 1; i >= 0; i--) {
+          if (
+            seedUsers[i].id === userIdOrEmail ||
+            seedUsers[i].email?.toLowerCase() === cleanQuery ||
+            seedUsers[i].email?.toLowerCase() === targetEmail
+          ) {
+            seedUsers.splice(i, 1);
+          }
+        }
+      }
+      if (Array.isArray(seedLearners)) {
+        for (let i = seedLearners.length - 1; i >= 0; i--) {
+          if (
+            seedLearners[i].id === userIdOrEmail ||
+            seedLearners[i].id === targetLearnerId ||
+            seedLearners[i].email?.toLowerCase() === cleanQuery ||
+            seedLearners[i].email?.toLowerCase() === targetEmail
+          ) {
+            seedLearners.splice(i, 1);
+          }
+        }
+      }
+    } catch { }
+
+    const filePath = getStoreFilePath();
+    writeStoreToDisk(filePath, store);
+    syncPersistedRecords(true);
+    syncStoreSnapshotToNeon(store).catch(() => { });
+
+    try {
+      import("@/lib/db").then(({ isDbConfigured, sql }) => {
+        if (isDbConfigured) {
+          sql`
+            DELETE FROM user_credentials
+            WHERE id = ${userIdOrEmail}
+               OR LOWER(email) = ${cleanQuery}
+               OR LOWER(email) = ${targetEmail}
+          `.catch(() => { });
+          sql`
+            DELETE FROM learners
+            WHERE id = ${userIdOrEmail}
+               OR id = ${targetLearnerId}
+               OR user_id = ${userIdOrEmail}
+               OR LOWER(email) = ${cleanQuery}
+               OR LOWER(email) = ${targetEmail}
+          `.catch(() => { });
+        }
+      });
+    } catch { }
+
+    return store.userCredentials.length !== initialLen || Boolean(matchedUser);
   } catch (err) {
     console.error("[persistedData] Failed to delete user:", err);
     return false;
@@ -2210,20 +2457,14 @@ export function purgeAllTestRecordsFromStore(): {
     const initialEnrolments = store.enrolments?.length || 0;
     const initialUsers = store.userCredentials?.length || 0;
 
-    // Purge test transactional records
-    store.paymentRecords = [];
-    store.paymentSchedules = [];
-    store.learners = [];
-    store.enrolments = [];
+    // Purge only fictional demo records, preserving real enrolled learners & staff
+    store.paymentRecords = (store.paymentRecords || []).filter((p) => !isFictionalDemoRecord(p));
+    store.paymentSchedules = (store.paymentSchedules || []).filter((s) => !isFictionalDemoRecord(s));
+    store.learners = (store.learners || []).filter((l) => !isFictionalDemoRecord(l));
+    store.enrolments = (store.enrolments || []).filter((e) => !isFictionalDemoRecord(e));
 
-    // Filter out student accounts from userCredentials, preserve real staff/admins
     if (store.userCredentials) {
-      store.userCredentials = store.userCredentials.filter(
-        (u) =>
-          u.role !== "student" &&
-          !u.email.includes("example.com") &&
-          u.email.toLowerCase() !== "maya.lin@example.com"
-      );
+      store.userCredentials = store.userCredentials.filter((u) => !isFictionalDemoRecord(u));
 
       // Clean Millie Davis account ID & role, strictly preserve password
       const millie = store.userCredentials.find(
@@ -2235,19 +2476,34 @@ export function purgeAllTestRecordsFromStore(): {
       }
     }
 
-    // Clear in-memory seed records
+    // Clear fictional in-memory seed records
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const seedData = require("@/lib/repositories/seedData");
-      if (Array.isArray(seedData.seedLearners)) seedData.seedLearners.length = 0;
-      if (Array.isArray(seedData.seedEnrolments)) seedData.seedEnrolments.length = 0;
-      if (Array.isArray(seedData.seedPaymentRecords)) seedData.seedPaymentRecords.length = 0;
-      if (Array.isArray(seedData.seedPaymentSchedules)) seedData.seedPaymentSchedules.length = 0;
-      if (Array.isArray(seedData.seedAssignments)) seedData.seedAssignments.length = 0;
-      if (Array.isArray(seedData.seedSubmissions)) seedData.seedSubmissions.length = 0;
-
-      // Ensure Millie in seedUsers
+      if (Array.isArray(seedData.seedLearners)) {
+        for (let i = seedData.seedLearners.length - 1; i >= 0; i--) {
+          if (isFictionalDemoRecord(seedData.seedLearners[i])) seedData.seedLearners.splice(i, 1);
+        }
+      }
+      if (Array.isArray(seedData.seedEnrolments)) {
+        for (let i = seedData.seedEnrolments.length - 1; i >= 0; i--) {
+          if (isFictionalDemoRecord(seedData.seedEnrolments[i])) seedData.seedEnrolments.splice(i, 1);
+        }
+      }
+      if (Array.isArray(seedData.seedPaymentRecords)) {
+        for (let i = seedData.seedPaymentRecords.length - 1; i >= 0; i--) {
+          if (isFictionalDemoRecord(seedData.seedPaymentRecords[i])) seedData.seedPaymentRecords.splice(i, 1);
+        }
+      }
+      if (Array.isArray(seedData.seedPaymentSchedules)) {
+        for (let i = seedData.seedPaymentSchedules.length - 1; i >= 0; i--) {
+          if (isFictionalDemoRecord(seedData.seedPaymentSchedules[i])) seedData.seedPaymentSchedules.splice(i, 1);
+        }
+      }
       if (Array.isArray(seedData.seedUsers)) {
+        for (let i = seedData.seedUsers.length - 1; i >= 0; i--) {
+          if (isFictionalDemoRecord(seedData.seedUsers[i])) seedData.seedUsers.splice(i, 1);
+        }
         const millieSeed = seedData.seedUsers.find(
           (u: any) => u.email.toLowerCase() === "millie@smartmindstraining.co.uk"
         );
@@ -2259,15 +2515,17 @@ export function purgeAllTestRecordsFromStore(): {
     } catch { }
 
     const filePath = getStoreFilePath();
-    fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+    writeStoreToDisk(filePath, store);
     syncPersistedRecords(true);
     syncStoreSnapshotToNeon(store).catch(() => { });
+    fictionalDemoPurgedFromNeon = false;
+    purgeFictionalDemoRecordsFromNeonOnce().catch(() => { });
 
     return {
-      deletedPayments: initialPayments,
-      deletedSchedules: initialSchedules,
-      deletedLearners: initialLearners,
-      deletedEnrolments: initialEnrolments,
+      deletedPayments: initialPayments - (store.paymentRecords?.length || 0),
+      deletedSchedules: initialSchedules - (store.paymentSchedules?.length || 0),
+      deletedLearners: initialLearners - (store.learners?.length || 0),
+      deletedEnrolments: initialEnrolments - (store.enrolments?.length || 0),
       cleanedUsers: initialUsers - (store.userCredentials?.length || 0),
     };
   } catch (err) {

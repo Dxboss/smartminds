@@ -1,13 +1,15 @@
 import React from "react";
 import { getServerSession } from "@/lib/session";
 import { getEntitlementRepo } from "@/lib/repositories";
-import { listAllPlatformUsers } from "@/lib/persistedData";
+import { listAllPlatformUsers, pullLatestFromNeon } from "@/lib/persistedData";
 import { SuperAdminDashboard } from "./SuperAdminDashboard";
 
 
 export default async function SuperAdminPage() {
   const session = await getServerSession();
   if (!session) return null;
+
+  await pullLatestFromNeon();
 
   let entitlements: any[] = [];
   let auditLog: any[] = [];
