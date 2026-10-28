@@ -614,7 +614,7 @@ export function PaymentsLedgerView({
         });
         if (result.success) {
           setFeedbackNotice(
-            "Payment API credentials and BACS banking account details updated successfully."
+            "BACS college bank account details updated successfully."
           );
           setTimeout(() => setFeedbackNotice(null), 5000);
         }
@@ -893,7 +893,7 @@ export function PaymentsLedgerView({
           }`}
         >
           <Icon name="credit-card" size={16} />
-          <span>Payment API & Banking Gateway</span>
+          <span>Banking Gateway</span>
         </button>
       </div>
 
@@ -1706,10 +1706,10 @@ export function PaymentsLedgerView({
         </div>
       )}
 
-      {/* Tab 3: Payment Gateway & Banking API Settings */}
+      {/* Tab 3: Banking Gateway & Payment Rails */}
       {activeTab === "gateway" && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Stripe API Credentials */}
+          {/* Stripe Card & Digital Wallets Status (Environment Managed) */}
           <div className="bg-white rounded-md border border-line p-6 space-y-6 shadow-sm">
             <div className="flex items-center justify-between border-b border-line pb-4">
               <div>
@@ -1717,73 +1717,56 @@ export function PaymentsLedgerView({
                   <h2 className="font-heading text-xl font-bold text-navy-900">
                     Stripe Checkout & Card Processing
                   </h2>
-                  <span className="px-2 py-0.5 rounded-sm text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <span className="px-2 py-0.5 rounded-sm text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 inline-flex items-center gap-1">
+                    <Icon name="check-circle" size={12} />
                     Connected
                   </span>
                 </div>
                 <p className="text-xs text-ink-soft mt-0.5">
-                  Direct API keys for credit/debit cards, Apple Pay, Google Pay and Klarna.
+                  Direct payment rails for Credit/Debit Cards, Apple Pay, and Google Pay.
                 </p>
               </div>
             </div>
 
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-3 rounded-sm bg-paper border border-line">
-                <div>
-                  <strong className="text-xs font-bold text-navy-900 block">
-                    Environment Mode
-                  </strong>
-                  <span className="text-xs text-ink-soft">
-                    {isLiveMode ? "Live Production (Real charges)" : "Test / Sandbox Mode"}
+            <div className="space-y-4 text-xs">
+              <div className="p-4 rounded-sm bg-paper border border-line space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-navy-900 uppercase tracking-wider text-[11px]">
+                    Infrastructure Status
+                  </span>
+                  <span className="text-[11px] font-mono text-emerald-700 font-bold">
+                    Hostinger Env Vars (Encrypted)
                   </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setIsLiveMode(!isLiveMode)}
-                  className={`px-3 py-1.5 rounded-sm text-xs font-bold transition-colors ${
-                    isLiveMode
-                      ? "bg-rose-700 text-white"
-                      : "bg-navy-900 text-white"
-                  }`}
-                >
-                  {isLiveMode ? "Switch to Test" : "Switch to Live"}
-                </button>
+                <p className="text-ink-soft leading-relaxed text-[11px]">
+                  All sensitive payment credentials (<code className="font-mono text-navy-900 font-bold">STRIPE_SECRET_KEY</code>, <code className="font-mono text-navy-900 font-bold">STRIPE_WEBHOOK_SECRET</code>, and <code className="font-mono text-navy-900 font-bold">NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY</code>) are securely injected at server level. They are never exposed in browser forms or stored in client-accessible database fields.
+                </p>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-navy-900 uppercase tracking-wider mb-1">
-                  Stripe Publishable Key
-                </label>
-                <input
-                  type="text"
-                  value={stripePublishableKey}
-                  onChange={(e) => setStripePublishableKey(e.target.value)}
-                  className="w-full px-3 py-2 border border-line rounded-sm text-sm font-mono focus:outline-none focus:border-navy-900"
-                />
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <div className="p-3 rounded-sm border border-line bg-paper/50">
+                  <span className="text-[10px] uppercase font-bold text-ink-soft block mb-1">Supported Cards</span>
+                  <span className="font-semibold text-navy-900 block">Visa, Mastercard, Amex</span>
+                </div>
+                <div className="p-3 rounded-sm border border-line bg-paper/50">
+                  <span className="text-[10px] uppercase font-bold text-ink-soft block mb-1">Digital Wallets</span>
+                  <span className="font-semibold text-navy-900 block">Apple Pay & Google Pay</span>
+                </div>
+                <div className="p-3 rounded-sm border border-line bg-paper/50">
+                  <span className="text-[10px] uppercase font-bold text-ink-soft block mb-1">Settlement</span>
+                  <span className="font-semibold text-navy-900 block">Instant Verification</span>
+                </div>
+                <div className="p-3 rounded-sm border border-line bg-paper/50">
+                  <span className="text-[10px] uppercase font-bold text-ink-soft block mb-1">Webhook Events</span>
+                  <span className="font-semibold text-emerald-700 block">Auto-Sync Enabled</span>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-navy-900 uppercase tracking-wider mb-1">
-                  Stripe Secret Key (Encrypted)
-                </label>
-                <input
-                  type="password"
-                  value={stripeSecretKey}
-                  onChange={(e) => setStripeSecretKey(e.target.value)}
-                  className="w-full px-3 py-2 border border-line rounded-sm text-sm font-mono focus:outline-none focus:border-navy-900"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-navy-900 uppercase tracking-wider mb-1">
-                  Webhook Signing Secret
-                </label>
-                <input
-                  type="password"
-                  value={stripeWebhookSecret}
-                  onChange={(e) => setStripeWebhookSecret(e.target.value)}
-                  className="w-full px-3 py-2 border border-line rounded-sm text-sm font-mono focus:outline-none focus:border-navy-900"
-                />
+              <div className="p-3 rounded-sm bg-emerald-50/50 border border-emerald-200 text-emerald-900 text-[11px] flex items-start gap-2">
+                <Icon name="shield-check" size={16} className="text-emerald-700 mt-0.5 flex-shrink-0" />
+                <p>
+                  Card payments made by students in the Student Portal or upon registration settle immediately and mark their instalment as paid without requiring manual bank statement checks.
+                </p>
               </div>
             </div>
           </div>
@@ -1869,7 +1852,7 @@ export function PaymentsLedgerView({
                 disabled={isPending}
                 className="px-5 py-2.5 bg-navy-900 text-white rounded-sm text-xs font-bold hover:bg-navy-700 transition-colors shadow-sm disabled:opacity-50"
               >
-                {isPending ? "Saving..." : "Save Gateway & Banking Configuration"}
+                {isPending ? "Saving..." : "Save Bank Account Details"}
               </button>
             </div>
           </div>

@@ -2901,8 +2901,9 @@ export async function adminEnrolNewStudentAction(data: {
 
     if (data.paymentPlanType === "instalments" && planMonths > 1) {
       // 1. Initial deposit / amount paid so far
-      if (paidSoFar > 0 || !isHistorical) {
-        const depositAmt = paidSoFar > 0 ? paidSoFar : Math.max(0, Number(data.depositAmount || 0));
+      const depositAmt = paidSoFar > 0 ? paidSoFar : Math.max(0, Number(data.depositAmount || 0));
+
+      if (depositAmt > 0 || isHistorical) {
         const isDepositPaid = paidSoFar > 0;
         const graceDate0 = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
         paymentSchedules.push({
@@ -2945,30 +2946,56 @@ export async function adminEnrolNewStudentAction(data: {
               `${paymentStatusLabel} received (£${depositAmt.toFixed(2)}) on ${planMonths}-Month Instalment Plan`,
           };
         }
-      }
 
-      // 2. Spread remaining balance across the selected planMonths
-      const balanceToSpread =
-        paidSoFar > 0
-          ? remainingBalance
-          : Math.max(0, totalPrice - Number(data.depositAmount || 0));
-
-      if (balanceToSpread > 0) {
-        const monthly = Math.round((balanceToSpread / planMonths) * 100) / 100;
-        for (let i = 1; i <= planMonths; i++) {
-          const dueDate = new Date(now.getTime() + i * 30 * 24 * 60 * 60 * 1000);
+        const balanceToSpread = Math.max(0, totalPrice - depositAmt);
+        if (balanceToSpread > 0) {
+          const monthly = Math.round((balanceToSpread / planMonths) * 100) / 100;
+          for (let i = 1; i <= planMonths; i++) {
+            const dueDate = new Date(now.getTime() + i * 30 * 24 * 60 * 60 * 1000);
+            const graceDate = new Date(dueDate.getTime() + 14 * 24 * 60 * 60 * 1000);
+            const itemAmt =
+              i === planMonths
+                ? Math.round((balanceToSpread - monthly * (planMonths - 1)) * 100) / 100
+                : monthly;
+            paymentSchedules.push({
+              id: `sched-inst-${i}-${enrolmentId}`,
+              enrolmentId,
+              learnerId,
+              courseTitle: data.courseTitle,
+              instalmentNumber: i + 1,
+              totalInstalments: planMonths + 1,
+              amount: itemAmt,
+              amountGbp: itemAmt,
+              dueDate: dueDate.toISOString().slice(0, 10),
+              graceExpiryDate: graceDate.toISOString().slice(0, 10),
+              status: "due",
+              method: resolvedPaymentMethod,
+              type: "instalment",
+              description: `Instalment ${i} of ${planMonths} (${paymentStatusLabel})`,
+            });
+          }
+        }
+      } else {
+        // No separate deposit: First instalment payable in the same month (Day 1 / Today)
+        const monthly = Math.round((totalPrice / planMonths) * 100) / 100;
+        for (let i = 0; i < planMonths; i++) {
+          const dueDate =
+            i === 0
+              ? new Date(now.getTime())
+              : new Date(now.getTime() + i * 30 * 24 * 60 * 60 * 1000);
           const graceDate = new Date(dueDate.getTime() + 14 * 24 * 60 * 60 * 1000);
           const itemAmt =
-            i === planMonths
-              ? Math.round((balanceToSpread - monthly * (planMonths - 1)) * 100) / 100
+            i === planMonths - 1
+              ? Math.round((totalPrice - monthly * (planMonths - 1)) * 100) / 100
               : monthly;
+
           paymentSchedules.push({
-            id: `sched-inst-${i}-${enrolmentId}`,
+            id: `sched-inst-${i + 1}-${enrolmentId}`,
             enrolmentId,
             learnerId,
             courseTitle: data.courseTitle,
             instalmentNumber: i + 1,
-            totalInstalments: planMonths + 1,
+            totalInstalments: planMonths,
             amount: itemAmt,
             amountGbp: itemAmt,
             dueDate: dueDate.toISOString().slice(0, 10),
@@ -2976,7 +3003,7 @@ export async function adminEnrolNewStudentAction(data: {
             status: "due",
             method: resolvedPaymentMethod,
             type: "instalment",
-            description: `Instalment ${i} of ${planMonths} (${paymentStatusLabel})`,
+            description: `Instalment ${i + 1} of ${planMonths} (${paymentStatusLabel})`,
           });
         }
       }

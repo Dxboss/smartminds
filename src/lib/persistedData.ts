@@ -3190,19 +3190,9 @@ export function updateEnquiryInStore(enquiryId: string, updates: Partial<Enquiry
 
 export function listAllEnquiries(): EnquiryLead[] {
   const store = loadPersistedRecords();
-  const list: EnquiryLead[] = store.enquiries ? [...store.enquiries] : [];
-
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const seedData = require("@/lib/repositories/seedData");
-    if (Array.isArray(seedData.seedEnquiries)) {
-      for (const se of seedData.seedEnquiries) {
-        if (!list.some((e) => e.id === se.id)) {
-          list.push(se);
-        }
-      }
-    }
-  } catch { }
+  const list: EnquiryLead[] = (store.enquiries || []).filter(
+    (e) => !/^enq-00[1-9]/.test(e.id) && !e.email?.endsWith("@example.com")
+  );
 
   return list.sort(
     (a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()

@@ -156,6 +156,26 @@ export const EnquiryPipelineBoard: React.FC<Props> = ({
         </select>
       </div>
 
+      {/* Clean Pipeline State Notice */}
+      {enquiries.length === 0 && (
+        <div className="p-4 rounded-md bg-paper border border-line text-ink-soft text-xs flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-sm bg-navy-900 text-gold-300 flex items-center justify-center flex-shrink-0">
+              <Icon name="check-circle" size={16} />
+            </div>
+            <div>
+              <p className="font-bold text-navy-900">Pipeline is clean and ready for live admissions enquiries</p>
+              <p className="text-[11px] text-ink-soft">
+                Prospective student enquiries submitted via website forms (&ldquo;Get Course Advice&rdquo;, &ldquo;Contact Admissions&rdquo;, &ldquo;Consultations&rdquo;) will automatically land in the <strong>New Enquiries</strong> column in real time.
+              </p>
+            </div>
+          </div>
+          <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-1 bg-white border border-line rounded-xs text-navy-900">
+            0 Active Leads
+          </span>
+        </div>
+      )}
+
       {/* 4-Stage Pipeline Columns */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         {STAGES.map((col) => {
