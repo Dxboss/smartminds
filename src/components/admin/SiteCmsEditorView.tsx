@@ -8529,6 +8529,130 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                             />
                           </div>
                         </div>
+
+                        <div>
+                          <label className="block text-[9px] text-ink-soft mb-0.5">
+                            Eyebrow Tagline Color
+                          </label>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="color"
+                              value={footerConfig.newsletterEyebrowColor || "#FF5722"}
+                              onChange={(e) =>
+                                setFooterConfig({
+                                  ...footerConfig,
+                                  newsletterEyebrowColor: e.target.value,
+                                })
+                              }
+                              className="w-6 h-6 p-0 border border-line rounded-xs cursor-pointer"
+                            />
+                            <input
+                              type="text"
+                              placeholder="#FF5722"
+                              value={footerConfig.newsletterEyebrowColor || ""}
+                              onChange={(e) =>
+                                setFooterConfig({
+                                  ...footerConfig,
+                                  newsletterEyebrowColor: e.target.value,
+                                })
+                              }
+                              className="flex-1 px-1.5 py-0.5 text-[11px] font-mono border border-line rounded-sm"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[9px] text-ink-soft mb-0.5">
+                            Input Field Background
+                          </label>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="color"
+                              value={footerConfig.newsletterInputBgColor || "#E8F4F1"}
+                              onChange={(e) =>
+                                setFooterConfig({
+                                  ...footerConfig,
+                                  newsletterInputBgColor: e.target.value,
+                                })
+                              }
+                              className="w-6 h-6 p-0 border border-line rounded-xs cursor-pointer"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Auto theme"
+                              value={footerConfig.newsletterInputBgColor || ""}
+                              onChange={(e) =>
+                                setFooterConfig({
+                                  ...footerConfig,
+                                  newsletterInputBgColor: e.target.value,
+                                })
+                              }
+                              className="flex-1 px-1.5 py-0.5 text-[11px] font-mono border border-line rounded-sm"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[9px] text-ink-soft mb-0.5">
+                            Input Field Text Color
+                          </label>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="color"
+                              value={footerConfig.newsletterInputTextColor || "#1B1B2B"}
+                              onChange={(e) =>
+                                setFooterConfig({
+                                  ...footerConfig,
+                                  newsletterInputTextColor: e.target.value,
+                                })
+                              }
+                              className="w-6 h-6 p-0 border border-line rounded-xs cursor-pointer"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Auto theme"
+                              value={footerConfig.newsletterInputTextColor || ""}
+                              onChange={(e) =>
+                                setFooterConfig({
+                                  ...footerConfig,
+                                  newsletterInputTextColor: e.target.value,
+                                })
+                              }
+                              className="flex-1 px-1.5 py-0.5 text-[11px] font-mono border border-line rounded-sm"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[9px] text-ink-soft mb-0.5">
+                            Input Field Border Color
+                          </label>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="color"
+                              value={footerConfig.newsletterInputBorderColor || "#99F6E4"}
+                              onChange={(e) =>
+                                setFooterConfig({
+                                  ...footerConfig,
+                                  newsletterInputBorderColor: e.target.value,
+                                })
+                              }
+                              className="w-6 h-6 p-0 border border-line rounded-xs cursor-pointer"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Auto theme"
+                              value={footerConfig.newsletterInputBorderColor || ""}
+                              onChange={(e) =>
+                                setFooterConfig({
+                                  ...footerConfig,
+                                  newsletterInputBorderColor: e.target.value,
+                                })
+                              }
+                              className="flex-1 px-1.5 py-0.5 text-[11px] font-mono border border-line rounded-sm"
+                            />
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>

@@ -115,7 +115,16 @@ export const Footer: React.FC<FooterProps> = ({
           >
             <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
               <div className="max-w-xl">
-                <span className="text-xs font-extrabold uppercase tracking-widest text-[#FF5722] block mb-1">
+                <span
+                  style={
+                    effectiveFooter.newsletterEyebrowColor
+                      ? { color: effectiveFooter.newsletterEyebrowColor }
+                      : undefined
+                  }
+                  className={`text-xs font-extrabold uppercase tracking-widest ${
+                    effectiveFooter.newsletterEyebrowColor ? "" : "text-[#FF5722]"
+                  } block mb-1`}
+                >
                   {effectiveFooter.newsletterEyebrow || "Stay Ahead in Your Career"}
                 </span>
                 <h3
@@ -180,23 +189,34 @@ export const Footer: React.FC<FooterProps> = ({
                         disabled={submitting}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="Enter your email address"
-                        className={`w-full sm:w-72 px-5 py-3.5 rounded-full ${
+                        style={{
+                          ...(effectiveFooter.newsletterInputBgColor
+                            ? { backgroundColor: effectiveFooter.newsletterInputBgColor }
+                            : {}),
+                          ...(effectiveFooter.newsletterInputTextColor
+                            ? { color: effectiveFooter.newsletterInputTextColor }
+                            : {}),
+                          ...(effectiveFooter.newsletterInputBorderColor
+                            ? { borderColor: effectiveFooter.newsletterInputBorderColor }
+                            : {}),
+                        }}
+                        className={`w-full sm:w-72 px-5 py-3.5 rounded-full border ${
                           isLightFooter
-                            ? "bg-[#E8F4F1]/60 border border-teal-200 text-ink placeholder-ink-soft/70 focus:ring-[#0B4D4E]"
-                            : "bg-white/10 border border-white/20 text-white placeholder-white/60 focus:ring-[#FF5722]"
+                            ? "bg-[#E8F4F1]/60 border-teal-200 text-ink placeholder-current/60 focus:ring-[#0B4D4E]"
+                            : "bg-white/10 border-white/20 text-white placeholder-current/60 focus:ring-[#FF5722]"
                         } text-sm focus:outline-none focus:ring-2 backdrop-blur-sm disabled:opacity-50`}
                       />
                       <button
                         type="submit"
                         disabled={submitting}
-                        style={
-                          effectiveFooter.newsletterButtonBgColor
-                            ? {
-                                backgroundColor: effectiveFooter.newsletterButtonBgColor,
-                                color: effectiveFooter.newsletterButtonTextColor || "#FFFFFF",
-                              }
-                            : undefined
-                        }
+                        style={{
+                          ...(effectiveFooter.newsletterButtonBgColor
+                            ? { backgroundColor: effectiveFooter.newsletterButtonBgColor }
+                            : {}),
+                          ...(effectiveFooter.newsletterButtonTextColor
+                            ? { color: effectiveFooter.newsletterButtonTextColor }
+                            : {}),
+                        }}
                         className="w-full sm:w-auto px-7 py-3.5 rounded-full bg-[#0B4D4E] hover:bg-[#073637] disabled:opacity-60 text-white font-heading font-bold text-sm tracking-wide shadow-lg shadow-teal-900/20 transition-all flex items-center justify-center gap-2 flex-shrink-0 cursor-pointer"
                       >
                         {submitting ? (

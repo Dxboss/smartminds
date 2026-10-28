@@ -2000,6 +2000,10 @@ export interface FooterConfig {
   // Newsletter Section
   showNewsletter?: boolean;
   newsletterEyebrow?: string;
+  newsletterEyebrowColor?: string;
+  newsletterInputBgColor?: string;
+  newsletterInputTextColor?: string;
+  newsletterInputBorderColor?: string;
   newsletterHeadline?: string;
   newsletterSubtext?: string;
   newsletterButtonText?: string;
