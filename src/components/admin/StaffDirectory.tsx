@@ -12,6 +12,31 @@ import {
 import { impersonateUserAction } from "@/app/super/actions";
 import { DEFAULT_COLLEGE_FACULTIES, type FacultyRecord } from "@/content/faculties";
 import type { ImpersonationAuditLog } from "@/lib/persistedData";
+import type { Course } from "@/content/types";
+
+const STANDARD_TEACHER_LEVELS = [
+  "All Levels (Level 2 – Level 5)",
+  "Level 2",
+  "Level 3",
+  "Level 4",
+  "Level 5",
+  "Level 3 & Level 5",
+  "CPD / Short Course",
+  "1-to-1 Academic Tutoring (KS2 / KS3 / GCSE)",
+];
+
+function getCourseLevelLabelsForTutor(course?: Course): string[] {
+  const fromCourse = (course?.levels || [])
+    .map((l) => l.level_label)
+    .filter(Boolean);
+  const merged = [...fromCourse];
+  for (const std of STANDARD_TEACHER_LEVELS) {
+    if (!merged.some((m) => m.toLowerCase() === std.toLowerCase())) {
+      merged.push(std);
+    }
+  }
+  return merged;
+}
 
 interface Props {
   initialUsers: UserProfile[];
@@ -20,6 +45,7 @@ interface Props {
   tasks: Task[];
   userRole: string;
   faculties?: FacultyRecord[];
+  availableCourses?: Course[];
   initialImpersonationLogs?: ImpersonationAuditLog[];
 }
 
@@ -30,6 +56,7 @@ export const StaffDirectory: React.FC<Props> = ({
   tasks,
   userRole,
   faculties = DEFAULT_COLLEGE_FACULTIES,
+  availableCourses = [],
   initialImpersonationLogs = [],
 }) => {
   const [users, setUsers] = useState<UserProfile[]>(initialUsers);
@@ -48,6 +75,10 @@ export const StaffDirectory: React.FC<Props> = ({
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"tutor" | "admin_staff">("tutor");
   const [inviteDepartment, setInviteDepartment] = useState("");
+  const [inviteCourseId, setInviteCourseId] = useState(availableCourses[0]?.id || "");
+  const [inviteLevelLabel, setInviteLevelLabel] = useState(
+    availableCourses[0]?.levels?.[0]?.level_label || "Level 3"
+  );
   const [inviteSpecialism, setInviteSpecialism] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -57,6 +88,10 @@ export const StaffDirectory: React.FC<Props> = ({
   const [editEmail, setEditEmail] = useState("");
   const [editRole, setEditRole] = useState<string>("tutor");
   const [editDepartment, setEditDepartment] = useState("");
+  const [editCourseId, setEditCourseId] = useState(availableCourses[0]?.id || "");
+  const [editLevelLabel, setEditLevelLabel] = useState(
+    availableCourses[0]?.levels?.[0]?.level_label || "Level 3"
+  );
   const [editSpecialism, setEditSpecialism] = useState("");
   const [editFacultyId, setEditFacultyId] = useState("");
   const [editActive, setEditActive] = useState(true);
@@ -764,13 +799,78 @@ export const StaffDirectory: React.FC<Props> = ({
                 )}
               </div>
 
+              {inviteRole === "tutor" && availableCourses.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-sm bg-paper border border-line">
+                  <div>
+                    <label className="font-bold text-navy-900 block mb-1">
+                      Assigned Qualification / Course
+                    </label>
+                    <select
+                      value={inviteCourseId}
+                      onChange={(e) => {
+                        const cid = e.target.value;
+                        setInviteCourseId(cid);
+                        const c = availableCourses.find((x) => x.id === cid);
+                        const firstLvl = c?.levels?.[0]?.level_label || "Level 3";
+                        setInviteLevelLabel(firstLvl);
+                        if (c) {
+                          setInviteSpecialism(`${c.title} (${firstLvl})`);
+                          if (!inviteDepartment && c.category) {
+                            setInviteDepartment(c.category);
+                          }
+                        }
+                      }}
+                      className="w-full px-2.5 py-2 rounded-sm border border-line bg-white text-ink font-semibold text-xs"
+                    >
+                      <option value="">Select Qualification...</option>
+                      {availableCourses.map((c) => {
+                        const lvls = (c.levels || []).map((l) => l.level_label).join(", ");
+                        return (
+                          <option key={c.id} value={c.id}>
+                            {c.title} {lvls ? `[${lvls}]` : ""}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-navy-900 block mb-1">
+                      Course Level Taught
+                    </label>
+                    <select
+                      value={inviteLevelLabel}
+                      onChange={(e) => {
+                        const lvl = e.target.value;
+                        setInviteLevelLabel(lvl);
+                        const c = availableCourses.find((x) => x.id === inviteCourseId);
+                        if (c) {
+                          setInviteSpecialism(`${c.title} (${lvl})`);
+                        } else {
+                          setInviteSpecialism(lvl);
+                        }
+                      }}
+                      className="w-full px-2.5 py-2 rounded-sm border border-line bg-white text-ink font-semibold text-xs"
+                    >
+                      {getCourseLevelLabelsForTutor(
+                        availableCourses.find((x) => x.id === inviteCourseId)
+                      ).map((lvl) => (
+                        <option key={lvl} value={lvl}>
+                          {lvl}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="font-bold text-navy-900 block mb-1">
                   Specialism / Focus Area
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Level 3 Adult Care Assessor or Admissions Coordinator"
+                  placeholder="e.g. Diploma in Adult Care (Level 3 & 5) or Admissions Coordinator"
                   value={inviteSpecialism}
                   onChange={(e) => setInviteSpecialism(e.target.value)}
                   className="w-full px-3 py-2 rounded-sm border border-line bg-paper text-ink focus:outline-none focus:ring-1 focus:ring-navy-900"
@@ -903,6 +1003,71 @@ export const StaffDirectory: React.FC<Props> = ({
                   ))}
                 </select>
               </div>
+
+              {editRole === "tutor" && availableCourses.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-sm bg-paper border border-line">
+                  <div>
+                    <label className="font-bold text-navy-900 block mb-1">
+                      Assigned Qualification / Course
+                    </label>
+                    <select
+                      value={editCourseId}
+                      onChange={(e) => {
+                        const cid = e.target.value;
+                        setEditCourseId(cid);
+                        const c = availableCourses.find((x) => x.id === cid);
+                        const firstLvl = c?.levels?.[0]?.level_label || "Level 3";
+                        setEditLevelLabel(firstLvl);
+                        if (c) {
+                          setEditSpecialism(`${c.title} (${firstLvl})`);
+                          if (c.category) {
+                            setEditDepartment(c.category);
+                          }
+                        }
+                      }}
+                      className="w-full px-2.5 py-2 rounded-sm border border-line bg-white text-ink font-semibold text-xs"
+                    >
+                      <option value="">Select Qualification...</option>
+                      {availableCourses.map((c) => {
+                        const lvls = (c.levels || []).map((l) => l.level_label).join(", ");
+                        return (
+                          <option key={c.id} value={c.id}>
+                            {c.title} {lvls ? `[${lvls}]` : ""}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-navy-900 block mb-1">
+                      Course Level Taught
+                    </label>
+                    <select
+                      value={editLevelLabel}
+                      onChange={(e) => {
+                        const lvl = e.target.value;
+                        setEditLevelLabel(lvl);
+                        const c = availableCourses.find((x) => x.id === editCourseId);
+                        if (c) {
+                          setEditSpecialism(`${c.title} (${lvl})`);
+                        } else {
+                          setEditSpecialism(lvl);
+                        }
+                      }}
+                      className="w-full px-2.5 py-2 rounded-sm border border-line bg-white text-ink font-semibold text-xs"
+                    >
+                      {getCourseLevelLabelsForTutor(
+                        availableCourses.find((x) => x.id === editCourseId)
+                      ).map((lvl) => (
+                        <option key={lvl} value={lvl}>
+                          {lvl}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="font-bold text-navy-900 block mb-1">

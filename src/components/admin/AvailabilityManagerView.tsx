@@ -905,24 +905,27 @@ export function AvailabilityManagerView({
                     value={cohortForm.courseId}
                     onChange={(e) => {
                       const selectedCourse = courses.find((c) => c.id === e.target.value);
-                      const firstLevel = selectedCourse?.levels?.[0]?.level_label || "Level 3 Diploma";
+                      const firstLevel = selectedCourse?.levels?.[0]?.level_label || "Level 3";
                       setCohortForm((prev) => ({
                         ...prev,
                         courseId: e.target.value,
                         courseLevelLabel: firstLevel,
                         name: selectedCourse
-                          ? `${selectedCourse.title} — ${prev.intakeLabel || "Active Cohort"}`
+                          ? `${selectedCourse.title} (${firstLevel}) — ${prev.intakeLabel || "Active Cohort"}`
                           : prev.name,
                       }));
                     }}
                     className="w-full px-3 py-2 border border-line rounded-sm text-xs font-semibold bg-white text-navy-900 min-h-[42px]"
                     required
                   >
-                    {courses.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.title}
-                      </option>
-                    ))}
+                    {courses.map((c) => {
+                      const lvls = (c.levels || []).map((l) => l.level_label).join(", ");
+                      return (
+                        <option key={c.id} value={c.id}>
+                          {c.title} {lvls ? `[${lvls}]` : ""}
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
 
@@ -942,18 +945,59 @@ export function AvailabilityManagerView({
 
                 <div>
                   <label className="block text-xs font-bold text-navy-900 mb-1">
-                    Qualification Level Label *
+                    Qualification Level *
                   </label>
-                  <input
-                    type="text"
+                  <select
                     value={cohortForm.courseLevelLabel}
-                    onChange={(e) =>
-                      setCohortForm((prev) => ({ ...prev, courseLevelLabel: e.target.value }))
-                    }
-                    placeholder="e.g. Level 3 Diploma"
-                    className="w-full px-3 py-2 border border-line rounded-sm text-xs bg-white text-navy-900 min-h-[42px]"
+                    onChange={(e) => {
+                      const lvl = e.target.value;
+                      const selectedCourse = courses.find((c) => c.id === cohortForm.courseId);
+                      setCohortForm((prev) => ({
+                        ...prev,
+                        courseLevelLabel: lvl,
+                        name: selectedCourse
+                          ? `${selectedCourse.title} (${lvl}) — ${prev.intakeLabel || "Active Cohort"}`
+                          : prev.name,
+                      }));
+                    }}
+                    className="w-full px-3 py-2 border border-line rounded-sm text-xs font-semibold bg-white text-navy-900 min-h-[42px]"
                     required
-                  />
+                  >
+                    {(() => {
+                      const selectedCourse = courses.find((c) => c.id === cohortForm.courseId);
+                      const fromCourse = (selectedCourse?.levels || [])
+                        .map((l) => l.level_label)
+                        .filter(Boolean);
+                      const standardLevels = [
+                        "Level 2",
+                        "Level 3",
+                        "Level 4",
+                        "Level 5",
+                        "All Levels (Level 2 – Level 5)",
+                        "CPD / Short Course",
+                        "1-to-1 Academic Tutoring",
+                      ];
+                      const options = [...fromCourse];
+                      for (const std of standardLevels) {
+                        if (!options.some((o) => o.toLowerCase() === std.toLowerCase())) {
+                          options.push(std);
+                        }
+                      }
+                      if (
+                        cohortForm.courseLevelLabel &&
+                        !options.some(
+                          (o) => o.toLowerCase() === cohortForm.courseLevelLabel.toLowerCase()
+                        )
+                      ) {
+                        options.unshift(cohortForm.courseLevelLabel);
+                      }
+                      return options.map((opt) => (
+                        <option key={opt} value={opt}>
+                          {opt}
+                        </option>
+                      ));
+                    })()}
+                  </select>
                 </div>
 
                 <div>

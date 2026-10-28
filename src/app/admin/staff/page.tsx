@@ -1,8 +1,7 @@
 import React from "react";
 import { redirect } from "next/navigation";
 import { getServerSession } from "@/lib/session";
-import { getUserRepo, getBookingRepo, getTaskRepo } from "@/lib/repositories";
-import { seedClasses } from "@/lib/repositories/seedData";
+import { getUserRepo, getBookingRepo, getTaskRepo, getCourseRepo } from "@/lib/repositories";
 import { StaffDirectory } from "@/components/admin/StaffDirectory";
 
 
@@ -24,16 +23,20 @@ export default async function AdminStaffPage() {
   const userRepo = getUserRepo();
   const bookingRepo = getBookingRepo();
   const taskRepo = getTaskRepo();
+  const courseRepo = getCourseRepo();
 
-  const [staffUsers, bookings, tasks] = await Promise.all([
+  const [staffUsers, bookings, tasks, allCourses] = await Promise.all([
     userRepo.listStaffAndTutors(session),
     bookingRepo.listBookings(session),
     taskRepo.listTasks(session),
+    courseRepo.listCourses(),
   ]);
 
-  const { getPersistedFaculties, listImpersonationAuditLogs } = await import("@/lib/persistedData");
+  const { getPersistedFaculties, getPersistedCohorts, listImpersonationAuditLogs } = await import("@/lib/persistedData");
   const faculties = getPersistedFaculties();
+  const cohorts = getPersistedCohorts();
   const impersonationLogs = listImpersonationAuditLogs();
+  const availableCourses = (allCourses || []).filter((c) => c && c.published !== false);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
@@ -48,11 +51,12 @@ export default async function AdminStaffPage() {
 
       <StaffDirectory
         initialUsers={staffUsers}
-        classes={seedClasses}
+        classes={cohorts}
         bookings={bookings}
         tasks={tasks}
         userRole={session.role}
         faculties={faculties}
+        availableCourses={availableCourses}
         initialImpersonationLogs={impersonationLogs}
       />
     </div>

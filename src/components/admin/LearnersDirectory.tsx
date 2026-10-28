@@ -1332,16 +1332,21 @@ export const LearnersDirectory: React.FC<Props> = ({
                         }}
                         className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-medium"
                       >
-                        {availableCourses.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.title} ({c.category})
-                          </option>
-                        ))}
+                        {availableCourses.map((c) => {
+                          const levelSummary = (c.levels || [])
+                            .map((l) => `${l.level_label}: £${l.price_gbp}`)
+                            .join(", ");
+                          return (
+                            <option key={c.id} value={c.id}>
+                              {c.title} ({c.category}){levelSummary ? ` — [${levelSummary}]` : ""}
+                            </option>
+                          );
+                        })}
                       </select>
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-semibold text-navy-900 mb-1">Qualification Level</label>
+                      <label className="block text-[11px] font-semibold text-navy-900 mb-1">Qualification Level &amp; Tuition Fee</label>
                       <select
                         value={enrolLevelLabel}
                         onChange={(e) => {
@@ -1350,6 +1355,9 @@ export const LearnersDirectory: React.FC<Props> = ({
                           const found = courseLevelsList.find((l) => l.level_label === lvl);
                           if (found) {
                             setEnrolPrice(found.price_gbp.toString());
+                            if (found.plans && found.plans.length > 0 && found.plans[0].deposit_value !== undefined) {
+                              setEnrolDeposit(found.plans[0].deposit_value.toString());
+                            }
                           }
                         }}
                         className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-medium"
@@ -1359,6 +1367,18 @@ export const LearnersDirectory: React.FC<Props> = ({
                             {lvl.level_label} (£{lvl.price_gbp})
                           </option>
                         ))}
+                        {["Level 2", "Level 3", "Level 4", "Level 5", "CPD / Short Course", "1-to-1 Academic Tutoring"]
+                          .filter(
+                            (std) =>
+                              !courseLevelsList.some(
+                                (l) => l.level_label.toLowerCase() === std.toLowerCase()
+                              )
+                          )
+                          .map((std) => (
+                            <option key={std} value={std}>
+                              {std} (Set custom fee below)
+                            </option>
+                          ))}
                       </select>
                     </div>
 
