@@ -137,7 +137,8 @@ export class MemoryPaymentRepo implements PaymentRepo {
       );
     }
 
-    const enrolment = seedEnrolments.find((e) => e.learnerId === learnerId);
+    const learnerEnrolments = seedEnrolments.filter((e) => e.learnerId === learnerId);
+    const enrolment = learnerEnrolments[0];
     if (!enrolment) return null;
 
     const schedules = this.schedules.filter((s) => s.learnerId === learnerId);
@@ -174,13 +175,49 @@ export class MemoryPaymentRepo implements PaymentRepo {
         ? rawTotalInstalments - 1
         : rawTotalInstalments);
 
+    const isMulti = learnerEnrolments.length > 1;
+    const courses = learnerEnrolments.map((enr) => {
+      const enrSched = schedules.filter((s) =>
+        isMulti ? s.enrolmentId === enr.id : s.enrolmentId === enr.id || s.learnerId === learnerId
+      );
+      const enrHist = history.filter((r) =>
+        isMulti ? r.enrolmentId === enr.id : r.enrolmentId === enr.id || r.learnerId === learnerId
+      );
+      const enrPaid = enrHist
+        .filter((r) => r.status === "paid")
+        .reduce((sum, r) => sum + r.amountGbp, 0);
+      const enrSchedSum = enrSched.reduce((sum, s) => sum + s.amountGbp, 0);
+      const enrTotal = enrSchedSum > 0 ? enrSchedSum : enrPaid;
+      const enrRawInst = enrSched[0]?.totalInstalments;
+      const enrHasDep = enrSched.some((s) => (s as any).type === "deposit");
+      const enrMonths =
+        (enr as any).planMonths ||
+        (enrRawInst && enrRawInst > 1 && enrHasDep ? enrRawInst - 1 : enrRawInst);
+      return {
+        enrolmentId: enr.id,
+        courseTitle: enr.courseTitle,
+        levelLabel: enr.courseLevelLabel,
+        planMonths: enrMonths,
+        totalAmountGbp: Math.round(enrTotal * 100) / 100,
+        totalPaidGbp: Math.round(enrPaid * 100) / 100,
+        balanceRemainingGbp: Math.max(0, Math.round((enrTotal - enrPaid) * 100) / 100),
+      };
+    });
+
+    const enrolmentTitleMap = new Map<string, string>(
+      learnerEnrolments.map((e) => [e.id, e.courseTitle])
+    );
+
     return {
       enrolmentId: enrolment.id,
       learnerId,
       learnerName: learner ? `${learner.firstName} ${learner.lastName}` : undefined,
       learnerEmail: learner?.email,
       learnerPhone: learner?.phone,
-      courseTitle: enrolment.courseTitle,
+      courseTitle:
+        learnerEnrolments.length > 1
+          ? `${learnerEnrolments.length} Qualifications (${learnerEnrolments.map((e) => e.courseTitle).join(" + ")})`
+          : enrolment.courseTitle,
       levelLabel: enrolment.courseLevelLabel,
       planMonths,
       totalAmountGbp: Math.round(totalAmount * 100) / 100,
@@ -189,8 +226,12 @@ export class MemoryPaymentRepo implements PaymentRepo {
       nextDueDate: nextDue?.dueDate,
       nextDueAmountGbp: nextDue?.amountGbp,
       status,
-      schedule: schedules.map((s) => ({ ...s })),
+      schedule: schedules.map((s) => ({
+        ...s,
+        courseTitle: s.courseTitle || enrolmentTitleMap.get(s.enrolmentId) || enrolment.courseTitle,
+      })),
       history: history.map((r) => ({ ...r })),
+      courses,
     };
   }
 

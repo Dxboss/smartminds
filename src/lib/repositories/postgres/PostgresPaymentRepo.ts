@@ -218,18 +218,64 @@ export class PostgresPaymentRepo implements PaymentRepo {
     }
 
     try {
-      const schedules = await this.getPaymentSchedules(actor, { learnerId });
+      const { pullLatestFromNeon, loadPersistedRecords } = await import("@/lib/persistedData");
+      await pullLatestFromNeon().catch(() => {});
+      const store = loadPersistedRecords();
+
+      const dbSchedules = await this.getPaymentSchedules(actor, { learnerId }).catch(() => []);
       const payments = (await sql`
         SELECT data FROM payments WHERE learner_id = ${learnerId} ORDER BY created_at DESC;
-      `) as { data: PaymentRecord }[];
-      const history = payments.map((p) => p.data);
+      `.catch(() => [])) as { data: PaymentRecord }[];
+      const dbHistory = payments.map((p) => p.data);
+
+      let enrRows: { data: any }[] = [];
+      try {
+        enrRows = (await sql`
+          SELECT data FROM enrolments WHERE learner_id = ${learnerId} ORDER BY created_at DESC;
+        `) as { data: any }[];
+      } catch {
+        enrRows = [];
+      }
+
+      const schedMap = new Map<string, PaymentScheduleItem>();
+      for (const s of (store.paymentSchedules || []).filter((x) => x.learnerId === learnerId)) {
+        if (s?.id) schedMap.set(s.id, s);
+      }
+      for (const s of dbSchedules) {
+        if (s?.id) schedMap.set(s.id, { ...schedMap.get(s.id), ...s });
+      }
+      const schedules = Array.from(schedMap.values()).sort(
+        (a, b) => (a.instalmentNumber || 0) - (b.instalmentNumber || 0)
+      );
+
+      const histMap = new Map<string, PaymentRecord>();
+      for (const p of (store.paymentRecords || []).filter((x) => x.learnerId === learnerId)) {
+        if (p?.id) histMap.set(p.id, p);
+      }
+      for (const p of dbHistory) {
+        if (p?.id) histMap.set(p.id, { ...histMap.get(p.id), ...p });
+      }
+      const history = Array.from(histMap.values());
+
+      const enrMap = new Map<string, any>();
+      for (const e of (store.enrolments || []).filter((x) => x.learnerId === learnerId)) {
+        if (e?.id) enrMap.set(e.id, e);
+      }
+      for (const r of enrRows) {
+        if (r?.data?.id) enrMap.set(r.data.id, { ...enrMap.get(r.data.id), ...r.data });
+      }
+      const learnerEnrolments = Array.from(enrMap.values());
 
       if (schedules.length === 0 && history.length === 0) return null;
 
-      const totalAmount = schedules.reduce((sum, s) => sum + s.amountGbp, 0) || history.filter((p) => p.status === "paid").reduce((sum, p) => sum + p.amountGbp, 0);
+      const totalAmount =
+        schedules.reduce((sum, s) => sum + Number(s.amountGbp || 0), 0) ||
+        history
+          .filter((p) => p.status === "paid")
+          .reduce((sum, p) => sum + Number(p.amountGbp || 0), 0);
       const totalPaid = history
         .filter((p) => p.status === "paid")
-        .reduce((sum, p) => sum + p.amountGbp, 0);
+        .reduce((sum, p) => sum + Number(p.amountGbp || 0), 0);
       const balanceRemaining = Math.max(0, totalAmount - totalPaid);
 
       const nextDue = schedules.find(
@@ -244,10 +290,47 @@ export class PostgresPaymentRepo implements PaymentRepo {
           ? rawTotalInstalments - 1
           : rawTotalInstalments || schedules.length;
 
+      const isMulti = learnerEnrolments.length > 1;
+      const courses = learnerEnrolments.map((enr) => {
+        const enrSched = schedules.filter((s) =>
+          isMulti ? s.enrolmentId === enr.id : s.enrolmentId === enr.id || s.learnerId === learnerId
+        );
+        const enrHist = history.filter((r) =>
+          isMulti ? r.enrolmentId === enr.id : r.enrolmentId === enr.id || r.learnerId === learnerId
+        );
+        const enrPaid = enrHist
+          .filter((r) => r.status === "paid")
+          .reduce((sum, r) => sum + Number(r.amountGbp || 0), 0);
+        const enrSchedSum = enrSched.reduce((sum, s) => sum + Number(s.amountGbp || 0), 0);
+        const enrTotal = enrSchedSum > 0 ? enrSchedSum : enrPaid;
+        const enrRawInst = enrSched[0]?.totalInstalments;
+        const enrHasDep = enrSched.some((s) => (s as any).type === "deposit");
+        const enrMonths =
+          enr.planMonths ||
+          (enrRawInst && enrRawInst > 1 && enrHasDep ? enrRawInst - 1 : enrRawInst);
+        return {
+          enrolmentId: enr.id,
+          courseTitle: enr.courseTitle,
+          levelLabel: enr.courseLevelLabel,
+          planMonths: enrMonths,
+          totalAmountGbp: Math.round(enrTotal * 100) / 100,
+          totalPaidGbp: Math.round(enrPaid * 100) / 100,
+          balanceRemainingGbp: Math.max(0, Math.round((enrTotal - enrPaid) * 100) / 100),
+        };
+      });
+
+      const enrolmentTitleMap = new Map<string, string>(
+        learnerEnrolments.map((e) => [e.id, e.courseTitle])
+      );
+
       return {
-        enrolmentId: schedules[0]?.enrolmentId || "",
+        enrolmentId: learnerEnrolments[0]?.id || schedules[0]?.enrolmentId || "",
         learnerId,
-        courseTitle: history[0]?.courseTitle || "Enrolled Course",
+        courseTitle:
+          learnerEnrolments.length > 1
+            ? `${learnerEnrolments.length} Qualifications (${learnerEnrolments.map((e) => e.courseTitle).join(" + ")})`
+            : learnerEnrolments[0]?.courseTitle || history[0]?.courseTitle || "Enrolled Course",
+        levelLabel: learnerEnrolments[0]?.courseLevelLabel,
         planMonths,
         totalAmountGbp: Math.round(totalAmount * 100) / 100,
         totalPaidGbp: Math.round(totalPaid * 100) / 100,
@@ -255,8 +338,15 @@ export class PostgresPaymentRepo implements PaymentRepo {
         nextDueDate: nextDue?.dueDate,
         nextDueAmountGbp: nextDue?.amountGbp,
         status: balanceRemaining === 0 ? "settled" : isOverdue ? "overdue" : "up_to_date",
-        schedule: schedules,
+        schedule: schedules.map((s) => ({
+          ...s,
+          courseTitle:
+            s.courseTitle ||
+            enrolmentTitleMap.get(s.enrolmentId) ||
+            learnerEnrolments[0]?.courseTitle,
+        })),
         history,
+        courses,
       };
     } catch (err) {
       if (err instanceof PermissionDeniedError) throw err;
@@ -273,17 +363,46 @@ export class PostgresPaymentRepo implements PaymentRepo {
     }
 
     try {
+      const { pullLatestFromNeon, loadPersistedRecords } = await import("@/lib/persistedData");
+      await pullLatestFromNeon().catch(() => {});
+      const store = loadPersistedRecords();
+
       const [schedRows, payRows, enrRows, lrnRows] = await Promise.all([
-        sql`SELECT data FROM payment_schedules ORDER BY instalment_number ASC;` as unknown as Promise<{ data: PaymentScheduleItem }[]>,
-        sql`SELECT data FROM payments ORDER BY created_at DESC;` as unknown as Promise<{ data: PaymentRecord }[]>,
-        sql`SELECT data FROM enrolments ORDER BY created_at DESC;` as unknown as Promise<{ data: any }[]>,
-        sql`SELECT data FROM learners;` as unknown as Promise<{ data: any }[]>,
+        (sql`SELECT data FROM payment_schedules ORDER BY instalment_number ASC;`.catch(
+          () => []
+        ) as unknown) as Promise<{ data: PaymentScheduleItem }[]>,
+        (sql`SELECT data FROM payments ORDER BY created_at DESC;`.catch(
+          () => []
+        ) as unknown) as Promise<{ data: PaymentRecord }[]>,
+        (sql`SELECT data FROM enrolments ORDER BY created_at DESC;`.catch(
+          () => []
+        ) as unknown) as Promise<{ data: any }[]>,
+        (sql`SELECT data FROM learners;`.catch(() => []) as unknown) as Promise<{ data: any }[]>,
       ]);
 
-      const allSchedules = schedRows.map((r) => r.data);
-      const allPayments = payRows.map((r) => r.data);
-      const allEnrolments = enrRows.map((r) => r.data);
-      const allLearners = lrnRows.map((r) => r.data);
+      const mergeById = <T extends { id?: string }>(a: T[] = [], b: T[] = []): T[] => {
+        const m = new Map<string, T>();
+        for (const item of a) if (item?.id) m.set(item.id, item);
+        for (const item of b) if (item?.id) m.set(item.id, { ...m.get(item.id), ...item });
+        return Array.from(m.values());
+      };
+
+      const allSchedules = mergeById<PaymentScheduleItem>(
+        store.paymentSchedules || [],
+        schedRows.map((r) => r.data).filter(Boolean)
+      );
+      const allPayments = mergeById<PaymentRecord>(
+        store.paymentRecords || [],
+        payRows.map((r) => r.data).filter(Boolean)
+      );
+      const allEnrolments = mergeById<any>(
+        store.enrolments || [],
+        enrRows.map((r) => r.data).filter(Boolean)
+      );
+      const allLearners = mergeById<any>(
+        store.learners || [],
+        lrnRows.map((r) => r.data).filter(Boolean)
+      );
 
       const summaries: LearnerPaymentPlanSummary[] = [];
       const seenEnrolments = new Set<string>();

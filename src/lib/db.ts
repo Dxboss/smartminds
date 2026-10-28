@@ -88,6 +88,15 @@ export async function ensureDbTablesExist(): Promise<boolean> {
       );
 
       await Promise.race([Promise.all(queries), timeout]);
+      await Promise.all([
+        sql`ALTER TABLE enrolments ADD COLUMN IF NOT EXISTS course_slug TEXT;`.catch(() => {}),
+        sql`ALTER TABLE enrolments ADD COLUMN IF NOT EXISTS course_title TEXT;`.catch(() => {}),
+        sql`ALTER TABLE enrolments ADD COLUMN IF NOT EXISTS course_level_label TEXT;`.catch(() => {}),
+        sql`ALTER TABLE enrolments ADD COLUMN IF NOT EXISTS class_id TEXT;`.catch(() => {}),
+        sql`ALTER TABLE enrolments ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active';`.catch(() => {}),
+        sql`ALTER TABLE enrolments ADD COLUMN IF NOT EXISTS funding_type TEXT NOT NULL DEFAULT 'self_pay';`.catch(() => {}),
+        sql`ALTER TABLE enrolments ADD COLUMN IF NOT EXISTS enrolled_at TIMESTAMPTZ NOT NULL DEFAULT now();`.catch(() => {}),
+      ]);
       tablesInitialized = true;
       return true;
     } catch (err) {

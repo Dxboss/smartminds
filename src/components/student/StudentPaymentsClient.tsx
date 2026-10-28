@@ -306,6 +306,84 @@ export function StudentPaymentsClient({
         ))}
       </dl>
 
+      {/* Multi-Course Breakdown if student has 2 or more qualifications */}
+      {planSummary.courses && planSummary.courses.length > 1 && (
+        <section className="bg-white rounded-sm border border-line p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-heading text-xl font-bold text-navy-900 flex items-center gap-2">
+              <Icon name="book-open" size={18} />
+              Enrolled Courses &amp; Payment Breakdown ({planSummary.courses.length})
+            </h2>
+            <span className="text-xs text-ink-soft">
+              Combined summary above includes all active qualification plans
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {planSummary.courses.map((c) => (
+              <div
+                key={c.enrolmentId}
+                className="p-4 rounded-sm border border-line bg-paper/50 space-y-3"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h3 className="font-bold text-navy-900 text-sm">
+                      {c.courseTitle}
+                    </h3>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {(c.courseLevelLabel || c.levelLabel) && (
+                        <span className="px-1.5 py-0.5 rounded-xs bg-gold-300/40 border border-gold-500/40 text-navy-900 font-bold text-[10px]">
+                          {c.courseLevelLabel || c.levelLabel}
+                        </span>
+                      )}
+                      <span className="text-xs text-ink-soft font-semibold capitalize">
+                        {c.planMonths && c.planMonths > 1 ? `${c.planMonths}-Month Plan` : "Full Payment"}
+                      </span>
+                    </div>
+                  </div>
+                  <span
+                    className={`px-2 py-0.5 rounded-xs text-[10px] font-bold uppercase tracking-wider ${
+                      c.balanceRemainingGbp <= 0
+                        ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                        : "bg-amber-50 text-amber-800 border border-amber-200"
+                    }`}
+                  >
+                    {c.balanceRemainingGbp <= 0 ? "Settled" : "Active"}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                  <div className="bg-white p-2 rounded border border-line">
+                    <span className="text-[10px] text-ink-soft block">Course Fee</span>
+                    <strong className="text-navy-900 font-mono">
+                      {formatCurrency(c.totalAmountGbp)}
+                    </strong>
+                  </div>
+                  <div className="bg-white p-2 rounded border border-line">
+                    <span className="text-[10px] text-ink-soft block">Paid to Date</span>
+                    <strong className="text-emerald-700 font-mono">
+                      {formatCurrency(c.totalPaidGbp)}
+                    </strong>
+                  </div>
+                  <div className="bg-white p-2 rounded border border-line">
+                    <span className="text-[10px] text-ink-soft block">Remaining</span>
+                    <strong
+                      className={`font-mono ${
+                        c.balanceRemainingGbp <= 0
+                          ? "text-emerald-700"
+                          : "text-amber-800"
+                      }`}
+                    >
+                      {formatCurrency(c.balanceRemainingGbp)}
+                    </strong>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Schedule */}
       <section className="bg-white rounded-sm border border-line p-6 space-y-4">
         <div className="flex items-center justify-between">
@@ -336,7 +414,14 @@ export function StudentPaymentsClient({
                 return (
                   <tr key={item.id}>
                     <td className="py-3 px-3 font-semibold text-navy-900">
-                      {item.instalmentNumber} of {item.totalInstalments}
+                      <div>
+                        {item.instalmentNumber} of {item.totalInstalments}
+                      </div>
+                      {(item.courseTitle || item.description) && (
+                        <div className="text-[10px] text-ink-soft font-normal truncate max-w-xs mt-0.5">
+                          {item.courseTitle || item.description}
+                        </div>
+                      )}
                     </td>
                     <td className="py-3 px-3 text-ink-soft">{item.dueDate}</td>
                     <td className="py-3 px-3 font-semibold text-navy-900">{formatCurrency(item.amountGbp)}</td>

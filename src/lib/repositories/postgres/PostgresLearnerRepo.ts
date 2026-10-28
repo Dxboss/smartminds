@@ -49,12 +49,37 @@ export class PostgresLearnerRepo implements LearnerRepo {
       }
 
       // admin_staff, owner_admin, super_admin
-      const rows = (await sql`
-        SELECT data FROM learners ORDER BY last_name ASC;
-      `) as { data: Learner }[];
-      const { isAutomatedTestEnv, isFictionalDemoRecord } = await import("@/lib/persistedData");
+      const {
+        pullLatestFromNeon,
+        loadPersistedRecords,
+        isAutomatedTestEnv,
+        isFictionalDemoRecord,
+      } = await import("@/lib/persistedData");
+      await pullLatestFromNeon().catch(() => {});
+      const store = loadPersistedRecords();
+
+      let rows: { data: Learner }[] = [];
+      try {
+        rows = (await sql`SELECT data FROM learners ORDER BY last_name ASC;`) as {
+          data: Learner;
+        }[];
+      } catch {
+        rows = [];
+      }
+
+      const map = new Map<string, Learner>();
+      for (const sl of store.learners || []) {
+        if (sl?.id) map.set(sl.id, sl);
+      }
+      for (const r of rows) {
+        if (r?.data?.id) {
+          const existing = map.get(r.data.id);
+          map.set(r.data.id, existing ? { ...r.data, ...existing } : r.data);
+        }
+      }
+
       const isTest = isAutomatedTestEnv();
-      return rows.map((r) => r.data).filter((l) => isTest || !isFictionalDemoRecord(l));
+      return Array.from(map.values()).filter((l) => isTest || !isFictionalDemoRecord(l));
     } catch (err) {
       if (err instanceof PermissionDeniedError) throw err;
       console.error("[PostgresLearnerRepo] listLearners error:", sanitizeDbError(err));

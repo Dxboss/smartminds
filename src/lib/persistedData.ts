@@ -530,7 +530,9 @@ export async function pullLatestFromNeon(force = false): Promise<boolean> {
           sql`SELECT value FROM system_store WHERE key = 'master_records_store' LIMIT 1`.catch(() => []),
           sql`SELECT path, sections FROM cms_pages`.catch(() => []),
           sql`SELECT data FROM learners ORDER BY created_at DESC`.catch(() => []),
-          sql`SELECT data FROM enrolments ORDER BY enrolled_at DESC`.catch(() => []),
+          sql`SELECT data FROM enrolments ORDER BY created_at DESC`.catch(() =>
+            sql`SELECT data FROM enrolments`.catch(() => [])
+          ),
           sql`SELECT data FROM payments ORDER BY created_at DESC`.catch(() => []),
           sql`SELECT data FROM payment_schedules ORDER BY due_date ASC`.catch(() => []),
           sql`SELECT id, email, name, role, active, tutor_id, learner_id, specialism, department, data, created_at FROM user_credentials`.catch(() => []),
@@ -953,7 +955,17 @@ export function savePersistedRecord(data: {
               funding_type = EXCLUDED.funding_type,
               data = EXCLUDED.data,
               updated_at = now();
-          `.catch((err) => console.warn("[Neon DB] enrolments sync error:", err))
+          `.catch(async () => {
+            await sql`
+              INSERT INTO enrolments (id, learner_id, course_id, data, created_at, updated_at)
+              VALUES (${e.id}, ${e.learnerId}, ${e.courseId}, ${JSON.stringify(e)}, now(), now())
+              ON CONFLICT (id) DO UPDATE SET
+                learner_id = EXCLUDED.learner_id,
+                course_id = EXCLUDED.course_id,
+                data = EXCLUDED.data,
+                updated_at = now();
+            `.catch((err) => console.warn("[Neon DB] enrolments fallback sync error:", err));
+          })
         );
       }
 
@@ -2004,6 +2016,14 @@ export function syncPersistedRecords(force: boolean = false): void {
     const isTestEnv = isAutomatedTestEnv();
 
     if (!isTestEnv) {
+      const FICTIONAL_DEMO_NAMES = new Set([
+        "dr. eleanor vance",
+        "eleanor vance",
+        "marcus sterling",
+        "amara patel",
+        "david kalu",
+        "chloe davies",
+      ]);
       const DEMO_SESSION_IDS = new Set([
         "session-care-01",
         "session-lead-01",
@@ -2044,7 +2064,26 @@ export function syncPersistedRecords(force: boolean = false): void {
       }
       if (Array.isArray(seedEnrolments)) {
         for (let i = seedEnrolments.length - 1; i >= 0; i--) {
-          if (isFictionalDemoRecord(seedEnrolments[i])) seedEnrolments.splice(i, 1);
+          if (isFictionalDemoRecord(seedEnrolments[i])) {
+            seedEnrolments.splice(i, 1);
+          } else if (
+            seedEnrolments[i]?.tutorName &&
+            FICTIONAL_DEMO_NAMES.has(String(seedEnrolments[i].tutorName).trim().toLowerCase())
+          ) {
+            seedEnrolments[i].tutorName = "Unassigned / TBA";
+          }
+        }
+      }
+      if (Array.isArray(seedClasses)) {
+        for (let i = 0; i < seedClasses.length; i++) {
+          const cls = seedClasses[i];
+          if (
+            cls?.tutorName &&
+            FICTIONAL_DEMO_NAMES.has(String(cls.tutorName).trim().toLowerCase())
+          ) {
+            cls.tutorName = "Unassigned / TBA";
+            cls.tutorId = "";
+          }
         }
       }
       if (Array.isArray(seedPaymentRecords)) {

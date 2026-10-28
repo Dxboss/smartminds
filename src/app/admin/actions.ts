@@ -1614,7 +1614,7 @@ export async function enrolAndProcessPaymentAction(data: {
     subject: `Enrolment Confirmed: Welcome to Smartminds Training College (${data.courseTitle})`,
     renderedBody: `Dear ${firstName},\n\nCongratulations on your successful enrolment into Smartminds Training College!\n\nYour payment of £${data.amountPaidGbp.toFixed(
       2
-    )} (${data.reference}) has cleared.\n\n=========================================\nYOUR STUDENT PORTAL ACCESS\n=========================================\nPortal Link: ${portalUrl}\nAssigned Assessor: Dr. Eleanor Vance\nClass Cohort: Online Interactive Live Seminars (Schedule assigned by Admissions)\nAssessment: 100% Coursework Portfolio (Zero written exams)\n\nYour learning materials and syllabus units are unlocked immediately in your portal.\n\nWarm regards,\nAdmissions & Student Services\nSmartminds Training College\nTel: 020 8123 4567 | WhatsApp: +44 7123 456789`,
+    )} (${data.reference}) has cleared.\n\n=========================================\nYOUR STUDENT PORTAL ACCESS\n=========================================\nPortal Link: ${portalUrl}\nAssigned Assessor: Admissions & Academic Team\nClass Cohort: Online Interactive Live Seminars (Schedule assigned by Admissions)\nAssessment: 100% Coursework Portfolio (Zero written exams)\n\nYour learning materials and syllabus units are unlocked immediately in your portal.\n\nWarm regards,\nAdmissions & Student Services\nSmartminds Training College\nTel: 020 8123 4567 | WhatsApp: +44 7123 456789`,
     templateKey: "student_welcome_portal",
     sentAt: new Date().toISOString(),
     triggerEvent: "Automated Student Enrolment & Payment Cleared",
@@ -2559,8 +2559,8 @@ export async function adminEnrolNewStudentAction(data: {
   depositAmount: number;
   monthlyAmount?: number;
   months?: number;
-  paymentMethod?: "bacs" | "card" | "employer" | "funded";
-  paymentStatus?: "paid" | "pending";
+  paymentMethod?: "bacs" | "card" | "direct_debit" | "website" | "website_payment" | "cash" | "employer" | "funded";
+  paymentStatus?: "paid" | "direct_debit" | "website_payment" | "pending";
   // Historical student fields:
   isHistorical?: boolean;
   enrolmentDate?: string;
@@ -2580,8 +2580,11 @@ export async function adminEnrolNewStudentAction(data: {
     throw new Error("Please select an enrolled qualification or course.");
   }
 
-  const { loadPersistedRecords, savePersistedRecord } = await import("@/lib/persistedData");
+  const { pullLatestFromNeon, loadPersistedRecords, savePersistedRecord } = await import(
+    "@/lib/persistedData"
+  );
   const { seedLearners } = await import("@/lib/repositories/seedData");
+  await pullLatestFromNeon().catch(() => {});
   const store = loadPersistedRecords();
 
   const cleanEmail = data.email.trim().toLowerCase();
@@ -2627,12 +2630,12 @@ export async function adminEnrolNewStudentAction(data: {
   const totalPrice = Math.max(0, Number(data.totalPrice || 0));
   const rawPaidAmount = isHistorical
     ? Math.max(0, Number(data.amountPaidToDate ?? data.depositAmount ?? 0))
-    : data.paymentPlanType === "full"
-    ? data.paymentStatus === "pending"
-      ? 0
-      : totalPrice
     : data.paymentStatus === "pending"
     ? 0
+    : data.paymentPlanType === "full"
+    ? data.depositAmount !== undefined && Number(data.depositAmount) > 0
+      ? Number(data.depositAmount)
+      : totalPrice
     : Math.max(0, Number(data.depositAmount || 0));
 
   const paidSoFar = Math.min(totalPrice, rawPaidAmount);
@@ -2710,6 +2713,35 @@ export async function adminEnrolNewStudentAction(data: {
           ? "Live 1-on-1 Online Interactive"
           : undefined);
 
+  const FICTIONAL_TUTORS = new Set([
+    "dr. eleanor vance",
+    "eleanor vance",
+    "marcus sterling",
+    "amara patel",
+    "david kalu",
+    "chloe davies",
+  ]);
+  const cleanTutorName =
+    data.tutorName && !FICTIONAL_TUTORS.has(data.tutorName.trim().toLowerCase())
+      ? data.tutorName.trim()
+      : "Unassigned / TBA";
+
+  const resolvedPaymentMethod: "stripe" | "bank_transfer" | "direct_debit" | "website_payment" | "manual" =
+    data.paymentStatus === "direct_debit" || data.paymentMethod === "direct_debit"
+      ? "direct_debit"
+      : data.paymentStatus === "website_payment" || data.paymentMethod === "website"
+        ? "website_payment"
+        : data.paymentMethod === "card"
+          ? "stripe"
+          : "bank_transfer";
+
+  const paymentStatusLabel =
+    data.paymentStatus === "direct_debit" || data.paymentMethod === "direct_debit"
+      ? "Direct Debit"
+      : data.paymentStatus === "website_payment" || data.paymentMethod === "website"
+        ? "Website Payment"
+        : "Paid (Card / Bank Transfer)";
+
   const newEnrolment: Enrolment & { planMonths?: number } = {
     id: enrolmentId,
     learnerId,
@@ -2719,7 +2751,7 @@ export async function adminEnrolNewStudentAction(data: {
     courseLevelLabel: data.levelLabel || "Accredited Qualification",
     classId: isOneToOneCourse && (!data.classId || data.classId !== "class-tutoring-kids") ? "class-tutoring-kids" : data.classId,
     tutorId: data.tutorId,
-    tutorName: data.tutorName,
+    tutorName: cleanTutorName,
     sessionTiming:
       data.sessionTiming === "evening" || data.sessionTiming === "afternoon"
         ? data.sessionTiming
@@ -2743,7 +2775,11 @@ export async function adminEnrolNewStudentAction(data: {
   const now = new Date();
   const receiptRef = isHistorical
     ? `HIST-${Date.now().toString(36).toUpperCase()}`
-    : `RCP-${Date.now().toString(36).toUpperCase()}`;
+    : data.paymentStatus === "direct_debit"
+      ? `DD-${Date.now().toString(36).toUpperCase()}`
+      : data.paymentStatus === "website_payment"
+        ? `WEB-${Date.now().toString(36).toUpperCase()}`
+        : `RCP-${Date.now().toString(36).toUpperCase()}`;
 
   if (data.fundingType !== "funded" && totalPrice > 0) {
     const remainingBalance = Math.max(0, Math.round((totalPrice - paidSoFar) * 100) / 100);
@@ -2753,25 +2789,28 @@ export async function adminEnrolNewStudentAction(data: {
       if (paidSoFar > 0 || !isHistorical) {
         const depositAmt = paidSoFar > 0 ? paidSoFar : Math.max(0, Number(data.depositAmount || 0));
         const isDepositPaid = paidSoFar > 0;
+        const graceDate0 = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
         paymentSchedules.push({
           id: `sched-dep-${enrolmentId}`,
           enrolmentId,
           learnerId,
+          courseTitle: data.courseTitle,
           instalmentNumber: 1,
           totalInstalments: planMonths + 1,
           amount: depositAmt,
           amountGbp: depositAmt,
           dueDate: enrolmentDateStr.slice(0, 10),
+          graceExpiryDate: graceDate0.toISOString().slice(0, 10),
           status: isDepositPaid ? "paid" : "due",
           paidAt: isDepositPaid ? enrolmentDateStr : undefined,
           receiptRef: isDepositPaid ? receiptRef : undefined,
-          method: data.paymentMethod || "bacs",
+          method: resolvedPaymentMethod,
           type: "deposit",
           description: isHistorical
             ? data.historicalNotes
               ? `Prior Payments: ${data.historicalNotes}`
               : "Tuition Fees Paid to Date"
-            : "Initial Enrolment Deposit / Payment",
+            : `Initial Enrolment Deposit (${paymentStatusLabel})`,
         });
 
         if (isDepositPaid && depositAmt > 0) {
@@ -2782,13 +2821,13 @@ export async function adminEnrolNewStudentAction(data: {
             learnerName: `${newLearner.firstName} ${newLearner.lastName}`,
             courseTitle: data.courseTitle,
             amountGbp: depositAmt,
-            method: data.paymentMethod === "card" ? "stripe" : "bank_transfer",
+            method: resolvedPaymentMethod,
             reference: receiptRef,
             status: "paid",
             paidAt: enrolmentDateStr,
             notes:
               data.historicalNotes ||
-              `Payment received (£${depositAmt.toFixed(2)}) on ${planMonths}-Month Instalment Plan`,
+              `${paymentStatusLabel} received (£${depositAmt.toFixed(2)}) on ${planMonths}-Month Instalment Plan`,
           };
         }
       }
@@ -2812,6 +2851,7 @@ export async function adminEnrolNewStudentAction(data: {
             id: `sched-inst-${i}-${enrolmentId}`,
             enrolmentId,
             learnerId,
+            courseTitle: data.courseTitle,
             instalmentNumber: i + 1,
             totalInstalments: planMonths + 1,
             amount: itemAmt,
@@ -2819,42 +2859,49 @@ export async function adminEnrolNewStudentAction(data: {
             dueDate: dueDate.toISOString().slice(0, 10),
             graceExpiryDate: graceDate.toISOString().slice(0, 10),
             status: "due",
+            method: resolvedPaymentMethod,
             type: "instalment",
-            description: `Instalment ${i} of ${planMonths}`,
+            description: `Instalment ${i} of ${planMonths} (${paymentStatusLabel})`,
           });
         }
       }
     } else {
       // Full Upfront Payment Plan
       const isFullPaid = paidSoFar >= totalPrice && totalPrice > 0;
+      const graceDateFull = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
       if (paidSoFar > 0 && paidSoFar < totalPrice) {
         // Paid partial upfront, remaining balance due as 1 item
         paymentSchedules.push({
           id: `sched-paid-${enrolmentId}`,
           enrolmentId,
           learnerId,
+          courseTitle: data.courseTitle,
           instalmentNumber: 1,
-          totalInstalments: 1,
+          totalInstalments: 2,
           amount: paidSoFar,
           amountGbp: paidSoFar,
           dueDate: enrolmentDateStr.slice(0, 10),
+          graceExpiryDate: graceDateFull,
           status: "paid",
           paidAt: enrolmentDateStr,
           receiptRef,
-          method: data.paymentMethod || "bacs",
+          method: resolvedPaymentMethod,
           type: "full",
-          description: "Partial Upfront Tuition Payment",
+          description: `Partial Upfront Tuition Payment (${paymentStatusLabel})`,
         });
         paymentSchedules.push({
           id: `sched-rem-${enrolmentId}`,
           enrolmentId,
           learnerId,
-          instalmentNumber: 1,
-          totalInstalments: 1,
+          courseTitle: data.courseTitle,
+          instalmentNumber: 2,
+          totalInstalments: 2,
           amount: remainingBalance,
           amountGbp: remainingBalance,
-          dueDate: new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+          dueDate: graceDateFull,
+          graceExpiryDate: new Date(now.getTime() + 28 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
           status: "due",
+          method: resolvedPaymentMethod,
           type: "full",
           description: "Remaining Tuition Balance",
         });
@@ -2863,17 +2910,19 @@ export async function adminEnrolNewStudentAction(data: {
           id: `sched-full-${enrolmentId}`,
           enrolmentId,
           learnerId,
+          courseTitle: data.courseTitle,
           instalmentNumber: 1,
           totalInstalments: 1,
           amount: totalPrice,
           amountGbp: totalPrice,
           dueDate: enrolmentDateStr.slice(0, 10),
+          graceExpiryDate: graceDateFull,
           status: isFullPaid ? "paid" : "due",
           paidAt: isFullPaid ? enrolmentDateStr : undefined,
           receiptRef: isFullPaid ? receiptRef : undefined,
-          method: data.paymentMethod || "bacs",
+          method: resolvedPaymentMethod,
           type: "full",
-          description: "Full Tuition Fee Upfront",
+          description: `Full Tuition Fee Upfront (${paymentStatusLabel})`,
         });
       }
 
@@ -2885,11 +2934,11 @@ export async function adminEnrolNewStudentAction(data: {
           learnerName: `${newLearner.firstName} ${newLearner.lastName}`,
           courseTitle: data.courseTitle,
           amountGbp: paidSoFar,
-          method: data.paymentMethod === "card" ? "stripe" : "bank_transfer",
+          method: resolvedPaymentMethod,
           reference: receiptRef,
           status: "paid",
           paidAt: enrolmentDateStr,
-          notes: data.historicalNotes || "Full Tuition Fee Payment",
+          notes: data.historicalNotes || `Full Tuition Fee Payment (${paymentStatusLabel})`,
         };
       }
     }
@@ -2930,49 +2979,79 @@ export async function adminEnrolNewStudentAction(data: {
         }
       : undefined;
 
-  // Dispatch Welcome & Induction Email
+  // Dispatch Email: Course Added Email for existing students, Welcome + Temp Password Email for new students
   try {
-    const { buildStudentWelcomeEmail } = await import("@/lib/emailTemplates");
+    const { buildStudentWelcomeEmail, buildCourseAddedEmail } = await import("@/lib/emailTemplates");
     const { sendEmail } = await import("@/lib/email");
-    const emailPayload = buildStudentWelcomeEmail({
-      studentName: `${newLearner.firstName} ${newLearner.lastName}`,
-      studentId: learnerId,
-      courseTitle: data.courseTitle,
-      levelName: data.levelLabel,
-      amountCharged: paidSoFar,
-      receiptRef,
-      paymentPlanLabel:
-        data.fundingType === "funded"
-          ? "Government / AEB Funded Placement (No Student Fees)"
-          : data.paymentPlanType === "instalments" && planMonths > 1
-          ? `${planMonths}-Month 0% Interest Instalment Plan (£${paidSoFar} Paid / £${Math.max(0, totalPrice - paidSoFar)} Remaining)`
+    const paymentPlanLabel =
+      data.fundingType === "funded"
+        ? "Government / AEB Funded Placement (No Student Fees)"
+        : data.paymentPlanType === "instalments" && planMonths > 1
+          ? `${planMonths}-Month 0% Interest Instalment Plan — ${paymentStatusLabel} (£${paidSoFar} Paid / £${Math.max(0, totalPrice - paidSoFar)} Remaining)`
           : paidSoFar >= totalPrice
-          ? "Full Upfront Payment (Settled)"
-          : `Full Payment Plan (£${paidSoFar} Paid / £${Math.max(0, totalPrice - paidSoFar)} Remaining)`,
-      portalUrl: `${process.env.NEXT_PUBLIC_BASE_URL || "https://smartmindstraining.co.uk"}/login`,
-      loginEmail: cleanEmail,
-      tempPassword: isAdditionalCourse ? "(Use your existing Student Portal password)" : tempPassword,
-      preferredTiming: data.sessionTiming,
-      cohortTime:
-        data.sessionTiming === "evening"
-          ? "18:30 – 20:30 (Live Online / Blended)"
-          : data.sessionTiming === "afternoon"
-          ? "14:00 – 16:00 (Live Online / Blended)"
-          : "Flexible 1-on-1 / Self-Paced",
-    });
+            ? `Full Upfront Payment — ${paymentStatusLabel} (Settled)`
+            : `Full Payment Plan — ${paymentStatusLabel} (£${paidSoFar} Paid / £${Math.max(0, totalPrice - paidSoFar)} Remaining)`;
 
-    await sendEmail({
-      to: cleanEmail,
-      recipientName: `${newLearner.firstName} ${newLearner.lastName}`,
-      department: "admissions",
-      subject: emailPayload.subject,
-      text: emailPayload.text,
-      html: emailPayload.html,
-      templateKey: "student_welcome",
-      triggerEvent: `Admin Enrolment (${data.courseTitle})`,
-    });
+    const portalUrl = `${process.env.NEXT_PUBLIC_BASE_URL || "https://smartmindstraining.co.uk"}/login`;
+
+    if (isAdditionalCourse) {
+      const courseAddedPayload = buildCourseAddedEmail({
+        studentName: `${newLearner.firstName} ${newLearner.lastName}`,
+        studentId: learnerId,
+        courseTitle: data.courseTitle,
+        levelName: data.levelLabel,
+        awardingBody: "TQUK / Ofqual",
+        amountCharged: paidSoFar,
+        receiptRef,
+        paymentPlanLabel,
+        portalUrl,
+        loginEmail: cleanEmail,
+      });
+
+      await sendEmail({
+        to: cleanEmail,
+        recipientName: `${newLearner.firstName} ${newLearner.lastName}`,
+        department: "admissions",
+        subject: courseAddedPayload.subject,
+        text: courseAddedPayload.text,
+        html: courseAddedPayload.html,
+        templateKey: "student_course_added",
+        triggerEvent: `Admin Additional Course Added (${data.courseTitle})`,
+      });
+    } else {
+      const emailPayload = buildStudentWelcomeEmail({
+        studentName: `${newLearner.firstName} ${newLearner.lastName}`,
+        studentId: learnerId,
+        courseTitle: data.courseTitle,
+        levelName: data.levelLabel,
+        amountCharged: paidSoFar,
+        receiptRef,
+        paymentPlanLabel,
+        portalUrl,
+        loginEmail: cleanEmail,
+        tempPassword,
+        preferredTiming: data.sessionTiming,
+        cohortTime:
+          data.sessionTiming === "evening"
+            ? "18:30 – 20:30 (Live Online / Blended)"
+            : data.sessionTiming === "afternoon"
+              ? "14:00 – 16:00 (Live Online / Blended)"
+              : "Flexible 1-on-1 / Self-Paced",
+      });
+
+      await sendEmail({
+        to: cleanEmail,
+        recipientName: `${newLearner.firstName} ${newLearner.lastName}`,
+        department: "admissions",
+        subject: emailPayload.subject,
+        text: emailPayload.text,
+        html: emailPayload.html,
+        templateKey: "student_welcome",
+        triggerEvent: `Admin Enrolment (${data.courseTitle})`,
+      });
+    }
   } catch (err) {
-    console.warn("[adminEnrolNewStudentAction] Warning: welcome email send failed:", err);
+    console.warn("[adminEnrolNewStudentAction] Warning: email send failed:", err);
   }
 
   revalidatePath("/admin/learners");
@@ -3021,11 +3100,14 @@ export async function updateLearnerAndEnrolmentAction(data: {
   months?: number;
   totalPrice?: number;
   amountPaidSoFar?: number;
+  paymentStatus?: "paid" | "direct_debit" | "website_payment" | "pending";
+  paymentMethod?: "bacs" | "card" | "direct_debit" | "website" | "website_payment" | "cash" | "employer" | "funded";
 }) {
   const session = await getServerSession();
   assertAdminAuthorized(session);
 
   const {
+    pullLatestFromNeon,
     loadPersistedRecords,
     getStoreFilePath,
     syncPersistedRecords,
@@ -3033,6 +3115,7 @@ export async function updateLearnerAndEnrolmentAction(data: {
   } = await import("@/lib/persistedData");
   const { seedLearners, seedEnrolments } = await import("@/lib/repositories/seedData");
 
+  await pullLatestFromNeon().catch(() => {});
   const store = loadPersistedRecords();
   if (!store.learners) store.learners = [];
   if (!store.enrolments) store.enrolments = [];
@@ -3109,6 +3192,20 @@ export async function updateLearnerAndEnrolmentAction(data: {
           ? data.tutoringDeliveryMode
           : existingEnr.tutoringDeliveryMode;
 
+      const FICTIONAL_TUTORS = new Set([
+        "dr. eleanor vance",
+        "eleanor vance",
+        "marcus sterling",
+        "amara patel",
+        "david kalu",
+        "chloe davies",
+      ]);
+      const rawTutor = data.tutorName || existingEnr.tutorName;
+      const cleanTutorName =
+        rawTutor && !FICTIONAL_TUTORS.has(rawTutor.trim().toLowerCase())
+          ? rawTutor.trim()
+          : "Unassigned / TBA";
+
       updatedEnrolment = {
         ...existingEnr,
         courseId: data.courseId || existingEnr.courseId,
@@ -3117,7 +3214,7 @@ export async function updateLearnerAndEnrolmentAction(data: {
         courseLevelLabel: data.levelLabel || existingEnr.courseLevelLabel,
         classId: data.classId || existingEnr.classId,
         tutorId: data.tutorId !== undefined ? data.tutorId : existingEnr.tutorId,
-        tutorName: data.tutorName || existingEnr.tutorName,
+        tutorName: cleanTutorName,
         sessionTiming:
           data.sessionTiming === "evening" || data.sessionTiming === "afternoon"
             ? data.sessionTiming
@@ -3167,6 +3264,27 @@ export async function updateLearnerAndEnrolmentAction(data: {
             ? Number(data.months)
             : 1;
 
+        const resolvedEditMethod:
+          | "stripe"
+          | "bank_transfer"
+          | "direct_debit"
+          | "website_payment"
+          | "manual" =
+          data.paymentStatus === "direct_debit" || data.paymentMethod === "direct_debit"
+            ? "direct_debit"
+            : data.paymentStatus === "website_payment" || data.paymentMethod === "website"
+              ? "website_payment"
+              : data.paymentMethod === "card"
+                ? "stripe"
+                : "bank_transfer";
+
+        const editStatusLabel =
+          resolvedEditMethod === "direct_debit"
+            ? "Direct Debit"
+            : resolvedEditMethod === "website_payment"
+              ? "Website Payment"
+              : "Paid (Card / Bank Transfer)";
+
         const learnerEnrolmentsCount = store.enrolments.filter(
           (e) => e.learnerId === data.learnerId
         ).length;
@@ -3196,16 +3314,21 @@ export async function updateLearnerAndEnrolmentAction(data: {
                 id: `sched-dep-${data.enrolmentId}`,
                 enrolmentId: data.enrolmentId,
                 learnerId: data.learnerId,
+                courseTitle: updatedEnrolment.courseTitle,
                 instalmentNumber: 1,
                 totalInstalments: effMonths + 1,
                 amount: paidSoFar,
                 amountGbp: paidSoFar,
                 dueDate: todayYmd,
+                graceExpiryDate: new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000)
+                  .toISOString()
+                  .slice(0, 10),
                 status: "paid",
                 paidAt: now.toISOString(),
                 receiptRef: ref,
+                method: resolvedEditMethod,
                 type: "deposit",
-                description: "Tuition Fees Paid to Date",
+                description: `Tuition Fees Paid to Date (${editStatusLabel})`,
               });
 
               newReceipt = {
@@ -3215,11 +3338,11 @@ export async function updateLearnerAndEnrolmentAction(data: {
                 learnerName: `${updatedLearner.firstName} ${updatedLearner.lastName}`,
                 courseTitle: updatedEnrolment.courseTitle,
                 amountGbp: paidSoFar,
-                method: "bank_transfer",
+                method: resolvedEditMethod,
                 reference: ref,
                 status: "paid",
                 paidAt: now.toISOString(),
-                notes: `Updated payment plan (${effMonths}-Month Plan)`,
+                notes: `Updated payment plan (${effMonths}-Month Plan — ${editStatusLabel})`,
               };
               store.paymentRecords.unshift(newReceipt);
             }
@@ -3237,6 +3360,7 @@ export async function updateLearnerAndEnrolmentAction(data: {
                   id: `sched-inst-${i}-${data.enrolmentId}`,
                   enrolmentId: data.enrolmentId,
                   learnerId: data.learnerId,
+                  courseTitle: updatedEnrolment.courseTitle,
                   instalmentNumber: i + (paidSoFar > 0 ? 1 : 0),
                   totalInstalments: effMonths + (paidSoFar > 0 ? 1 : 0),
                   amount: itemAmt,
@@ -3244,8 +3368,9 @@ export async function updateLearnerAndEnrolmentAction(data: {
                   dueDate: dueDate.toISOString().slice(0, 10),
                   graceExpiryDate: graceDate.toISOString().slice(0, 10),
                   status: "due",
+                  method: resolvedEditMethod,
                   type: "instalment",
-                  description: `Instalment ${i} of ${effMonths}`,
+                  description: `Instalment ${i} of ${effMonths} (${editStatusLabel})`,
                 });
               }
             }
@@ -3256,16 +3381,19 @@ export async function updateLearnerAndEnrolmentAction(data: {
                 id: `sched-full-${data.enrolmentId}`,
                 enrolmentId: data.enrolmentId,
                 learnerId: data.learnerId,
+                courseTitle: updatedEnrolment.courseTitle,
                 instalmentNumber: 1,
-                totalInstalments: 1,
+                totalInstalments: remainingBalance > 0 ? 2 : 1,
                 amount: paidSoFar,
                 amountGbp: paidSoFar,
                 dueDate: todayYmd,
+                graceExpiryDate: todayYmd,
                 status: "paid",
                 paidAt: now.toISOString(),
                 receiptRef: ref,
+                method: resolvedEditMethod,
                 type: "full",
-                description: "Full Tuition Fee Payment",
+                description: `Full Tuition Fee Payment (${editStatusLabel})`,
               });
               newReceipt = {
                 id: `pay-upd-${data.enrolmentId}`,
@@ -3274,25 +3402,33 @@ export async function updateLearnerAndEnrolmentAction(data: {
                 learnerName: `${updatedLearner.firstName} ${updatedLearner.lastName}`,
                 courseTitle: updatedEnrolment.courseTitle,
                 amountGbp: paidSoFar,
-                method: "bank_transfer",
+                method: resolvedEditMethod,
                 reference: ref,
                 status: "paid",
                 paidAt: now.toISOString(),
-                notes: "Updated Full Payment Plan",
+                notes: `Updated Full Payment Plan (${editStatusLabel})`,
               };
               store.paymentRecords.unshift(newReceipt);
             }
             if (remainingBalance > 0) {
+              const dueYmd = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000)
+                .toISOString()
+                .slice(0, 10);
               newSchedules.push({
                 id: `sched-rem-${data.enrolmentId}`,
                 enrolmentId: data.enrolmentId,
                 learnerId: data.learnerId,
-                instalmentNumber: 1,
-                totalInstalments: 1,
+                courseTitle: updatedEnrolment.courseTitle,
+                instalmentNumber: paidSoFar > 0 ? 2 : 1,
+                totalInstalments: paidSoFar > 0 ? 2 : 1,
                 amount: remainingBalance,
                 amountGbp: remainingBalance,
-                dueDate: new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+                dueDate: dueYmd,
+                graceExpiryDate: new Date(now.getTime() + 28 * 24 * 60 * 60 * 1000)
+                  .toISOString()
+                  .slice(0, 10),
                 status: "due",
+                method: resolvedEditMethod,
                 type: "full",
                 description: "Remaining Tuition Balance",
               });
@@ -3328,56 +3464,56 @@ export async function updateLearnerAndEnrolmentAction(data: {
   const filePath = getStoreFilePath();
   fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
   syncPersistedRecords(true);
-  syncStoreSnapshotToNeon(store).catch(() => {});
+  await syncStoreSnapshotToNeon(store).catch(() => {});
 
   if (process.env.DATABASE_URL) {
-    import("@/lib/db")
-      .then(async ({ sql }) => {
-        const fullName = `${updatedLearner.firstName} ${updatedLearner.lastName}`.trim();
+    try {
+      const { sql, ensureDbTablesExist } = await import("@/lib/db");
+      await ensureDbTablesExist();
+      const fullName = `${updatedLearner.firstName} ${updatedLearner.lastName}`.trim();
+      await sql`
+        INSERT INTO learners (id, user_id, first_name, last_name, email, name, phone, access_status, data, created_at, updated_at)
+        VALUES (${updatedLearner.id}, ${updatedLearner.userId || null}, ${updatedLearner.firstName}, ${updatedLearner.lastName}, ${updatedLearner.email}, ${fullName}, ${updatedLearner.phone || null}, ${updatedLearner.accessStatus || "active"}, ${JSON.stringify(updatedLearner)}, now(), now())
+        ON CONFLICT (id) DO UPDATE SET
+          first_name = EXCLUDED.first_name,
+          last_name = EXCLUDED.last_name,
+          email = EXCLUDED.email,
+          name = EXCLUDED.name,
+          phone = EXCLUDED.phone,
+          data = EXCLUDED.data,
+          updated_at = now();
+      `.catch(() => {});
+
+      if (updatedEnrolment) {
         await sql`
-          INSERT INTO learners (id, user_id, first_name, last_name, email, name, phone, access_status, data, created_at, updated_at)
-          VALUES (${updatedLearner.id}, ${updatedLearner.userId || null}, ${updatedLearner.firstName}, ${updatedLearner.lastName}, ${updatedLearner.email}, ${fullName}, ${updatedLearner.phone || null}, ${updatedLearner.accessStatus || "active"}, ${JSON.stringify(updatedLearner)}, now(), now())
+          INSERT INTO enrolments (id, learner_id, course_id, data, created_at, updated_at)
+          VALUES (${updatedEnrolment.id}, ${updatedEnrolment.learnerId}, ${updatedEnrolment.courseId}, ${JSON.stringify(updatedEnrolment)}, now(), now())
           ON CONFLICT (id) DO UPDATE SET
-            first_name = EXCLUDED.first_name,
-            last_name = EXCLUDED.last_name,
-            email = EXCLUDED.email,
-            name = EXCLUDED.name,
-            phone = EXCLUDED.phone,
+            course_id = EXCLUDED.course_id,
             data = EXCLUDED.data,
             updated_at = now();
         `.catch(() => {});
+      }
 
-        if (updatedEnrolment) {
+      if (updatedPlanSummary && data.enrolmentId) {
+        await sql`DELETE FROM payment_schedules WHERE enrolment_id = ${data.enrolmentId};`.catch(() => {});
+        await sql`DELETE FROM payments WHERE enrolment_id = ${data.enrolmentId};`.catch(() => {});
+        for (const s of updatedPlanSummary.schedule || []) {
           await sql`
-            INSERT INTO enrolments (id, learner_id, course_id, data, created_at, updated_at)
-            VALUES (${updatedEnrolment.id}, ${updatedEnrolment.learnerId}, ${updatedEnrolment.courseId}, ${JSON.stringify(updatedEnrolment)}, now(), now())
-            ON CONFLICT (id) DO UPDATE SET
-              course_id = EXCLUDED.course_id,
-              data = EXCLUDED.data,
-              updated_at = now();
+            INSERT INTO payment_schedules (id, enrolment_id, learner_id, instalment_number, due_date, amount, status, paid_at, payment_reference, grace_expiry_date, data, created_at, updated_at)
+            VALUES (${s.id}, ${s.enrolmentId}, ${s.learnerId}, ${Number(s.instalmentNumber || 1)}, ${new Date(s.dueDate).toISOString()}, ${Number(s.amountGbp || 0)}, ${s.status}, ${s.paidAt ? new Date(s.paidAt).toISOString() : null}, ${s.receiptRef || null}, ${s.graceExpiryDate ? new Date(s.graceExpiryDate).toISOString() : null}, ${JSON.stringify(s)}, now(), now())
+            ON CONFLICT (id) DO UPDATE SET amount = EXCLUDED.amount, status = EXCLUDED.status, data = EXCLUDED.data, updated_at = now();
           `.catch(() => {});
         }
-
-        if (updatedPlanSummary && data.enrolmentId) {
-          await sql`DELETE FROM payment_schedules WHERE enrolment_id = ${data.enrolmentId};`.catch(() => {});
-          await sql`DELETE FROM payments WHERE enrolment_id = ${data.enrolmentId};`.catch(() => {});
-          for (const s of updatedPlanSummary.schedule || []) {
-            await sql`
-              INSERT INTO payment_schedules (id, enrolment_id, learner_id, instalment_number, due_date, amount, status, paid_at, payment_reference, grace_expiry_date, data, created_at, updated_at)
-              VALUES (${s.id}, ${s.enrolmentId}, ${s.learnerId}, ${Number(s.instalmentNumber || 1)}, ${new Date(s.dueDate).toISOString()}, ${Number(s.amountGbp || 0)}, ${s.status}, ${s.paidAt ? new Date(s.paidAt).toISOString() : null}, ${s.receiptRef || null}, ${s.graceExpiryDate ? new Date(s.graceExpiryDate).toISOString() : null}, ${JSON.stringify(s)}, now(), now())
-              ON CONFLICT (id) DO UPDATE SET amount = EXCLUDED.amount, status = EXCLUDED.status, data = EXCLUDED.data, updated_at = now();
-            `.catch(() => {});
-          }
-          for (const r of updatedPlanSummary.history || []) {
-            await sql`
-              INSERT INTO payments (id, enrolment_id, learner_id, amount, status, data, created_at)
-              VALUES (${r.id}, ${r.enrolmentId}, ${r.learnerId}, ${Number(r.amountGbp || 0)}, ${r.status}, ${JSON.stringify(r)}, now())
-              ON CONFLICT (id) DO UPDATE SET amount = EXCLUDED.amount, status = EXCLUDED.status, data = EXCLUDED.data;
-            `.catch(() => {});
-          }
+        for (const r of updatedPlanSummary.history || []) {
+          await sql`
+            INSERT INTO payments (id, enrolment_id, learner_id, amount, status, data, created_at)
+            VALUES (${r.id}, ${r.enrolmentId}, ${r.learnerId}, ${Number(r.amountGbp || 0)}, ${r.status}, ${JSON.stringify(r)}, now())
+            ON CONFLICT (id) DO UPDATE SET amount = EXCLUDED.amount, status = EXCLUDED.status, data = EXCLUDED.data;
+          `.catch(() => {});
         }
-      })
-      .catch(() => {});
+      }
+    } catch {}
   }
 
   revalidatePath("/admin/learners");
@@ -3396,7 +3532,7 @@ export async function logLearnerPaymentAction(data: {
   learnerId: string;
   enrolmentId?: string;
   amount: number;
-  method: "bacs" | "card" | "cash" | "employer";
+  method: "bacs" | "card" | "direct_debit" | "website" | "website_payment" | "cash" | "employer";
   reference?: string;
   notes?: string;
   paymentDate?: string;
@@ -3415,7 +3551,8 @@ export async function logLearnerPaymentAction(data: {
     return { success: false, error: "Payment amount must be greater than £0." };
   }
 
-  const { loadPersistedRecords, getStoreFilePath, syncPersistedRecords, syncStoreSnapshotToNeon } = await import("@/lib/persistedData");
+  const { pullLatestFromNeon, loadPersistedRecords, getStoreFilePath, syncPersistedRecords, syncStoreSnapshotToNeon } = await import("@/lib/persistedData");
+  await pullLatestFromNeon().catch(() => {});
   const store = loadPersistedRecords();
   if (!store.paymentRecords) store.paymentRecords = [];
   if (!store.paymentSchedules) store.paymentSchedules = [];
@@ -3431,6 +3568,17 @@ export async function logLearnerPaymentAction(data: {
   const ref = data.reference?.trim() || `MAN-${Date.now().toString(36).toUpperCase()}`;
 
   // 1. Record receipt in paymentRecords
+  const resolvedLogMethod =
+    data.method === "bacs"
+      ? "bank_transfer"
+      : data.method === "card"
+        ? "stripe"
+        : data.method === "direct_debit"
+          ? "direct_debit"
+          : data.method === "website"
+            ? "website_payment"
+            : "manual";
+
   const newReceipt: any = {
     id: `pay-manual-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
     enrolmentId: enrId,
@@ -3438,7 +3586,7 @@ export async function logLearnerPaymentAction(data: {
     learnerName,
     courseTitle,
     amountGbp: amount,
-    method: data.method === "bacs" ? "bank_transfer" : data.method === "card" ? "stripe" : "manual",
+    method: resolvedLogMethod,
     reference: ref,
     status: "paid",
     paidAt: payDate,
@@ -3491,10 +3639,12 @@ export async function logLearnerPaymentAction(data: {
   const filePath = getStoreFilePath();
   fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
   syncPersistedRecords(true);
-  syncStoreSnapshotToNeon(store).catch(() => {});
+  await syncStoreSnapshotToNeon(store).catch(() => {});
 
   if (process.env.DATABASE_URL) {
-    import("@/lib/db").then(async ({ sql }) => {
+    try {
+      const { sql, ensureDbTablesExist } = await import("@/lib/db");
+      await ensureDbTablesExist();
       await sql`
         INSERT INTO payments (id, enrolment_id, learner_id, amount, status, data, created_at)
         VALUES (${newReceipt.id}, ${newReceipt.enrolmentId}, ${newReceipt.learnerId}, ${newReceipt.amountGbp}, ${newReceipt.status}, ${JSON.stringify(newReceipt)}, now())
@@ -3506,7 +3656,7 @@ export async function logLearnerPaymentAction(data: {
           ON CONFLICT (id) DO UPDATE SET amount = EXCLUDED.amount, status = EXCLUDED.status, paid_at = EXCLUDED.paid_at, payment_reference = EXCLUDED.payment_reference, data = EXCLUDED.data, updated_at = now();
         `.catch(() => {});
       }
-    }).catch(() => {});
+    } catch {}
   }
 
   revalidatePath("/admin/learners");

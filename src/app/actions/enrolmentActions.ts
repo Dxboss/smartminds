@@ -284,7 +284,13 @@ export async function processSelfEnrolmentAction(input: EnrolmentFormInput) {
       classId,
       sessionTiming: input.preferredSession === "afternoon" ? "afternoon" : "evening",
       preferredTimeSlot: input.preferredTimeSlot,
-      tutorName: matchingClass?.tutorName || "Dr. Eleanor Vance",
+      tutorName:
+        matchingClass?.tutorName &&
+        matchingClass.tutorName !== "Dr. Eleanor Vance" &&
+        matchingClass.tutorName !== "Marcus Sterling" &&
+        matchingClass.tutorName !== "Amara Patel"
+          ? matchingClass.tutorName
+          : "Unassigned / TBA",
       trainingLocation: input.trainingLocation,
       tutoringDeliveryMode: inferredTutoringMode,
       tutoringRoomOrAddress:

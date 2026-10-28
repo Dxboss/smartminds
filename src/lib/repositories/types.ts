@@ -140,7 +140,18 @@ export interface Enrolment {
   certificateIssued?: boolean;
 }
 
-export type PaymentMethod = "stripe" | "bank_transfer" | "manual";
+export type PaymentMethod =
+  | "stripe"
+  | "bank_transfer"
+  | "bacs"
+  | "card"
+  | "cash"
+  | "employer"
+  | "direct_debit"
+  | "website"
+  | "website_payment"
+  | "manual"
+  | "funded";
 export type PaymentStatus =
   | "paid"
   | "due"
@@ -175,6 +186,10 @@ export interface PaymentScheduleItem {
   status: PaymentStatus;
   paidAt?: string;
   graceExpiryDate: string;
+  description?: string;
+  method?: string;
+  type?: "deposit" | "instalment" | "full";
+  courseTitle?: string;
   reportedTransfer?: {
     reference: string;
     receiptUrl?: string;
@@ -186,6 +201,17 @@ export interface PaymentScheduleItem {
     queriedAt: string;
     queriedBy: string;
   };
+}
+
+export interface LearnerCoursePaymentBreakdown {
+  enrolmentId: string;
+  courseTitle: string;
+  levelLabel?: string;
+  courseLevelLabel?: string;
+  planMonths?: number;
+  totalAmountGbp: number;
+  totalPaidGbp: number;
+  balanceRemainingGbp: number;
 }
 
 export interface LearnerPaymentPlanSummary {
@@ -205,6 +231,7 @@ export interface LearnerPaymentPlanSummary {
   status: "up_to_date" | "due" | "overdue" | "settled";
   schedule: PaymentScheduleItem[];
   history: PaymentRecord[];
+  courses?: LearnerCoursePaymentBreakdown[];
 }
 
 export interface LedgerSummary {
