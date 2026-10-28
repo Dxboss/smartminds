@@ -2559,8 +2559,26 @@ export async function adminEnrolNewStudentAction(data: {
   depositAmount: number;
   monthlyAmount?: number;
   months?: number;
-  paymentMethod?: "bacs" | "card" | "direct_debit" | "website" | "website_payment" | "cash" | "employer" | "funded";
+  paymentMethod?: "bacs" | "card" | "direct_debit" | "website" | "website_payment" | "cash" | "employer" | "funded" | "paid";
   paymentStatus?: "paid" | "direct_debit" | "website_payment" | "pending";
+  // Multi-course enrolment:
+  additionalCourses?: Array<{
+    courseId: string;
+    courseTitle: string;
+    levelLabel: string;
+    classId?: string;
+    className?: string;
+    tutorId?: string;
+    tutorName?: string;
+    sessionTiming?: "evening" | "afternoon" | "self_paced";
+    preferredTimeSlot?: string;
+    tutoringDeliveryMode?: "online" | "physical_centre" | "room_home_request";
+    tutoringRoomOrAddress?: string;
+    childName?: string;
+    childConcerns?: string;
+    guardianName?: string;
+    price?: number;
+  }>;
   // Historical student fields:
   isHistorical?: boolean;
   enrolmentDate?: string;
@@ -2954,6 +2972,49 @@ export async function adminEnrolNewStudentAction(data: {
     mustChangePassword: isAdditionalCourse ? undefined : true,
   });
 
+  const additionalEnrolments: Enrolment[] = [];
+  if (Array.isArray(data.additionalCourses) && data.additionalCourses.length > 0) {
+    for (const addCourse of data.additionalCourses) {
+      if (!addCourse.courseId) continue;
+      const addEnrolmentId = `enr-${Date.now().toString(36)}-${randomBytes(3).toString("hex")}`;
+      const addIsOneToOne =
+        addCourse.courseId === "course-tutoring-children" ||
+        addCourse.classId === "class-tutoring-kids";
+      const addCleanTutor =
+        addCourse.tutorName && !FICTIONAL_TUTORS.has(addCourse.tutorName.trim().toLowerCase())
+          ? addCourse.tutorName.trim()
+          : "Unassigned / TBA";
+      const addEnr: Enrolment & { planMonths?: number } = {
+        id: addEnrolmentId,
+        learnerId,
+        courseId: addCourse.courseId,
+        courseSlug: addCourse.courseId.replace(/^course-/, ""),
+        courseTitle: addCourse.courseTitle || "Accredited Qualification",
+        courseLevelLabel: addCourse.levelLabel || "Level 3",
+        classId: addIsOneToOne ? "class-tutoring-kids" : addCourse.classId || "class-adult-care-apr26",
+        tutorId: addCourse.tutorId,
+        tutorName: addCleanTutor,
+        sessionTiming:
+          addCourse.sessionTiming === "evening" || addCourse.sessionTiming === "afternoon"
+            ? addCourse.sessionTiming
+            : undefined,
+        preferredTimeSlot: addCourse.preferredTimeSlot?.trim() || addCourse.sessionTiming,
+        trainingLocation: addCourse.tutoringRoomOrAddress || undefined,
+        tutoringDeliveryMode: addCourse.tutoringDeliveryMode,
+        tutoringRoomOrAddress: addCourse.tutoringRoomOrAddress,
+        status: "active",
+        fundingType: data.fundingType === "funded" ? "funded" : "self_pay",
+        enrolledAt: enrolmentDateStr,
+        assessmentMethod: addIsOneToOne ? "completion" : "criteria",
+        completedUnits: [],
+        planMonths,
+      };
+      additionalEnrolments.push(addEnr);
+      store.enrolments.unshift(addEnr);
+      await savePersistedRecord({ enrolment: addEnr }).catch(() => {});
+    }
+  }
+
   const nextDueItem = paymentSchedules.find(
     (s) => s.status === "due" || s.status === "overdue"
   );
@@ -3062,6 +3123,7 @@ export async function adminEnrolNewStudentAction(data: {
     success: true,
     learner: newLearner,
     enrolment: newEnrolment,
+    enrolments: [newEnrolment, ...additionalEnrolments],
     paymentPlan: createdPlanSummary,
     isAdditionalCourse,
     tempPassword: isAdditionalCourse ? undefined : tempPassword,
@@ -3101,7 +3163,7 @@ export async function updateLearnerAndEnrolmentAction(data: {
   totalPrice?: number;
   amountPaidSoFar?: number;
   paymentStatus?: "paid" | "direct_debit" | "website_payment" | "pending";
-  paymentMethod?: "bacs" | "card" | "direct_debit" | "website" | "website_payment" | "cash" | "employer" | "funded";
+  paymentMethod?: "bacs" | "card" | "direct_debit" | "website" | "website_payment" | "cash" | "employer" | "funded" | "paid";
 }) {
   const session = await getServerSession();
   assertAdminAuthorized(session);

@@ -37,8 +37,11 @@ export class MemoryUserRepo implements UserRepo {
         "Only staff members and administrators can list college staff and tutors."
       );
     }
+    const { isAutomatedTestEnv, isFictionalDemoRecord } = await import("@/lib/persistedData");
+    const isTest = isAutomatedTestEnv();
     return this.users
       .filter((u) => u.role === "tutor" || u.role === "admin_staff" || u.role === "owner_admin")
+      .filter((u) => isTest || !isFictionalDemoRecord(u))
       .map((u) => ({ ...u }));
   }
 

@@ -406,6 +406,15 @@ export function isAutomatedTestEnv(): boolean {
   );
 }
 
+export const FICTIONAL_DEMO_NAMES = new Set([
+  "dr. eleanor vance",
+  "eleanor vance",
+  "marcus sterling",
+  "amara patel",
+  "david kalu",
+  "chloe davies",
+]);
+
 const FICTIONAL_DEMO_EMAILS = new Set([
   "sarah.jenkins@smartmindstraining.co.uk",
   "brian.miller@smartmindstraining.co.uk",
@@ -427,11 +436,17 @@ const FICTIONAL_DEMO_IDS = new Set([
   "user-tutor-03",
   "user-tutor-04",
   "user-tutor-05",
+  "user-tutor-eleanor",
   "tutor-01",
   "tutor-02",
   "tutor-03",
   "tutor-04",
   "tutor-05",
+  "tutor-001",
+  "tutor-002",
+  "tutor-003",
+  "tutor-004",
+  "tutor-005",
   "user-super-01",
   ...Array.from({ length: 24 }, (_, i) => `user-learner-${String(i + 1).padStart(3, "0")}`),
   ...Array.from({ length: 24 }, (_, i) => `learner-${String(i + 1).padStart(3, "0")}`),
@@ -439,6 +454,10 @@ const FICTIONAL_DEMO_IDS = new Set([
 
 export function isFictionalDemoRecord(item: any): boolean {
   if (!item || typeof item !== "object") return false;
+  const name = typeof item.name === "string" ? item.name.toLowerCase().trim() : "";
+  if (name && FICTIONAL_DEMO_NAMES.has(name)) return true;
+  const fullName = typeof item.fullName === "string" ? item.fullName.toLowerCase().trim() : "";
+  if (fullName && FICTIONAL_DEMO_NAMES.has(fullName)) return true;
   const email = typeof item.email === "string" ? item.email.toLowerCase().trim() : "";
   if (email && (email.endsWith("@example.com") || FICTIONAL_DEMO_EMAILS.has(email))) {
     return true;
@@ -465,7 +484,11 @@ async function purgeFictionalDemoRecordsFromNeonOnce(): Promise<void> {
         DELETE FROM user_credentials
         WHERE LOWER(email) LIKE '%@example.com'
            OR LOWER(email) = ANY(${demoEmails}::text[])
+           OR LOWER(name) LIKE '%eleanor vance%'
+           OR LOWER(name) LIKE '%marcus sterling%'
+           OR LOWER(name) LIKE '%amara patel%'
            OR id = ANY(${demoIds}::text[])
+           OR id = 'user-tutor-eleanor'
            OR learner_id = ANY(${demoIds}::text[])
            OR tutor_id = ANY(${demoIds}::text[])
       `.catch(() => {}),
