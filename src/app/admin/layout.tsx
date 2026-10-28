@@ -39,6 +39,7 @@ const STAFF_NAV = [
 const OWNER_EXTRA_NAV = [
   { href: "/admin/payments", label: "Payments ledger", icon: "credit-card" as const },
   { href: "/admin/courses", label: "Courses & prices", icon: "book-open" as const },
+  { href: "/admin/media", label: "Media Library", icon: "image" as const },
   { href: "/admin/subscribers", label: "Subscribers", icon: "mail" as const },
   { href: "/admin/staff", label: "Staff & Tutors", icon: "users" as const },
   { href: "/admin/availability", label: "Availability", icon: "clock" as const },

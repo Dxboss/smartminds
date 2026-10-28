@@ -77,6 +77,22 @@ export interface LearningMaterial {
   createdAt: string;
 }
 
+export interface MediaLibraryItem {
+  id: string;
+  title: string;
+  fileName: string;
+  url: string;
+  altText?: string;
+  caption?: string;
+  mimeType: string;
+  category: "image" | "brand" | "document" | "video";
+  sizeBytes?: number;
+  width?: number;
+  height?: number;
+  uploadedBy?: string;
+  createdAt: string;
+}
+
 export interface PersistedRecordsStore {
   learners: Learner[];
   enrolments: Enrolment[];
@@ -103,6 +119,8 @@ export interface PersistedRecordsStore {
   siteTheme?: any;
   impersonationLogs?: ImpersonationAuditLog[];
   learningMaterials?: LearningMaterial[];
+  mediaLibrary?: MediaLibraryItem[];
+  deletedMediaIds?: string[];
   assignments?: any[];
   submissions?: any[];
   deletedCohortIds?: string[];
@@ -257,6 +275,8 @@ export function loadPersistedRecords(): PersistedRecordsStore {
       colorSwatches: Array.isArray(parsed.colorSwatches) ? parsed.colorSwatches : undefined,
       impersonationLogs: Array.isArray(parsed.impersonationLogs) ? parsed.impersonationLogs : undefined,
       learningMaterials: Array.isArray(parsed.learningMaterials) ? parsed.learningMaterials : undefined,
+      mediaLibrary: Array.isArray(parsed.mediaLibrary) ? parsed.mediaLibrary : undefined,
+      deletedMediaIds: Array.isArray(parsed.deletedMediaIds) ? parsed.deletedMediaIds : undefined,
     };
     cachedStore = loaded;
     return loaded;
@@ -499,7 +519,8 @@ export async function pullLatestFromNeon(force = false): Promise<boolean> {
         paymentRows,
         scheduleRows,
         userRows,
-      ]: [any, any, any, any, any, any, any] = await Promise.race([
+        mediaRows,
+      ]: [any, any, any, any, any, any, any, any] = await Promise.race([
         Promise.all([
           sql`SELECT value FROM system_store WHERE key = 'master_records_store' LIMIT 1`.catch(() => []),
           sql`SELECT path, sections FROM cms_pages`.catch(() => []),
@@ -508,9 +529,14 @@ export async function pullLatestFromNeon(force = false): Promise<boolean> {
           sql`SELECT data FROM payments ORDER BY created_at DESC`.catch(() => []),
           sql`SELECT data FROM payment_schedules ORDER BY due_date ASC`.catch(() => []),
           sql`SELECT id, email, name, role, active, tutor_id, learner_id, specialism, department, data, created_at FROM user_credentials`.catch(() => []),
+          sql`SELECT data FROM media_library ORDER BY created_at DESC`.catch(() => []),
         ]),
         timeout,
       ]);
+
+      const mediaFromTable: MediaLibraryItem[] = Array.isArray(mediaRows)
+        ? mediaRows.map((r: any) => r?.data).filter(Boolean)
+        : [];
 
       const cmsPagesFromDb: Record<string, any[]> = {};
       if (Array.isArray(cmsRows)) {
@@ -579,7 +605,8 @@ export async function pullLatestFromNeon(force = false): Promise<boolean> {
         (storeRows && storeRows.length > 0 && storeRows[0]?.value) ||
         Object.keys(cmsPagesFromDb).length > 0 ||
         learnersFromTable.length > 0 ||
-        usersFromTable.length > 0;
+        usersFromTable.length > 0 ||
+        mediaFromTable.length > 0;
 
       if (hasData) {
         const dbStore = ((storeRows?.[0]?.value || {}) as Partial<PersistedRecordsStore>) || {};
@@ -663,6 +690,14 @@ export async function pullLatestFromNeon(force = false): Promise<boolean> {
           siteTheme: dbStore.siteTheme || store.siteTheme,
           assignments: mergeArrayById(store.assignments, dbStore.assignments),
           submissions: mergeArrayById(store.submissions, dbStore.submissions),
+          mediaLibrary: mergeArrayById<MediaLibraryItem>(
+            store.mediaLibrary,
+            dbStore.mediaLibrary,
+            mediaFromTable
+          ),
+          deletedMediaIds: Array.from(
+            new Set([...(store.deletedMediaIds || []), ...(dbStore.deletedMediaIds || [])])
+          ),
           deletedCohortIds: Array.from(
             new Set([...(store.deletedCohortIds || []), ...(dbStore.deletedCohortIds || [])])
           ),
@@ -3569,6 +3604,295 @@ export async function deleteLearningMaterial(id: string): Promise<boolean> {
   }
   return false;
 }
+
+// --------------------------------------------------------------------------
+// WordPress-Style Central Media Library
+// --------------------------------------------------------------------------
+
+export const DEFAULT_MEDIA_LIBRARY_ITEMS: MediaLibraryItem[] = [
+  {
+    id: "media-adult-care",
+    title: "Adult Care & Healthcare Training",
+    fileName: "adult-care-training.jpg",
+    url: "/images/adult-care-training.jpg",
+    altText: "Healthcare and adult social care training environment",
+    mimeType: "image/jpeg",
+    category: "image",
+    createdAt: "2026-09-01T09:00:00Z",
+  },
+  {
+    id: "media-early-years",
+    title: "Early Years & Childcare Educator",
+    fileName: "early-years-training.jpg",
+    url: "/images/early-years-training.jpg",
+    altText: "Early years educator working with children",
+    mimeType: "image/jpeg",
+    category: "image",
+    createdAt: "2026-09-01T09:00:00Z",
+  },
+  {
+    id: "media-teacher-training",
+    title: "Further Education & Teacher Training",
+    fileName: "teacher-training.jpg",
+    url: "/images/teacher-training.jpg",
+    altText: "Further education teacher delivering classroom session",
+    mimeType: "image/jpeg",
+    category: "image",
+    createdAt: "2026-09-01T09:00:00Z",
+  },
+  {
+    id: "media-tutor-teaching",
+    title: "Vocational Assessor & Live Evening Seminar",
+    fileName: "tutor-teaching.jpg",
+    url: "/images/tutor-teaching.jpg",
+    altText: "Smartminds tutor leading a live evening cohort seminar",
+    mimeType: "image/jpeg",
+    category: "image",
+    createdAt: "2026-09-01T09:00:00Z",
+  },
+  {
+    id: "media-certificate-moment",
+    title: "Regulated Qualification Graduation & Certification",
+    fileName: "certificate-moment.jpg",
+    url: "/images/certificate-moment.jpg",
+    altText: "Graduate holding accredited British diploma certificate",
+    mimeType: "image/jpeg",
+    category: "image",
+    createdAt: "2026-09-01T09:00:00Z",
+  },
+  {
+    id: "media-hero-learner",
+    title: "Adult Distance Learner Studying Online",
+    fileName: "hero-learner.jpg",
+    url: "/images/hero-learner.jpg",
+    altText: "Adult learner studying online from home",
+    mimeType: "image/jpeg",
+    category: "image",
+    createdAt: "2026-09-01T09:00:00Z",
+  },
+  {
+    id: "media-smartminds-logo",
+    title: "Smartminds Training College Official Crest",
+    fileName: "smartminds-logo.png",
+    url: "/brand/smartminds-logo.png",
+    altText: "Smartminds Training College official crest logo",
+    mimeType: "image/png",
+    category: "brand",
+    createdAt: "2026-09-01T09:00:00Z",
+  },
+];
+
+function inferMediaCategory(url: string, mimeType?: string): MediaLibraryItem["category"] {
+  const lower = (url || "").toLowerCase();
+  const mime = (mimeType || "").toLowerCase();
+  if (mime.includes("pdf") || mime.includes("word") || mime.includes("presentation") || lower.endsWith(".pdf") || lower.endsWith(".docx") || lower.endsWith(".pptx")) {
+    return "document";
+  }
+  if (mime.includes("video") || lower.endsWith(".mp4") || lower.endsWith(".webm") || lower.includes("youtube.com") || lower.includes("vimeo.com") || lower.includes("cloudflarestream.com")) {
+    return "video";
+  }
+  if (lower.includes("/brand/") || lower.includes("logo") || lower.endsWith(".svg")) {
+    return "brand";
+  }
+  return "image";
+}
+
+export function getPersistedMediaLibrary(): MediaLibraryItem[] {
+  const store = loadPersistedRecords();
+  const deletedSet = new Set(store.deletedMediaIds || []);
+  const customItems = Array.isArray(store.mediaLibrary) ? store.mediaLibrary : [];
+  const map = new Map<string, MediaLibraryItem>();
+
+  for (const item of customItems) {
+    if (!item || !item.url || deletedSet.has(item.id)) continue;
+    map.set(item.url, item);
+  }
+
+  // Also harvest any custom images already referenced in courses or blog posts so nothing is missing
+  if (store.courseOverrides && typeof store.courseOverrides === "object") {
+    Object.values(store.courseOverrides).forEach((c: any) => {
+      if (c?.image && typeof c.image === "string" && !map.has(c.image)) {
+        const id = `media-course-${c.id || "img"}`;
+        if (!deletedSet.has(id)) {
+          map.set(c.image, {
+            id,
+            title: c.title ? `${c.title} Cover` : "Course Cover Image",
+            fileName: c.image.startsWith("data:") ? "uploaded-course-cover.webp" : c.image.split("/").pop() || "course-image.jpg",
+            url: c.image,
+            altText: c.title || "Course image",
+            mimeType: c.image.startsWith("data:image/webp") ? "image/webp" : "image/jpeg",
+            category: "image",
+            createdAt: new Date().toISOString(),
+          });
+        }
+      }
+    });
+  }
+
+  if (Array.isArray(store.blogPosts)) {
+    for (const post of store.blogPosts) {
+      if (post?.image && typeof post.image === "string" && !map.has(post.image)) {
+        const id = `media-blog-${post.id}`;
+        if (!deletedSet.has(id)) {
+          map.set(post.image, {
+            id,
+            title: post.title ? `${post.title} Cover` : "Article Cover Image",
+            fileName: post.image.startsWith("data:") ? "uploaded-article-cover.webp" : post.image.split("/").pop() || "article-image.jpg",
+            url: post.image,
+            altText: post.imageAlt || post.title || "Article image",
+            mimeType: post.image.startsWith("data:image/webp") ? "image/webp" : "image/jpeg",
+            category: "image",
+            createdAt: post.publishedAt || new Date().toISOString(),
+          });
+        }
+      }
+    }
+  }
+
+  for (const def of DEFAULT_MEDIA_LIBRARY_ITEMS) {
+    if (!deletedSet.has(def.id) && !map.has(def.url)) {
+      map.set(def.url, def);
+    }
+  }
+
+  return Array.from(map.values());
+}
+
+export async function savePersistedMediaItem(input: {
+  id?: string;
+  title?: string;
+  fileName?: string;
+  url: string;
+  altText?: string;
+  caption?: string;
+  mimeType?: string;
+  category?: MediaLibraryItem["category"];
+  sizeBytes?: number;
+  width?: number;
+  height?: number;
+  uploadedBy?: string;
+}): Promise<MediaLibraryItem> {
+  const store = loadPersistedRecords();
+  if (!store.mediaLibrary) store.mediaLibrary = [];
+
+  const cleanUrl = input.url.trim();
+  const existingIdx = store.mediaLibrary.findIndex(
+    (m) => (input.id && m.id === input.id) || m.url === cleanUrl
+  );
+  const existing = existingIdx >= 0 ? store.mediaLibrary[existingIdx] : undefined;
+
+  const rawFileName =
+    input.fileName?.trim() ||
+    existing?.fileName ||
+    (cleanUrl.startsWith("data:")
+      ? `upload-${Date.now()}.webp`
+      : cleanUrl.split("/").pop()?.split("?")[0] || `asset-${Date.now()}.jpg`);
+
+  const cleanTitle =
+    input.title?.trim() ||
+    existing?.title ||
+    rawFileName
+      .replace(/\.[^/.]+$/, "")
+      .replace(/[-_]+/g, " ")
+      .replace(/\b\w/g, (l) => l.toUpperCase());
+
+  const mimeType =
+    input.mimeType ||
+    existing?.mimeType ||
+    (cleanUrl.startsWith("data:image/svg") || cleanUrl.endsWith(".svg")
+      ? "image/svg+xml"
+      : cleanUrl.startsWith("data:image/png") || cleanUrl.endsWith(".png")
+        ? "image/png"
+        : cleanUrl.startsWith("data:image/webp") || cleanUrl.endsWith(".webp")
+          ? "image/webp"
+          : "image/jpeg");
+
+  const item: MediaLibraryItem = {
+    id: input.id || existing?.id || `media-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    title: cleanTitle,
+    fileName: rawFileName,
+    url: cleanUrl,
+    altText: input.altText !== undefined ? input.altText.trim() : existing?.altText || cleanTitle,
+    caption: input.caption !== undefined ? input.caption.trim() : existing?.caption || "",
+    mimeType,
+    category: input.category || existing?.category || inferMediaCategory(cleanUrl, mimeType),
+    sizeBytes: input.sizeBytes || existing?.sizeBytes,
+    width: input.width || existing?.width,
+    height: input.height || existing?.height,
+    uploadedBy: input.uploadedBy || existing?.uploadedBy,
+    createdAt: existing?.createdAt || new Date().toISOString(),
+  };
+
+  if (existingIdx >= 0) {
+    store.mediaLibrary[existingIdx] = item;
+  } else {
+    store.mediaLibrary.unshift(item);
+  }
+
+  if (store.deletedMediaIds) {
+    store.deletedMediaIds = store.deletedMediaIds.filter((id) => id !== item.id);
+  }
+
+  const filePath = getStoreFilePath();
+  writeStoreToDisk(filePath, store);
+  syncStoreSnapshotToNeon(store).catch(() => {});
+
+  try {
+    const { isDbConfigured, sql, ensureDbTablesExist } = await import("@/lib/db");
+    if (isDbConfigured) {
+      await ensureDbTablesExist();
+      await sql`
+        INSERT INTO media_library (id, title, file_name, url, alt_text, mime_type, category, data, created_at)
+        VALUES (
+          ${item.id},
+          ${item.title},
+          ${item.fileName},
+          ${item.url},
+          ${item.altText || null},
+          ${item.mimeType},
+          ${item.category},
+          ${JSON.stringify(item)}::jsonb,
+          ${item.createdAt}
+        )
+        ON CONFLICT (id) DO UPDATE SET
+          title = EXCLUDED.title,
+          file_name = EXCLUDED.file_name,
+          url = EXCLUDED.url,
+          alt_text = EXCLUDED.alt_text,
+          mime_type = EXCLUDED.mime_type,
+          category = EXCLUDED.category,
+          data = EXCLUDED.data;
+      `.catch(() => {});
+    }
+  } catch {}
+
+  return item;
+}
+
+export async function deletePersistedMediaItem(id: string): Promise<boolean> {
+  const store = loadPersistedRecords();
+  if (!store.mediaLibrary) store.mediaLibrary = [];
+  if (!store.deletedMediaIds) store.deletedMediaIds = [];
+
+  if (!store.deletedMediaIds.includes(id)) {
+    store.deletedMediaIds.push(id);
+  }
+  store.mediaLibrary = store.mediaLibrary.filter((m) => m.id !== id);
+
+  const filePath = getStoreFilePath();
+  writeStoreToDisk(filePath, store);
+  syncStoreSnapshotToNeon(store).catch(() => {});
+
+  try {
+    const { isDbConfigured, sql } = await import("@/lib/db");
+    if (isDbConfigured) {
+      await sql`DELETE FROM media_library WHERE id = ${id}`.catch(() => {});
+    }
+  } catch {}
+
+  return true;
+}
+
 
 
 

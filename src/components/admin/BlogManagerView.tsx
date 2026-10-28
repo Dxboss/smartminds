@@ -913,8 +913,11 @@ export function BlogManagerView({
                     <div className="pt-2">
                       <ImageDropzone
                         value={image}
-                        onChange={(url: string) => setImage(url)}
-                        label="Or upload a custom article cover image"
+                        onChange={(url: string, _fileName?: string, alt?: string) => {
+                          setImage(url);
+                          if (alt && !imageAlt) setImageAlt(alt);
+                        }}
+                        label="Select from Media Library or upload a custom article cover image"
                       />
                     </div>
 

@@ -80,6 +80,7 @@ export async function ensureDbTablesExist(): Promise<boolean> {
         sql`CREATE TABLE IF NOT EXISTS leads (id TEXT PRIMARY KEY, type TEXT, name TEXT, email TEXT, phone TEXT, status TEXT NOT NULL DEFAULT 'new', course_id TEXT, data JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now());`,
         sql`CREATE TABLE IF NOT EXISTS user_credentials (id TEXT PRIMARY KEY, email TEXT UNIQUE NOT NULL, name TEXT, role TEXT NOT NULL, active BOOLEAN NOT NULL DEFAULT true, tutor_id TEXT, learner_id TEXT, specialism TEXT, department TEXT, data JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now());`,
         sql`CREATE TABLE IF NOT EXISTS subscribers (id TEXT PRIMARY KEY, email TEXT UNIQUE NOT NULL, status TEXT NOT NULL DEFAULT 'active', data JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now());`,
+        sql`CREATE TABLE IF NOT EXISTS media_library (id TEXT PRIMARY KEY, title TEXT NOT NULL, file_name TEXT NOT NULL, url TEXT NOT NULL, alt_text TEXT, mime_type TEXT NOT NULL DEFAULT 'image/jpeg', category TEXT NOT NULL DEFAULT 'image', data JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now());`,
       ];
 
       const timeout = new Promise<never>((_, reject) =>

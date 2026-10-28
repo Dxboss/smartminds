@@ -3436,3 +3436,69 @@ export async function logLearnerPaymentAction(data: {
   return { success: true, payment: newReceipt };
 }
 
+// --------------------------------------------------------------------------
+// WordPress-Style Central Media Library Actions
+// --------------------------------------------------------------------------
+
+export async function listMediaLibraryAction() {
+  const session = await getServerSession();
+  assertAdminAuthorized(session);
+
+  const { pullLatestFromNeon, getPersistedMediaLibrary } = await import("@/lib/persistedData");
+  await pullLatestFromNeon();
+  const items = getPersistedMediaLibrary();
+  return { success: true, items };
+}
+
+export async function saveMediaLibraryItemAction(input: {
+  id?: string;
+  title?: string;
+  fileName?: string;
+  url: string;
+  altText?: string;
+  caption?: string;
+  mimeType?: string;
+  category?: "image" | "brand" | "document" | "video";
+  sizeBytes?: number;
+  width?: number;
+  height?: number;
+}) {
+  const session = await getServerSession();
+  assertAdminAuthorized(session);
+
+  if (!input.url || !input.url.trim()) {
+    return { success: false, error: "Media URL or file data is required." };
+  }
+
+  const { savePersistedMediaItem, getPersistedMediaLibrary } = await import("@/lib/persistedData");
+  const item = await savePersistedMediaItem({
+    ...input,
+    uploadedBy: session?.name || session?.email || "Admin",
+  });
+
+  revalidatePath("/admin/media");
+  revalidatePath("/admin/cms");
+  revalidatePath("/admin/courses");
+  revalidatePath("/admin/blog");
+  return {
+    success: true,
+    item,
+    items: getPersistedMediaLibrary(),
+  };
+}
+
+export async function deleteMediaLibraryItemAction(id: string) {
+  const session = await getServerSession();
+  assertAdminAuthorized(session);
+
+  const { deletePersistedMediaItem, getPersistedMediaLibrary } = await import("@/lib/persistedData");
+  await deletePersistedMediaItem(id);
+
+  revalidatePath("/admin/media");
+  return {
+    success: true,
+    items: getPersistedMediaLibrary(),
+  };
+}
+
+

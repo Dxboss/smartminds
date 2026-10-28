@@ -3,10 +3,12 @@
 import React, { useState, useRef } from "react";
 import Image from "next/image";
 import { Icon } from "@/components/ui/Icon";
+import { MediaLibraryModal } from "@/components/ui/MediaLibraryModal";
+import { saveMediaLibraryItemAction } from "@/app/admin/actions";
 
 export interface ImageDropzoneProps {
   value?: string;
-  onChange: (url: string, fileName?: string) => void;
+  onChange: (url: string, fileName?: string, altText?: string) => void;
   label?: string;
   helperText?: string;
   accept?: string;
@@ -29,6 +31,7 @@ export const ImageDropzone: React.FC<ImageDropzoneProps> = ({
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [showManualUrl, setShowManualUrl] = useState(false);
+  const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -113,6 +116,13 @@ export const ImageDropzone: React.FC<ImageDropzoneProps> = ({
       const dataUrl = await compressImageFile(file);
       if (dataUrl) {
         onChange(dataUrl, file.name);
+        // Automatically register uploaded asset in Central Media Library
+        saveMediaLibraryItemAction({
+          fileName: file.name,
+          url: dataUrl,
+          mimeType: file.type || "image/webp",
+          sizeBytes: file.size,
+        }).catch(() => {});
       }
     } catch {
       setErrorMsg("Failed to read image file. Please try another image.");
@@ -190,15 +200,25 @@ export const ImageDropzone: React.FC<ImageDropzoneProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center justify-between gap-2 pt-1">
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="px-2.5 py-1 text-[11px] font-bold text-navy-900 hover:text-white bg-paper hover:bg-navy-900 border border-line rounded-sm transition-all flex items-center gap-1.5"
-            >
-              <Icon name="edit" size={12} />
-              <span>Replace File</span>
-            </button>
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setIsLibraryOpen(true)}
+                className="px-2.5 py-1 text-[11px] font-bold text-white bg-navy-900 hover:bg-navy-700 rounded-sm transition-all flex items-center gap-1.5"
+              >
+                <Icon name="image" size={12} />
+                <span>Media Library</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="px-2.5 py-1 text-[11px] font-bold text-navy-900 hover:text-white bg-paper hover:bg-navy-900 border border-line rounded-sm transition-all flex items-center gap-1.5"
+              >
+                <Icon name="upload" size={12} />
+                <span>Upload File</span>
+              </button>
+            </div>
             <button
               type="button"
               onClick={() => onChange("")}
@@ -211,30 +231,49 @@ export const ImageDropzone: React.FC<ImageDropzoneProps> = ({
         </div>
       ) : (
         /* Empty Upload Dropzone */
-        <div
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onClick={() => fileInputRef.current?.click()}
-          className={`border-2 border-dashed rounded-sm p-4 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-1.5 ${
-            isDragging
-              ? "border-gold-500 bg-gold-50/60 scale-[0.99]"
-              : "border-line hover:border-navy-900/40 bg-paper/50 hover:bg-paper"
-          }`}
-        >
-          <div className="w-8 h-8 rounded-full bg-navy-900/5 text-navy-900 flex items-center justify-center">
-            <Icon name="download" size={14} className="rotate-180 text-navy-900" />
+        <div className="space-y-2">
+          <div
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onClick={() => fileInputRef.current?.click()}
+            className={`border-2 border-dashed rounded-sm p-4 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-1.5 ${
+              isDragging
+                ? "border-gold-500 bg-gold-50/60 scale-[0.99]"
+                : "border-line hover:border-navy-900/40 bg-paper/50 hover:bg-paper"
+            }`}
+          >
+            <div className="w-8 h-8 rounded-full bg-navy-900/5 text-navy-900 flex items-center justify-center">
+              <Icon name="download" size={14} className="rotate-180 text-navy-900" />
+            </div>
+            <div>
+              <span className="text-xs font-bold text-navy-900 block">
+                Drag & Drop or Click to Upload
+              </span>
+              <span className="text-[10px] text-ink-soft block leading-normal mt-0.5">
+                {helperText}
+              </span>
+            </div>
           </div>
-          <div>
-            <span className="text-xs font-bold text-navy-900 block">
-              Drag & Drop or Click to Browse
-            </span>
-            <span className="text-[10px] text-ink-soft block leading-normal mt-0.5">
-              {helperText}
-            </span>
-          </div>
+          <button
+            type="button"
+            onClick={() => setIsLibraryOpen(true)}
+            className="w-full py-1.5 px-3 text-xs font-bold text-navy-900 bg-white hover:bg-navy-900 hover:text-white border border-line rounded-sm transition-colors flex items-center justify-center gap-1.5 shadow-2xs"
+          >
+            <Icon name="image" size={13} />
+            <span>Select from Media Library</span>
+          </button>
         </div>
       )}
+
+      <MediaLibraryModal
+        isOpen={isLibraryOpen}
+        onClose={() => setIsLibraryOpen(false)}
+        currentUrl={value}
+        onSelect={(item) => {
+          onChange(item.url, item.fileName, item.altText);
+        }}
+      />
 
       {/* Hidden File Input */}
       <input
