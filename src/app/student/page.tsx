@@ -5,6 +5,7 @@ import {
   getLearnerRepo,
   getEnrolmentRepo,
   getPaymentRepo,
+  getCourseRepo,
 } from "@/lib/repositories";
 import { getCohortSchedule } from "@/lib/persistedData";
 import {
@@ -17,6 +18,7 @@ import { Icon } from "@/components/ui/Icon";
 import { formatCurrency } from "@/content/pricing";
 import { ChangePasswordPrompt } from "@/components/student/ChangePasswordPrompt";
 import { SafeguardingCard } from "@/components/student/SafeguardingCard";
+import { StudentSelfEnrolModal } from "@/components/student/StudentSelfEnrolModal";
 
 
 export default async function StudentDashboardPage({
@@ -42,10 +44,15 @@ export default async function StudentDashboardPage({
   const learnerRepo = getLearnerRepo();
   const enrolmentRepo = getEnrolmentRepo();
   const paymentRepo = getPaymentRepo();
+  const courseRepo = getCourseRepo();
 
-  const learner = await learnerRepo.getLearnerById(session, learnerId);
-  const enrolments = await enrolmentRepo.listEnrolments(session, { learnerId });
-  const paymentSummary = await paymentRepo.getMyPaymentPlan(session, learnerId);
+  const [learner, enrolments, paymentSummary, allCourses, bankSettings] = await Promise.all([
+    learnerRepo.getLearnerById(session, learnerId),
+    enrolmentRepo.listEnrolments(session, { learnerId }),
+    paymentRepo.getMyPaymentPlan(session, learnerId),
+    courseRepo.listCourses(),
+    paymentRepo.getCollegeBankSettings(session).catch(() => null),
+  ]);
 
   // Derive class and session for the selected (or primary) enrolment
   const primaryEnrolment =
@@ -196,16 +203,25 @@ export default async function StudentDashboardPage({
         </div>
       )}
 
-      {/* Multi-Course Switcher (When Learner is Enrolled in 2+ Qualifications) */}
-      {enrolments.length > 1 && (
-        <div className="bg-white rounded-md border border-line p-4 shadow-sm space-y-2.5">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-navy-900 flex items-center gap-1.5">
-              <Icon name="book-open" size={14} className="text-gold-700" />
-              <span>Your Enrolled Qualifications ({enrolments.length}) — Select Active Classroom View</span>
+      {/* Multi-Course Switcher & Add Course Bar */}
+      <div className="bg-white rounded-md border border-line p-4 shadow-sm space-y-2.5">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <span className="text-xs font-bold uppercase tracking-wider text-navy-900 flex items-center gap-1.5">
+            <Icon name="book-open" size={14} className="text-gold-700" />
+            <span>
+              {enrolments.length > 1
+                ? `Your Enrolled Qualifications (${enrolments.length}) — Select Active Classroom View`
+                : `Enrolled Qualification (${enrolments[0]?.courseTitle || "Active Course"})`}
             </span>
-          </div>
-          <div className="flex flex-wrap gap-2">
+          </span>
+          <StudentSelfEnrolModal
+            availableCourses={allCourses}
+            existingCourseIds={enrolments.map((e) => e.courseId)}
+            collegeBankDetails={bankSettings || undefined}
+          />
+        </div>
+        {enrolments.length > 1 && (
+          <div className="flex flex-wrap gap-2 pt-1 border-t border-line/60">
             {enrolments.map((enrItem, idx) => {
               const isSelected = primaryEnrolment?.id === enrItem.id;
               return (
@@ -236,8 +252,8 @@ export default async function StudentDashboardPage({
               );
             })}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Welcome & Access Status Banner */}
       <div className="bg-white rounded-md border border-line p-6 sm:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-sm">

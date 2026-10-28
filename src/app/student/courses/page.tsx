@@ -1,8 +1,9 @@
 import React from "react";
 import Link from "next/link";
 import { getServerSession } from "@/lib/session";
-import { getEnrolmentRepo, getCourseRepo } from "@/lib/repositories";
+import { getEnrolmentRepo, getCourseRepo, getPaymentRepo } from "@/lib/repositories";
 import { Icon } from "@/components/ui/Icon";
+import { StudentSelfEnrolModal } from "@/components/student/StudentSelfEnrolModal";
 
 
 export default async function StudentCoursesPage() {
@@ -21,10 +22,13 @@ export default async function StudentCoursesPage() {
   const enrolmentRepo = getEnrolmentRepo();
   const courseRepo = getCourseRepo();
 
-  const enrolments = learnerId
-    ? await enrolmentRepo.listEnrolments(session, { learnerId })
-    : [];
-  const allCourses = await courseRepo.listCourses();
+  const paymentRepo = getPaymentRepo();
+
+  const [enrolments, allCourses, bankSettings] = await Promise.all([
+    learnerId ? enrolmentRepo.listEnrolments(session, { learnerId }) : Promise.resolve([]),
+    courseRepo.listCourses(),
+    paymentRepo.getCollegeBankSettings(session).catch(() => null),
+  ]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
@@ -41,6 +45,14 @@ export default async function StudentCoursesPage() {
           <p className="text-sm text-ink-soft">
             Track your unit criteria progress, portfolio submissions, and course completion milestones.
           </p>
+        </div>
+
+        <div>
+          <StudentSelfEnrolModal
+            availableCourses={allCourses}
+            existingCourseIds={enrolments.map((e) => e.courseId)}
+            collegeBankDetails={bankSettings || undefined}
+          />
         </div>
       </div>
 

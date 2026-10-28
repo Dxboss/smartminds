@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
+import React, { useState, useEffect, useTransition } from "react";
 import {
   PaymentRecord,
   LedgerSummary,
@@ -9,6 +9,7 @@ import {
   Learner,
   Enrolment,
   UserRole,
+  PaymentGatewaySettings,
 } from "@/lib/repositories/types";
 import { formatCurrency } from "@/content/pricing";
 import { Icon } from "@/components/ui/Icon";
@@ -32,6 +33,7 @@ interface PaymentsLedgerViewProps {
   learnerPlans?: LearnerPaymentPlanSummary[];
   learners: Learner[];
   enrolments: Enrolment[];
+  initialSettings?: PaymentGatewaySettings;
   userRole: UserRole;
 }
 
@@ -42,6 +44,7 @@ export function PaymentsLedgerView({
   learnerPlans: initialLearnerPlans = [],
   learners: initialLearners,
   enrolments,
+  initialSettings,
   userRole,
 }: PaymentsLedgerViewProps) {
   const [activeTab, setActiveTab] = useState<
@@ -198,22 +201,36 @@ export function PaymentsLedgerView({
 
   // Gateway Settings State
   const [stripePublishableKey, setStripePublishableKey] = useState(
-    "pk_live_51MzSmartmindsCollegeKey9810"
+    initialSettings?.stripePublishableKey || "pk_live_51MzSmartmindsCollegeKey9810"
   );
   const [stripeSecretKey, setStripeSecretKey] = useState(
-    "sk_live_••••••••••••••••••••••••••••"
+    initialSettings?.stripeSecretKey || "sk_live_••••••••••••••••••••••••••••"
   );
   const [stripeWebhookSecret, setStripeWebhookSecret] = useState(
-    "whsec_••••••••••••••••••••••••••••"
+    initialSettings?.stripeWebhookSecret || "whsec_••••••••••••••••••••••••••••"
   );
-  const [isLiveMode, setIsLiveMode] = useState(false);
-  const [bankName, setBankName] = useState("Barclays Bank UK PLC");
+  const [isLiveMode, setIsLiveMode] = useState(initialSettings?.isLiveMode ?? false);
+  const [bankName, setBankName] = useState(initialSettings?.bankName || "Barclays Bank UK PLC");
   const [accountName, setAccountName] = useState(
-    "Smartminds Training College Ltd"
+    initialSettings?.accountName || "Smartminds Training College Ltd"
   );
-  const [sortCode, setSortCode] = useState("20-04-15");
-  const [accountNumber, setAccountNumber] = useState("43928104");
-  const [bacsReferencePrefix, setBacsReferencePrefix] = useState("SMTC");
+  const [sortCode, setSortCode] = useState(initialSettings?.sortCode || "20-04-15");
+  const [accountNumber, setAccountNumber] = useState(initialSettings?.accountNumber || "43928104");
+  const [bacsReferencePrefix, setBacsReferencePrefix] = useState(initialSettings?.bacsReferencePrefix || "SMTC");
+
+  useEffect(() => {
+    if (initialSettings) {
+      if (initialSettings.bankName) setBankName(initialSettings.bankName);
+      if (initialSettings.accountName) setAccountName(initialSettings.accountName);
+      if (initialSettings.sortCode) setSortCode(initialSettings.sortCode);
+      if (initialSettings.accountNumber) setAccountNumber(initialSettings.accountNumber);
+      if (initialSettings.bacsReferencePrefix) setBacsReferencePrefix(initialSettings.bacsReferencePrefix);
+      if (initialSettings.stripePublishableKey) setStripePublishableKey(initialSettings.stripePublishableKey);
+      if (initialSettings.stripeSecretKey) setStripeSecretKey(initialSettings.stripeSecretKey);
+      if (initialSettings.stripeWebhookSecret) setStripeWebhookSecret(initialSettings.stripeWebhookSecret);
+      if (typeof initialSettings.isLiveMode === "boolean") setIsLiveMode(initialSettings.isLiveMode);
+    }
+  }, [initialSettings]);
 
   const [modalError, setModalError] = useState("");
   const [feedbackNotice, setFeedbackNotice] = useState<string | null>(null);

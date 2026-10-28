@@ -49,13 +49,14 @@ export default async function AdminPaymentsPage() {
   const learnerRepo = getLearnerRepo();
   const enrolmentRepo = getEnrolmentRepo();
 
-  const [ledgerRecords, ledgerSummary, schedules, learnerPlans, learners, enrolments] = await Promise.all([
+  const [ledgerRecords, ledgerSummary, schedules, learnerPlans, learners, enrolments, gatewaySettings] = await Promise.all([
     paymentRepo.getLedger(session),
     paymentRepo.getLedgerSummary(session),
     paymentRepo.getPaymentSchedules(session),
     paymentRepo.getAllLearnerPaymentPlans(session),
     learnerRepo.listLearners(session),
     enrolmentRepo.listEnrolments(session),
+    paymentRepo.getCollegeBankSettings(session),
   ]);
 
   return (
@@ -66,6 +67,7 @@ export default async function AdminPaymentsPage() {
       learnerPlans={learnerPlans}
       learners={learners}
       enrolments={enrolments}
+      initialSettings={gatewaySettings}
       userRole={session.role}
     />
   );

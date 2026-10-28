@@ -269,3 +269,179 @@ export async function getCollegeBankDetailsForStudentAction() {
     bacsReferencePrefix: collegePaymentGatewaySettings.bacsReferencePrefix,
   };
 }
+
+export interface StudentSelfAddCourseInput {
+  courseId: string;
+  levelLabel: string;
+  paymentOption: "full" | "instalments";
+  planMonths?: number;
+  paymentMethod: "card" | "bacs";
+  tutoringSlot?: string;
+  tutoringDeliveryMode?: "online" | "physical_centre" | "room_home_request";
+  tutoringRoomOrAddress?: string;
+}
+
+/**
+ * Direct self-serve enrolment action for authenticated students from their dashboard.
+ * Supports Level 2-4 ([3, 6, 10, 12] mo) vs Level 5+ ([6, 10, 12, 14] mo) fallback.
+ */
+export async function studentSelfAddCourseAction(input: StudentSelfAddCourseInput) {
+  const session = await getServerSession();
+  if (!session || session.role !== "student") {
+    throw new Error("You must be logged in as a student to add a qualification.");
+  }
+
+  const { pullLatestFromNeon, loadPersistedRecords, savePersistedRecord } = await import(
+    "@/lib/persistedData"
+  );
+  const { seedLearners, seedClasses } = await import("@/lib/repositories/seedData");
+  await pullLatestFromNeon().catch(() => {});
+  const store = loadPersistedRecords();
+
+  let learnerId = session.learnerId;
+  let learner = (store.learners || []).find(
+    (l) => l.id === learnerId || (l.email && session.email && l.email.toLowerCase() === session.email.toLowerCase())
+  );
+  if (!learner) {
+    learner = seedLearners.find(
+      (l) => l.id === learnerId || (l.email && session.email && l.email.toLowerCase() === session.email.toLowerCase())
+    );
+  }
+  if (!learner) {
+    throw new Error("Learner profile not found for active session.");
+  }
+  learnerId = learner.id;
+
+  // Resolve course & pricing
+  const { getCourseRepo } = await import("@/lib/repositories");
+  const courseRepo = getCourseRepo();
+  const allCourses = await courseRepo.listCourses();
+  const course = allCourses.find((c) => c.id === input.courseId);
+  if (!course) {
+    throw new Error("Selected course was not found.");
+  }
+
+  const level = course.levels.find((l) => l.level_label === input.levelLabel) || course.levels[0];
+  if (!level) {
+    throw new Error("Course level was not found.");
+  }
+
+  const isLevelFiveOrAbove = (label: string) => {
+    const match = label.match(/(?:level|lvl|\bl)\s*(\d+)/i);
+    if (match && parseInt(match[1], 10) >= 5) return true;
+    return /\b([5-8])\b/.test(label);
+  };
+
+  const isL5Plus = isLevelFiveOrAbove(level.level_label);
+  const allowedMonths = isL5Plus ? [6, 10, 12, 14] : [3, 6, 10, 12];
+  const months = input.planMonths && allowedMonths.includes(input.planMonths) ? input.planMonths : allowedMonths[0];
+
+  const fullPrice = level.price_gbp || 1250;
+  const isFullPay = input.paymentOption === "full";
+  const fullPayDiscountPercent = level.full_pay_discount_percent ?? 10;
+  const payableTotal = isFullPay ? Math.round(fullPrice * (1 - fullPayDiscountPercent / 100)) : fullPrice;
+  const depositAmount = isFullPay ? payableTotal : Math.round(payableTotal * 0.15); // 15% deposit
+
+  const enrolmentId = `enr-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`;
+
+  // Find suitable cohort or 1-on-1 class
+  const isOneToOne = course.id === "course-tutoring-children" || Boolean(course.is_private_tutoring);
+  const matchedClass = (store.cohorts || seedClasses || []).find((c: any) => c.courseId === course.id);
+  const classId = isOneToOne ? "class-tutoring-kids" : matchedClass?.id || "class-adult-care-apr26";
+
+  const newEnrolment: any = {
+    id: enrolmentId,
+    learnerId,
+    courseId: course.id,
+    courseSlug: course.slug || course.id,
+    courseTitle: course.title,
+    courseLevelLabel: level.level_label,
+    classId,
+    status: "active" as const,
+    fundingType: "self_pay" as const,
+    assessmentMethod: "criteria" as const,
+    completedUnits: [],
+    certificateIssued: false,
+    enrolledAt: new Date().toISOString(),
+    planMonths: isFullPay ? 1 : months,
+    tutorName: matchedClass?.tutorName || "Unassigned / TBA",
+    sessionTiming: isOneToOne ? ("self_paced" as const) : ("evening" as const),
+    tutoringSlot: isOneToOne ? input.tutoringSlot || "Saturday, 10:00am" : undefined,
+    tutoringDeliveryMode: isOneToOne ? input.tutoringDeliveryMode || "physical_centre" : undefined,
+    tutoringRoomOrAddress: isOneToOne ? input.tutoringRoomOrAddress : undefined,
+  };
+
+  // Payment Record
+  const paymentId = `pay-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`;
+  const paymentRef = `SMTC-${Date.now().toString().slice(-6)}`;
+  const initialPaymentAmount = isFullPay ? payableTotal : depositAmount;
+
+  const newPayment: any = {
+    id: paymentId,
+    enrolmentId,
+    learnerId,
+    amount: initialPaymentAmount,
+    currency: "GBP",
+    status: input.paymentMethod === "card" ? "paid" : "pending",
+    paymentMethod: input.paymentMethod === "card" ? "card" : "bacs",
+    reference: paymentRef,
+    notes: `${course.title} (${level.level_label}) — ${isFullPay ? "Full Tuition" : "Enrolment Deposit"}`,
+    createdAt: new Date().toISOString(),
+  };
+
+  // Payment Schedules (if instalment)
+  const paymentSchedules: any[] = [];
+  if (!isFullPay && months > 1) {
+    const remainingBalance = Math.max(0, payableTotal - depositAmount);
+    const monthlyRate = Math.round((remainingBalance / (months - 1)) * 100) / 100;
+
+    paymentSchedules.push({
+      id: `sched-${enrolmentId}-1`,
+      enrolmentId,
+      learnerId,
+      instalmentNumber: 1,
+      dueDate: new Date().toISOString(),
+      amount: depositAmount,
+      status: input.paymentMethod === "card" ? "paid" : "due",
+      paidAt: input.paymentMethod === "card" ? new Date().toISOString() : undefined,
+      paymentReference: paymentRef,
+      createdAt: new Date().toISOString(),
+    });
+
+    for (let i = 2; i <= months; i++) {
+      const dueDate = new Date();
+      dueDate.setMonth(dueDate.getMonth() + (i - 1));
+      paymentSchedules.push({
+        id: `sched-${enrolmentId}-${i}`,
+        enrolmentId,
+        learnerId,
+        instalmentNumber: i,
+        dueDate: dueDate.toISOString(),
+        amount: monthlyRate,
+        status: "pending",
+        createdAt: new Date().toISOString(),
+      });
+    }
+  }
+
+  // Persist atomically to Neon and store
+  await savePersistedRecord({
+    enrolment: newEnrolment,
+    paymentRecord: newPayment,
+    paymentSchedules: paymentSchedules.length > 0 ? paymentSchedules : undefined,
+  });
+
+  revalidatePath("/student");
+  revalidatePath("/student/courses");
+  revalidatePath("/student/payments");
+  revalidatePath("/admin/learners");
+  revalidatePath("/admin/payments");
+
+  return {
+    success: true,
+    enrolment: newEnrolment,
+    paymentRef,
+    amountPaid: initialPaymentAmount,
+    isCard: input.paymentMethod === "card",
+  };
+}

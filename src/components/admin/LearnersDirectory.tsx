@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Icon } from "@/components/ui/Icon";
 import {
   Learner,
@@ -31,6 +31,11 @@ function isLevelFiveOrAbove(levelLabel: string): boolean {
 
 function getInstalmentMonthsForLevel(levelLabel: string): number[] {
   return isLevelFiveOrAbove(levelLabel) ? [6, 10, 12, 14] : [3, 6, 10, 12];
+}
+
+function getInstalmentMonthsForCourseSelections(courses: Array<{ levelLabel?: string }>): number[] {
+  const hasLevelFiveOrAbove = courses.some((c) => isLevelFiveOrAbove(c.levelLabel || ""));
+  return hasLevelFiveOrAbove ? [6, 10, 12, 14] : [3, 6, 10, 12];
 }
 
 const FICTIONAL_TUTOR_NAMES = new Set([
@@ -183,6 +188,21 @@ export const LearnersDirectory: React.FC<Props> = ({
     studentId: string;
     isAdditionalCourse?: boolean;
   } | null>(null);
+
+  // Sync valid instalment months when courses change (Level 2-4: [3,6,10,12], Level 5+: [6,10,12,14])
+  useEffect(() => {
+    const allowed = getInstalmentMonthsForCourseSelections(enrolCourses);
+    const currentM = parseInt(enrolMonths, 10);
+    if (!allowed.includes(currentM)) {
+      if (currentM < allowed[0]) {
+        setEnrolMonths(allowed[0].toString());
+      } else if (currentM > allowed[allowed.length - 1]) {
+        setEnrolMonths(allowed[allowed.length - 1].toString());
+      } else {
+        setEnrolMonths(allowed[0].toString());
+      }
+    }
+  }, [enrolCourses, enrolMonths]);
 
   // Historical Enrolment State
   const [enrolIsHistorical, setEnrolIsHistorical] = useState(false);
@@ -2360,8 +2380,7 @@ export const LearnersDirectory: React.FC<Props> = ({
                               setEnrolDeposit(enrolPrice);
                             }
                           } else {
-                            const topLevel = enrolCourses[0]?.levelLabel || "Level 3";
-                            const allowed = getInstalmentMonthsForLevel(topLevel);
+                            const allowed = getInstalmentMonthsForCourseSelections(enrolCourses);
                             if (!allowed.includes(parseInt(enrolMonths, 10))) {
                               setEnrolMonths(allowed[0].toString());
                             }
@@ -2396,7 +2415,7 @@ export const LearnersDirectory: React.FC<Props> = ({
                           onChange={(e) => setEnrolMonths(e.target.value)}
                           className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-mono font-bold text-navy-900"
                         >
-                          {getInstalmentMonthsForLevel(enrolCourses[0]?.levelLabel || "Level 3").map((m) => {
+                          {getInstalmentMonthsForCourseSelections(enrolCourses).map((m) => {
                             const totalNum = parseFloat(enrolPrice) || 0;
                             const paidNum = enrolIsHistorical
                               ? parseFloat(enrolAmountPaidToDate) || 0

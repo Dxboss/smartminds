@@ -1883,6 +1883,9 @@ export function savePersistedPaymentGatewaySettings(
     const filePath = getStoreFilePath();
     fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
     syncPersistedRecords(true);
+    syncStoreSnapshotToNeon(store).catch((err) => {
+      console.warn("[persistedData] Background sync paymentGatewaySettings to Neon:", err);
+    });
   } catch (err) {
     console.error("[persistedData] Failed to save payment gateway settings:", err);
   }

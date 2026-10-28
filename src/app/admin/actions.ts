@@ -93,7 +93,7 @@ export async function updateEnquiryStageAction(
       stage,
       ...(notes ? { notes } : {}),
     });
-  } catch {}
+  } catch { }
 
   revalidatePath("/admin");
   revalidatePath("/admin/pipeline");
@@ -276,9 +276,8 @@ export async function assignLearnerTutorAndSessionAction(
       const assignedClass =
         seedClasses.find((c) => c.id === (data.classId || enrolment.classId)) || seedClasses[0];
       const studentId = `SM-${new Date(learner.enrolmentDate || Date.now()).getFullYear()}-${learner.id.replace(/\D/g, "").padStart(4, "0")}`;
-      const scheduleText = `${assignedClass?.scheduleDescription || "Weekly Live Online"} (${
-        data.sessionTiming === "afternoon" ? "14:00 – 16:00" : "18:30 – 20:30"
-      } UK Time)`;
+      const scheduleText = `${assignedClass?.scheduleDescription || "Weekly Live Online"} (${data.sessionTiming === "afternoon" ? "14:00 – 16:00" : "18:30 – 20:30"
+        } UK Time)`;
 
       const assignmentEmail = buildCohortAssignmentEmail({
         studentName: `${learner.firstName} ${learner.lastName}`,
@@ -478,7 +477,7 @@ export async function approveFundedEnrolmentAction(
       stage: "enrolled",
       notes: enquiry.notes,
     });
-  } catch {}
+  } catch { }
 
   // 2. Create learner account in seed data if not existing
   const nameParts = enquiry.fullName.split(" ");
@@ -932,7 +931,7 @@ export async function removeStaffMemberAction(userId: string) {
   const userRepo = getUserRepo();
   try {
     await userRepo.deleteUser(session, userId);
-  } catch {}
+  } catch { }
   deleteUserFromStore(userId);
 
   revalidatePath("/admin");
@@ -1007,7 +1006,7 @@ export async function assignBookingStaffAction(
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { saveBookings } = require("@/lib/persistedData");
     saveBookings(seedBookings);
-  } catch {}
+  } catch { }
 
   const formattedDate = new Date(updatedBooking.scheduledAt).toLocaleDateString(
     "en-GB",
@@ -1028,15 +1027,15 @@ export async function assignBookingStaffAction(
     effectivePlatform === "google_meet"
       ? "Google Meet Video Call"
       : effectivePlatform === "zoom"
-      ? "Live Zoom Video Meeting"
-      : "Direct Phone Call";
+        ? "Live Zoom Video Meeting"
+        : "Direct Phone Call";
 
   const linkOrPhoneInstructions =
     effectivePlatform === "google_meet"
       ? `Google Meet Room Link: ${effectiveMeetingLink}\n(Opens in web browser, no software download required)\n`
       : effectivePlatform === "zoom"
-      ? `Zoom Meeting Room: ${effectiveMeetingLink}\n`
-      : `Call Applicant On UK Phone: ${updatedBooking.phone}\n`;
+        ? `Zoom Meeting Room: ${effectiveMeetingLink}\n`
+        : `Call Applicant On UK Phone: ${updatedBooking.phone}\n`;
 
   // 1. Send notification email to assigned staff member
   demoOutbox.unshift({
@@ -1083,7 +1082,7 @@ export async function assignBookingStaffAction(
     revalidatePath("/admin");
     revalidatePath("/admin/bookings");
     revalidatePath("/staff");
-  } catch {}
+  } catch { }
   return { success: true, booking: updatedBooking };
 }
 
@@ -1207,7 +1206,7 @@ export async function updateCoursePricingAction(
     revalidatePath("/admin/courses");
     revalidatePath("/courses");
     if (course.slug) revalidatePath(`/courses/${course.slug}`);
-  } catch {}
+  } catch { }
   return { success: true, course: updated };
 }
 
@@ -1260,7 +1259,7 @@ export async function updateCourseDetailsAction(
     if (merged.slug && merged.slug !== existing.slug) {
       revalidatePath(`/courses/${merged.slug}`);
     }
-  } catch {}
+  } catch { }
   return { success: true, course: updated };
 }
 
@@ -1277,7 +1276,7 @@ export async function wipeDemoDataAction() {
     revalidatePath("/admin/finance");
     revalidatePath("/admin/bookings");
     revalidatePath("/admin/availability");
-  } catch {}
+  } catch { }
 
   return result;
 }
@@ -1366,7 +1365,7 @@ export async function createCourseAction(courseData: any) {
     revalidatePath("/cpd");
     revalidatePath("/book");
     revalidatePath("/enrol");
-  } catch {}
+  } catch { }
   return { success: true, course: created };
 }
 
@@ -1386,7 +1385,7 @@ export async function deleteCourseAction(courseId: string) {
     revalidatePath("/cpd");
     revalidatePath("/book");
     revalidatePath("/enrol");
-  } catch {}
+  } catch { }
   return { success: true, deleted };
 }
 
@@ -1718,7 +1717,7 @@ export async function updateCohortAction(
       if (modified) {
         try {
           savePersistedRecord({ enrolment: enr });
-        } catch {}
+        } catch { }
       }
     }
   }
@@ -2290,7 +2289,7 @@ export async function updateCohortScheduleAdminAction(schedule: CohortScheduleCo
     revalidatePath("/enrol");
     revalidatePath("/admin/availability");
     revalidatePath("/student");
-  } catch {}
+  } catch { }
   return { success: true, schedule };
 }
 
@@ -2310,7 +2309,7 @@ export async function confirmScheduleBankTransferAction(data: {
     revalidatePath("/admin/payments");
     revalidatePath("/student/payments");
     revalidatePath("/admin");
-  } catch {}
+  } catch { }
 
   return { success: true, record };
 }
@@ -2331,7 +2330,7 @@ export async function queryBankTransferAction(data: {
     revalidatePath("/admin/payments");
     revalidatePath("/student/payments");
     revalidatePath("/admin");
-  } catch {}
+  } catch { }
 
   return { success: true, item: updatedItem };
 }
@@ -2351,7 +2350,7 @@ export async function saveBlogPostAction(post: BlogPost) {
     }
     revalidatePath("/admin/blog");
     revalidatePath("/");
-  } catch {}
+  } catch { }
 
   return { success: true, post };
 }
@@ -2368,7 +2367,7 @@ export async function deleteBlogPostAction(postId: string) {
     revalidatePath("/blog");
     revalidatePath("/admin/blog");
     revalidatePath("/");
-  } catch {}
+  } catch { }
 
   return { success: true };
 }
@@ -2400,7 +2399,7 @@ export async function saveFacultyAction(faculty: {
     revalidatePath("/courses");
     revalidatePath("/enrol");
     revalidatePath("/");
-  } catch {}
+  } catch { }
 
   return { success: true, faculties: updatedFaculties };
 }
@@ -2417,7 +2416,7 @@ export async function deleteFacultyAction(facultyId: string) {
     revalidatePath("/courses");
     revalidatePath("/enrol");
     revalidatePath("/");
-  } catch {}
+  } catch { }
 
   return { success: true, faculties: updatedFaculties };
 }
@@ -2602,14 +2601,14 @@ export async function adminEnrolNewStudentAction(data: {
     "@/lib/persistedData"
   );
   const { seedLearners } = await import("@/lib/repositories/seedData");
-  await pullLatestFromNeon().catch(() => {});
+  await pullLatestFromNeon().catch(() => { });
   const store = loadPersistedRecords();
 
   const cleanEmail = data.email.trim().toLowerCase();
   let existingLearner =
     (data.existingLearnerId
       ? (store.learners || []).find((l) => l.id === data.existingLearnerId) ||
-        seedLearners.find((l) => l.id === data.existingLearnerId)
+      seedLearners.find((l) => l.id === data.existingLearnerId)
       : undefined) ||
     (store.learners || []).find((l) => l.email.toLowerCase() === cleanEmail) ||
     seedLearners.find((l) => l.email.toLowerCase() === cleanEmail);
@@ -2628,7 +2627,7 @@ export async function adminEnrolNewStudentAction(data: {
           existingLearner = rows[0].data;
         }
       }
-    } catch {}
+    } catch { }
   }
 
   const isAdditionalCourse = Boolean(existingLearner);
@@ -2649,12 +2648,12 @@ export async function adminEnrolNewStudentAction(data: {
   const rawPaidAmount = isHistorical
     ? Math.max(0, Number(data.amountPaidToDate ?? data.depositAmount ?? 0))
     : data.paymentStatus === "pending"
-    ? 0
-    : data.paymentPlanType === "full"
-    ? data.depositAmount !== undefined && Number(data.depositAmount) > 0
-      ? Number(data.depositAmount)
-      : totalPrice
-    : Math.max(0, Number(data.depositAmount || 0));
+      ? 0
+      : data.paymentPlanType === "full"
+        ? data.depositAmount !== undefined && Number(data.depositAmount) > 0
+          ? Number(data.depositAmount)
+          : totalPrice
+        : Math.max(0, Number(data.depositAmount || 0));
 
   const paidSoFar = Math.min(totalPrice, rawPaidAmount);
   const planMonths =
@@ -2669,56 +2668,56 @@ export async function adminEnrolNewStudentAction(data: {
 
   const newLearner: Learner = existingLearner
     ? {
-        ...existingLearner,
-        firstName: data.firstName.trim() || existingLearner.firstName,
-        lastName: data.lastName.trim() || existingLearner.lastName,
-        phone: data.phone.trim() || existingLearner.phone,
-        dateOfBirth: data.dateOfBirth?.trim() || existingLearner.dateOfBirth,
-        address: data.addressLine1
-          ? `${data.addressLine1.trim()}, ${data.postcode?.trim() || ""}`
-          : existingLearner.address,
-        postcode: data.postcode?.trim() || existingLearner.postcode,
-        emergencyContact: data.emergencyContactName
-          ? `${data.emergencyContactName.trim()} (${data.emergencyContactPhone?.trim() || ""})`
-          : existingLearner.emergencyContact,
-        learnerType: data.learnerType || (isOneToOneCourse ? "child" : existingLearner.learnerType),
-        childName: data.childName?.trim() || existingLearner.childName,
-        childYearGroup: data.childYearGroup?.trim() || existingLearner.childYearGroup,
-        childConcerns: data.childConcerns?.trim() || existingLearner.childConcerns,
-        guardianName: data.guardianName?.trim() || existingLearner.guardianName,
-        guardianPhone: data.guardianPhone?.trim() || existingLearner.guardianPhone,
-        emergencyPhone: data.emergencyContactPhone?.trim() || existingLearner.emergencyPhone,
-        accessStatus: "active",
-        lastActive: new Date().toISOString(),
-      }
+      ...existingLearner,
+      firstName: data.firstName.trim() || existingLearner.firstName,
+      lastName: data.lastName.trim() || existingLearner.lastName,
+      phone: data.phone.trim() || existingLearner.phone,
+      dateOfBirth: data.dateOfBirth?.trim() || existingLearner.dateOfBirth,
+      address: data.addressLine1
+        ? `${data.addressLine1.trim()}, ${data.postcode?.trim() || ""}`
+        : existingLearner.address,
+      postcode: data.postcode?.trim() || existingLearner.postcode,
+      emergencyContact: data.emergencyContactName
+        ? `${data.emergencyContactName.trim()} (${data.emergencyContactPhone?.trim() || ""})`
+        : existingLearner.emergencyContact,
+      learnerType: data.learnerType || (isOneToOneCourse ? "child" : existingLearner.learnerType),
+      childName: data.childName?.trim() || existingLearner.childName,
+      childYearGroup: data.childYearGroup?.trim() || existingLearner.childYearGroup,
+      childConcerns: data.childConcerns?.trim() || existingLearner.childConcerns,
+      guardianName: data.guardianName?.trim() || existingLearner.guardianName,
+      guardianPhone: data.guardianPhone?.trim() || existingLearner.guardianPhone,
+      emergencyPhone: data.emergencyContactPhone?.trim() || existingLearner.emergencyPhone,
+      accessStatus: "active",
+      lastActive: new Date().toISOString(),
+    }
     : {
-        id: learnerId,
-        userId,
-        firstName: data.firstName.trim(),
-        lastName: data.lastName.trim(),
-        email: cleanEmail,
-        phone: data.phone.trim(),
-        dateOfBirth: data.dateOfBirth?.trim(),
-        address: data.addressLine1
-          ? `${data.addressLine1.trim()}, ${data.postcode?.trim() || ""}`
-          : undefined,
-        postcode: data.postcode?.trim(),
-        emergencyContact: data.emergencyContactName
-          ? `${data.emergencyContactName.trim()} (${data.emergencyContactPhone?.trim() || ""})`
-          : undefined,
-        learnerType: data.learnerType || (isOneToOneCourse ? "child" : "myself"),
-        childName: data.childName?.trim() || (isOneToOneCourse ? `${data.firstName.trim()} ${data.lastName.trim()}` : undefined),
-        childYearGroup: data.childYearGroup?.trim() || (isOneToOneCourse ? data.levelLabel : undefined),
-        childConcerns: data.childConcerns?.trim() || undefined,
-        guardianName: data.guardianName?.trim() || undefined,
-        guardianPhone: data.guardianPhone?.trim() || undefined,
-        guardianEmail: isOneToOneCourse ? cleanEmail : undefined,
-        emergencyPhone: data.emergencyContactPhone?.trim() || undefined,
-        accessStatus: "active",
-        enrolmentDate: enrolmentDateStr,
-        lastActive: new Date().toISOString(),
-        progressPercent: 0,
-      };
+      id: learnerId,
+      userId,
+      firstName: data.firstName.trim(),
+      lastName: data.lastName.trim(),
+      email: cleanEmail,
+      phone: data.phone.trim(),
+      dateOfBirth: data.dateOfBirth?.trim(),
+      address: data.addressLine1
+        ? `${data.addressLine1.trim()}, ${data.postcode?.trim() || ""}`
+        : undefined,
+      postcode: data.postcode?.trim(),
+      emergencyContact: data.emergencyContactName
+        ? `${data.emergencyContactName.trim()} (${data.emergencyContactPhone?.trim() || ""})`
+        : undefined,
+      learnerType: data.learnerType || (isOneToOneCourse ? "child" : "myself"),
+      childName: data.childName?.trim() || (isOneToOneCourse ? `${data.firstName.trim()} ${data.lastName.trim()}` : undefined),
+      childYearGroup: data.childYearGroup?.trim() || (isOneToOneCourse ? data.levelLabel : undefined),
+      childConcerns: data.childConcerns?.trim() || undefined,
+      guardianName: data.guardianName?.trim() || undefined,
+      guardianPhone: data.guardianPhone?.trim() || undefined,
+      guardianEmail: isOneToOneCourse ? cleanEmail : undefined,
+      emergencyPhone: data.emergencyContactPhone?.trim() || undefined,
+      accessStatus: "active",
+      enrolmentDate: enrolmentDateStr,
+      lastActive: new Date().toISOString(),
+      progressPercent: 0,
+    };
 
   const effectiveDeliveryMode = data.tutoringDeliveryMode || (isOneToOneCourse ? "online" : undefined);
   const effectiveTrainingLocation =
@@ -3011,7 +3010,7 @@ export async function adminEnrolNewStudentAction(data: {
       };
       additionalEnrolments.push(addEnr);
       store.enrolments.unshift(addEnr);
-      await savePersistedRecord({ enrolment: addEnr }).catch(() => {});
+      await savePersistedRecord({ enrolment: addEnr }).catch(() => { });
     }
   }
 
@@ -3021,23 +3020,23 @@ export async function adminEnrolNewStudentAction(data: {
   const createdPlanSummary =
     data.fundingType !== "funded" && totalPrice > 0
       ? {
-          enrolmentId,
-          learnerId,
-          learnerName: `${newLearner.firstName} ${newLearner.lastName}`,
-          learnerEmail: newLearner.email,
-          learnerPhone: newLearner.phone,
-          courseTitle: data.courseTitle,
-          levelLabel: newEnrolment.courseLevelLabel,
-          planMonths,
-          totalAmountGbp: totalPrice,
-          totalPaidGbp: paidSoFar,
-          balanceRemainingGbp: Math.max(0, Math.round((totalPrice - paidSoFar) * 100) / 100),
-          nextDueDate: nextDueItem?.dueDate,
-          nextDueAmountGbp: nextDueItem?.amountGbp,
-          status: paidSoFar >= totalPrice ? ("settled" as const) : ("due" as const),
-          schedule: paymentSchedules,
-          history: paymentRecord ? [paymentRecord] : [],
-        }
+        enrolmentId,
+        learnerId,
+        learnerName: `${newLearner.firstName} ${newLearner.lastName}`,
+        learnerEmail: newLearner.email,
+        learnerPhone: newLearner.phone,
+        courseTitle: data.courseTitle,
+        levelLabel: newEnrolment.courseLevelLabel,
+        planMonths,
+        totalAmountGbp: totalPrice,
+        totalPaidGbp: paidSoFar,
+        balanceRemainingGbp: Math.max(0, Math.round((totalPrice - paidSoFar) * 100) / 100),
+        nextDueDate: nextDueItem?.dueDate,
+        nextDueAmountGbp: nextDueItem?.amountGbp,
+        status: paidSoFar >= totalPrice ? ("settled" as const) : ("due" as const),
+        schedule: paymentSchedules,
+        history: paymentRecord ? [paymentRecord] : [],
+      }
       : undefined;
 
   // Dispatch Email: Course Added Email for existing students, Welcome + Temp Password Email for new students
@@ -3177,7 +3176,7 @@ export async function updateLearnerAndEnrolmentAction(data: {
   } = await import("@/lib/persistedData");
   const { seedLearners, seedEnrolments } = await import("@/lib/repositories/seedData");
 
-  await pullLatestFromNeon().catch(() => {});
+  await pullLatestFromNeon().catch(() => { });
   const store = loadPersistedRecords();
   if (!store.learners) store.learners = [];
   if (!store.enrolments) store.enrolments = [];
@@ -3199,7 +3198,7 @@ export async function updateLearnerAndEnrolmentAction(data: {
           existingLearner = rows[0].data;
         }
       }
-    } catch {}
+    } catch { }
   }
 
   if (!existingLearner) {
@@ -3246,8 +3245,8 @@ export async function updateLearnerAndEnrolmentAction(data: {
         data.paymentPlanType === "instalments" && data.months && data.months > 1
           ? Number(data.months)
           : data.paymentPlanType === "full"
-          ? 1
-          : (existingEnr as any).planMonths;
+            ? 1
+            : (existingEnr as any).planMonths;
 
       const effectiveDeliveryMode =
         data.tutoringDeliveryMode !== undefined
@@ -3526,7 +3525,7 @@ export async function updateLearnerAndEnrolmentAction(data: {
   const filePath = getStoreFilePath();
   fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
   syncPersistedRecords(true);
-  await syncStoreSnapshotToNeon(store).catch(() => {});
+  await syncStoreSnapshotToNeon(store).catch(() => { });
 
   if (process.env.DATABASE_URL) {
     try {
@@ -3544,7 +3543,7 @@ export async function updateLearnerAndEnrolmentAction(data: {
           phone = EXCLUDED.phone,
           data = EXCLUDED.data,
           updated_at = now();
-      `.catch(() => {});
+      `.catch(() => { });
 
       if (updatedEnrolment) {
         await sql`
@@ -3554,28 +3553,28 @@ export async function updateLearnerAndEnrolmentAction(data: {
             course_id = EXCLUDED.course_id,
             data = EXCLUDED.data,
             updated_at = now();
-        `.catch(() => {});
+        `.catch(() => { });
       }
 
       if (updatedPlanSummary && data.enrolmentId) {
-        await sql`DELETE FROM payment_schedules WHERE enrolment_id = ${data.enrolmentId};`.catch(() => {});
-        await sql`DELETE FROM payments WHERE enrolment_id = ${data.enrolmentId};`.catch(() => {});
+        await sql`DELETE FROM payment_schedules WHERE enrolment_id = ${data.enrolmentId};`.catch(() => { });
+        await sql`DELETE FROM payments WHERE enrolment_id = ${data.enrolmentId};`.catch(() => { });
         for (const s of updatedPlanSummary.schedule || []) {
           await sql`
             INSERT INTO payment_schedules (id, enrolment_id, learner_id, instalment_number, due_date, amount, status, paid_at, payment_reference, grace_expiry_date, data, created_at, updated_at)
             VALUES (${s.id}, ${s.enrolmentId}, ${s.learnerId}, ${Number(s.instalmentNumber || 1)}, ${new Date(s.dueDate).toISOString()}, ${Number(s.amountGbp || 0)}, ${s.status}, ${s.paidAt ? new Date(s.paidAt).toISOString() : null}, ${s.receiptRef || null}, ${s.graceExpiryDate ? new Date(s.graceExpiryDate).toISOString() : null}, ${JSON.stringify(s)}, now(), now())
             ON CONFLICT (id) DO UPDATE SET amount = EXCLUDED.amount, status = EXCLUDED.status, data = EXCLUDED.data, updated_at = now();
-          `.catch(() => {});
+          `.catch(() => { });
         }
         for (const r of updatedPlanSummary.history || []) {
           await sql`
             INSERT INTO payments (id, enrolment_id, learner_id, amount, status, data, created_at)
             VALUES (${r.id}, ${r.enrolmentId}, ${r.learnerId}, ${Number(r.amountGbp || 0)}, ${r.status}, ${JSON.stringify(r)}, now())
             ON CONFLICT (id) DO UPDATE SET amount = EXCLUDED.amount, status = EXCLUDED.status, data = EXCLUDED.data;
-          `.catch(() => {});
+          `.catch(() => { });
         }
       }
-    } catch {}
+    } catch { }
   }
 
   revalidatePath("/admin/learners");
@@ -3614,7 +3613,7 @@ export async function logLearnerPaymentAction(data: {
   }
 
   const { pullLatestFromNeon, loadPersistedRecords, getStoreFilePath, syncPersistedRecords, syncStoreSnapshotToNeon } = await import("@/lib/persistedData");
-  await pullLatestFromNeon().catch(() => {});
+  await pullLatestFromNeon().catch(() => { });
   const store = loadPersistedRecords();
   if (!store.paymentRecords) store.paymentRecords = [];
   if (!store.paymentSchedules) store.paymentSchedules = [];
@@ -3701,7 +3700,7 @@ export async function logLearnerPaymentAction(data: {
   const filePath = getStoreFilePath();
   fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
   syncPersistedRecords(true);
-  await syncStoreSnapshotToNeon(store).catch(() => {});
+  await syncStoreSnapshotToNeon(store).catch(() => { });
 
   if (process.env.DATABASE_URL) {
     try {
@@ -3710,15 +3709,15 @@ export async function logLearnerPaymentAction(data: {
       await sql`
         INSERT INTO payments (id, enrolment_id, learner_id, amount, status, data, created_at)
         VALUES (${newReceipt.id}, ${newReceipt.enrolmentId}, ${newReceipt.learnerId}, ${newReceipt.amountGbp}, ${newReceipt.status}, ${JSON.stringify(newReceipt)}, now())
-      `.catch(() => {});
+      `.catch(() => { });
       for (const s of modifiedSchedules) {
         await sql`
           INSERT INTO payment_schedules (id, enrolment_id, learner_id, instalment_number, due_date, amount, status, paid_at, payment_reference, grace_expiry_date, data, created_at, updated_at)
           VALUES (${s.id}, ${s.enrolmentId || enrId}, ${s.learnerId}, ${Number(s.instalmentNumber || 1)}, ${s.dueDate ? new Date(s.dueDate).toISOString() : new Date().toISOString()}, ${Number(s.amountGbp || 0)}, ${s.status}, ${s.paidAt ? new Date(s.paidAt).toISOString() : null}, ${s.paymentReference || null}, ${s.graceExpiryDate ? new Date(s.graceExpiryDate).toISOString() : null}, ${JSON.stringify(s)}, now(), now())
           ON CONFLICT (id) DO UPDATE SET amount = EXCLUDED.amount, status = EXCLUDED.status, paid_at = EXCLUDED.paid_at, payment_reference = EXCLUDED.payment_reference, data = EXCLUDED.data, updated_at = now();
-        `.catch(() => {});
+        `.catch(() => { });
       }
-    } catch {}
+    } catch { }
   }
 
   revalidatePath("/admin/learners");
