@@ -606,6 +606,56 @@ export function savePersistedRecord(data: {
                 data = EXCLUDED.data;
             `.catch((err) => console.warn("[Neon DB] payments sync error:", err));
           }
+
+          if (data.paymentSchedules && data.paymentSchedules.length > 0) {
+            for (const sched of data.paymentSchedules) {
+              const s = sched as any;
+              sql`
+                INSERT INTO payment_schedules (
+                  id,
+                  enrolment_id,
+                  learner_id,
+                  instalment_number,
+                  due_date,
+                  amount,
+                  status,
+                  paid_at,
+                  payment_reference,
+                  grace_expiry_date,
+                  data,
+                  created_at,
+                  updated_at
+                )
+                VALUES (
+                  ${s.id},
+                  ${s.enrolmentId || "enr-unknown"},
+                  ${s.learnerId || "lrn-unknown"},
+                  ${Number(s.instalmentNumber || 1)},
+                  ${s.dueDate ? new Date(s.dueDate).toISOString() : new Date().toISOString()},
+                  ${Number(s.amountGbp ?? s.amount ?? 0)},
+                  ${s.status || "due"},
+                  ${s.paidAt ? new Date(s.paidAt).toISOString() : null},
+                  ${s.receiptRef || s.paymentReference || null},
+                  ${s.graceExpiryDate ? new Date(s.graceExpiryDate).toISOString() : null},
+                  ${JSON.stringify(s)},
+                  now(),
+                  now()
+                )
+                ON CONFLICT (id) DO UPDATE SET
+                  enrolment_id = EXCLUDED.enrolment_id,
+                  learner_id = EXCLUDED.learner_id,
+                  instalment_number = EXCLUDED.instalment_number,
+                  due_date = EXCLUDED.due_date,
+                  amount = EXCLUDED.amount,
+                  status = EXCLUDED.status,
+                  paid_at = EXCLUDED.paid_at,
+                  payment_reference = EXCLUDED.payment_reference,
+                  grace_expiry_date = EXCLUDED.grace_expiry_date,
+                  data = EXCLUDED.data,
+                  updated_at = now();
+              `.catch((err) => console.warn("[Neon DB] payment_schedules sync error:", err));
+            }
+          }
         })
         .catch(() => {});
     }

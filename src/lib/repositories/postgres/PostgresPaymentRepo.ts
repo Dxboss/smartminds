@@ -226,20 +226,29 @@ export class PostgresPaymentRepo implements PaymentRepo {
 
       if (schedules.length === 0 && history.length === 0) return null;
 
-      const totalAmount = schedules.reduce((sum, s) => sum + s.amountGbp, 0);
+      const totalAmount = schedules.reduce((sum, s) => sum + s.amountGbp, 0) || history.filter((p) => p.status === "paid").reduce((sum, p) => sum + p.amountGbp, 0);
       const totalPaid = history
         .filter((p) => p.status === "paid")
         .reduce((sum, p) => sum + p.amountGbp, 0);
       const balanceRemaining = Math.max(0, totalAmount - totalPaid);
 
-      const nextDue = schedules.find((s) => s.status === "due" || s.status === "overdue");
+      const nextDue = schedules.find(
+        (s) => s.status === "due" || s.status === "overdue" || (s as any).status === "pending"
+      );
       const isOverdue = schedules.some((s) => s.status === "overdue");
+      const rawTotalInstalments =
+        schedules.length > 0 ? schedules[0].totalInstalments : undefined;
+      const hasDepositItem = schedules.some((s) => (s as any).type === "deposit");
+      const planMonths =
+        rawTotalInstalments && rawTotalInstalments > 1 && hasDepositItem
+          ? rawTotalInstalments - 1
+          : rawTotalInstalments || schedules.length;
 
       return {
         enrolmentId: schedules[0]?.enrolmentId || "",
         learnerId,
-        courseTitle: "Enrolled Course",
-        planMonths: schedules.length,
+        courseTitle: history[0]?.courseTitle || "Enrolled Course",
+        planMonths,
         totalAmountGbp: Math.round(totalAmount * 100) / 100,
         totalPaidGbp: Math.round(totalPaid * 100) / 100,
         balanceRemainingGbp: Math.round(balanceRemaining * 100) / 100,
@@ -264,15 +273,91 @@ export class PostgresPaymentRepo implements PaymentRepo {
     }
 
     try {
-      const rows = (await sql`
-        SELECT DISTINCT learner_id FROM payment_schedules;
-      `) as { learner_id: string }[];
+      const [schedRows, payRows, enrRows, lrnRows] = await Promise.all([
+        sql`SELECT data FROM payment_schedules ORDER BY instalment_number ASC;` as unknown as Promise<{ data: PaymentScheduleItem }[]>,
+        sql`SELECT data FROM payments ORDER BY created_at DESC;` as unknown as Promise<{ data: PaymentRecord }[]>,
+        sql`SELECT data FROM enrolments ORDER BY created_at DESC;` as unknown as Promise<{ data: any }[]>,
+        sql`SELECT data FROM learners;` as unknown as Promise<{ data: any }[]>,
+      ]);
+
+      const allSchedules = schedRows.map((r) => r.data);
+      const allPayments = payRows.map((r) => r.data);
+      const allEnrolments = enrRows.map((r) => r.data);
+      const allLearners = lrnRows.map((r) => r.data);
 
       const summaries: LearnerPaymentPlanSummary[] = [];
-      for (const row of rows) {
-        const plan = await this.getMyPaymentPlan(actor, row.learner_id);
+      const seenEnrolments = new Set<string>();
+
+      for (const enr of allEnrolments) {
+        if (!enr?.id || seenEnrolments.has(enr.id)) continue;
+        seenEnrolments.add(enr.id);
+
+        const learnerEnrolments = allEnrolments.filter((e) => e.learnerId === enr.learnerId);
+        const isMultiCourse = learnerEnrolments.length > 1;
+        const learner = allLearners.find((l) => l.id === enr.learnerId);
+
+        const schedules = allSchedules.filter((s) =>
+          isMultiCourse
+            ? s.enrolmentId === enr.id
+            : s.enrolmentId === enr.id || s.learnerId === enr.learnerId
+        );
+        const history = allPayments.filter((p) =>
+          isMultiCourse
+            ? p.enrolmentId === enr.id
+            : p.enrolmentId === enr.id || p.learnerId === enr.learnerId
+        );
+
+        if (schedules.length === 0 && history.length === 0) continue;
+
+        const totalPaid = history
+          .filter((r) => r.status === "paid")
+          .reduce((sum, r) => sum + Number(r.amountGbp || 0), 0);
+        const totalScheduled = schedules.reduce((sum, s) => sum + Number(s.amountGbp || 0), 0);
+        const totalAmount = totalScheduled > 0 ? totalScheduled : totalPaid;
+        const balanceRemaining = Math.max(0, totalAmount - totalPaid);
+
+        const nextDue = schedules.find(
+          (s) => s.status === "due" || s.status === "overdue" || (s as any).status === "pending"
+        );
+        const isOverdue = schedules.some((s) => s.status === "overdue");
+
+        const rawTotalInstalments =
+          schedules.length > 0 ? schedules[0].totalInstalments : undefined;
+        const hasDepositItem = schedules.some((s) => (s as any).type === "deposit");
+        const planMonths =
+          enr.planMonths ||
+          (rawTotalInstalments && rawTotalInstalments > 1 && hasDepositItem
+            ? rawTotalInstalments - 1
+            : rawTotalInstalments);
+
+        summaries.push({
+          enrolmentId: enr.id,
+          learnerId: enr.learnerId,
+          learnerName: learner ? `${learner.firstName} ${learner.lastName}` : undefined,
+          learnerEmail: learner?.email,
+          learnerPhone: learner?.phone,
+          courseTitle: enr.courseTitle,
+          levelLabel: enr.courseLevelLabel,
+          planMonths,
+          totalAmountGbp: Math.round(totalAmount * 100) / 100,
+          totalPaidGbp: Math.round(totalPaid * 100) / 100,
+          balanceRemainingGbp: Math.round(balanceRemaining * 100) / 100,
+          nextDueDate: nextDue?.dueDate,
+          nextDueAmountGbp: nextDue?.amountGbp,
+          status: balanceRemaining <= 0 ? "settled" : isOverdue ? "overdue" : "up_to_date",
+          schedule: schedules,
+          history,
+        });
+      }
+
+      // Fallback for any schedules whose enrolment row was not in enrolments table
+      const distinctLearners = Array.from(new Set(allSchedules.map((s) => s.learnerId)));
+      for (const lId of distinctLearners) {
+        if (summaries.some((s) => s.learnerId === lId)) continue;
+        const plan = await this.getMyPaymentPlan(actor, lId);
         if (plan) summaries.push(plan);
       }
+
       return summaries;
     } catch (err) {
       if (err instanceof PermissionDeniedError) throw err;

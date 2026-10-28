@@ -152,19 +152,27 @@ export class MemoryPaymentRepo implements PaymentRepo {
     const totalAmount = totalScheduled > 0 ? totalScheduled : totalPaid;
     const balanceRemaining = Math.max(0, totalAmount - totalPaid);
 
-    const nextDue = schedules.find((s) => s.status === "due" || s.status === "overdue");
+    const nextDue = schedules.find(
+      (s) => s.status === "due" || s.status === "overdue" || (s as any).status === "pending"
+    );
 
     let status: LearnerPaymentPlanSummary["status"] = "settled";
     if (schedules.some((s) => s.status === "overdue")) {
       status = "overdue";
-    } else if (schedules.some((s) => s.status === "due")) {
+    } else if (schedules.some((s) => s.status === "due" || (s as any).status === "pending")) {
       status = "due";
     } else if (balanceRemaining > 0) {
       status = "up_to_date";
     }
 
-    const totalInstalmentsCount =
+    const rawTotalInstalments =
       schedules.length > 0 ? schedules[0].totalInstalments : undefined;
+    const hasDepositItem = schedules.some((s) => (s as any).type === "deposit");
+    const planMonths =
+      (enrolment as any).planMonths ||
+      (rawTotalInstalments && rawTotalInstalments > 1 && hasDepositItem
+        ? rawTotalInstalments - 1
+        : rawTotalInstalments);
 
     return {
       enrolmentId: enrolment.id,
@@ -174,7 +182,7 @@ export class MemoryPaymentRepo implements PaymentRepo {
       learnerPhone: learner?.phone,
       courseTitle: enrolment.courseTitle,
       levelLabel: enrolment.courseLevelLabel,
-      planMonths: totalInstalmentsCount,
+      planMonths,
       totalAmountGbp: Math.round(totalAmount * 100) / 100,
       totalPaidGbp: Math.round(totalPaid * 100) / 100,
       balanceRemainingGbp: Math.round(balanceRemaining * 100) / 100,
@@ -198,15 +206,28 @@ export class MemoryPaymentRepo implements PaymentRepo {
     }
 
     const summaries: LearnerPaymentPlanSummary[] = [];
-    const seenLearners = new Set<string>();
+    const seenEnrolments = new Set<string>();
 
     for (const enr of seedEnrolments) {
-      if (seenLearners.has(enr.learnerId)) continue;
-      seenLearners.add(enr.learnerId);
+      if (seenEnrolments.has(enr.id)) continue;
+      seenEnrolments.add(enr.id);
+
+      const learnerEnrolments = seedEnrolments.filter(
+        (e) => e.learnerId === enr.learnerId
+      );
+      const isMultiCourse = learnerEnrolments.length > 1;
 
       const learner = seedLearners.find((l) => l.id === enr.learnerId);
-      const schedules = this.schedules.filter((s) => s.learnerId === enr.learnerId);
-      const history = this.records.filter((r) => r.learnerId === enr.learnerId);
+      const schedules = this.schedules.filter((s) =>
+        isMultiCourse
+          ? s.enrolmentId === enr.id
+          : s.enrolmentId === enr.id || s.learnerId === enr.learnerId
+      );
+      const history = this.records.filter((r) =>
+        isMultiCourse
+          ? r.enrolmentId === enr.id
+          : r.enrolmentId === enr.id || r.learnerId === enr.learnerId
+      );
 
       // Only include if has schedules or has payment history
       if (schedules.length === 0 && history.length === 0) continue;
@@ -219,19 +240,27 @@ export class MemoryPaymentRepo implements PaymentRepo {
       const totalAmount = totalScheduled > 0 ? totalScheduled : totalPaid;
       const balanceRemaining = Math.max(0, totalAmount - totalPaid);
 
-      const nextDue = schedules.find((s) => s.status === "due" || s.status === "overdue");
+      const nextDue = schedules.find(
+        (s) => s.status === "due" || s.status === "overdue" || (s as any).status === "pending"
+      );
 
       let status: LearnerPaymentPlanSummary["status"] = "settled";
       if (schedules.some((s) => s.status === "overdue")) {
         status = "overdue";
-      } else if (schedules.some((s) => s.status === "due")) {
+      } else if (schedules.some((s) => s.status === "due" || (s as any).status === "pending")) {
         status = "due";
       } else if (balanceRemaining > 0) {
         status = "up_to_date";
       }
 
-      const totalInstalmentsCount =
+      const rawTotalInstalments =
         schedules.length > 0 ? schedules[0].totalInstalments : undefined;
+      const hasDepositItem = schedules.some((s) => (s as any).type === "deposit");
+      const planMonths =
+        (enr as any).planMonths ||
+        (rawTotalInstalments && rawTotalInstalments > 1 && hasDepositItem
+          ? rawTotalInstalments - 1
+          : rawTotalInstalments);
 
       summaries.push({
         enrolmentId: enr.id,
@@ -241,7 +270,7 @@ export class MemoryPaymentRepo implements PaymentRepo {
         learnerPhone: learner?.phone,
         courseTitle: enr.courseTitle,
         levelLabel: enr.courseLevelLabel,
-        planMonths: totalInstalmentsCount,
+        planMonths,
         totalAmountGbp: Math.round(totalAmount * 100) / 100,
         totalPaidGbp: Math.round(totalPaid * 100) / 100,
         balanceRemainingGbp: Math.round(balanceRemaining * 100) / 100,

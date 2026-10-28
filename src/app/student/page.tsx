@@ -19,9 +19,16 @@ import { ChangePasswordPrompt } from "@/components/student/ChangePasswordPrompt"
 import { SafeguardingCard } from "@/components/student/SafeguardingCard";
 
 
-export default async function StudentDashboardPage() {
+export default async function StudentDashboardPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ enrolmentId?: string }>;
+}) {
   const session = await getServerSession();
   if (!session) return null;
+
+  const resolvedParams = searchParams ? await searchParams : {};
+  const requestedEnrolmentId = resolvedParams?.enrolmentId;
 
   let learnerId = session.learnerId;
   if (!learnerId) {
@@ -40,8 +47,11 @@ export default async function StudentDashboardPage() {
   const enrolments = await enrolmentRepo.listEnrolments(session, { learnerId });
   const paymentSummary = await paymentRepo.getMyPaymentPlan(session, learnerId);
 
-  // Derive class and session for this learner
-  const primaryEnrolment = enrolments[0];
+  // Derive class and session for the selected (or primary) enrolment
+  const primaryEnrolment =
+    (requestedEnrolmentId
+      ? enrolments.find((e) => e.id === requestedEnrolmentId)
+      : undefined) || enrolments[0];
   const assignedClass = primaryEnrolment
     ? seedClasses.find((c) => c.id === primaryEnrolment.classId) ||
       seedClasses.find((c) => c.courseId === primaryEnrolment.courseId)
@@ -183,6 +193,49 @@ export default async function StudentDashboardPage() {
             <span>View & pay instalment</span>
             <Icon name="arrow-right" size={14} />
           </Link>
+        </div>
+      )}
+
+      {/* Multi-Course Switcher (When Learner is Enrolled in 2+ Qualifications) */}
+      {enrolments.length > 1 && (
+        <div className="bg-white rounded-md border border-line p-4 shadow-sm space-y-2.5">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-navy-900 flex items-center gap-1.5">
+              <Icon name="book-open" size={14} className="text-gold-700" />
+              <span>Your Enrolled Qualifications ({enrolments.length}) — Select Active Classroom View</span>
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {enrolments.map((enrItem, idx) => {
+              const isSelected = primaryEnrolment?.id === enrItem.id;
+              return (
+                <Link
+                  key={enrItem.id}
+                  href={`/student?enrolmentId=${encodeURIComponent(enrItem.id)}`}
+                  className={`px-3.5 py-2 rounded-sm text-xs font-bold transition-colors border flex items-center gap-2 ${
+                    isSelected
+                      ? "bg-navy-900 text-white border-navy-900 shadow-xs"
+                      : "bg-paper text-navy-900 border-line hover:border-navy-900"
+                  }`}
+                >
+                  <span>
+                    {idx + 1}. {enrItem.courseTitle}
+                  </span>
+                  {enrItem.courseLevelLabel && (
+                    <span
+                      className={`px-1.5 py-0.2 rounded-xs text-[10px] ${
+                        isSelected
+                          ? "bg-gold-500 text-navy-900"
+                          : "bg-navy-900/10 text-navy-900"
+                      }`}
+                    >
+                      {enrItem.courseLevelLabel}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
+          </div>
         </div>
       )}
 

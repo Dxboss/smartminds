@@ -16,10 +16,22 @@ import {
   restoreLearnerAction,
   deleteLearnerPermanentlyAction,
   adminEnrolNewStudentAction,
+  updateLearnerAndEnrolmentAction,
   logLearnerPaymentAction,
 } from "@/app/admin/actions";
 import { impersonateUserAction } from "@/app/super/actions";
 import type { Course } from "@/content/types";
+
+function isLevelFiveOrAbove(levelLabel: string): boolean {
+  if (!levelLabel) return false;
+  const match = levelLabel.match(/(?:level|lvl|\bl)\s*(\d+)/i);
+  if (match && parseInt(match[1], 10) >= 5) return true;
+  return /\b([5-8])\b/.test(levelLabel);
+}
+
+function getInstalmentMonthsForLevel(levelLabel: string): number[] {
+  return isLevelFiveOrAbove(levelLabel) ? [6, 10, 12, 14] : [3, 6, 10, 12];
+}
 
 interface Props {
   initialLearners: Learner[];
@@ -68,8 +80,9 @@ export const LearnersDirectory: React.FC<Props> = ({
   // Impersonation state
   const [isImpersonatingId, setIsImpersonatingId] = useState<string | null>(null);
 
-  // Enrol New Student Modal State
+  // Enrol New Student / Add Course Modal State
   const [isEnrolModalOpen, setIsEnrolModalOpen] = useState(false);
+  const [enrolExistingLearner, setEnrolExistingLearner] = useState<Learner | null>(null);
   const [isEnrolling, setIsEnrolling] = useState(false);
   const [enrolFirstName, setEnrolFirstName] = useState("");
   const [enrolLastName, setEnrolLastName] = useState("");
@@ -110,8 +123,9 @@ export const LearnersDirectory: React.FC<Props> = ({
   const [enrolCreatedSuccess, setEnrolCreatedSuccess] = useState<{
     name: string;
     email: string;
-    tempPass: string;
+    tempPass?: string;
     studentId: string;
+    isAdditionalCourse?: boolean;
   } | null>(null);
 
   // Historical Enrolment State
@@ -123,6 +137,200 @@ export const LearnersDirectory: React.FC<Props> = ({
   });
   const [enrolAmountPaidToDate, setEnrolAmountPaidToDate] = useState("0");
   const [enrolHistoricalNotes, setEnrolHistoricalNotes] = useState("");
+
+  // Edit Learner & Enrolment Modal State
+  const [editingLearner, setEditingLearner] = useState<Learner | null>(null);
+  const [editEnrolmentId, setEditEnrolmentId] = useState<string>("");
+  const [editFirstName, setEditFirstName] = useState("");
+  const [editLastName, setEditLastName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editDob, setEditDob] = useState("");
+  const [editAddress, setEditAddress] = useState("");
+  const [editPostcode, setEditPostcode] = useState("");
+  const [editEmergencyContact, setEditEmergencyContact] = useState("");
+  const [editCourseId, setEditCourseId] = useState("");
+  const [editLevelLabel, setEditLevelLabel] = useState("");
+  const [editClassId, setEditClassId] = useState("");
+  const [editTutorName, setEditTutorName] = useState("");
+  const [editTiming, setEditTiming] = useState<"evening" | "afternoon" | "self_paced">("evening");
+  const [editFundingType, setEditFundingType] = useState<"self_pay" | "funded" | "sponsored">("self_pay");
+  const [editPlanType, setEditPlanType] = useState<"full" | "instalments">("instalments");
+  const [editMonths, setEditMonths] = useState<string>("6");
+  const [editTotalPrice, setEditTotalPrice] = useState<string>("1250");
+  const [editAmountPaid, setEditAmountPaid] = useState<string>("0");
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+
+  const openNewEnrolModal = () => {
+    setEnrolExistingLearner(null);
+    setEnrolCreatedSuccess(null);
+    setEnrolFirstName("");
+    setEnrolLastName("");
+    setEnrolEmail("");
+    setEnrolPhone("");
+    setEnrolDob("");
+    setEnrolAddress("");
+    setEnrolPostcode("");
+    setEnrolEmergencyName("");
+    setEnrolEmergencyPhone("");
+    setEnrolIsHistorical(false);
+    setIsEnrolModalOpen(true);
+  };
+
+  const openAddCourseModal = (learner: Learner) => {
+    setEnrolExistingLearner(learner);
+    setEnrolCreatedSuccess(null);
+    setEnrolFirstName(learner.firstName);
+    setEnrolLastName(learner.lastName);
+    setEnrolEmail(learner.email);
+    setEnrolPhone(learner.phone || "");
+    setEnrolDob(learner.dateOfBirth || "");
+    setEnrolAddress(learner.address || "");
+    setEnrolPostcode(learner.postcode || "");
+    setEnrolIsHistorical(false);
+    setIsEnrolModalOpen(true);
+  };
+
+  const populateEditEnrolmentFields = (learnerId: string, enr?: Enrolment) => {
+    if (!enr) {
+      setEditEnrolmentId("");
+      return;
+    }
+    setEditEnrolmentId(enr.id);
+    setEditCourseId(enr.courseId);
+    const lvl = enr.courseLevelLabel || "Level 3";
+    setEditLevelLabel(lvl);
+    setEditClassId(enr.classId);
+    setEditTutorName(
+      enr.tutorName ||
+        classes.find((c) => c.id === enr.classId)?.tutorName ||
+        tutors[0]?.name ||
+        "Unassigned / TBA"
+    );
+    setEditTiming(
+      (enr.sessionTiming as any) || (enr.preferredTimeSlot as any) || "evening"
+    );
+    setEditFundingType((enr.fundingType as any) || "self_pay");
+
+    const plan = paymentPlans.find(
+      (p) => p.enrolmentId === enr.id || p.learnerId === learnerId
+    );
+    const allowedMonths = getInstalmentMonthsForLevel(lvl);
+    if (plan) {
+      setEditTotalPrice(plan.totalAmountGbp.toString());
+      setEditAmountPaid(plan.totalPaidGbp.toString());
+      const pm = plan.planMonths || (enr as any).planMonths;
+      if (pm && pm > 1) {
+        setEditPlanType("instalments");
+        setEditMonths(
+          allowedMonths.includes(pm) ? pm.toString() : allowedMonths[0].toString()
+        );
+      } else {
+        setEditPlanType("full");
+        setEditMonths(allowedMonths[0].toString());
+      }
+    } else {
+      const courseObj = availableCourses.find((c) => c.id === enr.courseId);
+      const lvlObj =
+        courseObj?.levels?.find((l) => l.level_label === lvl) ||
+        courseObj?.levels?.[0];
+      setEditTotalPrice(lvlObj ? lvlObj.price_gbp.toString() : "1250");
+      setEditAmountPaid("0");
+      setEditPlanType("instalments");
+      setEditMonths(allowedMonths[0].toString());
+    }
+  };
+
+  const openEditLearnerModal = (learner: Learner, specificEnr?: Enrolment) => {
+    setEditingLearner(learner);
+    setEditFirstName(learner.firstName);
+    setEditLastName(learner.lastName);
+    setEditEmail(learner.email);
+    setEditPhone(learner.phone || "");
+    setEditDob(learner.dateOfBirth || "");
+    setEditAddress(learner.address || "");
+    setEditPostcode(learner.postcode || "");
+    setEditEmergencyContact(learner.emergencyContact || "");
+
+    const learnerEnrs = enrolments.filter((e) => e.learnerId === learner.id);
+    const targetEnr = specificEnr || learnerEnrs[0];
+    populateEditEnrolmentFields(learner.id, targetEnr);
+  };
+
+  const handleSaveEditedLearner = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingLearner) return;
+    setIsSavingEdit(true);
+    try {
+      const editCourseObj = availableCourses.find((c) => c.id === editCourseId);
+      const res = await updateLearnerAndEnrolmentAction({
+        learnerId: editingLearner.id,
+        enrolmentId: editEnrolmentId || undefined,
+        firstName: editFirstName,
+        lastName: editLastName,
+        email: editEmail,
+        phone: editPhone,
+        dateOfBirth: editDob,
+        address: editAddress,
+        postcode: editPostcode,
+        emergencyContact: editEmergencyContact,
+        courseId: editCourseId || undefined,
+        courseTitle: editCourseObj?.title || undefined,
+        levelLabel: editLevelLabel || undefined,
+        classId: editClassId || undefined,
+        tutorName: editTutorName || undefined,
+        sessionTiming: editTiming,
+        fundingType: editFundingType,
+        updatePaymentPlan: canManagePayments,
+        paymentPlanType: editPlanType,
+        months: editPlanType === "instalments" ? parseInt(editMonths, 10) : 1,
+        totalPrice: parseFloat(editTotalPrice) || 0,
+        amountPaidSoFar: parseFloat(editAmountPaid) || 0,
+      });
+
+      if (res.success && res.learner) {
+        setLearners((prev) =>
+          prev.map((l) => (l.id === editingLearner.id ? res.learner! : l))
+        );
+        if (res.enrolment) {
+          setEnrolments((prev) =>
+            prev.map((enr) => (enr.id === res.enrolment!.id ? res.enrolment! : enr))
+          );
+        }
+        if (res.paymentPlan) {
+          setPaymentPlans((prev) => {
+            const exists = prev.some(
+              (p) =>
+                p.enrolmentId === res.paymentPlan.enrolmentId ||
+                (p.learnerId === editingLearner.id && !p.enrolmentId)
+            );
+            if (exists) {
+              return prev.map((p) =>
+                p.enrolmentId === res.paymentPlan.enrolmentId
+                  ? res.paymentPlan
+                  : p
+              );
+            }
+            return [res.paymentPlan, ...prev];
+          });
+        }
+        if (selectedLearner?.id === editingLearner.id) {
+          setSelectedLearner(res.learner);
+        }
+        setEditingLearner(null);
+        setFeedback(
+          `Updated learner record and payment plan for ${res.learner.firstName} ${res.learner.lastName}.`
+        );
+        setTimeout(() => setFeedback(null), 5000);
+      } else {
+        alert((res as any).error || "Failed to update learner.");
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Error saving learner changes.");
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
 
   // Direct Log Payment Modal State
   const [paymentModalLearner, setPaymentModalLearner] = useState<Learner | null>(null);
@@ -310,7 +518,7 @@ export const LearnersDirectory: React.FC<Props> = ({
   };
 
   const filteredLearners = learners.filter((learner) => {
-    const enr = enrolments.find((e) => e.learnerId === learner.id);
+    const learnerEnrs = enrolments.filter((e) => e.learnerId === learner.id);
 
     // Filter tab
     if (filter === "archived") {
@@ -322,7 +530,7 @@ export const LearnersDirectory: React.FC<Props> = ({
     } else if (filter === "paused") {
       if (learner.accessStatus !== "paused") return false;
     } else if (filter === "funded") {
-      if (enr?.fundingType !== "funded") return false;
+      if (!learnerEnrs.some((e) => e.fundingType === "funded")) return false;
       if (learner.accessStatus === "archived") return false;
     }
 
@@ -331,7 +539,11 @@ export const LearnersDirectory: React.FC<Props> = ({
       const q = search.toLowerCase();
       const matchName = `${learner.firstName} ${learner.lastName}`.toLowerCase().includes(q);
       const matchEmail = learner.email.toLowerCase().includes(q);
-      const matchCourse = enr?.courseTitle.toLowerCase().includes(q);
+      const matchCourse = learnerEnrs.some(
+        (e) =>
+          e.courseTitle.toLowerCase().includes(q) ||
+          (e.courseLevelLabel || "").toLowerCase().includes(q)
+      );
       return matchName || matchEmail || matchCourse;
     }
 
@@ -405,10 +617,7 @@ export const LearnersDirectory: React.FC<Props> = ({
 
           <button
             type="button"
-            onClick={() => {
-              setEnrolCreatedSuccess(null);
-              setIsEnrolModalOpen(true);
-            }}
+            onClick={openNewEnrolModal}
             className="px-3.5 py-1.5 bg-navy-900 hover:bg-navy-700 text-white rounded-sm text-xs font-semibold flex items-center gap-1.5 transition-colors whitespace-nowrap shadow-sm cursor-pointer shrink-0"
           >
             <Icon name="plus" size={14} />
@@ -424,10 +633,10 @@ export const LearnersDirectory: React.FC<Props> = ({
             <thead>
               <tr className="border-b border-line text-ink-soft font-semibold bg-paper/60">
                 <th className="py-3 px-4">Learner</th>
-                <th className="py-3 px-4">Course & Cohort</th>
+                <th className="py-3 px-4">Course &amp; Cohort</th>
                 <th className="py-3 px-4">Access Status</th>
                 <th className="py-3 px-4">Funding Stream</th>
-                {canManagePayments && <th className="py-3 px-4">Fee &amp; Balance</th>}
+                {canManagePayments && <th className="py-3 px-4">Plan, Fee &amp; Balance</th>}
                 <th className="py-3 px-4">Enrolment Date</th>
                 <th className="py-3 px-4 text-right">Actions</th>
               </tr>
@@ -441,13 +650,16 @@ export const LearnersDirectory: React.FC<Props> = ({
                 </tr>
               ) : (
                 filteredLearners.map((learner) => {
-                  const enr = enrolments.find((e) => e.learnerId === learner.id);
-                  const assignedClass = classes.find((c) => c.id === enr?.classId);
+                  const learnerEnrs = enrolments.filter((e) => e.learnerId === learner.id);
+                  const enr = learnerEnrs[0];
                   const isPaused = learner.accessStatus === "paused";
                   const isArchived = learner.accessStatus === "archived";
-                  const plan = paymentPlans.find(
-                    (p) => p.learnerId === learner.id || (enr && p.enrolmentId === enr.id)
+                  const learnerPlans = paymentPlans.filter(
+                    (p) =>
+                      p.learnerId === learner.id ||
+                      learnerEnrs.some((e) => e.id === p.enrolmentId)
                   );
+                  const primaryPlan = learnerPlans[0];
 
                   return (
                     <tr
@@ -456,11 +668,16 @@ export const LearnersDirectory: React.FC<Props> = ({
                         isArchived ? "bg-slate-50/50 opacity-80" : ""
                       }`}
                     >
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2">
+                      <td className="py-3 px-4 align-top">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-bold text-navy-900 block text-sm">
                             {learner.firstName} {learner.lastName}
                           </span>
+                          {learnerEnrs.length > 1 && (
+                            <span className="px-1.5 py-0.5 rounded-xs bg-navy-900 text-gold-300 text-[9px] font-bold uppercase tracking-wider">
+                              {learnerEnrs.length} Courses
+                            </span>
+                          )}
                           {isArchived && (
                             <span className="px-1.5 py-0.2 rounded-xs bg-slate-200 text-slate-700 text-[9px] font-bold uppercase tracking-wider">
                               Archived
@@ -471,24 +688,53 @@ export const LearnersDirectory: React.FC<Props> = ({
                           <span>{learner.email}</span> · <span>{learner.phone}</span>
                         </div>
                       </td>
-                      <td className="py-3 px-4 space-y-0.5">
-                        <div className="font-semibold text-navy-900">
-                          {enr?.courseTitle || "Course Enrolment"}
-                        </div>
-                        <div className="text-[11px] text-ink-soft">
-                          Cohort: <strong>{assignedClass?.name || enr?.classId || "—"}</strong>
-                        </div>
-                        <div className="text-[11px] flex flex-wrap items-center gap-1.5 pt-0.5">
-                          <span className="font-medium text-navy-900">
-                            Tutor: {enr?.tutorName || assignedClass?.tutorName || "Dr. Eleanor Vance"}
-                          </span>
-                          <span>·</span>
-                          <span className="capitalize font-semibold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded-xs border border-emerald-200">
-                            {enr?.sessionTiming === "afternoon" ? "Afternoon (14:00–16:00)" : "Evening (18:30–20:30)"}
-                          </span>
-                        </div>
+                      <td className="py-3 px-4 align-top space-y-2">
+                        {learnerEnrs.length === 0 ? (
+                          <span className="text-ink-soft italic">No active course</span>
+                        ) : (
+                          learnerEnrs.map((itemEnr, idx) => {
+                            const assignedClass = classes.find((c) => c.id === itemEnr.classId);
+                            return (
+                              <div
+                                key={itemEnr.id}
+                                className={
+                                  idx > 0
+                                    ? "pt-2 border-t border-line/70 space-y-0.5"
+                                    : "space-y-0.5"
+                                }
+                              >
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="font-semibold text-navy-900">
+                                    {itemEnr.courseTitle}
+                                  </span>
+                                  {itemEnr.courseLevelLabel && (
+                                    <span className="px-1.5 py-0.2 rounded-xs bg-gold-300/30 border border-gold-500/40 text-navy-900 font-bold text-[10px]">
+                                      {itemEnr.courseLevelLabel}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-[11px] text-ink-soft">
+                                  Cohort: <strong>{assignedClass?.name || itemEnr.classId || "—"}</strong>
+                                </div>
+                                <div className="text-[11px] flex flex-wrap items-center gap-1.5 pt-0.5">
+                                  <span className="font-medium text-navy-900">
+                                    Tutor: {itemEnr.tutorName || assignedClass?.tutorName || "Unassigned / TBA"}
+                                  </span>
+                                  <span>·</span>
+                                  <span className="capitalize font-semibold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded-xs border border-emerald-200">
+                                    {itemEnr.sessionTiming === "afternoon"
+                                      ? "Afternoon (14:00–16:00)"
+                                      : itemEnr.sessionTiming === "evening"
+                                      ? "Evening (18:30–20:30)"
+                                      : "Flexible / 1-on-1"}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-4 align-top">
                         <span
                           className={`px-2 py-0.5 rounded-sm font-semibold text-[10px] capitalize border ${
                             isArchived
@@ -501,7 +747,7 @@ export const LearnersDirectory: React.FC<Props> = ({
                           {learner.accessStatus}
                         </span>
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-4 align-top">
                         <span
                           className={`px-2 py-0.5 rounded-sm text-[10px] font-semibold uppercase ${
                             enr?.fundingType === "funded"
@@ -513,60 +759,122 @@ export const LearnersDirectory: React.FC<Props> = ({
                         </span>
                       </td>
                       {canManagePayments && (
-                        <td className="py-3 px-4">
-                          {plan ? (
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-1 font-mono text-xs">
-                                <span className="font-bold text-navy-900">
-                                  £{plan.totalPaidGbp.toLocaleString("en-GB")}
-                                </span>
-                                <span className="text-ink-soft text-[10px]">
-                                  / £{plan.totalAmountGbp.toLocaleString("en-GB")}
-                                </span>
-                              </div>
-                              <div>
-                                {plan.balanceRemainingGbp <= 0 ? (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-xs text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                                    Settled (£0 bal)
-                                  </span>
-                                ) : plan.status === "overdue" ? (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-xs text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200">
-                                    Overdue: £{plan.balanceRemainingGbp.toLocaleString("en-GB")}
-                                  </span>
+                        <td className="py-3 px-4 align-top space-y-2">
+                          {learnerEnrs.map((itemEnr, idx) => {
+                            const itemPlan =
+                              learnerPlans.find((p) => p.enrolmentId === itemEnr.id) ||
+                              (idx === 0 ? primaryPlan : undefined);
+                            const pm =
+                              itemPlan?.planMonths || (itemEnr as any)?.planMonths || 1;
+                            return (
+                              <div
+                                key={itemEnr.id}
+                                className={
+                                  idx > 0
+                                    ? "pt-2 border-t border-line/70 space-y-1"
+                                    : "space-y-1"
+                                }
+                              >
+                                {itemPlan ? (
+                                  <>
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span
+                                        className={`px-1.5 py-0.5 rounded-xs text-[9px] font-bold uppercase tracking-wider border ${
+                                          pm > 1
+                                            ? "bg-navy-900/10 text-navy-900 border-navy-900/20"
+                                            : "bg-emerald-50 text-emerald-900 border-emerald-200"
+                                        }`}
+                                      >
+                                        {pm > 1 ? `${pm}-Month Plan` : "Full Payment"}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-1 font-mono text-xs">
+                                      <span className="font-bold text-navy-900">
+                                        £{itemPlan.totalPaidGbp.toLocaleString("en-GB")}
+                                      </span>
+                                      <span className="text-ink-soft text-[10px]">
+                                        / £{itemPlan.totalAmountGbp.toLocaleString("en-GB")}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      {itemPlan.balanceRemainingGbp <= 0 ? (
+                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-xs text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                          Settled (£0 bal)
+                                        </span>
+                                      ) : itemPlan.status === "overdue" ? (
+                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-xs text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200">
+                                          Overdue: £{itemPlan.balanceRemainingGbp.toLocaleString("en-GB")}
+                                        </span>
+                                      ) : (
+                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-xs text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                                          Bal: £{itemPlan.balanceRemainingGbp.toLocaleString("en-GB")}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {itemPlan.nextDueDate && itemPlan.balanceRemainingGbp > 0 && (
+                                      <div className="text-[10px] text-ink-soft">
+                                        Next: {new Date(itemPlan.nextDueDate).toLocaleDateString("en-GB")} (£
+                                        {itemPlan.nextDueAmountGbp || 0})
+                                      </div>
+                                    )}
+                                  </>
+                                ) : itemEnr.fundingType === "funded" ? (
+                                  <span className="text-ink-soft italic text-[11px]">Fully funded</span>
                                 ) : (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-xs text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                                    Bal: £{plan.balanceRemainingGbp.toLocaleString("en-GB")}
-                                  </span>
+                                  <span className="text-ink-soft text-[11px]">—</span>
                                 )}
                               </div>
-                              {plan.nextDueDate && plan.balanceRemainingGbp > 0 && (
-                                <div className="text-[10px] text-ink-soft">
-                                  Next: {new Date(plan.nextDueDate).toLocaleDateString("en-GB")} (£{plan.nextDueAmountGbp || 0})
-                                </div>
-                              )}
-                            </div>
-                          ) : enr?.fundingType === "funded" ? (
-                            <span className="text-ink-soft italic text-[11px]">Fully funded</span>
-                          ) : (
-                            <span className="text-ink-soft text-[11px]">—</span>
-                          )}
+                            );
+                          })}
                         </td>
                       )}
-                      <td className="py-3 px-4 text-ink-soft font-mono text-[11px]">
+                      <td className="py-3 px-4 align-top text-ink-soft font-mono text-[11px]">
                         {new Date(learner.enrolmentDate).toLocaleDateString("en-GB")}
                       </td>
-                      <td className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          {canManagePayments && !isArchived && plan && plan.balanceRemainingGbp > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => openLogPaymentModal(learner, enr, plan)}
-                              className="px-2 py-1 rounded-sm border border-emerald-600 bg-emerald-50 text-emerald-800 hover:bg-emerald-600 hover:text-white text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer"
-                              title="Log offline or bank payment receipt"
-                            >
-                              <Icon name="credit-card" size={12} />
-                              <span>Log Pay</span>
-                            </button>
+                      <td className="py-3 px-4 align-top text-right">
+                        <div className="flex flex-wrap items-center justify-end gap-1.5">
+                          {canManagePayments &&
+                            !isArchived &&
+                            learnerPlans.some((p) => p.balanceRemainingGbp > 0) && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const owingPlan =
+                                    learnerPlans.find((p) => p.balanceRemainingGbp > 0) ||
+                                    primaryPlan;
+                                  const owingEnr =
+                                    learnerEnrs.find((e) => e.id === owingPlan?.enrolmentId) ||
+                                    enr;
+                                  openLogPaymentModal(learner, owingEnr, owingPlan);
+                                }}
+                                className="px-2 py-1 rounded-sm border border-emerald-600 bg-emerald-50 text-emerald-800 hover:bg-emerald-600 hover:text-white text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer"
+                                title="Log offline or bank payment receipt"
+                              >
+                                <Icon name="credit-card" size={12} />
+                                <span>Log Pay</span>
+                              </button>
+                            )}
+
+                          {!isArchived && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => openEditLearnerModal(learner, enr)}
+                                className="px-2 py-1 rounded-sm border border-navy-900/30 bg-paper hover:bg-navy-900 hover:text-white text-navy-900 text-xs font-semibold transition-colors cursor-pointer"
+                                title="Edit learner personal details, course level, or payment plan"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => openAddCourseModal(learner)}
+                                className="px-2 py-1 rounded-sm border border-navy-900/30 bg-white hover:bg-navy-900 hover:text-white text-navy-900 text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer"
+                                title="Enrol this learner in a second or additional course"
+                              >
+                                <Icon name="plus" size={11} />
+                                <span>Course</span>
+                              </button>
+                            </>
                           )}
 
                           <button
@@ -874,15 +1182,17 @@ export const LearnersDirectory: React.FC<Props> = ({
 
       {/* Learner Details Modal (Protected Payment Access) */}
       {selectedLearner && (() => {
-        const enr = enrolments.find((e) => e.learnerId === selectedLearner.id);
-        const assignedClass = classes.find((c) => c.id === enr?.classId);
-        const learnerPlan = paymentPlans.find(
-          (p) => p.learnerId === selectedLearner.id || (enr && p.enrolmentId === enr.id)
+        const learnerEnrs = enrolments.filter((e) => e.learnerId === selectedLearner.id);
+        const enr = learnerEnrs[0];
+        const learnerPlans = paymentPlans.filter(
+          (p) =>
+            p.learnerId === selectedLearner.id ||
+            learnerEnrs.some((e) => e.id === p.enrolmentId)
         );
 
         return (
           <div className="fixed inset-0 z-50 bg-navy-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white rounded-md border border-line p-6 max-w-lg w-full space-y-5 shadow-xl">
+            <div className="bg-white rounded-md border border-line p-6 max-w-lg w-full space-y-5 shadow-xl max-h-[90vh] overflow-y-auto">
               <div className="flex items-start justify-between border-b border-line pb-3">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
@@ -900,6 +1210,11 @@ export const LearnersDirectory: React.FC<Props> = ({
                     >
                       {selectedLearner.accessStatus}
                     </span>
+                    {learnerEnrs.length > 1 && (
+                      <span className="px-2 py-0.2 rounded-sm text-[10px] font-bold bg-navy-900 text-gold-300">
+                        {learnerEnrs.length} Enrolled Courses
+                      </span>
+                    )}
                   </div>
                   <h3 className="font-heading text-2xl font-bold text-navy-900">
                     {selectedLearner.firstName} {selectedLearner.lastName}
@@ -918,7 +1233,7 @@ export const LearnersDirectory: React.FC<Props> = ({
                 <div className="p-3 rounded-sm bg-slate-50 border border-slate-200 text-xs text-slate-800 flex items-start gap-2.5">
                   <Icon name="info" size={16} className="text-slate-600 shrink-0 mt-0.5" />
                   <div>
-                    <strong className="block font-semibold">Account Archived & Removed from Active Roster</strong>
+                    <strong className="block font-semibold">Account Archived &amp; Removed from Active Roster</strong>
                     <p className="text-[11px] text-slate-600 mt-0.5">
                       Archived on {selectedLearner.archivedAt ? new Date(selectedLearner.archivedAt).toLocaleDateString("en-GB") : "Recorded"}:{" "}
                       <span className="italic font-medium">{selectedLearner.archiveReason || "Administrative archival"}</span>. All qualification records, coursework submissions, and payment receipts remain permanently preserved.
@@ -952,43 +1267,142 @@ export const LearnersDirectory: React.FC<Props> = ({
                   </div>
                 </div>
 
-                {/* Course History & Cohort Allocation */}
-                <div className="space-y-1.5">
-                  <h4 className="font-bold text-navy-900 uppercase tracking-wider text-[11px]">
-                    Academic Course & Cohort
-                  </h4>
-                  <div className="p-3 rounded-sm border border-line bg-white space-y-1">
-                    <div className="font-bold text-sm text-navy-900">
-                      {enr?.courseTitle}
-                    </div>
-                    <div className="text-ink-soft">
-                      Cohort: <strong>{assignedClass?.name}</strong> · Tutor: {assignedClass?.tutorName}
-                    </div>
-                    <div className="text-[11px] text-ink-soft">
-                      Weekly Schedule: {assignedClass?.scheduleDescription}
-                    </div>
+                {/* Course History & Cohort Allocation (All Enrolled Courses) */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-bold text-navy-900 uppercase tracking-wider text-[11px]">
+                      Enrolled Qualifications ({learnerEnrs.length})
+                    </h4>
+                    {selectedLearner.accessStatus !== "archived" && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const target = selectedLearner;
+                          setSelectedLearner(null);
+                          openAddCourseModal(target);
+                        }}
+                        className="text-navy-900 hover:underline font-bold text-[11px] flex items-center gap-1 cursor-pointer"
+                      >
+                        <Icon name="plus" size={12} />
+                        <span>Add Another Course</span>
+                      </button>
+                    )}
                   </div>
-                </div>
 
-                {/* Completed Units */}
-                <div className="space-y-1.5">
-                  <h4 className="font-bold text-navy-900 uppercase tracking-wider text-[11px]">
-                    Completed Qualification Units
-                  </h4>
-                  {enr && enr.completedUnits.length > 0 ? (
-                    <div className="flex flex-wrap gap-1.5">
-                      {enr.completedUnits.map((u) => (
-                        <span
-                          key={u}
-                          className="px-2 py-0.5 rounded-sm bg-emerald-50 text-emerald-800 border border-emerald-200 font-mono text-[11px] font-semibold"
-                        >
-                          {u} Achieved
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-ink-soft italic">No units marked complete yet.</p>
-                  )}
+                  {learnerEnrs.map((itemEnr, idx) => {
+                    const assignedClass = classes.find((c) => c.id === itemEnr.classId);
+                    const itemPlan =
+                      learnerPlans.find((p) => p.enrolmentId === itemEnr.id) ||
+                      (idx === 0 ? learnerPlans[0] : undefined);
+                    const pm = itemPlan?.planMonths || (itemEnr as any)?.planMonths || 1;
+
+                    return (
+                      <div
+                        key={itemEnr.id}
+                        className="p-3 rounded-sm border border-line bg-white space-y-2"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-bold text-sm text-navy-900">
+                                {itemEnr.courseTitle}
+                              </span>
+                              {itemEnr.courseLevelLabel && (
+                                <span className="px-1.5 py-0.5 rounded-xs bg-gold-300/30 border border-gold-500/40 text-navy-900 font-bold text-[10px]">
+                                  {itemEnr.courseLevelLabel}
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-ink-soft mt-0.5">
+                              Cohort: <strong>{assignedClass?.name || itemEnr.classId}</strong> · Tutor:{" "}
+                              {itemEnr.tutorName || assignedClass?.tutorName || "Unassigned"}
+                            </div>
+                            <div className="text-[11px] text-ink-soft">
+                              Schedule: {assignedClass?.scheduleDescription || "Evening / Afternoon Blended"}
+                            </div>
+                          </div>
+                          {selectedLearner.accessStatus !== "archived" && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const target = selectedLearner;
+                                setSelectedLearner(null);
+                                openEditLearnerModal(target, itemEnr);
+                              }}
+                              className="px-2 py-1 rounded-sm border border-line bg-paper hover:bg-navy-900 hover:text-white text-navy-900 font-semibold text-[11px] cursor-pointer shrink-0"
+                            >
+                              Edit
+                            </button>
+                          )}
+                        </div>
+
+                        {canManagePayments && (
+                          <div className="pt-2 border-t border-line/70 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-navy-900 text-[11px] flex items-center gap-1.5">
+                                <span>Payment Plan:</span>
+                                <span className="px-1.5 py-0.5 rounded-xs bg-navy-900/10 text-navy-900 font-bold text-[10px]">
+                                  {itemEnr.fundingType === "funded"
+                                    ? "Funded"
+                                    : pm > 1
+                                    ? `${pm}-Month Instalment Plan`
+                                    : "Full Upfront Payment"}
+                                </span>
+                              </span>
+                              {itemPlan &&
+                                itemPlan.balanceRemainingGbp > 0 &&
+                                selectedLearner.accessStatus !== "archived" && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      openLogPaymentModal(selectedLearner, itemEnr, itemPlan);
+                                    }}
+                                    className="text-emerald-700 hover:text-emerald-800 font-bold text-[11px] underline cursor-pointer"
+                                  >
+                                    + Record Payment
+                                  </button>
+                                )}
+                            </div>
+
+                            {itemPlan ? (
+                              <div className="grid grid-cols-3 gap-2 text-center">
+                                <div className="bg-paper p-2 rounded border border-line">
+                                  <span className="text-ink-soft block text-[10px]">Agreed Fee</span>
+                                  <strong className="text-navy-900 font-mono">
+                                    £{itemPlan.totalAmountGbp.toLocaleString("en-GB")}
+                                  </strong>
+                                </div>
+                                <div className="bg-paper p-2 rounded border border-line">
+                                  <span className="text-ink-soft block text-[10px]">Paid to Date</span>
+                                  <strong className="text-emerald-700 font-mono">
+                                    £{itemPlan.totalPaidGbp.toLocaleString("en-GB")}
+                                  </strong>
+                                </div>
+                                <div className="bg-paper p-2 rounded border border-line">
+                                  <span className="text-ink-soft block text-[10px]">Balance Due</span>
+                                  <strong
+                                    className={`font-mono ${
+                                      itemPlan.balanceRemainingGbp > 0
+                                        ? "text-amber-800"
+                                        : "text-emerald-700"
+                                    }`}
+                                  >
+                                    £{itemPlan.balanceRemainingGbp.toLocaleString("en-GB")}
+                                  </strong>
+                                </div>
+                              </div>
+                            ) : (
+                              <p className="text-ink-soft italic text-[11px]">
+                                {itemEnr.fundingType === "funded"
+                                  ? "Government / Employer Funded Placement."
+                                  : "No payment plan on file."}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
 
                 {/* Administrative Notes */}
@@ -1000,70 +1414,28 @@ export const LearnersDirectory: React.FC<Props> = ({
                     {selectedLearner.notes || "No operational notes recorded."}
                   </p>
                 </div>
-
-                {/* Tuition & Payment Overview (Only owner/super admin) */}
-                {canManagePayments && (
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-bold text-navy-900 uppercase tracking-wider text-[11px]">
-                        Tuition &amp; Payment Ledger
-                      </h4>
-                      {learnerPlan && learnerPlan.balanceRemainingGbp > 0 && selectedLearner.accessStatus !== "archived" && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            openLogPaymentModal(selectedLearner, enr, learnerPlan);
-                          }}
-                          className="text-emerald-700 hover:text-emerald-800 font-bold text-[11px] underline cursor-pointer"
-                        >
-                          + Record Payment
-                        </button>
-                      )}
-                    </div>
-                    {learnerPlan ? (
-                      <div className="p-3 rounded-sm border border-line bg-paper space-y-2 text-xs">
-                        <div className="grid grid-cols-3 gap-2 text-center">
-                          <div className="bg-white p-2 rounded border border-line">
-                            <span className="text-ink-soft block text-[10px]">Agreed Fee</span>
-                            <strong className="text-navy-900 font-mono">£{learnerPlan.totalAmountGbp.toLocaleString("en-GB")}</strong>
-                          </div>
-                          <div className="bg-white p-2 rounded border border-line">
-                            <span className="text-ink-soft block text-[10px]">Paid to Date</span>
-                            <strong className="text-emerald-700 font-mono">£{learnerPlan.totalPaidGbp.toLocaleString("en-GB")}</strong>
-                          </div>
-                          <div className="bg-white p-2 rounded border border-line">
-                            <span className="text-ink-soft block text-[10px]">Balance Due</span>
-                            <strong className={`font-mono ${learnerPlan.balanceRemainingGbp > 0 ? "text-amber-800" : "text-emerald-700"}`}>
-                              £{learnerPlan.balanceRemainingGbp.toLocaleString("en-GB")}
-                            </strong>
-                          </div>
-                        </div>
-                        {learnerPlan.balanceRemainingGbp <= 0 ? (
-                          <p className="text-[11px] text-emerald-800 font-semibold bg-emerald-50 p-2 rounded border border-emerald-200">
-                            Tuition fees for this student have been fully settled.
-                          </p>
-                        ) : (
-                          <p className="text-[11px] text-amber-900 bg-amber-50 p-2 rounded border border-amber-200">
-                            Outstanding balance of £{learnerPlan.balanceRemainingGbp.toLocaleString("en-GB")}. Next instalment due {learnerPlan.nextDueDate ? new Date(learnerPlan.nextDueDate).toLocaleDateString("en-GB") : "per schedule"} (£{learnerPlan.nextDueAmountGbp || 0}).
-                          </p>
-                        )}
-                      </div>
-                    ) : (
-                      <p className="text-ink-soft italic text-[11px] bg-paper p-2.5 rounded-sm border border-line">
-                        {enr?.fundingType === "funded"
-                          ? "Government / AEB Funded Placement (No individual learner tuition charges)."
-                          : "No payment plan on file."}
-                      </p>
-                    )}
-                  </div>
-                )}
               </div>
 
-              <div className="flex items-center justify-end pt-3 border-t border-line">
+              <div className="flex items-center justify-between pt-3 border-t border-line">
+                {selectedLearner.accessStatus !== "archived" ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const target = selectedLearner;
+                      setSelectedLearner(null);
+                      openEditLearnerModal(target, enr);
+                    }}
+                    className="px-3.5 py-2 rounded-sm border border-navy-900 text-navy-900 font-bold hover:bg-navy-900 hover:text-white transition-colors text-xs cursor-pointer"
+                  >
+                    Edit Learner &amp; Payment Plan
+                  </button>
+                ) : (
+                  <div />
+                )}
                 <button
                   type="button"
                   onClick={() => setSelectedLearner(null)}
-                  className="px-4 py-2 rounded-sm bg-navy-900 text-white font-bold hover:bg-navy-700 transition-colors text-xs"
+                  className="px-4 py-2 rounded-sm bg-navy-900 text-white font-bold hover:bg-navy-700 transition-colors text-xs cursor-pointer"
                 >
                   Close Record
                 </button>
@@ -1072,27 +1444,35 @@ export const LearnersDirectory: React.FC<Props> = ({
           </div>
         );
       })()}
-      {/* Enrol New Student Modal */}
+
+      {/* Enrol New Student / Add Course Modal */}
       {isEnrolModalOpen && (
         <div className="fixed inset-0 bg-ink/60 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-md border border-line shadow-xl max-w-2xl w-full p-6 space-y-4 max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between border-b border-line pb-3">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded bg-navy-900 text-white flex items-center justify-center font-bold">
-                  <Icon name="user" size={16} />
+                  <Icon name={enrolExistingLearner ? "plus" : "user"} size={16} />
                 </div>
                 <div>
                   <h3 className="font-heading font-bold text-lg text-navy-900">
-                    Enrol New Student &amp; Issue Portal Credentials
+                    {enrolExistingLearner
+                      ? `Enrol ${enrolExistingLearner.firstName} ${enrolExistingLearner.lastName} in an Additional Course`
+                      : "Enrol New Student & Issue Portal Credentials"}
                   </h3>
                   <p className="text-xs text-ink-soft">
-                    Creates the student profile, registers qualification enrolment, and dispatches the welcome induction email.
+                    {enrolExistingLearner
+                      ? "Links this new qualification and its level-based payment plan to the student's existing account."
+                      : "Creates the student profile, registers qualification enrolment, and dispatches the welcome induction email."}
                   </p>
                 </div>
               </div>
               <button
                 type="button"
-                onClick={() => setIsEnrolModalOpen(false)}
+                onClick={() => {
+                  setEnrolExistingLearner(null);
+                  setIsEnrolModalOpen(false);
+                }}
                 className="text-ink-soft hover:text-navy-900 text-lg font-bold p-1 cursor-pointer"
               >
                 &times;
@@ -1104,15 +1484,35 @@ export const LearnersDirectory: React.FC<Props> = ({
                 <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-sm text-xs space-y-2">
                   <strong className="text-sm font-bold text-emerald-900 block flex items-center gap-1.5">
                     <Icon name="check-circle" size={16} className="text-emerald-700" />
-                    <span>Student Onboarded &amp; Induction Dispatched!</span>
+                    <span>
+                      {enrolCreatedSuccess.isAdditionalCourse
+                        ? "Additional Course Added to Student Account!"
+                        : "Student Onboarded & Induction Dispatched!"}
+                    </span>
                   </strong>
                   <p className="text-emerald-800 leading-relaxed">
-                    Student account for <strong>{enrolCreatedSuccess.name}</strong> has been created. A welcome email containing induction materials and portal access instructions has been dispatched.
+                    {enrolCreatedSuccess.isAdditionalCourse ? (
+                      <>
+                        The new qualification and payment plan have been linked to{" "}
+                        <strong>{enrolCreatedSuccess.name}</strong>&apos;s existing Student Portal account.
+                      </>
+                    ) : (
+                      <>
+                        Student account for <strong>{enrolCreatedSuccess.name}</strong> has been created. A welcome email containing induction materials and portal access instructions has been dispatched.
+                      </>
+                    )}
                   </p>
                   <div className="p-3 bg-white rounded border border-emerald-300/60 font-mono text-xs space-y-1">
                     <div><strong>Student ID:</strong> {enrolCreatedSuccess.studentId}</div>
                     <div><strong>Portal Login:</strong> {enrolCreatedSuccess.email}</div>
-                    <div><strong>Temporary Password:</strong> <span className="bg-gold-300/40 px-1.5 py-0.5 rounded font-bold text-navy-900">{enrolCreatedSuccess.tempPass}</span></div>
+                    {enrolCreatedSuccess.tempPass && (
+                      <div>
+                        <strong>Temporary Password:</strong>{" "}
+                        <span className="bg-gold-300/40 px-1.5 py-0.5 rounded font-bold text-navy-900">
+                          {enrolCreatedSuccess.tempPass}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1121,6 +1521,7 @@ export const LearnersDirectory: React.FC<Props> = ({
                     type="button"
                     onClick={() => {
                       setEnrolCreatedSuccess(null);
+                      setEnrolExistingLearner(null);
                       setIsEnrolModalOpen(false);
                     }}
                     className="px-4 py-2 bg-navy-900 text-white rounded-sm font-semibold text-xs hover:bg-navy-700 cursor-pointer"
@@ -1141,11 +1542,19 @@ export const LearnersDirectory: React.FC<Props> = ({
                   setIsEnrolling(true);
                   try {
                     const priceNum = parseFloat(enrolPrice) || 1250;
-                    const depNum = parseFloat(enrolDeposit) || 150;
-                    const monthsNum = parseInt(enrolMonths, 10) || 6;
-                    const monthlyNum = Math.round((priceNum - depNum) / monthsNum);
+                    const depNum = enrolIsHistorical
+                      ? parseFloat(enrolAmountPaidToDate) || 0
+                      : parseFloat(enrolDeposit) || 0;
+                    const monthsNum =
+                      enrolPlanType === "instalments" ? parseInt(enrolMonths, 10) || 6 : 1;
+                    const remainingToSpread = Math.max(0, priceNum - depNum);
+                    const monthlyNum =
+                      monthsNum > 1
+                        ? Math.round((remainingToSpread / monthsNum) * 100) / 100
+                        : remainingToSpread;
 
                     const res = await adminEnrolNewStudentAction({
+                      existingLearnerId: enrolExistingLearner?.id,
                       firstName: enrolFirstName,
                       lastName: enrolLastName,
                       email: enrolEmail,
@@ -1171,41 +1580,26 @@ export const LearnersDirectory: React.FC<Props> = ({
                       paymentMethod: enrolPaymentMethod,
                       paymentStatus: enrolPaymentStatus,
                       isHistorical: enrolIsHistorical,
-                      enrolmentDate: enrolIsHistorical && enrolHistoricalDate ? new Date(enrolHistoricalDate).toISOString() : undefined,
-                      amountPaidToDate: enrolIsHistorical ? (parseFloat(enrolAmountPaidToDate) || 0) : undefined,
+                      enrolmentDate:
+                        enrolIsHistorical && enrolHistoricalDate
+                          ? new Date(enrolHistoricalDate).toISOString()
+                          : undefined,
+                      amountPaidToDate: enrolIsHistorical ? depNum : undefined,
                       historicalNotes: enrolIsHistorical ? enrolHistoricalNotes : undefined,
                     });
 
                     if (res.success && res.learner && res.enrolment) {
-                      setLearners((prev) => [res.learner, ...prev]);
+                      setLearners((prev) => {
+                        const exists = prev.some((l) => l.id === res.learner.id);
+                        if (exists) {
+                          return prev.map((l) => (l.id === res.learner.id ? res.learner : l));
+                        }
+                        return [res.learner, ...prev];
+                      });
                       setEnrolments((prev) => [res.enrolment, ...prev]);
 
-                      if (canManagePayments) {
-                        const paidSoFar = enrolIsHistorical
-                          ? (parseFloat(enrolAmountPaidToDate) || 0)
-                          : enrolFundingType === "funded"
-                          ? 0
-                          : enrolPaymentStatus === "paid"
-                          ? (enrolPlanType === "full" ? priceNum : depNum)
-                          : 0;
-                        const balRemaining = Math.max(0, priceNum - paidSoFar);
-
-                        const newPlan: LearnerPaymentPlanSummary = {
-                          enrolmentId: res.enrolment.id,
-                          learnerId: res.learner.id,
-                          learnerName: `${res.learner.firstName} ${res.learner.lastName}`,
-                          learnerEmail: res.learner.email,
-                          learnerPhone: res.learner.phone,
-                          courseTitle: res.enrolment.courseTitle,
-                          levelLabel: res.enrolment.courseLevelLabel,
-                          totalAmountGbp: priceNum,
-                          totalPaidGbp: paidSoFar,
-                          balanceRemainingGbp: balRemaining,
-                          status: balRemaining <= 0 ? "settled" : "up_to_date",
-                          schedule: [],
-                          history: [],
-                        };
-                        setPaymentPlans((prev) => [newPlan, ...prev]);
+                      if (canManagePayments && res.paymentPlan) {
+                        setPaymentPlans((prev) => [res.paymentPlan as any, ...prev]);
                       }
 
                       setEnrolCreatedSuccess({
@@ -1213,8 +1607,13 @@ export const LearnersDirectory: React.FC<Props> = ({
                         email: res.learner.email,
                         tempPass: res.tempPassword,
                         studentId: res.learner.id,
+                        isAdditionalCourse: res.isAdditionalCourse,
                       });
-                      setFeedback(`Student ${res.learner.firstName} ${res.learner.lastName} enrolled successfully.`);
+                      setFeedback(
+                        res.isAdditionalCourse
+                          ? `Added ${res.enrolment.courseTitle} (${res.enrolment.courseLevelLabel}) to ${res.learner.firstName} ${res.learner.lastName}'s courses.`
+                          : `Student ${res.learner.firstName} ${res.learner.lastName} enrolled successfully.`
+                      );
                     }
                   } catch (err) {
                     alert(err instanceof Error ? err.message : "Failed to enrol student.");
@@ -1323,10 +1722,15 @@ export const LearnersDirectory: React.FC<Props> = ({
                           setEnrolCourseId(cid);
                           const c = availableCourses.find((x) => x.id === cid);
                           if (c && c.levels && c.levels.length > 0) {
-                            setEnrolLevelLabel(c.levels[0].level_label);
+                            const firstLvl = c.levels[0].level_label;
+                            setEnrolLevelLabel(firstLvl);
                             setEnrolPrice(c.levels[0].price_gbp.toString());
                             if (c.levels[0].plans && c.levels[0].plans.length > 0) {
                               setEnrolDeposit(c.levels[0].plans[0].deposit_value.toString());
+                            }
+                            const allowed = getInstalmentMonthsForLevel(firstLvl);
+                            if (!allowed.includes(parseInt(enrolMonths, 10))) {
+                              setEnrolMonths(allowed[0].toString());
                             }
                           }
                         }}
@@ -1359,6 +1763,10 @@ export const LearnersDirectory: React.FC<Props> = ({
                               setEnrolDeposit(found.plans[0].deposit_value.toString());
                             }
                           }
+                          const allowed = getInstalmentMonthsForLevel(lvl);
+                          if (!allowed.includes(parseInt(enrolMonths, 10))) {
+                            setEnrolMonths(allowed[0].toString());
+                          }
                         }}
                         className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-medium"
                       >
@@ -1367,7 +1775,7 @@ export const LearnersDirectory: React.FC<Props> = ({
                             {lvl.level_label} (£{lvl.price_gbp})
                           </option>
                         ))}
-                        {["Level 2", "Level 3", "Level 4", "Level 5", "CPD / Short Course", "1-to-1 Academic Tutoring"]
+                        {["Level 2", "Level 3", "Level 4", "Level 5", "Level 6", "Level 7", "CPD / Short Course", "1-to-1 Academic Tutoring"]
                           .filter(
                             (std) =>
                               !courseLevelsList.some(
@@ -1441,10 +1849,18 @@ export const LearnersDirectory: React.FC<Props> = ({
 
                 {/* 3. Tuition Fee & Payment Plan */}
                 <div className="space-y-3 p-3.5 bg-paper rounded-sm border border-line">
-                  <h4 className="font-bold text-navy-900 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
-                    <Icon name="credit-card" size={13} className="text-gold-700" />
-                    <span>3. Tuition Fee &amp; Payment Structure</span>
-                  </h4>
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <h4 className="font-bold text-navy-900 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                      <Icon name="credit-card" size={13} className="text-gold-700" />
+                      <span>3. Tuition Fee &amp; Level-Based Instalment Plan</span>
+                    </h4>
+                    <span className="px-2 py-0.5 rounded-xs bg-navy-900/10 text-navy-900 font-bold text-[10px]">
+                      {isLevelFiveOrAbove(enrolLevelLabel)
+                        ? `${enrolLevelLabel}: 6, 10, 12 & 14 Month Plans Available`
+                        : `${enrolLevelLabel}: 3, 6, 10 & 12 Month Plans Available`}
+                    </span>
+                  </div>
+
                   {/* Historical Student / Previous Enrolment */}
                   <div className="p-3 bg-amber-50/70 border border-amber-200/90 rounded-sm space-y-2.5">
                     <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -1455,81 +1871,39 @@ export const LearnersDirectory: React.FC<Props> = ({
                           const checked = e.target.checked;
                           setEnrolIsHistorical(checked);
                           if (checked && (!enrolAmountPaidToDate || enrolAmountPaidToDate === "0")) {
-                            setEnrolAmountPaidToDate(enrolPrice);
+                            setEnrolAmountPaidToDate(enrolDeposit);
                           }
                         }}
                         className="rounded text-navy-900 focus:ring-navy-900"
                       />
                       <span className="text-xs font-bold text-navy-900">
-                        Existing / Historical Student (Record Past Enrolment &amp; Payments to Date)
+                        Existing / Historical Student (Record Original Enrolment Date &amp; Notes)
                       </span>
                     </label>
-                    <p className="text-[11px] text-ink-soft leading-relaxed">
-                      Enable this to register previous or transferring students. Record their original enrolment date and how much they have already paid so the system tracks their accurate remaining balance.
-                    </p>
 
                     {enrolIsHistorical && (
-                      <div className="pt-2 border-t border-amber-200/60 space-y-3">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-[11px] font-semibold text-navy-900 mb-1">
-                              Original Enrolment Date *
-                            </label>
-                            <input
-                              type="date"
-                              required={enrolIsHistorical}
-                              value={enrolHistoricalDate}
-                              onChange={(e) => setEnrolHistoricalDate(e.target.value)}
-                              className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-mono"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-[11px] font-semibold text-navy-900 mb-1">
-                              Total Amount Paid to Date (£) *
-                            </label>
-                            <input
-                              type="number"
-                              min="0"
-                              max={enrolPrice}
-                              required={enrolIsHistorical}
-                              value={enrolAmountPaidToDate}
-                              onChange={(e) => setEnrolAmountPaidToDate(e.target.value)}
-                              placeholder="e.g. 900 or 1250"
-                              className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-mono font-bold text-emerald-800"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Live Balance Calculation Notice */}
-                        {(() => {
-                          const total = parseFloat(enrolPrice) || 0;
-                          const paid = parseFloat(enrolAmountPaidToDate) || 0;
-                          const bal = Math.max(0, total - paid);
-                          return (
-                            <div className="p-2.5 rounded bg-white border border-amber-200 text-xs flex items-center justify-between">
-                              <div>
-                                <span className="text-ink-soft block text-[10px]">Calculated Balance Remaining</span>
-                                <span className="font-bold text-sm font-mono text-navy-900">
-                                  {bal <= 0 ? "£0.00 (Fully Settled)" : `£${bal.toFixed(2)} Outstanding`}
-                                </span>
-                              </div>
-                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${bal <= 0 ? "bg-emerald-100 text-emerald-900" : "bg-amber-100 text-amber-900"}`}>
-                                {bal <= 0 ? "100% Settled" : "Remaining to Collect"}
-                              </span>
-                            </div>
-                          );
-                        })()}
-
+                      <div className="pt-2 border-t border-amber-200/60 grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <label className="block text-[11px] font-semibold text-navy-900 mb-1">
-                            Historical Payment Reference / Notes
+                            Original Enrolment Date *
+                          </label>
+                          <input
+                            type="date"
+                            required={enrolIsHistorical}
+                            value={enrolHistoricalDate}
+                            onChange={(e) => setEnrolHistoricalDate(e.target.value)}
+                            className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-semibold text-navy-900 mb-1">
+                            Payment Reference / Notes
                           </label>
                           <input
                             type="text"
                             value={enrolHistoricalNotes}
                             onChange={(e) => setEnrolHistoricalNotes(e.target.value)}
-                            placeholder="e.g. Paid £900 cash in Sept 2024 (Receipts #402 & #489), remaining £350 due across next 3 months"
+                            placeholder="e.g. Paid via BACS in Sept (Receipts #402)"
                             className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
                           />
                         </div>
@@ -1552,11 +1926,26 @@ export const LearnersDirectory: React.FC<Props> = ({
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-semibold text-navy-900 mb-1">Payment Schedule</label>
+                      <label className="block text-[11px] font-semibold text-navy-900 mb-1">Payment Structure</label>
                       <select
                         value={enrolPlanType}
-                        onChange={(e) => setEnrolPlanType(e.target.value as any)}
-                        className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
+                        onChange={(e) => {
+                          const pt = e.target.value as "full" | "instalments";
+                          setEnrolPlanType(pt);
+                          if (pt === "full") {
+                            if (enrolIsHistorical) {
+                              setEnrolAmountPaidToDate(enrolPrice);
+                            } else {
+                              setEnrolDeposit(enrolPrice);
+                            }
+                          } else {
+                            const allowed = getInstalmentMonthsForLevel(enrolLevelLabel);
+                            if (!allowed.includes(parseInt(enrolMonths, 10))) {
+                              setEnrolMonths(allowed[0].toString());
+                            }
+                          }
+                        }}
+                        className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-semibold"
                       >
                         <option value="instalments">Monthly 0% Instalments</option>
                         <option value="full">Full Upfront Payment</option>
@@ -1573,36 +1962,60 @@ export const LearnersDirectory: React.FC<Props> = ({
                       />
                     </div>
 
-                    {enrolPlanType === "instalments" && !enrolIsHistorical && (
-                      <>
-                        <div>
-                          <label className="block text-[11px] font-semibold text-navy-900 mb-1">Deposit Today (£)</label>
-                          <input
-                            type="number"
-                            value={enrolDeposit}
-                            onChange={(e) => setEnrolDeposit(e.target.value)}
-                            className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-mono"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-semibold text-navy-900 mb-1">Spread Months</label>
-                          <select
-                            value={enrolMonths}
-                            onChange={(e) => setEnrolMonths(e.target.value)}
-                            className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-mono"
-                          >
-                            <option value="3">3 Months</option>
-                            <option value="6">6 Months</option>
-                            <option value="10">10 Months</option>
-                            <option value="12">12 Months</option>
-                          </select>
-                        </div>
-                      </>
+                    {enrolPlanType === "instalments" && (
+                      <div>
+                        <label className="block text-[11px] font-semibold text-navy-900 mb-1">
+                          Instalment Plan ({enrolLevelLabel})
+                        </label>
+                        <select
+                          value={enrolMonths}
+                          onChange={(e) => setEnrolMonths(e.target.value)}
+                          className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-mono font-bold text-navy-900"
+                        >
+                          {getInstalmentMonthsForLevel(enrolLevelLabel).map((m) => {
+                            const totalNum = parseFloat(enrolPrice) || 0;
+                            const paidNum = enrolIsHistorical
+                              ? parseFloat(enrolAmountPaidToDate) || 0
+                              : parseFloat(enrolDeposit) || 0;
+                            const rem = Math.max(0, totalNum - paidNum);
+                            const perMonth = m > 0 ? (rem / m).toFixed(2) : "0.00";
+                            return (
+                              <option key={m} value={m.toString()}>
+                                {m} Months (£{perMonth}/mo)
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </div>
                     )}
+
+                    <div>
+                      <label className="block text-[11px] font-semibold text-navy-900 mb-1">
+                        {enrolIsHistorical
+                          ? "Amount Paid to Date (£) *"
+                          : enrolPlanType === "full"
+                          ? "Amount Paid Today (£)"
+                          : "Deposit / Amount Paid (£)"}
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max={enrolPrice}
+                        value={enrolIsHistorical ? enrolAmountPaidToDate : enrolDeposit}
+                        onChange={(e) => {
+                          if (enrolIsHistorical) {
+                            setEnrolAmountPaidToDate(e.target.value);
+                          } else {
+                            setEnrolDeposit(e.target.value);
+                          }
+                        }}
+                        className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-mono font-bold text-emerald-800"
+                      />
+                    </div>
 
                     {!enrolIsHistorical && (
                       <div>
-                        <label className="block text-[11px] font-semibold text-navy-900 mb-1">Deposit Payment Status</label>
+                        <label className="block text-[11px] font-semibold text-navy-900 mb-1">Payment Status</label>
                         <select
                           value={enrolPaymentStatus}
                           onChange={(e) => setEnrolPaymentStatus(e.target.value as any)}
@@ -1614,12 +2027,65 @@ export const LearnersDirectory: React.FC<Props> = ({
                       </div>
                     )}
                   </div>
+
+                  {/* Live Payment Tracking Breakdown */}
+                  {enrolFundingType !== "funded" && (() => {
+                    const total = parseFloat(enrolPrice) || 0;
+                    const paid = enrolIsHistorical
+                      ? parseFloat(enrolAmountPaidToDate) || 0
+                      : enrolPaymentStatus === "pending"
+                      ? 0
+                      : enrolPlanType === "full"
+                      ? parseFloat(enrolDeposit) || total
+                      : parseFloat(enrolDeposit) || 0;
+                    const bal = Math.max(0, total - paid);
+                    const mCount = enrolPlanType === "instalments" ? parseInt(enrolMonths, 10) || 6 : 1;
+                    const monthlyAmt = mCount > 1 ? Math.round((bal / mCount) * 100) / 100 : bal;
+
+                    return (
+                      <div className="p-3 rounded-sm bg-white border border-line grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+                        <div>
+                          <span className="text-[10px] text-ink-soft block">Selected Plan</span>
+                          <strong className="text-navy-900 font-bold text-xs">
+                            {enrolPlanType === "instalments" ? `${mCount}-Month Plan` : "Full Payment"}
+                          </strong>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-ink-soft block">Amount Paid</span>
+                          <strong className="text-emerald-700 font-mono text-xs">
+                            £{paid.toFixed(2)}
+                          </strong>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-ink-soft block">Balance Remaining</span>
+                          <strong className="text-amber-800 font-mono text-xs">
+                            £{bal.toFixed(2)}
+                          </strong>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-ink-soft block">
+                            {enrolPlanType === "instalments" ? `Monthly (${mCount}x)` : "Status"}
+                          </span>
+                          <strong className="text-navy-900 font-mono text-xs">
+                            {bal <= 0
+                              ? "Settled (£0)"
+                              : enrolPlanType === "instalments"
+                              ? `£${monthlyAmt.toFixed(2)}/mo`
+                              : `£${bal.toFixed(2)} Due`}
+                          </strong>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <div className="flex items-center justify-end gap-2 pt-3 border-t border-line">
                   <button
                     type="button"
-                    onClick={() => setIsEnrolModalOpen(false)}
+                    onClick={() => {
+                      setEnrolExistingLearner(null);
+                      setIsEnrolModalOpen(false);
+                    }}
                     className="px-3.5 py-2 rounded-sm border border-line bg-paper text-ink-soft hover:text-ink font-semibold"
                   >
                     Cancel
@@ -1630,7 +2096,13 @@ export const LearnersDirectory: React.FC<Props> = ({
                     className="px-4 py-2 rounded-sm bg-navy-900 hover:bg-navy-700 text-white font-bold transition-colors disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
                   >
                     <Icon name="check" size={14} />
-                    <span>{isEnrolling ? "Processing Enrolment..." : "Confirm & Send Welcome Email"}</span>
+                    <span>
+                      {isEnrolling
+                        ? "Saving Enrolment..."
+                        : enrolExistingLearner
+                        ? "Add Course & Save Payment Plan"
+                        : "Confirm & Send Welcome Email"}
+                    </span>
                   </button>
                 </div>
               </form>
@@ -1638,6 +2110,403 @@ export const LearnersDirectory: React.FC<Props> = ({
           </div>
         </div>
       )}
+
+      {/* Edit Learner & Enrolment Modal */}
+      {editingLearner && (() => {
+        const learnerEnrs = enrolments.filter((e) => e.learnerId === editingLearner.id);
+        const editCourseObj = availableCourses.find((c) => c.id === editCourseId) || availableCourses[0];
+        const editCourseLevels = editCourseObj?.levels || [];
+        const allowedEditMonths = getInstalmentMonthsForLevel(editLevelLabel);
+
+        return (
+          <div className="fixed inset-0 bg-ink/60 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-md border border-line shadow-xl max-w-2xl w-full p-6 space-y-4 max-h-[90vh] flex flex-col">
+              <div className="flex items-center justify-between border-b border-line pb-3">
+                <div>
+                  <h3 className="font-heading font-bold text-lg text-navy-900">
+                    Edit Learner Record &amp; Payment Plan
+                  </h3>
+                  <p className="text-xs text-ink-soft">
+                    Update student profile details, qualification level, cohort allocation, and instalment tracking.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditingLearner(null)}
+                  className="text-ink-soft hover:text-navy-900 text-lg font-bold p-1 cursor-pointer"
+                >
+                  &times;
+                </button>
+              </div>
+
+              <form
+                onSubmit={handleSaveEditedLearner}
+                className="overflow-y-auto pr-1 space-y-4 text-xs flex-1"
+              >
+                {/* Personal Details */}
+                <div className="space-y-3 p-3.5 bg-paper rounded-sm border border-line">
+                  <h4 className="font-bold text-navy-900 uppercase tracking-wider text-[11px]">
+                    1. Student Personal Details
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-navy-900 mb-1">First Name *</label>
+                      <input
+                        type="text"
+                        required
+                        value={editFirstName}
+                        onChange={(e) => setEditFirstName(e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-navy-900 mb-1">Last Name *</label>
+                      <input
+                        type="text"
+                        required
+                        value={editLastName}
+                        onChange={(e) => setEditLastName(e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-navy-900 mb-1">Email Address *</label>
+                      <input
+                        type="email"
+                        required
+                        value={editEmail}
+                        onChange={(e) => setEditEmail(e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-navy-900 mb-1">Phone Number *</label>
+                      <input
+                        type="tel"
+                        required
+                        value={editPhone}
+                        onChange={(e) => setEditPhone(e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-navy-900 mb-1">Date of Birth</label>
+                      <input
+                        type="date"
+                        value={editDob}
+                        onChange={(e) => setEditDob(e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-navy-900 mb-1">Postcode</label>
+                      <input
+                        type="text"
+                        value={editPostcode}
+                        onChange={(e) => setEditPostcode(e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-navy-900 mb-1">Address</label>
+                    <input
+                      type="text"
+                      value={editAddress}
+                      onChange={(e) => setEditAddress(e.target.value)}
+                      className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
+                    />
+                  </div>
+                </div>
+
+                {/* Course & Level Selection */}
+                {editEnrolmentId && (
+                  <div className="space-y-3 p-3.5 bg-paper rounded-sm border border-line">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <h4 className="font-bold text-navy-900 uppercase tracking-wider text-[11px]">
+                        2. Enrolled Course, Level &amp; Cohort
+                      </h4>
+                      {learnerEnrs.length > 1 && (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[11px] font-semibold text-ink-soft">Editing Course:</span>
+                          <select
+                            value={editEnrolmentId}
+                            onChange={(e) => {
+                              const target = learnerEnrs.find((x) => x.id === e.target.value);
+                              if (target) populateEditEnrolmentFields(editingLearner.id, target);
+                            }}
+                            className="px-2 py-1 rounded-sm border border-navy-900 bg-white text-navy-900 font-bold text-xs"
+                          >
+                            {learnerEnrs.map((enrItem, i) => (
+                              <option key={enrItem.id} value={enrItem.id}>
+                                Course #{i + 1}: {enrItem.courseTitle} ({enrItem.courseLevelLabel})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="sm:col-span-2">
+                        <label className="block text-[11px] font-semibold text-navy-900 mb-1">Qualification</label>
+                        <select
+                          value={editCourseId}
+                          onChange={(e) => {
+                            const cid = e.target.value;
+                            setEditCourseId(cid);
+                            const c = availableCourses.find((x) => x.id === cid);
+                            if (c && c.levels && c.levels.length > 0) {
+                              const firstLvl = c.levels[0].level_label;
+                              setEditLevelLabel(firstLvl);
+                              setEditTotalPrice(c.levels[0].price_gbp.toString());
+                              const allowed = getInstalmentMonthsForLevel(firstLvl);
+                              if (!allowed.includes(parseInt(editMonths, 10))) {
+                                setEditMonths(allowed[0].toString());
+                              }
+                            }
+                          }}
+                          className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-medium"
+                        >
+                          {availableCourses.map((c) => {
+                            const levelSummary = (c.levels || [])
+                              .map((l) => `${l.level_label}: £${l.price_gbp}`)
+                              .join(", ");
+                            return (
+                              <option key={c.id} value={c.id}>
+                                {c.title} ({c.category}){levelSummary ? ` — [${levelSummary}]` : ""}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-semibold text-navy-900 mb-1">Qualification Level</label>
+                        <select
+                          value={editLevelLabel}
+                          onChange={(e) => {
+                            const lvl = e.target.value;
+                            setEditLevelLabel(lvl);
+                            const found = editCourseLevels.find((l) => l.level_label === lvl);
+                            if (found) {
+                              setEditTotalPrice(found.price_gbp.toString());
+                            }
+                            const allowed = getInstalmentMonthsForLevel(lvl);
+                            if (!allowed.includes(parseInt(editMonths, 10))) {
+                              setEditMonths(allowed[0].toString());
+                            }
+                          }}
+                          className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-medium"
+                        >
+                          {editCourseLevels.map((lvl) => (
+                            <option key={lvl.level_label} value={lvl.level_label}>
+                              {lvl.level_label} (£{lvl.price_gbp})
+                            </option>
+                          ))}
+                          {["Level 2", "Level 3", "Level 4", "Level 5", "Level 6", "Level 7", "CPD / Short Course"]
+                            .filter(
+                              (std) =>
+                                !editCourseLevels.some(
+                                  (l) => l.level_label.toLowerCase() === std.toLowerCase()
+                                )
+                            )
+                            .map((std) => (
+                              <option key={std} value={std}>
+                                {std}
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-semibold text-navy-900 mb-1">Cohort Group</label>
+                        <select
+                          value={editClassId}
+                          onChange={(e) => setEditClassId(e.target.value)}
+                          className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
+                        >
+                          {classes.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.name} ({c.scheduleDescription || c.intakeLabel})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-semibold text-navy-900 mb-1">Assigned Tutor</label>
+                        <select
+                          value={editTutorName}
+                          onChange={(e) => setEditTutorName(e.target.value)}
+                          className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
+                        >
+                          <option value="Unassigned / TBA">Unassigned / TBA</option>
+                          {tutors.map((t) => (
+                            <option key={t.id} value={t.name}>
+                              {t.name} ({t.email})
+                            </option>
+                          ))}
+                          {editTutorName &&
+                            editTutorName !== "Unassigned / TBA" &&
+                            !tutors.some((t) => t.name === editTutorName) && (
+                              <option value={editTutorName}>{editTutorName}</option>
+                            )}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-semibold text-navy-900 mb-1">Session Timing</label>
+                        <select
+                          value={editTiming}
+                          onChange={(e) => setEditTiming(e.target.value as any)}
+                          className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
+                        >
+                          <option value="evening">Evening Session (18:30 – 20:30)</option>
+                          <option value="afternoon">Afternoon Session (14:00 – 16:00)</option>
+                          <option value="self_paced">Flexible / 1-on-1 Tutoring</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Payment Plan & Fee Structure (Owner / Super Admin) */}
+                {canManagePayments && editEnrolmentId && (
+                  <div className="space-y-3 p-3.5 bg-paper rounded-sm border border-line">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <h4 className="font-bold text-navy-900 uppercase tracking-wider text-[11px]">
+                        3. Payment Plan &amp; Amount Paid ({editLevelLabel})
+                      </h4>
+                      <span className="px-2 py-0.5 rounded-xs bg-navy-900/10 text-navy-900 font-bold text-[10px]">
+                        {isLevelFiveOrAbove(editLevelLabel)
+                          ? "Level 5+: 6, 10, 12 & 14 Month Plans"
+                          : "Level 2–4: 3, 6, 10 & 12 Month Plans"}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-navy-900 mb-1">Payment Structure</label>
+                        <select
+                          value={editPlanType}
+                          onChange={(e) => {
+                            const pt = e.target.value as "full" | "instalments";
+                            setEditPlanType(pt);
+                            if (pt === "instalments") {
+                              const allowed = getInstalmentMonthsForLevel(editLevelLabel);
+                              if (!allowed.includes(parseInt(editMonths, 10))) {
+                                setEditMonths(allowed[0].toString());
+                              }
+                            }
+                          }}
+                          className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-semibold"
+                        >
+                          <option value="instalments">Monthly 0% Instalments</option>
+                          <option value="full">Full Upfront Payment</option>
+                        </select>
+                      </div>
+
+                      {editPlanType === "instalments" && (
+                        <div>
+                          <label className="block text-[11px] font-semibold text-navy-900 mb-1">
+                            Instalment Plan ({editLevelLabel})
+                          </label>
+                          <select
+                            value={editMonths}
+                            onChange={(e) => setEditMonths(e.target.value)}
+                            className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-mono font-bold text-navy-900"
+                          >
+                            {allowedEditMonths.map((m) => {
+                              const tot = parseFloat(editTotalPrice) || 0;
+                              const pd = parseFloat(editAmountPaid) || 0;
+                              const rem = Math.max(0, tot - pd);
+                              return (
+                                <option key={m} value={m.toString()}>
+                                  {m} Months (£{(rem / m).toFixed(2)}/mo remaining)
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </div>
+                      )}
+
+                      <div>
+                        <label className="block text-[11px] font-semibold text-navy-900 mb-1">
+                          Total Course Fee (£)
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={editTotalPrice}
+                          onChange={(e) => setEditTotalPrice(e.target.value)}
+                          className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-mono font-bold text-navy-900"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-semibold text-navy-900 mb-1">
+                          Amount Paid So Far (£)
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          max={editTotalPrice}
+                          value={editAmountPaid}
+                          onChange={(e) => setEditAmountPaid(e.target.value)}
+                          className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-mono font-bold text-emerald-800"
+                        />
+                      </div>
+                    </div>
+
+                    {(() => {
+                      const tot = parseFloat(editTotalPrice) || 0;
+                      const pd = parseFloat(editAmountPaid) || 0;
+                      const bal = Math.max(0, tot - pd);
+                      const mCount = editPlanType === "instalments" ? parseInt(editMonths, 10) || 6 : 1;
+                      const monthly = mCount > 1 ? bal / mCount : bal;
+                      return (
+                        <div className="p-2.5 rounded-sm bg-white border border-line flex items-center justify-between text-xs">
+                          <div>
+                            <span className="text-ink-soft text-[10px] block">Updated Plan &amp; Balance</span>
+                            <strong className="text-navy-900 font-mono">
+                              {editPlanType === "instalments" ? `${mCount}-Month Plan` : "Full Payment"} · £{bal.toFixed(2)} Remaining
+                            </strong>
+                          </div>
+                          <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-900 border border-emerald-200 font-mono font-bold text-[11px]">
+                            {bal <= 0
+                              ? "Settled (£0)"
+                              : editPlanType === "instalments"
+                              ? `£${monthly.toFixed(2)} / month`
+                              : `£${bal.toFixed(2)} Due`}
+                          </span>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-line">
+                  <button
+                    type="button"
+                    onClick={() => setEditingLearner(null)}
+                    className="px-3.5 py-2 rounded-sm border border-line bg-paper text-ink-soft hover:text-ink font-semibold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSavingEdit}
+                    className="px-4 py-2 rounded-sm bg-navy-900 hover:bg-navy-700 text-white font-bold transition-colors disabled:opacity-50 cursor-pointer"
+                  >
+                    {isSavingEdit ? "Saving Changes..." : "Save Learner & Plan"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Quick Record Payment Modal */}
       {paymentModalLearner && (

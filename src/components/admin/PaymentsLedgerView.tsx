@@ -88,7 +88,7 @@ export function PaymentsLedgerView({
   );
   const [enrolCourseId, setEnrolCourseId] = useState("diploma-in-adult-care");
   const [enrolPlanChoice, setEnrolPlanChoice] = useState<
-    "full" | "plan-3m" | "plan-6m" | "plan-10m" | "plan-12m"
+    "full" | "plan-3m" | "plan-6m" | "plan-10m" | "plan-12m" | "plan-14m"
   >("plan-10m");
   const [enrolAmount, setEnrolAmount] = useState("100.00");
   const [enrolMethod, setEnrolMethod] = useState<"stripe" | "bank_transfer">(
@@ -105,6 +105,7 @@ export function PaymentsLedgerView({
   >("all");
 
   const getCourseFee = (cId: string) => {
+    if (cId === "diploma-in-adult-care-l5") return 1900;
     if (cId === "children-young-people-workforce") return 1450;
     if (cId === "award-in-education-and-training") return 495;
     return 1400; // default Level 3 Adult Care
@@ -164,6 +165,20 @@ export function PaymentsLedgerView({
         monthly,
         finalMonthly: Math.round((remaining - monthly * 10) * 100) / 100,
         label: `12-Month Plan (£${deposit.toFixed(2)} Dep + 11x £${monthly.toFixed(2)})`,
+      };
+    }
+    if (choice === "plan-14m") {
+      const deposit = Math.min(150, fee);
+      const remaining = fee - deposit;
+      const monthly = Math.round((remaining / 13) * 100) / 100;
+      return {
+        type: "instalment_deposit" as const,
+        months: 14,
+        totalFee: fee,
+        deposit,
+        monthly,
+        finalMonthly: Math.round((remaining - monthly * 12) * 100) / 100,
+        label: `14-Month Plan (£${deposit.toFixed(2)} Dep + 13x £${monthly.toFixed(2)})`,
       };
     }
     // Default: 10 months
@@ -2020,14 +2035,33 @@ export function PaymentsLedgerView({
                   onChange={(e) => {
                     const newCourseId = e.target.value;
                     setEnrolCourseId(newCourseId);
-                    if (newCourseId === "diploma-in-adult-care") {
+                    let nextPlan = enrolPlanChoice;
+                    if (newCourseId === "diploma-in-adult-care-l5") {
+                      setEnrolCourseTitle("Diploma in Adult Care (RQF Level 5)");
+                      if (nextPlan === "plan-3m") {
+                        nextPlan = "plan-6m";
+                        setEnrolPlanChoice("plan-6m");
+                      }
+                    } else if (newCourseId === "diploma-in-adult-care") {
                       setEnrolCourseTitle("Diploma in Adult Care (RQF Level 3)");
+                      if (nextPlan === "plan-14m") {
+                        nextPlan = "plan-12m";
+                        setEnrolPlanChoice("plan-12m");
+                      }
                     } else if (newCourseId === "children-young-people-workforce") {
-                      setEnrolCourseTitle("Children & Young People Workforce (CYPW)");
+                      setEnrolCourseTitle("Children & Young People Workforce (CYPW Level 3)");
+                      if (nextPlan === "plan-14m") {
+                        nextPlan = "plan-12m";
+                        setEnrolPlanChoice("plan-12m");
+                      }
                     } else {
                       setEnrolCourseTitle("Award in Education and Training (AET Level 3)");
+                      if (nextPlan === "plan-14m") {
+                        nextPlan = "plan-12m";
+                        setEnrolPlanChoice("plan-12m");
+                      }
                     }
-                    const pd = calculatePlanDetails(newCourseId, enrolPlanChoice);
+                    const pd = calculatePlanDetails(newCourseId, nextPlan);
                     setEnrolAmount(pd.deposit.toFixed(2));
                   }}
                   className="w-full px-3 py-2 border border-line rounded-sm text-sm bg-white focus:outline-none focus:border-navy-900"
@@ -2035,8 +2069,11 @@ export function PaymentsLedgerView({
                   <option value="diploma-in-adult-care">
                     Diploma in Adult Care (RQF Level 3 — £1,400)
                   </option>
+                  <option value="diploma-in-adult-care-l5">
+                    Diploma in Adult Care (RQF Level 5 — £1,900)
+                  </option>
                   <option value="children-young-people-workforce">
-                    Children & Young People Workforce (CYPW — £1,450)
+                    Children & Young People Workforce (CYPW Level 3 — £1,450)
                   </option>
                   <option value="award-in-education-and-training">
                     Award in Education and Training (AET Level 3 — £495)
@@ -2047,7 +2084,7 @@ export function PaymentsLedgerView({
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-navy-900 uppercase tracking-wider mb-1">
-                    Instalment Plan Option
+                    Instalment Plan Option ({enrolCourseId.includes("l5") ? "Level 5+: 6, 10, 12, 14m" : "Level 2–4: 3, 6, 10, 12m"})
                   </label>
                   <select
                     value={enrolPlanChoice}
@@ -2059,10 +2096,15 @@ export function PaymentsLedgerView({
                     }}
                     className="w-full px-3 py-2 border border-line rounded-sm text-sm bg-white focus:outline-none focus:border-navy-900"
                   >
-                    <option value="plan-10m">10 Monthly Payments (£100 deposit)</option>
-                    <option value="plan-3m">3 Monthly Payments (20% deposit)</option>
+                    {!enrolCourseId.includes("l5") && (
+                      <option value="plan-3m">3 Monthly Payments (20% deposit)</option>
+                    )}
                     <option value="plan-6m">6 Monthly Payments (15% deposit)</option>
+                    <option value="plan-10m">10 Monthly Payments (£100 deposit)</option>
                     <option value="plan-12m">12 Monthly Payments (£100 deposit)</option>
+                    {enrolCourseId.includes("l5") && (
+                      <option value="plan-14m">14 Monthly Payments (£100 deposit)</option>
+                    )}
                     <option value="full">Pay in Full (10% upfront discount)</option>
                   </select>
                 </div>
