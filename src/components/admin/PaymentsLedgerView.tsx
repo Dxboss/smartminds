@@ -733,12 +733,11 @@ export function PaymentsLedgerView({
             reportType === "balances_owing"
               ? "balances-debtors"
               : reportType === "transactions"
-              ? "transactions-receipts"
-              : "instalment-schedules";
+                ? "transactions-receipts"
+                : "instalment-schedules";
           link.setAttribute(
             "download",
-            `smartminds-${reportSuffix}-${timeframe}-${
-              new Date().toISOString().split("T")[0]
+            `smartminds-${reportSuffix}-${timeframe}-${new Date().toISOString().split("T")[0]
             }.csv`
           );
           document.body.appendChild(link);
@@ -981,44 +980,40 @@ export function PaymentsLedgerView({
       <div className="flex border-b border-line gap-6 overflow-x-auto">
         <button
           onClick={() => setActiveTab("balances")}
-          className={`pb-3 text-sm font-semibold transition-colors border-b-2 flex items-center gap-2 whitespace-nowrap ${
-            activeTab === "balances"
+          className={`pb-3 text-sm font-semibold transition-colors border-b-2 flex items-center gap-2 whitespace-nowrap ${activeTab === "balances"
               ? "border-navy-900 text-navy-900"
               : "border-transparent text-ink-soft hover:text-navy-900"
-          }`}
+            }`}
         >
           <Icon name="users" size={16} />
           <span>Learner Balances & Owing ({owingLearnersCount} Owing)</span>
         </button>
         <button
           onClick={() => setActiveTab("schedules")}
-          className={`pb-3 text-sm font-semibold transition-colors border-b-2 flex items-center gap-2 whitespace-nowrap ${
-            activeTab === "schedules"
+          className={`pb-3 text-sm font-semibold transition-colors border-b-2 flex items-center gap-2 whitespace-nowrap ${activeTab === "schedules"
               ? "border-navy-900 text-navy-900"
               : "border-transparent text-ink-soft hover:text-navy-900"
-          }`}
+            }`}
         >
           <Icon name="calendar" size={16} />
           <span>Monthly Instalment Schedules ({schedules.length})</span>
         </button>
         <button
           onClick={() => setActiveTab("records")}
-          className={`pb-3 text-sm font-semibold transition-colors border-b-2 flex items-center gap-2 whitespace-nowrap ${
-            activeTab === "records"
+          className={`pb-3 text-sm font-semibold transition-colors border-b-2 flex items-center gap-2 whitespace-nowrap ${activeTab === "records"
               ? "border-navy-900 text-navy-900"
               : "border-transparent text-ink-soft hover:text-navy-900"
-          }`}
+            }`}
         >
           <Icon name="file-text" size={16} />
           <span>Cleared Transactions ({records.length})</span>
         </button>
         <button
           onClick={() => setActiveTab("gateway")}
-          className={`pb-3 text-sm font-semibold transition-colors border-b-2 flex items-center gap-2 whitespace-nowrap ${
-            activeTab === "gateway"
+          className={`pb-3 text-sm font-semibold transition-colors border-b-2 flex items-center gap-2 whitespace-nowrap ${activeTab === "gateway"
               ? "border-navy-900 text-navy-900"
               : "border-transparent text-ink-soft hover:text-navy-900"
-          }`}
+            }`}
         >
           <Icon name="credit-card" size={16} />
           <span>Banking Gateway</span>
@@ -1055,11 +1050,10 @@ export function PaymentsLedgerView({
                 <button
                   key={btn.id}
                   onClick={() => setPlanFilter(btn.id as any)}
-                  className={`px-3 py-1.5 rounded-sm text-xs font-semibold transition-colors ${
-                    planFilter === btn.id
+                  className={`px-3 py-1.5 rounded-sm text-xs font-semibold transition-colors ${planFilter === btn.id
                       ? "bg-navy-900 text-white"
                       : "bg-paper text-ink-soft border border-line hover:text-navy-900"
-                  }`}
+                    }`}
                 >
                   {btn.label}
                 </button>
@@ -1099,17 +1093,16 @@ export function PaymentsLedgerView({
                       const percentPaid =
                         p.totalAmountGbp > 0
                           ? Math.min(
-                              100,
-                              Math.round((p.totalPaidGbp / p.totalAmountGbp) * 100)
-                            )
+                            100,
+                            Math.round((p.totalPaidGbp / p.totalAmountGbp) * 100)
+                          )
                           : 100;
 
                       return (
                         <React.Fragment key={p.enrolmentId}>
                           <tr
-                            className={`hover:bg-paper/50 transition-colors ${
-                              isOverdue ? "bg-amber-50/40" : ""
-                            }`}
+                            className={`hover:bg-paper/50 transition-colors ${isOverdue ? "bg-amber-50/40" : ""
+                              }`}
                           >
                             <td className="py-3.5 px-4 font-semibold text-navy-900">
                               <span className="block font-bold">
@@ -1188,15 +1181,14 @@ export function PaymentsLedgerView({
                             </td>
                             <td className="py-3.5 px-4 text-center">
                               <span
-                                className={`px-2.5 py-0.5 rounded-sm text-xs font-semibold uppercase tracking-wider ${
-                                  p.status === "settled"
+                                className={`px-2.5 py-0.5 rounded-sm text-xs font-semibold uppercase tracking-wider ${p.status === "settled"
                                     ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                                     : p.status === "overdue"
-                                    ? "bg-rose-100 text-rose-800 border border-rose-200 animate-pulse"
-                                    : p.status === "due"
-                                    ? "bg-amber-100 text-amber-800 border border-amber-200"
-                                    : "bg-blue-50 text-blue-800 border border-blue-200"
-                                }`}
+                                      ? "bg-rose-100 text-rose-800 border border-rose-200 animate-pulse"
+                                      : p.status === "due"
+                                        ? "bg-amber-100 text-amber-800 border border-amber-200"
+                                        : "bg-blue-50 text-blue-800 border border-blue-200"
+                                  }`}
                               >
                                 {p.status.replace("_", " ")}
                               </span>
@@ -1317,32 +1309,31 @@ export function PaymentsLedgerView({
                                             </td>
                                             <td className="py-2.5 px-3 text-center">
                                               <span
-                                                className={`px-2 py-0.5 rounded-xs text-[10px] font-bold uppercase tracking-wider ${
-                                                  s.status === "paid"
+                                                className={`px-2 py-0.5 rounded-xs text-[10px] font-bold uppercase tracking-wider ${s.status === "paid"
                                                     ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                                                     : s.status === "action_required" || s.adminQuery
-                                                    ? "bg-rose-50 text-rose-800 border border-rose-200"
-                                                    : s.status === "awaiting_confirmation" || s.reportedTransfer
-                                                    ? "bg-amber-50 text-amber-900 border border-amber-300 font-bold"
-                                                    : s.status === "overdue"
-                                                    ? "bg-rose-100 text-rose-800 border border-rose-200"
-                                                    : "bg-paper text-ink-soft border border-line"
-                                                }`}
+                                                      ? "bg-rose-50 text-rose-800 border border-rose-200"
+                                                      : s.status === "awaiting_confirmation" || s.reportedTransfer
+                                                        ? "bg-amber-50 text-amber-900 border border-amber-300 font-bold"
+                                                        : s.status === "overdue"
+                                                          ? "bg-rose-100 text-rose-800 border border-rose-200"
+                                                          : "bg-paper text-ink-soft border border-line"
+                                                  }`}
                                               >
                                                 {s.status === "paid"
                                                   ? "PAID"
                                                   : s.status === "action_required" || s.adminQuery
-                                                  ? "QUERY SENT"
-                                                  : s.status === "awaiting_confirmation" || s.reportedTransfer
-                                                  ? "REPORTED (Awaiting Confirmation)"
-                                                  : s.status.toUpperCase()}
+                                                    ? "QUERY SENT"
+                                                    : s.status === "awaiting_confirmation" || s.reportedTransfer
+                                                      ? "REPORTED (Awaiting Confirmation)"
+                                                      : s.status.toUpperCase()}
                                               </span>
                                             </td>
                                             <td className="py-2.5 px-3 text-ink-soft">
                                               {s.paidAt
                                                 ? new Date(
-                                                    s.paidAt
-                                                  ).toLocaleDateString("en-GB")
+                                                  s.paidAt
+                                                ).toLocaleDateString("en-GB")
                                                 : "—"}
                                             </td>
                                             <td className="py-2.5 px-3 text-ink-soft font-mono text-[11px]">
@@ -1398,8 +1389,7 @@ export function PaymentsLedgerView({
                                                           s.amountGbp.toString()
                                                         );
                                                         setReference(
-                                                          `BACS-INST-${
-                                                            s.instalmentNumber
+                                                          `BACS-INST-${s.instalmentNumber
                                                           }-${Date.now()
                                                             .toString()
                                                             .slice(-4)}`
@@ -1518,19 +1508,18 @@ export function PaymentsLedgerView({
                         </td>
                         <td className="py-3 px-4 whitespace-nowrap">
                           <span
-                            className={`px-2 py-0.5 rounded-sm text-xs font-semibold ${
-                              r.method === "stripe"
+                            className={`px-2 py-0.5 rounded-sm text-xs font-semibold ${r.method === "stripe"
                                 ? "bg-indigo-50 text-indigo-700"
                                 : r.method === "bank_transfer"
-                                ? "bg-emerald-50 text-emerald-700"
-                                : "bg-slate-100 text-slate-700"
-                            }`}
+                                  ? "bg-emerald-50 text-emerald-700"
+                                  : "bg-slate-100 text-slate-700"
+                              }`}
                           >
                             {r.method === "stripe"
                               ? "Stripe"
                               : r.method === "bank_transfer"
-                              ? "Bank Transfer"
-                              : "Manual"}
+                                ? "Bank Transfer"
+                                : "Manual"}
                           </span>
                         </td>
                         <td className="py-3 px-4 font-mono text-xs text-ink-soft">
@@ -1541,11 +1530,10 @@ export function PaymentsLedgerView({
                         </td>
                         <td className="py-3 px-4 text-center">
                           <span
-                            className={`px-2 py-0.5 rounded-sm text-xs font-semibold ${
-                              r.status === "paid"
+                            className={`px-2 py-0.5 rounded-sm text-xs font-semibold ${r.status === "paid"
                                 ? "bg-emerald-50 text-emerald-700"
                                 : "bg-rose-50 text-rose-700"
-                            }`}
+                              }`}
                           >
                             {r.status === "paid" ? "Cleared" : "Refunded"}
                           </span>
@@ -1645,11 +1633,10 @@ export function PaymentsLedgerView({
                     type="button"
                     disabled={isPending}
                     onClick={() => handleUpdateGlobalGrace(days)}
-                    className={`px-3 py-1.5 rounded-sm text-xs font-bold transition-colors ${
-                      globalGraceInput === days
+                    className={`px-3 py-1.5 rounded-sm text-xs font-bold transition-colors ${globalGraceInput === days
                         ? "bg-navy-900 text-white"
                         : "bg-paper text-navy-900 border border-line hover:bg-gold-300"
-                    }`}
+                      }`}
                   >
                     {days} Days
                   </button>
@@ -1700,11 +1687,10 @@ export function PaymentsLedgerView({
                 <button
                   key={btn.id}
                   onClick={() => setScheduleStatusFilter(btn.id as any)}
-                  className={`px-3 py-1.5 rounded-sm text-xs font-semibold transition-colors ${
-                    scheduleStatusFilter === btn.id
+                  className={`px-3 py-1.5 rounded-sm text-xs font-semibold transition-colors ${scheduleStatusFilter === btn.id
                       ? "bg-navy-900 text-white"
                       : "bg-paper text-ink-soft border border-line hover:text-navy-900"
-                  }`}
+                    }`}
                 >
                   {btn.label}
                 </button>
@@ -1741,9 +1727,8 @@ export function PaymentsLedgerView({
                       return (
                         <tr
                           key={s.id}
-                          className={`hover:bg-paper/50 transition-colors ${
-                            isOverdue ? "bg-amber-50/30" : ""
-                          }`}
+                          className={`hover:bg-paper/50 transition-colors ${isOverdue ? "bg-amber-50/30" : ""
+                            }`}
                         >
                           <td className="py-3 px-4 font-semibold text-navy-900">
                             {learner
@@ -1767,25 +1752,24 @@ export function PaymentsLedgerView({
                           </td>
                           <td className="py-3 px-4 text-center">
                             <span
-                              className={`px-2.5 py-0.5 rounded-sm text-xs font-semibold inline-flex items-center gap-1 ${
-                                s.status === "paid"
+                              className={`px-2.5 py-0.5 rounded-sm text-xs font-semibold inline-flex items-center gap-1 ${s.status === "paid"
                                   ? "bg-emerald-50 text-emerald-700"
                                   : s.status === "action_required" || s.adminQuery
-                                  ? "bg-rose-50 text-rose-800 border border-rose-200"
-                                  : s.status === "awaiting_confirmation" || s.reportedTransfer
-                                  ? "bg-amber-50 text-amber-900 border border-amber-300 font-bold"
-                                  : s.status === "overdue"
-                                  ? "bg-rose-100 text-rose-800"
-                                  : "bg-paper text-ink-soft border border-line"
-                              }`}
+                                    ? "bg-rose-50 text-rose-800 border border-rose-200"
+                                    : s.status === "awaiting_confirmation" || s.reportedTransfer
+                                      ? "bg-amber-50 text-amber-900 border border-amber-300 font-bold"
+                                      : s.status === "overdue"
+                                        ? "bg-rose-100 text-rose-800"
+                                        : "bg-paper text-ink-soft border border-line"
+                                }`}
                             >
                               {s.status === "paid"
                                 ? "PAID"
                                 : s.status === "action_required" || s.adminQuery
-                                ? "QUERY SENT"
-                                : s.status === "awaiting_confirmation" || s.reportedTransfer
-                                ? "REPORTED (Awaiting Confirmation)"
-                                : s.status.toUpperCase()}
+                                  ? "QUERY SENT"
+                                  : s.status === "awaiting_confirmation" || s.reportedTransfer
+                                    ? "REPORTED (Awaiting Confirmation)"
+                                    : s.status.toUpperCase()}
                             </span>
                             {s.reportedTransfer && (
                               <div className="text-[10px] text-ink-soft mt-0.5 font-mono">
@@ -2409,11 +2393,10 @@ export function PaymentsLedgerView({
                       key={d}
                       type="button"
                       onClick={() => setCustomGraceDaysInput(d)}
-                      className={`py-1.5 text-xs font-bold rounded-sm border transition-colors ${
-                        customGraceDaysInput === d
+                      className={`py-1.5 text-xs font-bold rounded-sm border transition-colors ${customGraceDaysInput === d
                           ? "bg-navy-900 text-white border-navy-900"
                           : "bg-paper text-navy-900 border-line hover:bg-gold-300"
-                      }`}
+                        }`}
                     >
                       +{d} days
                     </button>
@@ -2468,36 +2451,47 @@ export function PaymentsLedgerView({
               html, body {
                 margin: 0 !important;
                 padding: 0 !important;
-                height: auto !important;
-                min-height: 0 !important;
                 background: #ffffff !important;
-                overflow: visible !important;
+                height: 100% !important;
+                overflow: hidden !important;
               }
-              body > *:not(.receipt-modal-overlay) {
+              header, nav, footer, aside, .impersonation-bar, .no-print {
                 display: none !important;
               }
-              header, nav, footer, aside, .impersonation-bar {
-                display: none !important;
+              body * {
+                visibility: hidden !important;
               }
               .receipt-modal-overlay {
-                position: static !important;
-                inset: auto !important;
-                display: block !important;
-                background: transparent !important;
-                padding: 0 !important;
-                margin: 0 !important;
+                visibility: visible !important;
+                position: fixed !important;
+                left: 0 !important;
+                top: 0 !important;
+                right: 0 !important;
+                bottom: 0 !important;
                 width: 100% !important;
-                height: auto !important;
-                overflow: visible !important;
+                height: 100% !important;
+                background: #ffffff !important;
+                padding: 16px !important;
+                margin: 0 !important;
+                z-index: 9999999 !important;
+                display: flex !important;
+                align-items: flex-start !important;
+                justify-content: center !important;
+                overflow: hidden !important;
                 backdrop-filter: none !important;
               }
+              .receipt-modal-overlay,
+              .receipt-modal-overlay * {
+                visibility: visible !important;
+              }
               #printable-receipt-modal {
-                position: static !important;
+                visibility: visible !important;
+                position: relative !important;
                 display: block !important;
                 width: 100% !important;
-                max-width: 100% !important;
+                max-width: 660px !important;
                 margin: 0 auto !important;
-                padding: 16px !important;
+                padding: 18px !important;
                 border: 1px solid #1b1b2b !important;
                 border-radius: 4px !important;
                 box-shadow: none !important;
@@ -2507,7 +2501,7 @@ export function PaymentsLedgerView({
                 break-inside: avoid !important;
               }
               #printable-receipt-modal img {
-                max-height: 320px !important;
+                max-height: 280px !important;
                 width: auto !important;
                 page-break-inside: avoid !important;
                 break-inside: avoid !important;
@@ -2613,7 +2607,7 @@ export function PaymentsLedgerView({
               {receiptPreviewModal.schedule.reportedTransfer?.receiptUrl ? (
                 <div className="border border-line rounded-sm p-3 bg-paper/50 text-center space-y-2">
                   {receiptPreviewModal.schedule.reportedTransfer.receiptUrl.startsWith("data:image") ||
-                  /\.(png|jpe?g|webp|gif)($|\?)/i.test(receiptPreviewModal.schedule.reportedTransfer.receiptUrl) ? (
+                    /\.(png|jpe?g|webp|gif)($|\?)/i.test(receiptPreviewModal.schedule.reportedTransfer.receiptUrl) ? (
                     <div className="space-y-2">
                       <img
                         src={receiptPreviewModal.schedule.reportedTransfer.receiptUrl}
@@ -2716,36 +2710,47 @@ export function PaymentsLedgerView({
               html, body {
                 margin: 0 !important;
                 padding: 0 !important;
-                height: auto !important;
-                min-height: 0 !important;
                 background: #ffffff !important;
-                overflow: visible !important;
+                height: 100% !important;
+                overflow: hidden !important;
               }
-              body > *:not(.receipt-modal-overlay) {
+              header, nav, footer, aside, .impersonation-bar, .no-print {
                 display: none !important;
               }
-              header, nav, footer, aside, .impersonation-bar {
-                display: none !important;
+              body * {
+                visibility: hidden !important;
               }
               .receipt-modal-overlay {
-                position: static !important;
-                inset: auto !important;
-                display: block !important;
-                background: transparent !important;
-                padding: 0 !important;
-                margin: 0 !important;
+                visibility: visible !important;
+                position: fixed !important;
+                left: 0 !important;
+                top: 0 !important;
+                right: 0 !important;
+                bottom: 0 !important;
                 width: 100% !important;
-                height: auto !important;
-                overflow: visible !important;
+                height: 100% !important;
+                background: #ffffff !important;
+                padding: 16px !important;
+                margin: 0 !important;
+                z-index: 9999999 !important;
+                display: flex !important;
+                align-items: flex-start !important;
+                justify-content: center !important;
+                overflow: hidden !important;
                 backdrop-filter: none !important;
               }
+              .receipt-modal-overlay,
+              .receipt-modal-overlay * {
+                visibility: visible !important;
+              }
               #printable-receipt-modal {
-                position: static !important;
+                visibility: visible !important;
+                position: relative !important;
                 display: block !important;
                 width: 100% !important;
-                max-width: 100% !important;
+                max-width: 660px !important;
                 margin: 0 auto !important;
-                padding: 16px !important;
+                padding: 18px !important;
                 border: 1px solid #1b1b2b !important;
                 border-radius: 4px !important;
                 box-shadow: none !important;
@@ -2755,7 +2760,7 @@ export function PaymentsLedgerView({
                 break-inside: avoid !important;
               }
               #printable-receipt-modal img {
-                max-height: 320px !important;
+                max-height: 280px !important;
                 width: auto !important;
                 page-break-inside: avoid !important;
                 break-inside: avoid !important;
@@ -2857,8 +2862,8 @@ export function PaymentsLedgerView({
                     {paidReceiptModal.method === "stripe"
                       ? "Debit / Credit Card (Stripe)"
                       : paidReceiptModal.method === "bank_transfer"
-                      ? "BACS Bank Transfer"
-                      : paidReceiptModal.method || "Bank Transfer"}
+                        ? "BACS Bank Transfer"
+                        : paidReceiptModal.method || "Bank Transfer"}
                   </span>
                 </div>
                 <div>
@@ -2894,7 +2899,7 @@ export function PaymentsLedgerView({
                 </div>
 
                 {paidReceiptModal.receiptUrl.startsWith("data:image") ||
-                /\.(png|jpe?g|webp|gif)($|\?)/i.test(paidReceiptModal.receiptUrl) ? (
+                  /\.(png|jpe?g|webp|gif)($|\?)/i.test(paidReceiptModal.receiptUrl) ? (
                   <div className="space-y-2 text-center">
                     <img
                       src={paidReceiptModal.receiptUrl}
@@ -3110,11 +3115,10 @@ export function PaymentsLedgerView({
                       <div
                         key={rep.id}
                         onClick={() => setSelectedReportType(rep.id)}
-                        className={`p-3 rounded-sm border transition-all cursor-pointer ${
-                          isSelected
+                        className={`p-3 rounded-sm border transition-all cursor-pointer ${isSelected
                             ? "bg-paper border-navy-900 shadow-2xs"
                             : "bg-white border-line hover:border-navy-900/30"
-                        }`}
+                          }`}
                       >
                         <div className="flex items-center justify-between mb-1">
                           <label className="flex items-center gap-2 cursor-pointer font-bold text-navy-900 text-xs">
@@ -3162,17 +3166,15 @@ export function PaymentsLedgerView({
                         key={tf.id}
                         type="button"
                         onClick={() => setSelectedTimeframe(tf.id)}
-                        className={`p-2.5 rounded-sm border text-center transition-all cursor-pointer flex flex-col items-center justify-center ${
-                          isSelected
+                        className={`p-2.5 rounded-sm border text-center transition-all cursor-pointer flex flex-col items-center justify-center ${isSelected
                             ? "bg-navy-900 text-white border-navy-900 shadow-xs"
                             : "bg-paper text-navy-900 border-line hover:bg-white hover:border-navy-900/30"
-                        }`}
+                          }`}
                       >
                         <span className="font-bold text-xs">{tf.label}</span>
                         <span
-                          className={`text-[10px] ${
-                            isSelected ? "text-gold-300" : "text-ink-soft"
-                          }`}
+                          className={`text-[10px] ${isSelected ? "text-gold-300" : "text-ink-soft"
+                            }`}
                         >
                           {tf.desc}
                         </span>
