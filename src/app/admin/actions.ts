@@ -2310,6 +2310,7 @@ export async function updateCohortScheduleAdminAction(schedule: CohortScheduleCo
 
 export async function confirmScheduleBankTransferAction(data: {
   scheduleItemId: string;
+  confirmedAmountGbp?: number;
   notes?: string;
 }) {
   const session = await getServerSession();

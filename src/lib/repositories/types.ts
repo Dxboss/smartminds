@@ -195,6 +195,7 @@ export interface PaymentScheduleItem {
   courseTitle?: string;
   reportedTransfer?: {
     reference: string;
+    amountGbp?: number;
     receiptUrl?: string;
     receiptFileName?: string;
     reportedAt: string;

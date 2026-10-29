@@ -35,6 +35,7 @@ export function StudentPaymentsClient({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<"choose" | "stripe" | "transfer">("transfer");
   const [payerRef, setPayerRef] = useState("");
+  const [transferAmount, setTransferAmount] = useState<string>("");
   const [receiptFileName, setReceiptFileName] = useState<string | null>(null);
   const [receiptDataUrl, setReceiptDataUrl] = useState<string | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
@@ -103,10 +104,12 @@ export function StudentPaymentsClient({
     defaultTab: "choose" | "stripe" | "transfer" = "transfer",
     targetItem?: PaymentScheduleItem
   ) => {
+    const item = targetItem || activeModalItem;
     setSelectedScheduleItem(targetItem || null);
     setModalError(null);
     setNotice(null);
     setPayerRef("");
+    setTransferAmount(item ? item.amountGbp.toFixed(2) : "");
     setReceiptFileName(null);
     setReceiptDataUrl(null);
     setModalMode(defaultTab);
@@ -116,11 +119,15 @@ export function StudentPaymentsClient({
   const handleReportBankTransfer = () => {
     if (!activeModalItem) return;
     setModalError(null);
+    const amountNum = parseFloat(transferAmount);
+    const resolvedAmount = amountNum > 0 ? amountNum : activeModalItem.amountGbp;
+
     startTransition(async () => {
       try {
         const res = await reportBankTransferAction({
           scheduleItemId: activeModalItem.id,
           payerReference: payerRef || planSummary.learnerId || "Student ID",
+          amountGbp: resolvedAmount,
           receiptUrl: receiptDataUrl || undefined,
           receiptFileName: receiptFileName || undefined,
         });
@@ -128,6 +135,7 @@ export function StudentPaymentsClient({
         activeModalItem.status = "awaiting_confirmation";
         activeModalItem.reportedTransfer = {
           reference: payerRef || planSummary.learnerId || "Student ID",
+          amountGbp: resolvedAmount,
           receiptUrl: receiptDataUrl || undefined,
           receiptFileName: receiptFileName || undefined,
           reportedAt: new Date().toISOString(),
@@ -707,6 +715,34 @@ export function StudentPaymentsClient({
                           {bank.bacsReferencePrefix}-{planSummary.learnerId || "STUDENT"}
                         </strong>
                       </div>
+                    </div>
+
+                    {/* Amount transferred input */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <label htmlFor="transfer-amount" className="block text-xs font-semibold text-navy-900">
+                          Amount you transferred (£)
+                        </label>
+                        <span className="text-[11px] text-ink-soft">
+                          Scheduled: <strong className="text-navy-900">{formatCurrency(activeModalItem.amountGbp)}</strong>
+                        </span>
+                      </div>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft text-sm font-semibold">£</span>
+                        <input
+                          id="transfer-amount"
+                          type="number"
+                          step="0.01"
+                          min="1"
+                          value={transferAmount}
+                          onChange={(e) => setTransferAmount(e.target.value)}
+                          placeholder={activeModalItem.amountGbp.toFixed(2)}
+                          className="w-full pl-7 pr-3 min-h-[44px] border border-line rounded-sm text-sm font-semibold text-navy-900 focus:outline-none focus:ring-2 focus:ring-navy-900 font-mono"
+                        />
+                      </div>
+                      <p className="text-[11px] text-ink-soft">
+                        Enter the exact amount you sent from your bank account (e.g. £20.00 for partial deposit or custom instalment).
+                      </p>
                     </div>
 
                     {/* Reference input */}

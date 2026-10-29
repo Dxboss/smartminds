@@ -397,6 +397,7 @@ export class MemoryPaymentRepo implements PaymentRepo {
     data: {
       scheduleItemId: string;
       reference: string;
+      amountGbp?: number;
       receiptUrl?: string;
       receiptFileName?: string;
     }
@@ -419,6 +420,7 @@ export class MemoryPaymentRepo implements PaymentRepo {
     item.status = "awaiting_confirmation";
     item.reportedTransfer = {
       reference: data.reference,
+      amountGbp: data.amountGbp || item.amountGbp,
       receiptUrl: data.receiptUrl,
       receiptFileName: data.receiptFileName,
       reportedAt: now,
@@ -442,6 +444,7 @@ export class MemoryPaymentRepo implements PaymentRepo {
     actor: SessionUser,
     data: {
       scheduleItemId: string;
+      confirmedAmountGbp?: number;
       notes?: string;
     }
   ): Promise<PaymentRecord> {
@@ -462,11 +465,33 @@ export class MemoryPaymentRepo implements PaymentRepo {
     const enrolment = seedEnrolments.find((e) => e.id === item.enrolmentId);
 
     const now = new Date().toISOString();
+    const confirmedAmount = Number(data.confirmedAmountGbp ?? item.reportedTransfer?.amountGbp ?? item.amountGbp);
+    const originalScheduled = item.amountGbp;
+
+    if (confirmedAmount < originalScheduled) {
+      const remainder = Math.round((originalScheduled - confirmedAmount) * 100) / 100;
+      item.amountGbp = confirmedAmount;
+      const remainderItem: PaymentScheduleItem = {
+        ...item,
+        id: `${item.id}-rem-${Date.now().toString().slice(-4)}`,
+        amountGbp: remainder,
+        status: "due",
+        paidAt: undefined,
+        reportedTransfer: undefined,
+        adminQuery: undefined,
+      };
+      seedPaymentSchedules.push(remainderItem);
+      savePersistedRecord({ paymentSchedules: [remainderItem] });
+    } else {
+      item.amountGbp = confirmedAmount;
+    }
+
     item.status = "paid";
     item.paidAt = now;
     delete item.adminQuery;
 
     updatePaymentScheduleStatusInStore(item.id, {
+      amountGbp: item.amountGbp,
       status: "paid",
       paidAt: now,
       adminQuery: undefined,
@@ -478,7 +503,7 @@ export class MemoryPaymentRepo implements PaymentRepo {
       learnerId: item.learnerId,
       learnerName: learner ? `${learner.firstName} ${learner.lastName}` : "Learner",
       courseTitle: enrolment ? enrolment.courseTitle : "Course",
-      amountGbp: item.amountGbp,
+      amountGbp: confirmedAmount,
       method: "bank_transfer",
       reference: item.reportedTransfer?.reference || `TRF-CONF-${Date.now().toString().slice(-6)}`,
       receiptUrl: item.reportedTransfer?.receiptUrl,
@@ -489,7 +514,7 @@ export class MemoryPaymentRepo implements PaymentRepo {
     };
 
     seedPaymentRecords.unshift(newRecord);
-    savePersistedRecord({ paymentRecord: newRecord });
+    savePersistedRecord({ paymentRecord: newRecord, paymentSchedules: [item] });
 
     // Restore learner access if paused
     if (learner && learner.accessStatus === "paused") {

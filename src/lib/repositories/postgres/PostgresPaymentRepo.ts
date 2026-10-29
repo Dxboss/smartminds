@@ -557,7 +557,7 @@ export class PostgresPaymentRepo implements PaymentRepo {
 
   async confirmScheduleBankTransfer(
     actor: SessionUser,
-    data: { scheduleItemId: string; notes?: string }
+    data: { scheduleItemId: string; confirmedAmountGbp?: number; notes?: string }
   ): Promise<PaymentRecord> {
     this.assertOwnerOrSuper(actor);
 
@@ -579,6 +579,27 @@ export class PostgresPaymentRepo implements PaymentRepo {
       if (enrolment) courseTitle = enrolment.courseTitle;
       if (item.courseTitle) courseTitle = item.courseTitle;
 
+      const confirmedAmount = Number(data.confirmedAmountGbp ?? item.reportedTransfer?.amountGbp ?? item.amountGbp);
+      const originalScheduled = item.amountGbp;
+
+      if (confirmedAmount < originalScheduled) {
+        const remainder = Math.round((originalScheduled - confirmedAmount) * 100) / 100;
+        item.amountGbp = confirmedAmount;
+        const remainderItem: PaymentScheduleItem = {
+          ...item,
+          id: `${item.id}-rem-${Date.now().toString().slice(-4)}`,
+          amountGbp: remainder,
+          status: "due",
+          paidAt: undefined,
+          reportedTransfer: undefined,
+          adminQuery: undefined,
+        };
+        seedPaymentSchedules.push(remainderItem);
+        savePersistedRecord({ paymentSchedules: [remainderItem] });
+      } else {
+        item.amountGbp = confirmedAmount;
+      }
+
       item.status = "paid";
       item.paidAt = now;
       delete item.adminQuery;
@@ -589,7 +610,7 @@ export class PostgresPaymentRepo implements PaymentRepo {
         learnerName,
         courseTitle,
         enrolmentId: item.enrolmentId,
-        amountGbp: item.amountGbp,
+        amountGbp: confirmedAmount,
         status: "paid",
         method: "bank_transfer",
         reference: item.reportedTransfer?.reference || `TRF-CONF-${Date.now().toString().slice(-6)}`,
@@ -601,11 +622,12 @@ export class PostgresPaymentRepo implements PaymentRepo {
       seedPaymentRecords.unshift(record);
 
       updatePaymentScheduleStatusInStore(item.id, {
+        amountGbp: item.amountGbp,
         status: "paid",
         paidAt: now,
         adminQuery: undefined,
       });
-      savePersistedRecord({ paymentRecord: record });
+      savePersistedRecord({ paymentRecord: record, paymentSchedules: [item] });
 
       return record;
     }
@@ -642,6 +664,47 @@ export class PostgresPaymentRepo implements PaymentRepo {
       }
       if (item.courseTitle) courseTitle = item.courseTitle;
 
+      const confirmedAmount = Number(data.confirmedAmountGbp ?? item.reportedTransfer?.amountGbp ?? item.amountGbp);
+      const originalScheduled = item.amountGbp;
+
+      if (confirmedAmount < originalScheduled) {
+        const remainder = Math.round((originalScheduled - confirmedAmount) * 100) / 100;
+        item.amountGbp = confirmedAmount;
+        const remainderItem: PaymentScheduleItem = {
+          ...item,
+          id: `${item.id}-rem-${Date.now().toString().slice(-4)}`,
+          amountGbp: remainder,
+          status: "due",
+          paidAt: undefined,
+          reportedTransfer: undefined,
+          adminQuery: undefined,
+        };
+        try {
+          await sql`
+            INSERT INTO payment_schedules (
+              id, enrolment_id, learner_id, instalment_number, due_date, amount, status, data, created_at, updated_at
+            )
+            VALUES (
+              ${remainderItem.id},
+              ${remainderItem.enrolmentId || "enr-unknown"},
+              ${remainderItem.learnerId || "lrn-unknown"},
+              ${Number(remainderItem.instalmentNumber || 1)},
+              ${remainderItem.dueDate ? new Date(remainderItem.dueDate).toISOString() : new Date().toISOString()},
+              ${Number(remainderItem.amountGbp || 0)},
+              'due',
+              ${JSON.stringify(remainderItem)}::jsonb,
+              now(),
+              now()
+            )
+            ON CONFLICT (id) DO UPDATE SET data = ${JSON.stringify(remainderItem)}::jsonb, updated_at = now();
+          `;
+        } catch { }
+        seedPaymentSchedules.push(remainderItem);
+        savePersistedRecord({ paymentSchedules: [remainderItem] });
+      } else {
+        item.amountGbp = confirmedAmount;
+      }
+
       const paymentId = `pay-sch-${Date.now()}`;
       const record: PaymentRecord = {
         id: paymentId,
@@ -649,7 +712,7 @@ export class PostgresPaymentRepo implements PaymentRepo {
         learnerName,
         courseTitle,
         enrolmentId: item.enrolmentId,
-        amountGbp: item.amountGbp,
+        amountGbp: confirmedAmount,
         status: "paid",
         method: "bank_transfer",
         reference: item.reportedTransfer?.reference || `TRF-CONF-${Date.now().toString().slice(-6)}`,
@@ -678,11 +741,12 @@ export class PostgresPaymentRepo implements PaymentRepo {
       `;
 
       updatePaymentScheduleStatusInStore(item.id, {
+        amountGbp: item.amountGbp,
         status: "paid",
         paidAt: now,
         adminQuery: undefined,
       });
-      savePersistedRecord({ paymentRecord: record });
+      savePersistedRecord({ paymentRecord: record, paymentSchedules: [item] });
 
       const seedIdx = seedPaymentSchedules.findIndex((s) => s.id === item!.id);
       if (seedIdx >= 0) {
@@ -703,6 +767,7 @@ export class PostgresPaymentRepo implements PaymentRepo {
     data: {
       scheduleItemId: string;
       reference: string;
+      amountGbp?: number;
       receiptUrl?: string;
       receiptFileName?: string;
     }
@@ -718,6 +783,7 @@ export class PostgresPaymentRepo implements PaymentRepo {
       item.status = "awaiting_confirmation";
       item.reportedTransfer = {
         reference: data.reference,
+        amountGbp: data.amountGbp || item.amountGbp,
         receiptUrl: data.receiptUrl,
         receiptFileName: data.receiptFileName,
         reportedAt: now,
@@ -749,6 +815,7 @@ export class PostgresPaymentRepo implements PaymentRepo {
       item.status = "awaiting_confirmation";
       item.reportedTransfer = {
         reference: data.reference,
+        amountGbp: data.amountGbp || item.amountGbp,
         receiptUrl: data.receiptUrl,
         receiptFileName: data.receiptFileName,
         reportedAt: now,

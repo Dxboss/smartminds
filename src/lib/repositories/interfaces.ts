@@ -104,6 +104,7 @@ export interface PaymentRepo {
     data: {
       scheduleItemId: string;
       reference: string;
+      amountGbp?: number;
       receiptUrl?: string;
       receiptFileName?: string;
     }
@@ -112,6 +113,7 @@ export interface PaymentRepo {
     actor: SessionUser,
     data: {
       scheduleItemId: string;
+      confirmedAmountGbp?: number;
       notes?: string;
     }
   ): Promise<PaymentRecord>;
