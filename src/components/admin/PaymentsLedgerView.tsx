@@ -109,6 +109,304 @@ export function PaymentsLedgerView({
     receiptUrl?: string;
     receiptFileName?: string;
   } | null>(null);
+
+  const handlePrintOfficialReceipt = (receipt: NonNullable<typeof paidReceiptModal>) => {
+    const formattedDate = new Date(receipt.paidAt).toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+    const methodLabel =
+      receipt.method === "stripe"
+        ? "Debit / Credit Card (Stripe)"
+        : receipt.method === "bank_transfer"
+        ? "BACS Bank Transfer"
+        : receipt.method || "Bank Transfer";
+
+    const formattedAmount = `£${receipt.amountGbp.toFixed(2)}`;
+
+    const hasImageProof =
+      receipt.receiptUrl &&
+      (receipt.receiptUrl.startsWith("data:image") ||
+        /\.(png|jpe?g|webp|gif)($|\?)/i.test(receipt.receiptUrl));
+
+    const proofSection = hasImageProof
+      ? `
+        <div style="margin-top: 14px; border: 1px solid #e6e1d5; border-radius: 4px; padding: 10px; background: #faf8f3; text-align: center; page-break-inside: avoid;">
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e6e1d5; padding-bottom: 6px; margin-bottom: 8px; font-size: 11px;">
+            <strong style="color: #23216b;">Learner Uploaded Bank Proof:</strong>
+            <span style="color: #5a5a6e; font-family: monospace;">${receipt.receiptFileName || "payment-proof"}</span>
+          </div>
+          <img src="${receipt.receiptUrl}" alt="Learner Bank Proof" style="max-height: 300px; max-width: 100%; object-fit: contain; border-radius: 4px; border: 1px solid #e6e1d5;" />
+        </div>
+      `
+      : receipt.bacsRef
+      ? `
+        <div style="margin-top: 12px; border: 1px solid #e6e1d5; border-radius: 4px; padding: 8px 12px; background: #faf8f3; font-size: 11px; color: #5a5a6e;">
+          <strong style="color: #23216b;">BACS Verification:</strong> Reconciled via BACS reference <code style="font-family: monospace; font-weight: bold; color: #23216b; background: #e6f4ea; padding: 2px 6px; border-radius: 3px;">${receipt.bacsRef}</code> in the college bank account.
+        </div>
+      `
+      : "";
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Receipt - ${receipt.receiptRef}</title>
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 12mm 15mm;
+    }
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      background: #ffffff;
+      color: #1b1b2b;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .receipt-card {
+      max-width: 660px;
+      margin: 0 auto;
+      border: 1.5px solid #23216b;
+      border-radius: 6px;
+      padding: 22px;
+      background: #ffffff;
+    }
+    .badge {
+      display: inline-block;
+      background: #e6f4ea;
+      color: #0d652d;
+      border: 1px solid #a8dab5;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+    .title {
+      font-size: 18px;
+      font-weight: 800;
+      color: #23216b;
+      margin: 0 0 12px 0;
+    }
+    .header-table {
+      width: 100%;
+      border-bottom: 2px solid #23216b;
+      padding-bottom: 12px;
+      margin-bottom: 14px;
+    }
+    .college-name {
+      font-size: 16px;
+      font-weight: 800;
+      color: #23216b;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      margin: 0;
+    }
+    .college-subtitle {
+      font-size: 11px;
+      color: #5a5a6e;
+      margin-top: 2px;
+    }
+    .ref-title {
+      font-size: 9px;
+      text-transform: uppercase;
+      color: #5a5a6e;
+      font-weight: 700;
+      text-align: right;
+    }
+    .ref-val {
+      font-family: monospace;
+      font-size: 12px;
+      font-weight: 700;
+      color: #23216b;
+      text-align: right;
+    }
+    .bacs-badge {
+      display: inline-block;
+      margin-top: 2px;
+      font-family: monospace;
+      font-size: 10px;
+      font-weight: 700;
+      color: #0d652d;
+      background: #e6f4ea;
+      padding: 1px 6px;
+      border-radius: 3px;
+      border: 1px solid #a8dab5;
+    }
+    .info-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      background: #faf8f3;
+      border: 1px solid #e6e1d5;
+      border-radius: 4px;
+      margin-bottom: 14px;
+    }
+    .info-table td {
+      padding: 8px 12px;
+      vertical-align: top;
+      border-bottom: 1px solid #e6e1d5;
+    }
+    .info-table tr:last-child td {
+      border-bottom: none;
+    }
+    .info-lbl {
+      font-size: 10px;
+      text-transform: uppercase;
+      color: #5a5a6e;
+      font-weight: 600;
+      display: block;
+      margin-bottom: 2px;
+    }
+    .info-val {
+      font-size: 12px;
+      font-weight: 700;
+      color: #23216b;
+    }
+    .total-box {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 2px solid #23216b;
+      border-bottom: 2px solid #23216b;
+      padding: 10px 14px;
+      background: #ffffff;
+      margin-bottom: 12px;
+    }
+    .total-lbl {
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: #23216b;
+      letter-spacing: 0.5px;
+    }
+    .total-val {
+      font-size: 22px;
+      font-weight: 900;
+      color: #23216b;
+    }
+    .footer-note {
+      text-align: center;
+      font-size: 10px;
+      color: #5a5a6e;
+      margin-top: 14px;
+      padding-top: 6px;
+      border-top: 1px solid #e6e1d5;
+    }
+  </style>
+</head>
+<body>
+  <div class="receipt-card">
+    <div>
+      <span class="badge">&#10003; Verified &amp; Cleared Payment</span>
+      <div class="title">Tuition Payment Receipt</div>
+    </div>
+
+    <table class="header-table">
+      <tr>
+        <td style="vertical-align: top;">
+          <div class="college-name">Smartminds Training College</div>
+          <div class="college-subtitle">Registered Vocational &amp; Further Education Centre</div>
+        </td>
+        <td style="text-align: right; vertical-align: top;">
+          <div class="ref-title">Receipt Reference</div>
+          <div class="ref-val">${receipt.receiptRef}</div>
+          ${receipt.bacsRef ? `<div style="text-align: right;"><span class="bacs-badge">${receipt.bacsRef}</span></div>` : ""}
+        </td>
+      </tr>
+    </table>
+
+    <table class="info-table">
+      <tr>
+        <td style="width: 50%;">
+          <span class="info-lbl">Learner</span>
+          <div class="info-val">${receipt.learnerName}</div>
+          ${receipt.learnerEmail ? `<div style="font-size: 11px; color: #5a5a6e;">${receipt.learnerEmail}</div>` : ""}
+        </td>
+        <td style="width: 50%;">
+          <span class="info-lbl">Payment Date</span>
+          <div class="info-val">${formattedDate}</div>
+        </td>
+      </tr>
+      <tr>
+        <td colspan="2">
+          <span class="info-lbl">Course Enrolment</span>
+          <div class="info-val">${receipt.courseTitle}</div>
+          ${receipt.instalmentText ? `<div style="font-size: 11px; color: #5a5a6e;">${receipt.instalmentText}</div>` : ""}
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <span class="info-lbl">Payment Method</span>
+          <div class="info-val">${methodLabel}</div>
+        </td>
+        <td>
+          <span class="info-lbl">Payment Status</span>
+          <div class="info-val" style="color: #0d652d;">&#10003; Cleared &amp; Settled</div>
+        </td>
+      </tr>
+    </table>
+
+    <div class="total-box">
+      <span class="total-lbl">Total Cleared Amount</span>
+      <span class="total-val">${formattedAmount}</span>
+    </div>
+
+    ${proofSection}
+
+    <div class="footer-note">
+      Official document generated by Smartminds Finance System &middot; Registered Further Education &middot; All records digitally secured
+    </div>
+  </div>
+</body>
+</html>`;
+
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.top = "-9999px";
+    iframe.style.left = "-9999px";
+    iframe.style.width = "1px";
+    iframe.style.height = "1px";
+    iframe.style.border = "none";
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document;
+    if (!doc) {
+      window.print();
+      return;
+    }
+
+    doc.open();
+    doc.write(html);
+    doc.close();
+
+    setTimeout(() => {
+      try {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+      } catch (err) {
+        console.error("Print error:", err);
+        window.print();
+      } finally {
+        setTimeout(() => {
+          if (document.body.contains(iframe)) {
+            document.body.removeChild(iframe);
+          }
+        }, 2000);
+      }
+    }, 300);
+  };
   const [queryModalSchedule, setQueryModalSchedule] =
     useState<PaymentScheduleItem | null>(null);
   const [queryReasonInput, setQueryReasonInput] = useState(
@@ -981,8 +1279,8 @@ export function PaymentsLedgerView({
         <button
           onClick={() => setActiveTab("balances")}
           className={`pb-3 text-sm font-semibold transition-colors border-b-2 flex items-center gap-2 whitespace-nowrap ${activeTab === "balances"
-              ? "border-navy-900 text-navy-900"
-              : "border-transparent text-ink-soft hover:text-navy-900"
+            ? "border-navy-900 text-navy-900"
+            : "border-transparent text-ink-soft hover:text-navy-900"
             }`}
         >
           <Icon name="users" size={16} />
@@ -991,8 +1289,8 @@ export function PaymentsLedgerView({
         <button
           onClick={() => setActiveTab("schedules")}
           className={`pb-3 text-sm font-semibold transition-colors border-b-2 flex items-center gap-2 whitespace-nowrap ${activeTab === "schedules"
-              ? "border-navy-900 text-navy-900"
-              : "border-transparent text-ink-soft hover:text-navy-900"
+            ? "border-navy-900 text-navy-900"
+            : "border-transparent text-ink-soft hover:text-navy-900"
             }`}
         >
           <Icon name="calendar" size={16} />
@@ -1001,8 +1299,8 @@ export function PaymentsLedgerView({
         <button
           onClick={() => setActiveTab("records")}
           className={`pb-3 text-sm font-semibold transition-colors border-b-2 flex items-center gap-2 whitespace-nowrap ${activeTab === "records"
-              ? "border-navy-900 text-navy-900"
-              : "border-transparent text-ink-soft hover:text-navy-900"
+            ? "border-navy-900 text-navy-900"
+            : "border-transparent text-ink-soft hover:text-navy-900"
             }`}
         >
           <Icon name="file-text" size={16} />
@@ -1011,8 +1309,8 @@ export function PaymentsLedgerView({
         <button
           onClick={() => setActiveTab("gateway")}
           className={`pb-3 text-sm font-semibold transition-colors border-b-2 flex items-center gap-2 whitespace-nowrap ${activeTab === "gateway"
-              ? "border-navy-900 text-navy-900"
-              : "border-transparent text-ink-soft hover:text-navy-900"
+            ? "border-navy-900 text-navy-900"
+            : "border-transparent text-ink-soft hover:text-navy-900"
             }`}
         >
           <Icon name="credit-card" size={16} />
@@ -1051,8 +1349,8 @@ export function PaymentsLedgerView({
                   key={btn.id}
                   onClick={() => setPlanFilter(btn.id as any)}
                   className={`px-3 py-1.5 rounded-sm text-xs font-semibold transition-colors ${planFilter === btn.id
-                      ? "bg-navy-900 text-white"
-                      : "bg-paper text-ink-soft border border-line hover:text-navy-900"
+                    ? "bg-navy-900 text-white"
+                    : "bg-paper text-ink-soft border border-line hover:text-navy-900"
                     }`}
                 >
                   {btn.label}
@@ -1182,12 +1480,12 @@ export function PaymentsLedgerView({
                             <td className="py-3.5 px-4 text-center">
                               <span
                                 className={`px-2.5 py-0.5 rounded-sm text-xs font-semibold uppercase tracking-wider ${p.status === "settled"
-                                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                    : p.status === "overdue"
-                                      ? "bg-rose-100 text-rose-800 border border-rose-200 animate-pulse"
-                                      : p.status === "due"
-                                        ? "bg-amber-100 text-amber-800 border border-amber-200"
-                                        : "bg-blue-50 text-blue-800 border border-blue-200"
+                                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                  : p.status === "overdue"
+                                    ? "bg-rose-100 text-rose-800 border border-rose-200 animate-pulse"
+                                    : p.status === "due"
+                                      ? "bg-amber-100 text-amber-800 border border-amber-200"
+                                      : "bg-blue-50 text-blue-800 border border-blue-200"
                                   }`}
                               >
                                 {p.status.replace("_", " ")}
@@ -1310,14 +1608,14 @@ export function PaymentsLedgerView({
                                             <td className="py-2.5 px-3 text-center">
                                               <span
                                                 className={`px-2 py-0.5 rounded-xs text-[10px] font-bold uppercase tracking-wider ${s.status === "paid"
-                                                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                                    : s.status === "action_required" || s.adminQuery
-                                                      ? "bg-rose-50 text-rose-800 border border-rose-200"
-                                                      : s.status === "awaiting_confirmation" || s.reportedTransfer
-                                                        ? "bg-amber-50 text-amber-900 border border-amber-300 font-bold"
-                                                        : s.status === "overdue"
-                                                          ? "bg-rose-100 text-rose-800 border border-rose-200"
-                                                          : "bg-paper text-ink-soft border border-line"
+                                                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                                  : s.status === "action_required" || s.adminQuery
+                                                    ? "bg-rose-50 text-rose-800 border border-rose-200"
+                                                    : s.status === "awaiting_confirmation" || s.reportedTransfer
+                                                      ? "bg-amber-50 text-amber-900 border border-amber-300 font-bold"
+                                                      : s.status === "overdue"
+                                                        ? "bg-rose-100 text-rose-800 border border-rose-200"
+                                                        : "bg-paper text-ink-soft border border-line"
                                                   }`}
                                               >
                                                 {s.status === "paid"
@@ -1509,10 +1807,10 @@ export function PaymentsLedgerView({
                         <td className="py-3 px-4 whitespace-nowrap">
                           <span
                             className={`px-2 py-0.5 rounded-sm text-xs font-semibold ${r.method === "stripe"
-                                ? "bg-indigo-50 text-indigo-700"
-                                : r.method === "bank_transfer"
-                                  ? "bg-emerald-50 text-emerald-700"
-                                  : "bg-slate-100 text-slate-700"
+                              ? "bg-indigo-50 text-indigo-700"
+                              : r.method === "bank_transfer"
+                                ? "bg-emerald-50 text-emerald-700"
+                                : "bg-slate-100 text-slate-700"
                               }`}
                           >
                             {r.method === "stripe"
@@ -1531,8 +1829,8 @@ export function PaymentsLedgerView({
                         <td className="py-3 px-4 text-center">
                           <span
                             className={`px-2 py-0.5 rounded-sm text-xs font-semibold ${r.status === "paid"
-                                ? "bg-emerald-50 text-emerald-700"
-                                : "bg-rose-50 text-rose-700"
+                              ? "bg-emerald-50 text-emerald-700"
+                              : "bg-rose-50 text-rose-700"
                               }`}
                           >
                             {r.status === "paid" ? "Cleared" : "Refunded"}
@@ -1634,8 +1932,8 @@ export function PaymentsLedgerView({
                     disabled={isPending}
                     onClick={() => handleUpdateGlobalGrace(days)}
                     className={`px-3 py-1.5 rounded-sm text-xs font-bold transition-colors ${globalGraceInput === days
-                        ? "bg-navy-900 text-white"
-                        : "bg-paper text-navy-900 border border-line hover:bg-gold-300"
+                      ? "bg-navy-900 text-white"
+                      : "bg-paper text-navy-900 border border-line hover:bg-gold-300"
                       }`}
                   >
                     {days} Days
@@ -1688,8 +1986,8 @@ export function PaymentsLedgerView({
                   key={btn.id}
                   onClick={() => setScheduleStatusFilter(btn.id as any)}
                   className={`px-3 py-1.5 rounded-sm text-xs font-semibold transition-colors ${scheduleStatusFilter === btn.id
-                      ? "bg-navy-900 text-white"
-                      : "bg-paper text-ink-soft border border-line hover:text-navy-900"
+                    ? "bg-navy-900 text-white"
+                    : "bg-paper text-ink-soft border border-line hover:text-navy-900"
                     }`}
                 >
                   {btn.label}
@@ -1753,14 +2051,14 @@ export function PaymentsLedgerView({
                           <td className="py-3 px-4 text-center">
                             <span
                               className={`px-2.5 py-0.5 rounded-sm text-xs font-semibold inline-flex items-center gap-1 ${s.status === "paid"
-                                  ? "bg-emerald-50 text-emerald-700"
-                                  : s.status === "action_required" || s.adminQuery
-                                    ? "bg-rose-50 text-rose-800 border border-rose-200"
-                                    : s.status === "awaiting_confirmation" || s.reportedTransfer
-                                      ? "bg-amber-50 text-amber-900 border border-amber-300 font-bold"
-                                      : s.status === "overdue"
-                                        ? "bg-rose-100 text-rose-800"
-                                        : "bg-paper text-ink-soft border border-line"
+                                ? "bg-emerald-50 text-emerald-700"
+                                : s.status === "action_required" || s.adminQuery
+                                  ? "bg-rose-50 text-rose-800 border border-rose-200"
+                                  : s.status === "awaiting_confirmation" || s.reportedTransfer
+                                    ? "bg-amber-50 text-amber-900 border border-amber-300 font-bold"
+                                    : s.status === "overdue"
+                                      ? "bg-rose-100 text-rose-800"
+                                      : "bg-paper text-ink-soft border border-line"
                                 }`}
                             >
                               {s.status === "paid"
@@ -2394,8 +2692,8 @@ export function PaymentsLedgerView({
                       type="button"
                       onClick={() => setCustomGraceDaysInput(d)}
                       className={`py-1.5 text-xs font-bold rounded-sm border transition-colors ${customGraceDaysInput === d
-                          ? "bg-navy-900 text-white border-navy-900"
-                          : "bg-paper text-navy-900 border-line hover:bg-gold-300"
+                        ? "bg-navy-900 text-white border-navy-900"
+                        : "bg-paper text-navy-900 border-line hover:bg-gold-300"
                         }`}
                     >
                       +{d} days
@@ -2448,50 +2746,26 @@ export function PaymentsLedgerView({
         <div className="receipt-modal-overlay fixed inset-0 z-50 bg-navy-900/60 backdrop-blur-sm flex items-center justify-center p-4">
           <style jsx global>{`
             @media print {
-              html, body {
-                margin: 0 !important;
-                padding: 0 !important;
-                background: #ffffff !important;
-                height: 100% !important;
-                overflow: hidden !important;
-              }
               header, nav, footer, aside, .impersonation-bar, .no-print {
                 display: none !important;
               }
-              body * {
-                visibility: hidden !important;
+              body {
+                background: #ffffff !important;
               }
               .receipt-modal-overlay {
-                visibility: visible !important;
-                position: fixed !important;
-                left: 0 !important;
-                top: 0 !important;
-                right: 0 !important;
-                bottom: 0 !important;
-                width: 100% !important;
-                height: 100% !important;
+                position: static !important;
                 background: #ffffff !important;
-                padding: 16px !important;
+                padding: 0 !important;
                 margin: 0 !important;
-                z-index: 9999999 !important;
-                display: flex !important;
-                align-items: flex-start !important;
-                justify-content: center !important;
-                overflow: hidden !important;
-                backdrop-filter: none !important;
-              }
-              .receipt-modal-overlay,
-              .receipt-modal-overlay * {
-                visibility: visible !important;
+                display: block !important;
               }
               #printable-receipt-modal {
-                visibility: visible !important;
                 position: relative !important;
                 display: block !important;
                 width: 100% !important;
                 max-width: 660px !important;
                 margin: 0 auto !important;
-                padding: 18px !important;
+                padding: 16px !important;
                 border: 1px solid #1b1b2b !important;
                 border-radius: 4px !important;
                 box-shadow: none !important;
@@ -2704,53 +2978,29 @@ export function PaymentsLedgerView({
       {/* Official Tuition Payment Receipt Modal */}
       {paidReceiptModal && (
         <div className="receipt-modal-overlay fixed inset-0 z-50 bg-navy-950/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          {/* Scoped CSS for Crisp 1-Page PDF / Printer Output */}
+          {/* Scoped CSS fallback for Printer Output */}
           <style jsx global>{`
             @media print {
-              html, body {
-                margin: 0 !important;
-                padding: 0 !important;
-                background: #ffffff !important;
-                height: 100% !important;
-                overflow: hidden !important;
-              }
               header, nav, footer, aside, .impersonation-bar, .no-print {
                 display: none !important;
               }
-              body * {
-                visibility: hidden !important;
+              body {
+                background: #ffffff !important;
               }
               .receipt-modal-overlay {
-                visibility: visible !important;
-                position: fixed !important;
-                left: 0 !important;
-                top: 0 !important;
-                right: 0 !important;
-                bottom: 0 !important;
-                width: 100% !important;
-                height: 100% !important;
+                position: static !important;
                 background: #ffffff !important;
-                padding: 16px !important;
+                padding: 0 !important;
                 margin: 0 !important;
-                z-index: 9999999 !important;
-                display: flex !important;
-                align-items: flex-start !important;
-                justify-content: center !important;
-                overflow: hidden !important;
-                backdrop-filter: none !important;
-              }
-              .receipt-modal-overlay,
-              .receipt-modal-overlay * {
-                visibility: visible !important;
+                display: block !important;
               }
               #printable-receipt-modal {
-                visibility: visible !important;
                 position: relative !important;
                 display: block !important;
                 width: 100% !important;
                 max-width: 660px !important;
                 margin: 0 auto !important;
-                padding: 18px !important;
+                padding: 16px !important;
                 border: 1px solid #1b1b2b !important;
                 border-radius: 4px !important;
                 box-shadow: none !important;
@@ -2951,7 +3201,7 @@ export function PaymentsLedgerView({
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => window.print()}
+                  onClick={() => handlePrintOfficialReceipt(paidReceiptModal)}
                   className="px-3.5 py-1.5 text-xs font-semibold text-navy-900 bg-paper hover:bg-line border border-line rounded-sm inline-flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
                   <Icon name="download" size={13} />
@@ -3116,8 +3366,8 @@ export function PaymentsLedgerView({
                         key={rep.id}
                         onClick={() => setSelectedReportType(rep.id)}
                         className={`p-3 rounded-sm border transition-all cursor-pointer ${isSelected
-                            ? "bg-paper border-navy-900 shadow-2xs"
-                            : "bg-white border-line hover:border-navy-900/30"
+                          ? "bg-paper border-navy-900 shadow-2xs"
+                          : "bg-white border-line hover:border-navy-900/30"
                           }`}
                       >
                         <div className="flex items-center justify-between mb-1">
@@ -3167,8 +3417,8 @@ export function PaymentsLedgerView({
                         type="button"
                         onClick={() => setSelectedTimeframe(tf.id)}
                         className={`p-2.5 rounded-sm border text-center transition-all cursor-pointer flex flex-col items-center justify-center ${isSelected
-                            ? "bg-navy-900 text-white border-navy-900 shadow-xs"
-                            : "bg-paper text-navy-900 border-line hover:bg-white hover:border-navy-900/30"
+                          ? "bg-navy-900 text-white border-navy-900 shadow-xs"
+                          : "bg-paper text-navy-900 border-line hover:bg-white hover:border-navy-900/30"
                           }`}
                       >
                         <span className="font-bold text-xs">{tf.label}</span>

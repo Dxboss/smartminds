@@ -88,12 +88,12 @@ export async function reportBankTransferAction(input: ReportBankTransferInput) {
       attachments:
         attachmentContent && attachmentType
           ? [
-              {
-                filename: input.receiptFileName || "payment-proof.png",
-                content: attachmentContent,
-                content_type: attachmentType,
-              },
-            ]
+            {
+              filename: input.receiptFileName || "payment-proof.png",
+              content: attachmentContent,
+              content_type: attachmentType,
+            },
+          ]
           : undefined,
       templateKey: "transfer_reported_owner",
       triggerEvent: "Student Reported Bank Transfer",
@@ -145,7 +145,7 @@ export async function reportBankTransferAction(input: ReportBankTransferInput) {
     revalidatePath("/student/payments");
     revalidatePath("/student");
     revalidatePath("/admin");
-  } catch {}
+  } catch { }
 
   return { success: true, noticeReference: noticeRef, notifiedAt };
 }
@@ -295,7 +295,7 @@ export async function payInstalmentWithStripeAction(
   try {
     revalidatePath("/student/payments");
     revalidatePath("/admin/payments");
-  } catch {}
+  } catch { }
 
   return { success: true, receiptReference: receiptRef };
 }
@@ -345,7 +345,7 @@ export async function studentSelfAddCourseAction(input: StudentSelfAddCourseInpu
     "@/lib/persistedData"
   );
   const { seedLearners, seedClasses } = await import("@/lib/repositories/seedData");
-  await pullLatestFromNeon().catch(() => {});
+  await pullLatestFromNeon().catch(() => { });
   const store = loadPersistedRecords();
 
   let learnerId = session.learnerId;

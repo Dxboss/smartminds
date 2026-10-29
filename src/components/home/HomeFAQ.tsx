@@ -89,6 +89,14 @@ export interface HomeFAQProps {
   items?: { title: string; desc?: string; tag?: string; cardBg?: string; cardBorder?: string; titleColor?: string; descColor?: string; [key: string]: any }[];
   bgColor?: SectionBgColor;
   columns?: 1 | 2 | 3 | 4;
+  calloutHeadline?: string;
+  calloutText?: string;
+  buttonText?: string;
+  buttonLink?: string;
+  secondaryButtonText?: string;
+  secondaryButtonLink?: string;
+  calloutBgColor?: string;
+  showCallout?: boolean;
   headlineFontFamily?: string;
   headlineFontSize?: string;
   headlineFontWeight?: string;
@@ -114,7 +122,8 @@ export interface HomeFAQProps {
       | "secondaryButton"
       | "image"
       | "item"
-      | "bg",
+      | "bg"
+      | "callout",
     itemIndex?: number
   ) => void;
 }
@@ -130,6 +139,14 @@ export const HomeFAQ: React.FC<HomeFAQProps> = ({
   items,
   bgColor = "white",
   columns = 4,
+  calloutHeadline = "Still have a question?",
+  calloutText = "Our admissions advisers are ready to help clarify any aspect of your qualification.",
+  buttonText = "Book a free call",
+  buttonLink = "#book-call",
+  secondaryButtonText = "Contact our office",
+  secondaryButtonLink = "/contact",
+  calloutBgColor = "paper",
+  showCallout = true,
   headlineFontFamily,
   headlineFontSize,
   headlineFontWeight,
@@ -359,30 +376,97 @@ export const HomeFAQ: React.FC<HomeFAQProps> = ({
         </div>
 
         {/* Still have questions band */}
-        <div className="mt-12 text-center max-w-md mx-auto p-6 rounded-lg bg-paper border border-line">
-          <h3 className="font-heading text-lg font-bold text-navy-900 mb-1">
-            Still have a question?
-          </h3>
-          <p className="text-xs text-ink-soft mb-4">
-            Our admissions advisers are ready to help clarify any aspect of your
-            qualification.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <BookingCTAButton
-              variant="primary"
-              size="sm"
-              className="w-full sm:w-auto"
-            >
-              Book a free call
-            </BookingCTAButton>
-            <Link
-              href="/contact"
-              className="text-xs font-semibold text-navy-900 hover:text-navy-700 underline underline-offset-4 py-2"
-            >
-              Contact our office
-            </Link>
-          </div>
-        </div>
+        {showCallout !== false && (
+          <EditableElementWrapper
+            isEditor={isEditor}
+            isSelected={isEditor && selectedElementKey === "callout"}
+            label="Assistance Card"
+            onClick={() => onSelectElement?.("callout")}
+          >
+            {(() => {
+              const cardBg = calloutBgColor || "paper";
+              const isDarkCard =
+                cardBg === "navy" ||
+                cardBg === "slate" ||
+                cardBg === "navy_gradient";
+
+              const cardBgClass =
+                cardBg === "paper"
+                  ? "bg-paper text-navy-900 border border-line"
+                  : cardBg === "cream"
+                  ? "bg-cream text-navy-900 border border-gold-300"
+                  : cardBg === "white"
+                  ? "bg-white text-navy-900 border border-line shadow-sm"
+                  : cardBg === "gold"
+                  ? "bg-gold-500 text-navy-900 border border-gold-600"
+                  : cardBg === "slate"
+                  ? "bg-slate-800 text-white border border-slate-700"
+                  : isDarkCard
+                  ? "bg-navy-900 text-white border border-navy-700"
+                  : "bg-paper text-navy-900 border border-line";
+
+              return (
+                <div
+                  className={`mt-12 text-center max-w-md mx-auto p-6 rounded-lg transition-colors ${cardBgClass}`}
+                >
+                  <h3
+                    className={`font-heading text-lg font-bold mb-1 ${
+                      isDarkCard ? "text-white" : "text-navy-900"
+                    }`}
+                  >
+                    {calloutHeadline || "Still have a question?"}
+                  </h3>
+                  <p
+                    className={`text-xs mb-4 ${
+                      isDarkCard ? "text-paper/80" : "text-ink-soft"
+                    }`}
+                  >
+                    {calloutText ||
+                      "Our admissions advisers are ready to help clarify any aspect of your qualification."}
+                  </p>
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                    {buttonText !== "" && (
+                      buttonLink &&
+                      buttonLink !== "#book-call" &&
+                      !buttonLink.startsWith("#") ? (
+                        <Link
+                          href={buttonLink}
+                          className={`w-full sm:w-auto px-4 py-2 rounded-sm text-xs font-bold transition-colors ${
+                            isDarkCard
+                              ? "bg-gold-500 text-navy-900 hover:bg-gold-300 shadow-sm"
+                              : "bg-navy-900 text-white hover:bg-navy-700 shadow-sm"
+                          }`}
+                        >
+                          {buttonText || "Book a free call"}
+                        </Link>
+                      ) : (
+                        <BookingCTAButton
+                          variant={isDarkCard ? "on-navy-gold" : "primary"}
+                          size="sm"
+                          className="w-full sm:w-auto"
+                        >
+                          {buttonText || "Book a free call"}
+                        </BookingCTAButton>
+                      )
+                    )}
+                    {secondaryButtonText && (
+                      <Link
+                        href={secondaryButtonLink || "/contact"}
+                        className={`text-xs font-semibold underline underline-offset-4 py-2 ${
+                          isDarkCard
+                            ? "text-gold-300 hover:text-white"
+                            : "text-navy-900 hover:text-navy-700"
+                        }`}
+                      >
+                        {secondaryButtonText}
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+          </EditableElementWrapper>
+        )}
       </Container>
     </Section>
   );

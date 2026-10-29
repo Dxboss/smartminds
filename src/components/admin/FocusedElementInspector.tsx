@@ -870,7 +870,8 @@ interface FocusedElementInspectorProps {
     | "sealBadge"
     | "trustNote"
     | "socialProof"
-    | "reassurance";
+    | "reassurance"
+    | "callout";
   itemIndex?: number | null;
   onBack: () => void;
   updateField: (field: keyof BuilderSection, value: any) => void;
@@ -2322,6 +2323,119 @@ export const FocusedElementInspector: React.FC<FocusedElementInspectorProps> = (
               );
             })()
           )}
+
+          {/* CALLOUT BANNER / CARD (How It Works & FAQ) */}
+          {elementKey === "callout" && (
+            <div className="p-3.5 bg-paper rounded-sm border border-line space-y-3.5 shadow-2xs">
+              <div className="flex items-center justify-between border-b border-line pb-2">
+                <strong className="text-xs font-bold text-navy-900 flex items-center gap-1.5">
+                  <Icon name={section.type === "how_it_works" ? "video" : "info"} size={13} className="text-navy-900" />
+                  <span>{section.type === "how_it_works" ? "Evening Session Replay Callout" : "Still Have Questions Callout"}</span>
+                </strong>
+                <label className="inline-flex items-center gap-1.5 cursor-pointer text-[11px] font-semibold text-navy-900">
+                  <input
+                    type="checkbox"
+                    checked={section.showCallout !== false}
+                    onChange={(e) => updateField("showCallout", e.target.checked)}
+                    className="rounded border-line text-navy-900 focus:ring-0"
+                  />
+                  <span>Show</span>
+                </label>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                  Headline
+                </label>
+                <input
+                  type="text"
+                  value={section.calloutHeadline ?? (section.type === "how_it_works" ? "Worried about missing an evening session?" : "Still have a question?")}
+                  onChange={(e) => updateField("calloutHeadline", e.target.value)}
+                  className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white font-medium focus:outline-none focus:border-navy-900"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                  Explanation & Advisory Copy
+                </label>
+                <textarea
+                  rows={3}
+                  value={section.calloutText ?? (section.type === "how_it_works" ? "Every live class is recorded in high definition and published to your student stream within 24 hours. You can rewatch lessons, review slides, and catch up at your own pace without falling behind." : "Our admissions advisers are ready to help clarify any aspect of your qualification.")}
+                  onChange={(e) => updateField("calloutText", e.target.value)}
+                  className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white font-medium focus:outline-none focus:border-navy-900"
+                />
+              </div>
+
+              {section.type === "how_it_works" && (
+                <div>
+                  <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                    Badge / Feature Tag
+                  </label>
+                  <input
+                    type="text"
+                    value={section.calloutBadge ?? "Unlimited Replays"}
+                    onChange={(e) => updateField("calloutBadge", e.target.value)}
+                    className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white font-medium focus:outline-none focus:border-navy-900"
+                  />
+                </div>
+              )}
+
+              {section.type === "faq_accordion" && (
+                <div className="space-y-3 pt-1 border-t border-line">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                        Primary Button
+                      </label>
+                      <input
+                        type="text"
+                        value={section.buttonText ?? "Book a free call"}
+                        onChange={(e) => updateField("buttonText", e.target.value)}
+                        className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                        Target Link
+                      </label>
+                      <input
+                        type="text"
+                        value={section.buttonLink ?? "/contact"}
+                        onChange={(e) => updateField("buttonLink", e.target.value)}
+                        className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                        Secondary Link
+                      </label>
+                      <input
+                        type="text"
+                        value={section.secondaryButtonText ?? "Contact our office"}
+                        onChange={(e) => updateField("secondaryButtonText", e.target.value)}
+                        className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                        Secondary Target
+                      </label>
+                      <input
+                        type="text"
+                        value={section.secondaryButtonLink ?? "tel:02081234567"}
+                        onChange={(e) => updateField("secondaryButtonLink", e.target.value)}
+                        className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -2592,6 +2706,47 @@ export const FocusedElementInspector: React.FC<FocusedElementInspectorProps> = (
                 />
               );
             })()
+          )}
+
+          {/* CALLOUT STYLE & PALETTE */}
+          {elementKey === "callout" && (
+            <div className="p-3.5 bg-paper rounded-sm border border-line space-y-3.5 shadow-2xs">
+              <strong className="text-xs font-bold text-navy-900 flex items-center gap-1.5 border-b border-line pb-2">
+                <Icon name="sparkles" size={13} className="text-gold-500" />
+                <span>Callout Theme & Background Palette</span>
+              </strong>
+              <div>
+                <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1.5">
+                  Preset Color Palette
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: "navy", label: "Navy (Dark)" },
+                    { id: "paper", label: "Paper (Warm)" },
+                    { id: "white", label: "White" },
+                    { id: "cream", label: "Cream" },
+                    { id: "gold", label: "Gold Accent" },
+                    { id: "slate", label: "Slate" },
+                  ].map((theme) => {
+                    const active = (section.calloutBgColor || (section.type === "how_it_works" ? "navy" : "paper")) === theme.id;
+                    return (
+                      <button
+                        key={theme.id}
+                        type="button"
+                        onClick={() => updateField("calloutBgColor", theme.id)}
+                        className={`p-2 rounded-xs border text-xs font-semibold text-center transition-all cursor-pointer ${
+                          active
+                            ? "bg-navy-900 text-white border-navy-900 shadow-xs"
+                            : "bg-white text-ink-soft border-line hover:border-navy-900/40"
+                        }`}
+                      >
+                        {theme.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
           )}
 
           {/* G. SECTION BACKGROUND & PALETTE */}

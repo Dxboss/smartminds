@@ -1188,6 +1188,13 @@ export interface BuilderSection {
   floatingBadgeSubtitle?: string;
   floatingBadgeIcon?: string;
   floatingBadgeEnabled?: boolean;
+  calloutHeadline?: string;
+  calloutText?: string;
+  calloutBadge?: string;
+  calloutIcon?: string;
+  calloutBgColor?: string;
+  calloutTextColor?: string;
+  showCallout?: boolean;
   sealText?: string;
   sealLink?: string;
   sealVideoUrl?: string;

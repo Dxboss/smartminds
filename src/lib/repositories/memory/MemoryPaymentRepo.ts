@@ -657,12 +657,12 @@ export class MemoryPaymentRepo implements PaymentRepo {
       timeframe === "daily"
         ? "Today (Daily)"
         : timeframe === "weekly"
-        ? "Past 7 Days (Weekly)"
-        : timeframe === "monthly"
-        ? "Current Month (Monthly)"
-        : timeframe === "annually"
-        ? "Current Year (Annually)"
-        : "All Time";
+          ? "Past 7 Days (Weekly)"
+          : timeframe === "monthly"
+            ? "Current Month (Monthly)"
+            : timeframe === "annually"
+              ? "Current Year (Annually)"
+              : "All Time";
 
     const nowFormatted = new Date().toLocaleString("en-GB", {
       day: "numeric",
@@ -731,10 +731,10 @@ export class MemoryPaymentRepo implements PaymentRepo {
           p.status === "settled"
             ? "Fully Settled"
             : p.status === "overdue"
-            ? "OVERDUE (Grace Action Required)"
-            : p.status === "due"
-            ? "Payment Due Soon"
-            : "Up to Date (Active)";
+              ? "OVERDUE (Grace Action Required)"
+              : p.status === "due"
+                ? "Payment Due Soon"
+                : "Up to Date (Active)";
 
         const planDescription = p.planMonths
           ? `${p.planMonths}-Month Monthly Instalment Plan (0% Interest)`

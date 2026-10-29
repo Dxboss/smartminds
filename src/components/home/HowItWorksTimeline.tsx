@@ -70,6 +70,12 @@ export interface HowItWorksTimelineProps {
   bgColor?: SectionBgColor;
   columns?: 2 | 3 | 4;
   items?: BuilderSectionItem[];
+  calloutHeadline?: string;
+  calloutText?: string;
+  calloutBadge?: string;
+  calloutIcon?: string;
+  calloutBgColor?: string;
+  showCallout?: boolean;
   headlineFontFamily?: string;
   headlineFontSize?: string;
   headlineFontWeight?: string;
@@ -96,7 +102,8 @@ export interface HowItWorksTimelineProps {
       | "image"
       | "item"
       | "bg"
-      | "video",
+      | "video"
+      | "callout",
     itemIndex?: number
   ) => void;
 }
@@ -112,6 +119,12 @@ export const HowItWorksTimeline: React.FC<HowItWorksTimelineProps> = ({
   bgColor = "white",
   columns = 4,
   items,
+  calloutHeadline = "Worried about missing an evening session?",
+  calloutText = "Every live class is recorded in high definition and published to your student stream within 24 hours. You can rewatch lessons, review slides, and catch up at your own pace without falling behind.",
+  calloutBadge = "Unlimited Replays",
+  calloutIcon = "clock",
+  calloutBgColor = "navy",
+  showCallout = true,
   headlineFontFamily,
   headlineFontSize,
   headlineFontWeight,
@@ -300,30 +313,86 @@ export const HowItWorksTimeline: React.FC<HowItWorksTimelineProps> = ({
         </div>
 
         {/* Dedicated "Recordings available to rewatch" Callout Band per PRD 10.1 */}
-        <div className="mt-10 bg-navy-900 text-white rounded-lg p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="flex items-start gap-4">
-            <div className="w-11 h-11 rounded-sm bg-white/10 flex items-center justify-center flex-shrink-0 text-gold-500">
-              <Icon name="clock" size={22} />
-            </div>
-            <div>
-              <h4 className="font-heading text-lg font-bold text-white mb-1">
-                Worried about missing an evening session?
-              </h4>
-              <p className="text-sm text-paper/85 max-w-2xl leading-relaxed">
-                Every live class is recorded in high definition and published to
-                your student stream within 24 hours. You can rewatch lessons,
-                review slides, and catch up at your own pace without falling
-                behind.
-              </p>
-            </div>
-          </div>
+        {showCallout !== false && (
+          <EditableElementWrapper
+            isEditor={isEditor}
+            isSelected={isEditor && selectedElementKey === "callout"}
+            label="Callout Band"
+            onClick={() => onSelectElement?.("callout")}
+          >
+            {(() => {
+              const isLightCallout =
+                calloutBgColor === "paper" ||
+                calloutBgColor === "white" ||
+                calloutBgColor === "cream" ||
+                calloutBgColor === "gold" ||
+                calloutBgColor === "mint" ||
+                calloutBgColor === "sand";
 
-          <div className="flex-shrink-0 self-stretch md:self-auto flex items-center">
-            <span className="px-3.5 py-2 rounded-sm bg-white/10 border border-white/20 text-xs font-bold uppercase tracking-wider text-gold-300">
-              Unlimited Replays
-            </span>
-          </div>
-        </div>
+              const calloutBgClass =
+                calloutBgColor === "paper"
+                  ? "bg-paper text-navy-900 border border-line"
+                  : calloutBgColor === "cream"
+                  ? "bg-cream text-navy-900 border border-gold-300"
+                  : calloutBgColor === "slate"
+                  ? "bg-slate-800 text-white border border-slate-700"
+                  : calloutBgColor === "gold"
+                  ? "bg-gold-500 text-navy-900 border border-gold-600"
+                  : calloutBgColor === "white"
+                  ? "bg-white text-navy-900 border border-line shadow-sm"
+                  : "bg-navy-900 text-white";
+
+              return (
+                <div
+                  className={`mt-10 rounded-lg p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 transition-colors ${calloutBgClass}`}
+                >
+                  <div className="flex items-start gap-4">
+                    <div
+                      className={`w-11 h-11 rounded-sm flex items-center justify-center shrink-0 ${
+                        isLightCallout
+                          ? "bg-navy-900/10 text-navy-900"
+                          : "bg-white/10 text-gold-500"
+                      }`}
+                    >
+                      <Icon name={(calloutIcon as any) || "clock"} size={22} />
+                    </div>
+                    <div>
+                      <h4
+                        className={`font-heading text-lg font-bold mb-1 ${
+                          isLightCallout ? "text-navy-900" : "text-white"
+                        }`}
+                      >
+                        {calloutHeadline || "Worried about missing an evening session?"}
+                      </h4>
+                      <p
+                        className={`text-sm max-w-2xl leading-relaxed ${
+                          isLightCallout ? "text-ink-soft" : "text-paper/85"
+                        }`}
+                      >
+                        {calloutText ||
+                          "Every live class is recorded in high definition and published to your student stream within 24 hours. You can rewatch lessons, review slides, and catch up at your own pace without falling behind."}
+                      </p>
+                    </div>
+                  </div>
+
+                  {calloutBadge && (
+                    <div className="shrink-0 self-stretch md:self-auto flex items-center">
+                      <span
+                        className={`px-3.5 py-2 rounded-sm text-xs font-bold uppercase tracking-wider ${
+                          isLightCallout
+                            ? "bg-navy-900 text-white"
+                            : "bg-white/10 border border-white/20 text-gold-300"
+                        }`}
+                      >
+                        {calloutBadge}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </EditableElementWrapper>
+        )}
       </Container>
     </Section>
   );

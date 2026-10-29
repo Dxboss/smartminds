@@ -219,7 +219,7 @@ export class PostgresPaymentRepo implements PaymentRepo {
 
     try {
       const { pullLatestFromNeon, loadPersistedRecords } = await import("@/lib/persistedData");
-      await pullLatestFromNeon().catch(() => {});
+      await pullLatestFromNeon().catch(() => { });
       const store = loadPersistedRecords();
 
       const dbSchedules = await this.getPaymentSchedules(actor, { learnerId }).catch(() => []);
@@ -364,7 +364,7 @@ export class PostgresPaymentRepo implements PaymentRepo {
 
     try {
       const { pullLatestFromNeon, loadPersistedRecords } = await import("@/lib/persistedData");
-      await pullLatestFromNeon().catch(() => {});
+      await pullLatestFromNeon().catch(() => { });
       const store = loadPersistedRecords();
 
       const [schedRows, payRows, enrRows, lrnRows] = await Promise.all([

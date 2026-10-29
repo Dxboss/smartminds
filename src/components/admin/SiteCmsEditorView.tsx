@@ -816,6 +816,7 @@ export const SiteCmsEditorView: React.FC<Props> = ({
     | "trustNote"
     | "socialProof"
     | "reassurance"
+    | "callout"
     | null
   >(null);
   const [selectedElementItemIndex, setSelectedElementItemIndex] = useState<number | null>(null);
@@ -850,7 +851,8 @@ export const SiteCmsEditorView: React.FC<Props> = ({
         | "sealBadge"
         | "trustNote"
         | "socialProof"
-        | "reassurance";
+        | "reassurance"
+        | "callout";
       label: string;
       sublabel?: string;
       icon: IconName;
@@ -1081,6 +1083,15 @@ export const SiteCmsEditorView: React.FC<Props> = ({
       });
     }
 
+    if (sec.type === "how_it_works" || sec.type === "faq_accordion") {
+      list.push({
+        key: "callout",
+        label: sec.type === "how_it_works" ? "Evening Session Perk Banner" : "Still Have Questions Card",
+        sublabel: sec.calloutHeadline?.slice(0, 24) || (sec.type === "how_it_works" ? "Worried about missing..." : "Still have a question?"),
+        icon: sec.type === "how_it_works" ? "video" : "info",
+      });
+    }
+
     list.push({
       key: "bg",
       label: "Layout & Spacing",
@@ -1109,7 +1120,8 @@ export const SiteCmsEditorView: React.FC<Props> = ({
       | "sealBadge"
       | "trustNote"
       | "socialProof"
-      | "reassurance",
+      | "reassurance"
+      | "callout",
     itemIndex?: number
   ) => {
     setSelectedSectionId(sectionId);
@@ -3839,6 +3851,10 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                           ? "Social Proof & Rating"
                           : selectedElementKey === "reassurance"
                           ? "Reassurance Perk"
+                          : selectedElementKey === "callout"
+                          ? selectedSection.type === "how_it_works"
+                            ? "Evening Session Perk Banner"
+                            : "Still Have Questions Card"
                           : selectedElementKey === "floatingBadge"
                           ? selectedSection.type === "staff_training"
                             ? "Corporate Partners Metrics Banner"
@@ -5364,6 +5380,204 @@ export const SiteCmsEditorView: React.FC<Props> = ({
                             updateSelectedField(mappedField as any, val);
                           }}
                         />
+                      )}
+
+                      {/* How It Works Callout Banner (Evening Session / Replay perk) */}
+                      {selectedSection.type === "how_it_works" && (
+                        <div className="p-3.5 bg-paper rounded-sm border border-line space-y-3">
+                          <div className="flex items-center justify-between border-b border-line pb-2">
+                            <strong className="text-xs font-bold text-navy-900 flex items-center gap-1.5">
+                              <Icon name="video" size={13} className="text-navy-900" />
+                              <span>Live Session Replays Callout Banner</span>
+                            </strong>
+                            <label className="inline-flex items-center gap-1.5 cursor-pointer text-[11px] font-semibold text-navy-900">
+                              <input
+                                type="checkbox"
+                                checked={selectedSection.showCallout !== false}
+                                onChange={(e) => updateSelectedField("showCallout", e.target.checked)}
+                                className="rounded border-line text-navy-900 focus:ring-0"
+                              />
+                              <span>Show</span>
+                            </label>
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                              Headline
+                            </label>
+                            <input
+                              type="text"
+                              value={selectedSection.calloutHeadline ?? "Worried about missing an evening session?"}
+                              onChange={(e) => updateSelectedField("calloutHeadline", e.target.value)}
+                              placeholder="e.g. Worried about missing an evening session?"
+                              className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                              Explanation & Assurance Text
+                            </label>
+                            <textarea
+                              rows={3}
+                              value={selectedSection.calloutText ?? "Every live class is recorded in high definition and published to your student stream within 24 hours. You can rewatch lessons, review slides, and catch up at your own pace without falling behind."}
+                              onChange={(e) => updateSelectedField("calloutText", e.target.value)}
+                              placeholder="Explain recording policy, catch-up replays, or study flexibility..."
+                              className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                                Badge / Perk Tag
+                              </label>
+                              <input
+                                type="text"
+                                value={selectedSection.calloutBadge ?? "Unlimited Replays"}
+                                onChange={(e) => updateSelectedField("calloutBadge", e.target.value)}
+                                placeholder="e.g. Unlimited Replays"
+                                className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                                Card Theme / Color
+                              </label>
+                              <select
+                                value={selectedSection.calloutBgColor || "navy"}
+                                onChange={(e) => updateSelectedField("calloutBgColor", e.target.value)}
+                                className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white font-medium focus:outline-none focus:border-navy-900"
+                              >
+                                <option value="navy">Navy (Dark Accent)</option>
+                                <option value="paper">Paper (Warm Cream)</option>
+                                <option value="white">Pure White</option>
+                                <option value="cream">Cream Highlight</option>
+                                <option value="gold">Gold Accent</option>
+                                <option value="slate">Slate Modern</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* FAQ Section "Still Have Questions?" Callout Card */}
+                      {selectedSection.type === "faq_accordion" && (
+                        <div className="p-3.5 bg-paper rounded-sm border border-line space-y-3">
+                          <div className="flex items-center justify-between border-b border-line pb-2">
+                            <strong className="text-xs font-bold text-navy-900 flex items-center gap-1.5">
+                              <Icon name="info" size={13} className="text-navy-900" />
+                              <span>Still Have Questions Callout Card</span>
+                            </strong>
+                            <label className="inline-flex items-center gap-1.5 cursor-pointer text-[11px] font-semibold text-navy-900">
+                              <input
+                                type="checkbox"
+                                checked={selectedSection.showCallout !== false}
+                                onChange={(e) => updateSelectedField("showCallout", e.target.checked)}
+                                className="rounded border-line text-navy-900 focus:ring-0"
+                              />
+                              <span>Show</span>
+                            </label>
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                              Card Headline
+                            </label>
+                            <input
+                              type="text"
+                              value={selectedSection.calloutHeadline ?? "Still have a question?"}
+                              onChange={(e) => updateSelectedField("calloutHeadline", e.target.value)}
+                              placeholder="e.g. Still have a question?"
+                              className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                              Description / Advisory Note
+                            </label>
+                            <textarea
+                              rows={2}
+                              value={selectedSection.calloutText ?? "Our admissions advisers are ready to help clarify any aspect of your qualification."}
+                              onChange={(e) => updateSelectedField("calloutText", e.target.value)}
+                              placeholder="Helpful note reassuring the student..."
+                              className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                                Primary Action Label
+                              </label>
+                              <input
+                                type="text"
+                                value={selectedSection.buttonText ?? "Book a free call"}
+                                onChange={(e) => updateSelectedField("buttonText", e.target.value)}
+                                placeholder="Book a free call"
+                                className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                                Primary Action Target
+                              </label>
+                              <input
+                                type="text"
+                                value={selectedSection.buttonLink ?? "/contact"}
+                                onChange={(e) => updateSelectedField("buttonLink", e.target.value)}
+                                placeholder="/contact"
+                                className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                                Secondary Link Label
+                              </label>
+                              <input
+                                type="text"
+                                value={selectedSection.secondaryButtonText ?? "Contact our office"}
+                                onChange={(e) => updateSelectedField("secondaryButtonText", e.target.value)}
+                                placeholder="Contact our office"
+                                className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                                Secondary Target
+                              </label>
+                              <input
+                                type="text"
+                                value={selectedSection.secondaryButtonLink ?? "tel:02081234567"}
+                                onChange={(e) => updateSelectedField("secondaryButtonLink", e.target.value)}
+                                placeholder="tel:... or /contact"
+                                className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white focus:outline-none focus:border-navy-900"
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-semibold text-navy-900 uppercase tracking-wider mb-1">
+                              Card Background Palette
+                            </label>
+                            <select
+                              value={selectedSection.calloutBgColor || "paper"}
+                              onChange={(e) => updateSelectedField("calloutBgColor", e.target.value)}
+                              className="w-full px-2.5 py-1.5 border border-line rounded-sm text-xs bg-white font-medium focus:outline-none focus:border-navy-900"
+                            >
+                              <option value="paper">Paper (Warm Cream Default)</option>
+                              <option value="white">Pure White</option>
+                              <option value="cream">Cream Highlight</option>
+                              <option value="gold">Gold Warm Accent</option>
+                              <option value="slate">Slate Modern</option>
+                              <option value="navy">Navy Blue Dark</option>
+                            </select>
+                          </div>
+                        </div>
                       )}
                     </>
                   )}

@@ -62,6 +62,7 @@ interface Props {
     | "trustNote"
     | "socialProof"
     | "reassurance"
+    | "callout"
     | null;
   selectedElementItemIndex?: number | null;
   onSelectElement?: (
@@ -80,7 +81,8 @@ interface Props {
       | "sealBadge"
       | "trustNote"
       | "socialProof"
-      | "reassurance",
+      | "reassurance"
+      | "callout",
     itemIndex?: number
   ) => void;
 }
@@ -764,6 +766,12 @@ export const SectionRenderer: React.FC<Props> = ({
           bgColor={section.bgColor as any}
           columns={(section.columns === 1 ? 2 : section.columns) as 2 | 3 | 4 | undefined}
           items={section.items}
+          calloutHeadline={section.calloutHeadline}
+          calloutText={section.calloutText}
+          calloutBadge={section.calloutBadge}
+          calloutIcon={section.calloutIcon}
+          calloutBgColor={section.calloutBgColor}
+          showCallout={section.showCallout}
           headlineFontFamily={section.headlineFontFamily}
           headlineFontSize={section.headlineFontSize}
           headlineFontWeight={section.headlineFontWeight}
@@ -1014,6 +1022,14 @@ export const SectionRenderer: React.FC<Props> = ({
           items={section.items}
           bgColor={section.bgColor as any}
           columns={section.columns as 1 | 2 | 3 | 4 | undefined}
+          calloutHeadline={section.calloutHeadline}
+          calloutText={section.calloutText}
+          buttonText={section.buttonText}
+          buttonLink={section.buttonLink}
+          secondaryButtonText={section.secondaryButtonText}
+          secondaryButtonLink={section.secondaryButtonLink}
+          calloutBgColor={section.calloutBgColor}
+          showCallout={section.showCallout}
           isEditor={isEditor}
           selectedElementKey={selectedElementKey}
           selectedElementItemIndex={selectedElementItemIndex}
