@@ -48,7 +48,14 @@ export default async function AdminAvailabilityPage() {
   ]);
 
   const cohorts = getPersistedCohorts();
-  const tutors = staffAndTutors.filter((u) => u.role === "tutor" && u.active !== false);
+  const tutors = staffAndTutors.filter(
+    (u) =>
+      (u.role === "tutor" ||
+        u.role === "admin_staff" ||
+        u.role === "owner_admin" ||
+        u.role === "super_admin") &&
+      u.active !== false
+  );
 
   return (
     <AvailabilityManagerView

@@ -34,7 +34,14 @@ export default async function AdminOneToOneTutoringPage() {
   const allAttendance = listTutoringAttendanceRecords(session);
   const allUsers = listAllPlatformUsers();
   const tutors = allUsers
-    .filter((u) => u.role === "tutor" && u.active !== false)
+    .filter(
+      (u) =>
+        (u.role === "tutor" ||
+          u.role === "admin_staff" ||
+          u.role === "owner_admin" ||
+          u.role === "super_admin") &&
+        u.active !== false
+    )
     .map((u) => ({
       id: u.tutorId || u.id,
       name: u.name,

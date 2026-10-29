@@ -2673,6 +2673,8 @@ export async function adminEnrolNewStudentAction(data: {
   depositAmount: number;
   monthlyAmount?: number;
   months?: number;
+  intervalWeeks?: number;
+  tutoringPlanId?: string;
   paymentMethod?: "bacs" | "card" | "direct_debit" | "website" | "website_payment" | "cash" | "employer" | "funded" | "paid";
   paymentStatus?: "paid" | "direct_debit" | "website_payment" | "pending";
   // Multi-course enrolment:
@@ -2919,6 +2921,14 @@ export async function adminEnrolNewStudentAction(data: {
     if (data.paymentPlanType === "instalments" && planMonths > 1) {
       // 1. Initial deposit / amount paid so far
       const depositAmt = paidSoFar > 0 ? paidSoFar : Math.max(0, Number(data.depositAmount || 0));
+      const intervalDays = data.intervalWeeks ? data.intervalWeeks * 7 : 30;
+      const intervalLabel = data.intervalWeeks
+        ? data.intervalWeeks === 2
+          ? "Every 2 Weeks"
+          : data.intervalWeeks === 4
+            ? "Every 4 Weeks"
+            : `Every ${data.intervalWeeks} Weeks`
+        : "Monthly";
 
       if (depositAmt > 0 || isHistorical) {
         const isDepositPaid = paidSoFar > 0;
@@ -2929,7 +2939,7 @@ export async function adminEnrolNewStudentAction(data: {
           learnerId,
           courseTitle: data.courseTitle,
           instalmentNumber: 1,
-          totalInstalments: planMonths + 1,
+          totalInstalments: planMonths,
           amount: depositAmt,
           amountGbp: depositAmt,
           dueDate: enrolmentDateStr.slice(0, 10),
@@ -2943,7 +2953,7 @@ export async function adminEnrolNewStudentAction(data: {
             ? data.historicalNotes
               ? `Prior Payments: ${data.historicalNotes}`
               : "Tuition Fees Paid to Date"
-            : `Initial Enrolment Deposit (${paymentStatusLabel})`,
+            : `Initial Enrolment Deposit / First Payment (${paymentStatusLabel})`,
         });
 
         if (isDepositPaid && depositAmt > 0) {
@@ -2960,19 +2970,20 @@ export async function adminEnrolNewStudentAction(data: {
             paidAt: enrolmentDateStr,
             notes:
               data.historicalNotes ||
-              `${paymentStatusLabel} received (£${depositAmt.toFixed(2)}) on ${planMonths}-Month Instalment Plan`,
+              `${paymentStatusLabel} received (£${depositAmt.toFixed(2)}) on ${data.intervalWeeks ? `${planMonths}-Payment (${intervalLabel})` : `${planMonths}-Month`} Instalment Plan`,
           };
         }
 
         const balanceToSpread = Math.max(0, totalPrice - depositAmt);
+        const remainingInstalmentCount = planMonths > 1 ? planMonths - 1 : 1;
         if (balanceToSpread > 0) {
-          const monthly = Math.round((balanceToSpread / planMonths) * 100) / 100;
-          for (let i = 1; i <= planMonths; i++) {
-            const dueDate = new Date(now.getTime() + i * 30 * 24 * 60 * 60 * 1000);
+          const monthly = Math.round((balanceToSpread / remainingInstalmentCount) * 100) / 100;
+          for (let i = 1; i <= remainingInstalmentCount; i++) {
+            const dueDate = new Date(now.getTime() + i * intervalDays * 24 * 60 * 60 * 1000);
             const graceDate = new Date(dueDate.getTime() + 14 * 24 * 60 * 60 * 1000);
             const itemAmt =
-              i === planMonths
-                ? Math.round((balanceToSpread - monthly * (planMonths - 1)) * 100) / 100
+              i === remainingInstalmentCount
+                ? Math.round((balanceToSpread - monthly * (remainingInstalmentCount - 1)) * 100) / 100
                 : monthly;
             paymentSchedules.push({
               id: `sched-inst-${i}-${enrolmentId}`,
@@ -2980,7 +2991,7 @@ export async function adminEnrolNewStudentAction(data: {
               learnerId,
               courseTitle: data.courseTitle,
               instalmentNumber: i + 1,
-              totalInstalments: planMonths + 1,
+              totalInstalments: planMonths,
               amount: itemAmt,
               amountGbp: itemAmt,
               dueDate: dueDate.toISOString().slice(0, 10),
@@ -2988,18 +2999,18 @@ export async function adminEnrolNewStudentAction(data: {
               status: "due",
               method: resolvedPaymentMethod,
               type: "instalment",
-              description: `Instalment ${i} of ${planMonths} (${paymentStatusLabel})`,
+              description: `Instalment ${i + 1} of ${planMonths} (${intervalLabel} • ${paymentStatusLabel})`,
             });
           }
         }
       } else {
-        // No separate deposit: First instalment payable in the same month (Day 1 / Today)
+        // No separate deposit: First instalment payable on Day 1 (Today)
         const monthly = Math.round((totalPrice / planMonths) * 100) / 100;
         for (let i = 0; i < planMonths; i++) {
           const dueDate =
             i === 0
               ? new Date(now.getTime())
-              : new Date(now.getTime() + i * 30 * 24 * 60 * 60 * 1000);
+              : new Date(now.getTime() + i * intervalDays * 24 * 60 * 60 * 1000);
           const graceDate = new Date(dueDate.getTime() + 14 * 24 * 60 * 60 * 1000);
           const itemAmt =
             i === planMonths - 1
@@ -3020,7 +3031,7 @@ export async function adminEnrolNewStudentAction(data: {
             status: "due",
             method: resolvedPaymentMethod,
             type: "instalment",
-            description: `Instalment ${i + 1} of ${planMonths} (${paymentStatusLabel})`,
+            description: `Instalment ${i + 1} of ${planMonths} (${intervalLabel} • ${paymentStatusLabel})`,
           });
         }
       }

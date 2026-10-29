@@ -35,7 +35,14 @@ export default async function AdminLearnersPage() {
   ]);
 
   const cohorts = getPersistedCohorts();
-  const tutors = staffAndTutors.filter((u) => u.role === "tutor" && u.active !== false);
+  const tutors = staffAndTutors.filter(
+    (u) =>
+      (u.role === "tutor" ||
+        u.role === "admin_staff" ||
+        u.role === "owner_admin" ||
+        u.role === "super_admin") &&
+      u.active !== false
+  );
 
   let paymentPlans: any[] = [];
   if (session.role === "owner_admin" || session.role === "super_admin") {

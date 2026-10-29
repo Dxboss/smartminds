@@ -72,12 +72,12 @@ export const level5PaymentPlans: PaymentPlanTemplate[] = [
   defaultPlan14Months,
 ];
 
-/** Payment intervals discussed for the 12-week one-to-one tutoring term. */
+/** Payment intervals for the 12-week one-to-one tutoring term. */
 export const tutoringPaymentPlans: PaymentPlanTemplate[] = [
   {
     id: "tutoring-every-2-weeks",
     name: "Every 2 weeks (6 payments)",
-    months: 5,
+    months: 6,
     interval_weeks: 2,
     deposit_type: "percent",
     deposit_value: 100 / 6,
@@ -87,7 +87,7 @@ export const tutoringPaymentPlans: PaymentPlanTemplate[] = [
   {
     id: "tutoring-every-4-weeks",
     name: "Every 4 weeks (3 payments)",
-    months: 2,
+    months: 3,
     interval_weeks: 4,
     deposit_type: "percent",
     deposit_value: 100 / 3,
@@ -97,7 +97,7 @@ export const tutoringPaymentPlans: PaymentPlanTemplate[] = [
   {
     id: "tutoring-every-8-weeks",
     name: "Every 8 weeks (2 payments)",
-    months: 1,
+    months: 2,
     interval_weeks: 8,
     deposit_type: "percent",
     deposit_value: 50,
@@ -106,7 +106,7 @@ export const tutoringPaymentPlans: PaymentPlanTemplate[] = [
   },
   {
     id: "tutoring-every-12-weeks",
-    name: "Every 12 weeks (one payment)",
+    name: "Full 12-Week Term (1 payment)",
     months: 1,
     interval_weeks: 12,
     deposit_type: "percent",
@@ -115,6 +115,25 @@ export const tutoringPaymentPlans: PaymentPlanTemplate[] = [
     after_grace: "pause_access",
   },
 ];
+
+/**
+ * Checks if a course is a private 1-on-1 tutoring course.
+ */
+export function isTutoringCourse(courseId?: string): boolean {
+  if (!courseId) return false;
+  return (
+    courseId === "course-tutoring-children" ||
+    courseId === "private-tutoring-english-maths" ||
+    courseId.includes("tutoring")
+  );
+}
+
+/**
+ * Returns tutoring payment plans.
+ */
+export function getTutoringPaymentPlans(): PaymentPlanTemplate[] {
+  return tutoringPaymentPlans;
+}
 
 /**
  * Extracts the numeric qualification level from a level label (e.g. "Level 5 Diploma" -> 5).

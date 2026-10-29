@@ -422,7 +422,15 @@ export function PaymentsLedgerView({
   );
   const [enrolCourseId, setEnrolCourseId] = useState("diploma-in-adult-care");
   const [enrolPlanChoice, setEnrolPlanChoice] = useState<
-    "full" | "plan-3m" | "plan-6m" | "plan-10m" | "plan-12m" | "plan-14m"
+    | "full"
+    | "plan-3m"
+    | "plan-6m"
+    | "plan-10m"
+    | "plan-12m"
+    | "plan-14m"
+    | "tutoring-every-2-weeks"
+    | "tutoring-every-4-weeks"
+    | "tutoring-every-8-weeks"
   >("plan-10m");
   const [enrolAmount, setEnrolAmount] = useState("100.00");
   const [enrolMethod, setEnrolMethod] = useState<"stripe" | "bank_transfer">(
@@ -442,13 +450,14 @@ export function PaymentsLedgerView({
     if (cId === "diploma-in-adult-care-l5") return 1900;
     if (cId === "children-young-people-workforce") return 1450;
     if (cId === "award-in-education-and-training") return 495;
+    if (cId === "course-tutoring-children") return 240;
     return 1400; // default Level 3 Adult Care
   };
 
   const calculatePlanDetails = (cId: string, choice: string) => {
     const fee = getCourseFee(cId);
     if (choice === "full") {
-      const discounted = Math.round(fee * 0.9 * 100) / 100;
+      const discounted = cId === "course-tutoring-children" ? fee : Math.round(fee * 0.9 * 100) / 100;
       return {
         type: "full" as const,
         months: 1,
@@ -456,7 +465,50 @@ export function PaymentsLedgerView({
         deposit: discounted,
         monthly: 0,
         finalMonthly: 0,
-        label: `Pay in Full (10% Discount: £${discounted.toFixed(2)})`,
+        label: cId === "course-tutoring-children"
+          ? `Full 12-Week Term (£${discounted.toFixed(2)} Upfront)`
+          : `Pay in Full (10% Discount: £${discounted.toFixed(2)})`,
+      };
+    }
+    if (choice === "tutoring-every-2-weeks") {
+      const deposit = Math.round((fee / 6) * 100) / 100;
+      const remaining = fee - deposit;
+      const monthly = Math.round((remaining / 5) * 100) / 100;
+      return {
+        type: "instalment_deposit" as const,
+        months: 6,
+        totalFee: fee,
+        deposit,
+        monthly,
+        finalMonthly: Math.round((remaining - monthly * 4) * 100) / 100,
+        label: `Every 2 Weeks (6 payments of £${deposit.toFixed(2)})`,
+      };
+    }
+    if (choice === "tutoring-every-4-weeks") {
+      const deposit = Math.round((fee / 3) * 100) / 100;
+      const remaining = fee - deposit;
+      const monthly = Math.round((remaining / 2) * 100) / 100;
+      return {
+        type: "instalment_deposit" as const,
+        months: 3,
+        totalFee: fee,
+        deposit,
+        monthly,
+        finalMonthly: Math.round((remaining - monthly) * 100) / 100,
+        label: `Every 4 Weeks / Monthly (3 payments of £${deposit.toFixed(2)})`,
+      };
+    }
+    if (choice === "tutoring-every-8-weeks") {
+      const deposit = Math.round((fee / 2) * 100) / 100;
+      const remaining = fee - deposit;
+      return {
+        type: "instalment_deposit" as const,
+        months: 2,
+        totalFee: fee,
+        deposit,
+        monthly: remaining,
+        finalMonthly: remaining,
+        label: `Every 8 Weeks (2 payments of £${deposit.toFixed(2)})`,
       };
     }
     if (choice === "plan-3m") {
@@ -2487,7 +2539,11 @@ export function PaymentsLedgerView({
                     const newCourseId = e.target.value;
                     setEnrolCourseId(newCourseId);
                     let nextPlan = enrolPlanChoice;
-                    if (newCourseId === "diploma-in-adult-care-l5") {
+                    if (newCourseId === "course-tutoring-children") {
+                      setEnrolCourseTitle("1-on-1 Private Tutoring: English & Maths");
+                      nextPlan = "tutoring-every-2-weeks";
+                      setEnrolPlanChoice("tutoring-every-2-weeks");
+                    } else if (newCourseId === "diploma-in-adult-care-l5") {
                       setEnrolCourseTitle("Diploma in Adult Care (RQF Level 5)");
                       if (nextPlan === "plan-3m") {
                         nextPlan = "plan-6m";
@@ -2529,13 +2585,16 @@ export function PaymentsLedgerView({
                   <option value="award-in-education-and-training">
                     Award in Education and Training (AET Level 3 — £495)
                   </option>
+                  <option value="course-tutoring-children">
+                    1-on-1 Private Tutoring: English &amp; Maths (12-Week Term — £240)
+                  </option>
                 </select>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-navy-900 uppercase tracking-wider mb-1">
-                    Instalment Plan Option ({enrolCourseId.includes("l5") ? "Level 5+: 6, 10, 12, 14m" : "Level 2–4: 3, 6, 10, 12m"})
+                    Instalment Plan Option ({enrolCourseId === "course-tutoring-children" ? "1-on-1 Tutoring: 2-Wk, 4-Wk, 8-Wk or Full" : enrolCourseId.includes("l5") ? "Level 5+: 6, 10, 12, 14m" : "Level 2–4: 3, 6, 10, 12m"})
                   </label>
                   <select
                     value={enrolPlanChoice}
@@ -2547,16 +2606,27 @@ export function PaymentsLedgerView({
                     }}
                     className="w-full px-3 py-2 border border-line rounded-sm text-sm bg-white focus:outline-none focus:border-navy-900"
                   >
-                    {!enrolCourseId.includes("l5") && (
-                      <option value="plan-3m">3 Monthly Payments (20% deposit)</option>
+                    {enrolCourseId === "course-tutoring-children" ? (
+                      <>
+                        <option value="tutoring-every-2-weeks">Every 2 Weeks (6 Payments • £40/2wks)</option>
+                        <option value="tutoring-every-4-weeks">Every 4 Weeks (3 Payments • £80/4wks)</option>
+                        <option value="tutoring-every-8-weeks">Every 8 Weeks (2 Payments • £120/8wks)</option>
+                        <option value="full">Full 12-Week Term (£240 Upfront)</option>
+                      </>
+                    ) : (
+                      <>
+                        {!enrolCourseId.includes("l5") && (
+                          <option value="plan-3m">3 Monthly Payments (20% deposit)</option>
+                        )}
+                        <option value="plan-6m">6 Monthly Payments (15% deposit)</option>
+                        <option value="plan-10m">10 Monthly Payments (£100 deposit)</option>
+                        <option value="plan-12m">12 Monthly Payments (£100 deposit)</option>
+                        {enrolCourseId.includes("l5") && (
+                          <option value="plan-14m">14 Monthly Payments (£100 deposit)</option>
+                        )}
+                        <option value="full">Pay in Full (10% upfront discount)</option>
+                      </>
                     )}
-                    <option value="plan-6m">6 Monthly Payments (15% deposit)</option>
-                    <option value="plan-10m">10 Monthly Payments (£100 deposit)</option>
-                    <option value="plan-12m">12 Monthly Payments (£100 deposit)</option>
-                    {enrolCourseId.includes("l5") && (
-                      <option value="plan-14m">14 Monthly Payments (£100 deposit)</option>
-                    )}
-                    <option value="full">Pay in Full (10% upfront discount)</option>
                   </select>
                 </div>
 

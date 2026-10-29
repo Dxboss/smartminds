@@ -23,6 +23,7 @@ import {
 } from "@/app/admin/actions";
 import { impersonateUserAction } from "@/app/super/actions";
 import type { Course } from "@/content/types";
+import { tutoringPaymentPlans } from "@/content/plans";
 
 function isLevelFiveOrAbove(levelLabel: string): boolean {
   if (!levelLabel) return false;
@@ -185,6 +186,7 @@ export const LearnersDirectory: React.FC<Props> = ({
   const [enrolPrice, setEnrolPrice] = useState("1250");
   const [enrolDeposit, setEnrolDeposit] = useState("150");
   const [enrolMonths, setEnrolMonths] = useState("6");
+  const [enrolTutoringPlanId, setEnrolTutoringPlanId] = useState<string>("tutoring-every-2-weeks");
   const [enrolPaymentMethod, setEnrolPaymentMethod] = useState<
     "paid" | "direct_debit" | "website_payment"
   >("paid");
@@ -198,6 +200,12 @@ export const LearnersDirectory: React.FC<Props> = ({
 
   // Sync valid instalment months when courses change (Level 2-4: [3,6,10,12], Level 5+: [6,10,12,14])
   useEffect(() => {
+    const isTutoring = enrolCourses.some((c) => {
+      const cObj = availableCourses.find((x) => x.id === c.courseId);
+      return c.courseId === "course-tutoring-children" || Boolean(cObj?.is_private_tutoring);
+    });
+    if (isTutoring) return;
+
     const allowed = getInstalmentMonthsForCourseSelections(enrolCourses);
     const currentM = parseInt(enrolMonths, 10);
     if (!allowed.includes(currentM)) {
@@ -209,7 +217,7 @@ export const LearnersDirectory: React.FC<Props> = ({
         setEnrolMonths(allowed[0].toString());
       }
     }
-  }, [enrolCourses, enrolMonths]);
+  }, [enrolCourses, enrolMonths, availableCourses]);
 
   // Historical Enrolment State
   const [enrolIsHistorical, setEnrolIsHistorical] = useState(false);
@@ -1289,11 +1297,17 @@ export const LearnersDirectory: React.FC<Props> = ({
                   className="w-full px-3 py-2 rounded-sm border border-line bg-paper text-ink font-semibold focus:outline-none focus:ring-1 focus:ring-navy-900"
                 >
                   <option value="Unassigned / TBA">Unassigned / TBA</option>
-                  {realTutors.map((t) => (
-                    <option key={t.id} value={t.name}>
-                      {t.name} ({t.email})
-                    </option>
-                  ))}
+                  {realTutors.map((t) => {
+                    const isStaff =
+                      t.role === "admin_staff" ||
+                      t.role === "owner_admin" ||
+                      t.role === "super_admin";
+                    return (
+                      <option key={t.id} value={t.name}>
+                        {t.name} • {isStaff ? "Administrative Staff Tutor" : "Subject Tutor"} ({t.email})
+                      </option>
+                    );
+                  })}
                   {selectedTutor &&
                     selectedTutor !== "Unassigned / TBA" &&
                     !isFictionalTutorName(selectedTutor) &&
@@ -1898,6 +1912,33 @@ export const LearnersDirectory: React.FC<Props> = ({
                       Boolean(firstCourseObj?.is_private_tutoring);
                     const matchedFirstTutor = realTutors.find((t) => t.name === firstCourse.tutorName);
 
+                    const isAnyTutoring =
+                      isFirstOneToOne ||
+                      enrolCourses.some((c) => {
+                        const cObj = availableCourses.find((x) => x.id === c.courseId);
+                        return c.courseId === "course-tutoring-children" || Boolean(cObj?.is_private_tutoring);
+                      });
+
+                    let intervalWeeks: number | undefined = undefined;
+                    let calculatedMonths =
+                      enrolPlanType === "instalments" ? parseInt(enrolMonths, 10) || 6 : 1;
+
+                    if (isAnyTutoring) {
+                      if (enrolPlanType === "full") {
+                        intervalWeeks = 12;
+                        calculatedMonths = 1;
+                      } else if (enrolTutoringPlanId === "tutoring-every-2-weeks") {
+                        intervalWeeks = 2;
+                        calculatedMonths = 6;
+                      } else if (enrolTutoringPlanId === "tutoring-every-4-weeks") {
+                        intervalWeeks = 4;
+                        calculatedMonths = 3;
+                      } else if (enrolTutoringPlanId === "tutoring-every-8-weeks") {
+                        intervalWeeks = 8;
+                        calculatedMonths = 2;
+                      }
+                    }
+
                     const extraCourses = enrolCourses.slice(1).map((c) => {
                       const cObj = availableCourses.find((x) => x.id === c.courseId);
                       const isO2O = c.courseId === "course-tutoring-children" || c.classId === "class-tutoring-kids" || Boolean(cObj?.is_private_tutoring);
@@ -1961,7 +2002,9 @@ export const LearnersDirectory: React.FC<Props> = ({
                       totalPrice: priceNum,
                       depositAmount: depNum,
                       monthlyAmount: monthlyNum,
-                      months: monthsNum,
+                      months: calculatedMonths,
+                      intervalWeeks,
+                      tutoringPlanId: isAnyTutoring ? enrolTutoringPlanId : undefined,
                       paymentMethod: enrolPaymentMethod,
                       paymentStatus: enrolPaymentMethod,
                       isHistorical: enrolIsHistorical,
@@ -2131,10 +2174,20 @@ export const LearnersDirectory: React.FC<Props> = ({
 
                   const allCourseSelections = enrolExistingLearner
                     ? [
-                        ...existingEnrolmentsForLearner.map((e) => ({ levelLabel: e.courseLevelLabel })),
+                        ...existingEnrolmentsForLearner.map((e) => ({
+                          levelLabel: e.courseLevelLabel,
+                          courseId: e.courseId,
+                        })),
                         ...enrolCourses,
                       ]
                     : enrolCourses;
+                  const hasTutoringCourse = allCourseSelections.some((c) => {
+                    const cObj = availableCourses.find((x) => x.id === c.courseId);
+                    return (
+                      c.courseId === "course-tutoring-children" ||
+                      Boolean(cObj?.is_private_tutoring)
+                    );
+                  });
                   const hasAnyLevelFiveOrAbove = allCourseSelections.some((c) => isLevelFiveOrAbove(c.levelLabel || ""));
                   const allowedInstalmentMonths = hasAnyLevelFiveOrAbove
                     ? [6, 10, 12, 14]
@@ -2265,6 +2318,11 @@ export const LearnersDirectory: React.FC<Props> = ({
                                         setEnrolCourses(updated);
                                         const sum = updated.reduce((s, it) => s + it.price, 0);
                                         setEnrolPrice((enrolExistingLearner ? currentTotalFee + sum : sum).toString());
+                                        if (isO2O) {
+                                          setEnrolTutoringPlanId("tutoring-every-2-weeks");
+                                          setEnrolMonths("6");
+                                          setEnrolDeposit((newPrice / 6).toFixed(2));
+                                        }
                                       }}
                                       className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-medium"
                                     >
@@ -2296,6 +2354,18 @@ export const LearnersDirectory: React.FC<Props> = ({
                                         setEnrolCourses(updated);
                                         const sum = updated.reduce((s, it) => s + it.price, 0);
                                         setEnrolPrice((enrolExistingLearner ? currentTotalFee + sum : sum).toString());
+                                        const isO2O = cItem.courseId === "course-tutoring-children" || Boolean(courseObj?.is_private_tutoring);
+                                        if (isO2O) {
+                                          if (enrolPlanType === "full") {
+                                            setEnrolDeposit(newPrice.toString());
+                                          } else if (enrolTutoringPlanId === "tutoring-every-2-weeks") {
+                                            setEnrolDeposit((newPrice / 6).toFixed(2));
+                                          } else if (enrolTutoringPlanId === "tutoring-every-4-weeks") {
+                                            setEnrolDeposit((newPrice / 3).toFixed(2));
+                                          } else if (enrolTutoringPlanId === "tutoring-every-8-weeks") {
+                                            setEnrolDeposit((newPrice / 2).toFixed(2));
+                                          }
+                                        }
                                       }}
                                       className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-medium"
                                     >
@@ -2355,11 +2425,17 @@ export const LearnersDirectory: React.FC<Props> = ({
                                       className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
                                     >
                                       <option value="Unassigned / TBA">Unassigned / TBA</option>
-                                      {realTutors.map((t) => (
-                                        <option key={t.id} value={t.name}>
-                                          {t.name} ({t.email})
-                                        </option>
-                                      ))}
+                                      {realTutors.map((t) => {
+                                        const isStaff =
+                                          t.role === "admin_staff" ||
+                                          t.role === "owner_admin" ||
+                                          t.role === "super_admin";
+                                        return (
+                                          <option key={t.id} value={t.name}>
+                                            {t.name} • {isStaff ? "Administrative Staff Tutor" : "Subject Tutor"} ({t.email})
+                                          </option>
+                                        );
+                                      })}
                                       {cItem.tutorName &&
                                         cItem.tutorName !== "Unassigned / TBA" &&
                                         !isFictionalTutorName(cItem.tutorName) &&
@@ -2487,10 +2563,17 @@ export const LearnersDirectory: React.FC<Props> = ({
                         <div className="flex items-center justify-between flex-wrap gap-2">
                           <h4 className="font-bold text-navy-900 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
                             <Icon name="credit-card" size={13} className="text-gold-700" />
-                            <span>3. Tuition Fee &amp; Level-Based Instalment Plan</span>
+                            <span>
+                              3. Tuition Fee &amp;{" "}
+                              {hasTutoringCourse
+                                ? "Tutoring Payment Plan (12-Week Term)"
+                                : "Level-Based Instalment Plan"}
+                            </span>
                           </h4>
                           <span className="px-2 py-0.5 rounded-xs bg-navy-900/10 text-navy-900 font-bold text-[10px]">
-                            {hasAnyLevelFiveOrAbove
+                            {hasTutoringCourse
+                              ? "1-on-1 Tutoring: 2-Wk (6 pmts), 4-Wk (3 pmts), 8-Wk (2 pmts) or Full Term"
+                              : hasAnyLevelFiveOrAbove
                               ? "Level 5+: 6, 10, 12 & 14 Month Plans Available"
                               : "Level 2–4: 3, 6, 10 & 12 Month Plans Available"}
                           </span>
@@ -2601,6 +2684,7 @@ export const LearnersDirectory: React.FC<Props> = ({
                               onChange={(e) => {
                                 const pt = e.target.value as "full" | "instalments";
                                 setEnrolPlanType(pt);
+                                const totalNum = parseFloat(enrolPrice) || 0;
                                 if (pt === "full") {
                                   if (enrolIsHistorical) {
                                     setEnrolAmountPaidToDate(enrolPrice);
@@ -2608,15 +2692,37 @@ export const LearnersDirectory: React.FC<Props> = ({
                                     setEnrolDeposit(enrolPrice);
                                   }
                                 } else {
-                                  if (!allowedInstalmentMonths.includes(parseInt(enrolMonths, 10))) {
-                                    setEnrolMonths(allowedInstalmentMonths[0].toString());
+                                  if (hasTutoringCourse) {
+                                    if (enrolTutoringPlanId === "tutoring-every-2-weeks") {
+                                      setEnrolDeposit((totalNum / 6).toFixed(2));
+                                      setEnrolMonths("6");
+                                    } else if (enrolTutoringPlanId === "tutoring-every-4-weeks") {
+                                      setEnrolDeposit((totalNum / 3).toFixed(2));
+                                      setEnrolMonths("3");
+                                    } else if (enrolTutoringPlanId === "tutoring-every-8-weeks") {
+                                      setEnrolDeposit((totalNum / 2).toFixed(2));
+                                      setEnrolMonths("2");
+                                    }
+                                  } else {
+                                    if (!allowedInstalmentMonths.includes(parseInt(enrolMonths, 10))) {
+                                      setEnrolMonths(allowedInstalmentMonths[0].toString());
+                                    }
                                   }
                                 }
                               }}
                               className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-semibold"
                             >
-                              <option value="instalments">Monthly 0% Instalments</option>
-                              <option value="full">Full Upfront Payment</option>
+                              {hasTutoringCourse ? (
+                                <>
+                                  <option value="instalments">12-Week Term Instalments (0% Interest)</option>
+                                  <option value="full">Full 12-Week Term Upfront (1 Payment)</option>
+                                </>
+                              ) : (
+                                <>
+                                  <option value="instalments">Monthly 0% Instalments</option>
+                                  <option value="full">Full Upfront Payment</option>
+                                </>
+                              )}
                             </select>
                           </div>
 
@@ -2627,7 +2733,22 @@ export const LearnersDirectory: React.FC<Props> = ({
                             <input
                               type="number"
                               value={enrolPrice}
-                              onChange={(e) => setEnrolPrice(e.target.value)}
+                              onChange={(e) => {
+                                const newP = e.target.value;
+                                setEnrolPrice(newP);
+                                const totalNum = parseFloat(newP) || 0;
+                                if (hasTutoringCourse) {
+                                  if (enrolPlanType === "full") {
+                                    setEnrolDeposit(newP);
+                                  } else if (enrolTutoringPlanId === "tutoring-every-2-weeks") {
+                                    setEnrolDeposit((totalNum / 6).toFixed(2));
+                                  } else if (enrolTutoringPlanId === "tutoring-every-4-weeks") {
+                                    setEnrolDeposit((totalNum / 3).toFixed(2));
+                                  } else if (enrolTutoringPlanId === "tutoring-every-8-weeks") {
+                                    setEnrolDeposit((totalNum / 2).toFixed(2));
+                                  }
+                                }
+                              }}
                               className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-mono font-bold text-navy-900"
                             />
                           </div>
@@ -2635,27 +2756,68 @@ export const LearnersDirectory: React.FC<Props> = ({
                           {enrolPlanType === "instalments" && (
                             <div>
                               <label className="block text-[11px] font-semibold text-navy-900 mb-1">
-                                Instalment Plan
+                                {hasTutoringCourse ? "Tutoring Instalment Schedule (12 Weeks)" : "Instalment Plan"}
                               </label>
-                              <select
-                                value={enrolMonths}
-                                onChange={(e) => setEnrolMonths(e.target.value)}
-                                className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-mono font-bold text-navy-900"
-                              >
-                                {allowedInstalmentMonths.map((m) => {
-                                  const totalNum = parseFloat(enrolPrice) || 0;
-                                  const paidNum = enrolIsHistorical
-                                    ? parseFloat(enrolAmountPaidToDate) || 0
-                                    : parseFloat(enrolDeposit) || 0;
-                                  const rem = Math.max(0, totalNum - paidNum);
-                                  const perMonth = m > 0 ? (rem / m).toFixed(2) : "0.00";
-                                  return (
-                                    <option key={m} value={m.toString()}>
-                                      {m} Months (£{perMonth}/mo)
-                                    </option>
-                                  );
-                                })}
-                              </select>
+                              {hasTutoringCourse ? (
+                                <select
+                                  value={enrolTutoringPlanId}
+                                  onChange={(e) => {
+                                    const planId = e.target.value;
+                                    setEnrolTutoringPlanId(planId);
+                                    const totalNum = parseFloat(enrolPrice) || 0;
+                                    if (planId === "tutoring-every-2-weeks") {
+                                      setEnrolDeposit((totalNum / 6).toFixed(2));
+                                      setEnrolMonths("6");
+                                    } else if (planId === "tutoring-every-4-weeks") {
+                                      setEnrolDeposit((totalNum / 3).toFixed(2));
+                                      setEnrolMonths("3");
+                                    } else if (planId === "tutoring-every-8-weeks") {
+                                      setEnrolDeposit((totalNum / 2).toFixed(2));
+                                      setEnrolMonths("2");
+                                    }
+                                  }}
+                                  className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-mono font-bold text-navy-900"
+                                >
+                                  {tutoringPaymentPlans
+                                    .filter((tp) => tp.id !== "tutoring-every-12-weeks")
+                                    .map((tp) => {
+                                      const totalNum = parseFloat(enrolPrice) || 0;
+                                      const count = tp.months;
+                                      const perPmt = count > 0 ? (totalNum / count).toFixed(2) : "0.00";
+                                      const intervalName =
+                                        tp.interval_weeks === 2
+                                          ? "Every 2 Weeks"
+                                          : tp.interval_weeks === 4
+                                            ? "Every 4 Weeks / Monthly"
+                                            : "Every 8 Weeks";
+                                      return (
+                                        <option key={tp.id} value={tp.id}>
+                                          {intervalName} — {count} Payments (£{perPmt} each)
+                                        </option>
+                                      );
+                                    })}
+                                </select>
+                              ) : (
+                                <select
+                                  value={enrolMonths}
+                                  onChange={(e) => setEnrolMonths(e.target.value)}
+                                  className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-mono font-bold text-navy-900"
+                                >
+                                  {allowedInstalmentMonths.map((m) => {
+                                    const totalNum = parseFloat(enrolPrice) || 0;
+                                    const paidNum = enrolIsHistorical
+                                      ? parseFloat(enrolAmountPaidToDate) || 0
+                                      : parseFloat(enrolDeposit) || 0;
+                                    const rem = Math.max(0, totalNum - paidNum);
+                                    const perMonth = m > 0 ? (rem / m).toFixed(2) : "0.00";
+                                    return (
+                                      <option key={m} value={m.toString()}>
+                                        {m} Months (£{perMonth}/mo)
+                                      </option>
+                                    );
+                                  })}
+                                </select>
+                              )}
                             </div>
                           )}
 
@@ -2665,7 +2827,9 @@ export const LearnersDirectory: React.FC<Props> = ({
                           ? "Amount Paid to Date (£)"
                           : enrolPlanType === "full"
                             ? "Amount Paid Today (£)"
-                            : "Deposit / Amount Paid (£)"}
+                            : hasTutoringCourse
+                              ? "First Payment / Deposit (£)"
+                              : "Deposit / Amount Paid (£)"}
                       </label>
                       <input
                         type="number"
@@ -2682,6 +2846,25 @@ export const LearnersDirectory: React.FC<Props> = ({
                         placeholder="0.00"
                         className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-mono font-bold text-emerald-800"
                       />
+                      {hasTutoringCourse && enrolPlanType === "instalments" && (
+                        <p className="text-[10px] text-ink-soft mt-1">
+                          {(() => {
+                            const totalNum = parseFloat(enrolPrice) || 0;
+                            const depNum = parseFloat(enrolDeposit) || 0;
+                            const rem = Math.max(0, totalNum - depNum);
+                            const plan = tutoringPaymentPlans.find((p) => p.id === enrolTutoringPlanId);
+                            const remainingCount = plan && plan.months > 1 ? plan.months - 1 : 1;
+                            const perRemaining = remainingCount > 0 ? (rem / remainingCount).toFixed(2) : "0.00";
+                            const intervalText =
+                              plan?.interval_weeks === 2
+                                ? "every 2 weeks"
+                                : plan?.interval_weeks === 4
+                                  ? "every 4 weeks"
+                                  : "every 8 weeks";
+                            return `Remaining balance £${rem.toFixed(2)} split into ${remainingCount} payment${remainingCount > 1 ? "s" : ""} of £${perRemaining} (${intervalText}).`;
+                          })()}
+                        </p>
+                      )}
                     </div>
 
                     <div>
@@ -3045,11 +3228,17 @@ export const LearnersDirectory: React.FC<Props> = ({
                           className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
                         >
                           <option value="Unassigned / TBA">Unassigned / TBA</option>
-                          {realTutors.map((t) => (
-                            <option key={t.id} value={t.name}>
-                              {t.name} ({t.email})
-                            </option>
-                          ))}
+                          {realTutors.map((t) => {
+                            const isStaff =
+                              t.role === "admin_staff" ||
+                              t.role === "owner_admin" ||
+                              t.role === "super_admin";
+                            return (
+                              <option key={t.id} value={t.name}>
+                                {t.name} • {isStaff ? "Administrative Staff Tutor" : "Subject Tutor"} ({t.email})
+                              </option>
+                            );
+                          })}
                           {editTutorName &&
                             editTutorName !== "Unassigned / TBA" &&
                             !isFictionalTutorName(editTutorName) &&
