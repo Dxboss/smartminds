@@ -3027,8 +3027,111 @@ export const LearnersDirectory: React.FC<Props> = ({
                       ? parseFloat(enrolAmountPaidToDate) || 0
                       : parseFloat(enrolDeposit) || 0;
                     const bal = Math.max(0, total - paid);
+
+                    if (hasTutoringCourse && enrolPlanType === "instalments") {
+                      const tPlan =
+                        tutoringPaymentPlans.find((p) => p.id === enrolTutoringPlanId) ||
+                        tutoringPaymentPlans[0];
+                      const totalPaymentsCount = tPlan.months || 6;
+                      const intervalWeeks = tPlan.interval_weeks || 2;
+                      const intervalDays = intervalWeeks * 7;
+                      const remainingCount = paid > 0 && totalPaymentsCount > 1 ? totalPaymentsCount - 1 : totalPaymentsCount;
+                      const perPaymentAmt =
+                        remainingCount > 0
+                          ? Math.round((bal / remainingCount) * 100) / 100
+                          : bal;
+
+                      return (
+                        <div className="space-y-2">
+                          <div className="p-3 rounded-sm bg-white border border-line grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+                            <div>
+                              <span className="text-[10px] text-ink-soft block">Selected Schedule</span>
+                              <strong className="text-navy-900 font-bold text-xs">
+                                {formatPaymentPlanLabel({
+                                  planMonths: totalPaymentsCount,
+                                  courseId: enrolCourses[0]?.courseId,
+                                  courseTitle: enrolCourses[0]?.levelLabel,
+                                  intervalWeeks,
+                                })}
+                              </strong>
+                            </div>
+                            <div>
+                              <span className="text-[10px] text-ink-soft block">Deposit Paid Today</span>
+                              <strong className="text-emerald-700 font-mono text-xs">
+                                £{paid.toFixed(2)}
+                              </strong>
+                            </div>
+                            <div>
+                              <span className="text-[10px] text-ink-soft block">Balance Remaining</span>
+                              <strong className="text-amber-800 font-mono text-xs">
+                                £{bal.toFixed(2)}
+                              </strong>
+                            </div>
+                            <div>
+                              <span className="text-[10px] text-ink-soft block">
+                                Every {intervalWeeks} Weeks ({remainingCount}x)
+                              </span>
+                              <strong className="text-navy-900 font-mono text-xs">
+                                {bal <= 0 ? "Settled (£0)" : `£${perPaymentAmt.toFixed(2)} / pmt`}
+                              </strong>
+                            </div>
+                          </div>
+
+                          {bal > 0 && remainingCount > 0 && (
+                            <div className="p-3 bg-white rounded-sm border border-line space-y-2">
+                              <div className="flex items-center justify-between flex-wrap gap-1">
+                                <span className="font-bold text-navy-900 text-[11px] uppercase tracking-wider">
+                                  Projected 12-Week Tutoring Schedule ({totalPaymentsCount} Payments)
+                                </span>
+                                <span className="text-[10px] text-ink-soft">
+                                  {paid > 0 ? `Deposit £${paid.toFixed(2)} paid today · ` : ""}
+                                  {remainingCount} payment{remainingCount > 1 ? "s" : ""} of £{perPaymentAmt.toFixed(2)} every {intervalWeeks} weeks
+                                </span>
+                              </div>
+                              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-48 overflow-y-auto">
+                                {paid > 0 && (
+                                  <div className="p-2 rounded-xs bg-emerald-50 border border-emerald-200 text-[10px]">
+                                    <div className="flex items-center justify-between font-bold text-emerald-900">
+                                      <span>Payment #1 (Deposit)</span>
+                                      <span className="font-mono">£{paid.toFixed(2)}</span>
+                                    </div>
+                                    <div className="text-emerald-700 text-[9px] mt-0.5 font-semibold">
+                                      Paid Today (Enrolment)
+                                    </div>
+                                  </div>
+                                )}
+                                {Array.from({ length: remainingCount }).map((_, i) => {
+                                  const pmtNumber = paid > 0 ? i + 2 : i + 1;
+                                  const d = new Date(Date.now() + (i + 1) * intervalDays * 24 * 60 * 60 * 1000);
+                                  const isLast = i === remainingCount - 1;
+                                  const cardAmt = isLast
+                                    ? Math.round((bal - perPaymentAmt * (remainingCount - 1)) * 100) / 100
+                                    : perPaymentAmt;
+                                  return (
+                                    <div key={i} className="p-2 rounded-xs bg-paper border border-line text-[10px]">
+                                      <div className="flex items-center justify-between font-semibold text-navy-900">
+                                        <span>Payment #{pmtNumber}</span>
+                                        <span className="font-mono font-bold">£{cardAmt.toFixed(2)}</span>
+                                      </div>
+                                      <div className="text-ink-soft text-[9px] mt-0.5">
+                                        Due: {d.toLocaleDateString("en-GB")} (Week {(i + 1) * intervalWeeks})
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
+
                     const mCount = enrolPlanType === "instalments" ? parseInt(enrolMonths, 10) || 6 : 1;
-                    const monthlyAmt = mCount > 1 ? Math.round((bal / mCount) * 100) / 100 : bal;
+                    const remainingMonths = paid > 0 && mCount > 1 ? mCount - 1 : mCount;
+                    const monthlyAmt =
+                      remainingMonths > 0
+                        ? Math.round((bal / remainingMonths) * 100) / 100
+                        : bal;
 
                     return (
                       <div className="space-y-2">
@@ -3053,7 +3156,7 @@ export const LearnersDirectory: React.FC<Props> = ({
                           </div>
                           <div>
                             <span className="text-[10px] text-ink-soft block">
-                              {enrolPlanType === "instalments" ? `Monthly (${mCount}x)` : "Status"}
+                              {enrolPlanType === "instalments" ? `Monthly (${remainingMonths}x)` : "Status"}
                             </span>
                             <strong className="text-navy-900 font-mono text-xs">
                               {bal <= 0
@@ -3072,18 +3175,34 @@ export const LearnersDirectory: React.FC<Props> = ({
                                 Projected Instalment Schedule ({mCount} Months)
                               </span>
                               <span className="text-[10px] text-ink-soft">
-                                £{monthlyAmt.toFixed(2)}/month across {mCount} months
+                                {paid > 0 ? `Deposit £${paid.toFixed(2)} paid today · ` : ""}
+                                £{monthlyAmt.toFixed(2)}/month across {remainingMonths} remaining month{remainingMonths > 1 ? "s" : ""}
                               </span>
                             </div>
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-36 overflow-y-auto">
-                              {Array.from({ length: mCount }).map((_, i) => {
+                              {paid > 0 && (
+                                <div className="p-1.5 rounded-xs bg-emerald-50 border border-emerald-200 text-[10px]">
+                                  <div className="flex items-center justify-between font-bold text-emerald-900">
+                                    <span>Instalment #1 (Deposit)</span>
+                                    <span className="font-mono">£{paid.toFixed(2)}</span>
+                                  </div>
+                                  <div className="text-emerald-700 text-[9px] mt-0.5 font-semibold">
+                                    Paid Today (Enrolment)
+                                  </div>
+                                </div>
+                              )}
+                              {Array.from({ length: remainingMonths }).map((_, i) => {
                                 const d = new Date();
                                 d.setMonth(d.getMonth() + i + 1);
+                                const isLast = i === remainingMonths - 1;
+                                const itemAmt = isLast
+                                  ? Math.round((bal - monthlyAmt * (remainingMonths - 1)) * 100) / 100
+                                  : monthlyAmt;
                                 return (
                                   <div key={i} className="p-1.5 rounded-xs bg-paper border border-line text-[10px]">
                                     <div className="flex items-center justify-between font-semibold text-navy-900">
-                                      <span>Instalment #{i + 1}</span>
-                                      <span className="font-mono">£{monthlyAmt.toFixed(2)}</span>
+                                      <span>Instalment #{paid > 0 ? i + 2 : i + 1}</span>
+                                      <span className="font-mono">£{itemAmt.toFixed(2)}</span>
                                     </div>
                                     <div className="text-ink-soft text-[9px] mt-0.5">
                                       Due: {d.toLocaleDateString("en-GB")}

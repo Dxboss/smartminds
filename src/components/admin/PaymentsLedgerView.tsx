@@ -121,8 +121,8 @@ export function PaymentsLedgerView({
       receipt.method === "stripe"
         ? "Debit / Credit Card (Stripe)"
         : receipt.method === "bank_transfer"
-        ? "BACS Bank Transfer"
-        : receipt.method || "Bank Transfer";
+          ? "BACS Bank Transfer"
+          : receipt.method || "Bank Transfer";
 
     const formattedAmount = `£${receipt.amountGbp.toFixed(2)}`;
 
@@ -142,12 +142,12 @@ export function PaymentsLedgerView({
         </div>
       `
       : receipt.bacsRef
-      ? `
+        ? `
         <div style="margin-top: 12px; border: 1px solid #e6e1d5; border-radius: 4px; padding: 8px 12px; background: #faf8f3; font-size: 11px; color: #5a5a6e;">
           <strong style="color: #23216b;">BACS Verification:</strong> Reconciled via BACS reference <code style="font-family: monospace; font-weight: bold; color: #23216b; background: #e6f4ea; padding: 2px 6px; border-radius: 3px;">${receipt.bacsRef}</code> in the college bank account.
         </div>
       `
-      : "";
+        : "";
 
     const html = `<!DOCTYPE html>
 <html>
