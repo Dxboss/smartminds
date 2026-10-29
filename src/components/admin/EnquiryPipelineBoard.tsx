@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
 import { EnquiryLead, EnquiryStage } from "@/lib/repositories/types";
 import {
@@ -46,7 +47,12 @@ export const EnquiryPipelineBoard: React.FC<Props> = ({
   initialEnquiries,
   availableCohorts,
 }) => {
+  const router = useRouter();
   const [enquiries, setEnquiries] = useState<EnquiryLead[]>(initialEnquiries);
+
+  useEffect(() => {
+    setEnquiries(initialEnquiries);
+  }, [initialEnquiries]);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [tempNote, setTempNote] = useState("");
   const [selectedCohortId, setSelectedCohortId] = useState(availableCohorts[0]?.id || "");
@@ -135,6 +141,7 @@ export const EnquiryPipelineBoard: React.FC<Props> = ({
       if (res && res.success) {
         setEnquiries((prev) => prev.filter((e) => e.id !== enquiryId));
         setFeedback("Lead permanently deleted.");
+        router.refresh();
         setTimeout(() => setFeedback(null), 4000);
       }
     } catch (err: any) {
@@ -166,6 +173,7 @@ export const EnquiryPipelineBoard: React.FC<Props> = ({
           })
         );
         setFeedback(`Purged test leads. Pipeline is clean.`);
+        router.refresh();
         setTimeout(() => setFeedback(null), 5000);
       }
     } catch (err: any) {

@@ -416,32 +416,10 @@ export async function deleteEnquiryPermanentlyAction(enquiryId: string) {
     );
   }
 
-  try {
-    const { loadPersistedRecords } = await import("@/lib/persistedData");
-    const store = loadPersistedRecords();
-    if (store.enquiries) {
-      store.enquiries = store.enquiries.filter((e) => e.id !== enquiryId);
-    }
-    const fs = await import("fs");
-    const path = await import("path");
-    const filePath = path.join(process.cwd(), "data", "persisted_records.json");
-    fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
-
-    const devLeadsPath = path.join(process.cwd(), "data", "dev_leads.json");
-    if (fs.existsSync(devLeadsPath)) {
-      const raw = fs.readFileSync(devLeadsPath, "utf-8");
-      const leads = JSON.parse(raw);
-      const filtered = leads.filter((l: any) => l.id !== enquiryId && l._id !== enquiryId);
-      fs.writeFileSync(devLeadsPath, JSON.stringify(filtered, null, 2));
-    }
-
-    const seedData = await import("@/lib/repositories/seedData");
-    if (Array.isArray(seedData.seedEnquiries)) {
-      const idx = seedData.seedEnquiries.findIndex((e) => e.id === enquiryId);
-      if (idx >= 0) seedData.seedEnquiries.splice(idx, 1);
-    }
-  } catch (err) {
-    console.error("[deleteEnquiryPermanentlyAction] Error:", err);
+  const { deleteEnquiryEverywhere } = await import("@/lib/persistedData");
+  const result = await deleteEnquiryEverywhere(enquiryId);
+  if (!result.success) {
+    throw new Error(result.error || "Failed to delete enquiry.");
   }
 
   revalidatePath("/admin");
@@ -452,14 +430,19 @@ export async function deleteEnquiryPermanentlyAction(enquiryId: string) {
 
 export async function clearAllTestEnquiriesAction() {
   const session = await getServerSession();
-  assertAdminAuthorized(session);
+  if (!session || (session.role !== "owner_admin" && session.role !== "super_admin")) {
+    throw new Error("Unauthorized: Only Super Admin or College Director can purge enquiries.");
+  }
 
-  const { clearAllTestEnquiriesFromStore } = await import("@/lib/persistedData");
-  const count = clearAllTestEnquiriesFromStore();
+  const { clearAllTestEnquiriesEverywhere } = await import("@/lib/persistedData");
+  const result = await clearAllTestEnquiriesEverywhere();
+  if (!result.success) {
+    throw new Error(result.error || "Failed to clear test leads.");
+  }
 
   revalidatePath("/admin/pipeline");
   revalidatePath("/portal/admin");
-  return { success: true, count };
+  return { success: true, count: result.removed };
 }
 
 export async function adminDeleteOrCancelEnrolmentAction(input: {
@@ -469,8 +452,11 @@ export async function adminDeleteOrCancelEnrolmentAction(input: {
   const session = await getServerSession();
   assertAdminAuthorized(session);
 
-  const { removeEnrolmentFromStore } = await import("@/lib/persistedData");
-  removeEnrolmentFromStore(input.enrolmentId);
+  const { removeEnrolmentEverywhere } = await import("@/lib/persistedData");
+  const result = await removeEnrolmentEverywhere(input.enrolmentId);
+  if (!result.success) {
+    throw new Error(result.error || "Failed to remove course.");
+  }
 
   revalidatePath("/admin/learners");
   revalidatePath("/admin/payments");
@@ -2565,12 +2551,13 @@ export async function deletePaymentRecordAction(paymentId: string) {
     throw new Error("Unauthorized: Only Owner Admin or Super Admin can delete payments.");
   }
 
-  const { deletePaymentRecordFromStore } = await import("@/lib/persistedData");
-  const success = deletePaymentRecordFromStore(paymentId);
+  const { deletePaymentRecordEverywhere } = await import("@/lib/persistedData");
+  const result = await deletePaymentRecordEverywhere(paymentId);
 
   revalidatePath("/admin/payments");
   revalidatePath("/admin");
-  return { success };
+  revalidatePath("/student/payments");
+  return { success: result.success, error: result.error };
 }
 
 export async function clearAllTestPaymentsAction() {

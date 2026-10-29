@@ -129,6 +129,11 @@ export interface PersistedRecordsStore {
   deletedCohortIds?: string[];
   tutoringAttendance?: TutoringAttendanceRecord[];
   deletedTutoringAttendanceIds?: string[];
+  /** Tombstones: IDs permanently deleted by admins. Prevents merge from resurrecting them. */
+  deletedEnquiryIds?: string[];
+  deletedEnrolmentIds?: string[];
+  deletedPaymentIds?: string[];
+  deletedScheduleIds?: string[];
 }
 
 import { type ColorSwatch, DEFAULT_COLOR_SWATCHES } from "./colorSwatches";
@@ -668,9 +673,24 @@ export async function pullLatestFromNeon(force = false): Promise<boolean> {
           usersFromTable
         );
 
+        const unionIds = (a?: string[], b?: string[]) =>
+          Array.from(new Set([...(a || []), ...(b || [])]));
+        const deletedEnquiryIds = unionIds(store.deletedEnquiryIds, dbStore.deletedEnquiryIds);
+        const deletedEnrolmentIds = unionIds(store.deletedEnrolmentIds, dbStore.deletedEnrolmentIds);
+        const deletedPaymentIds = unionIds(store.deletedPaymentIds, dbStore.deletedPaymentIds);
+        const deletedScheduleIds = unionIds(store.deletedScheduleIds, dbStore.deletedScheduleIds);
+        const deletedEnquirySet = new Set(deletedEnquiryIds);
+        const deletedEnrolmentSet = new Set(deletedEnrolmentIds);
+        const deletedPaymentSet = new Set(deletedPaymentIds);
+        const deletedScheduleSet = new Set(deletedScheduleIds);
+
         const mergedStore: PersistedRecordsStore = {
           ...store,
           ...dbStore,
+          deletedEnquiryIds,
+          deletedEnrolmentIds,
+          deletedPaymentIds,
+          deletedScheduleIds,
           courseOverrides: {
             ...(store.courseOverrides || {}),
             ...(dbStore.courseOverrides || {}),
@@ -698,18 +718,22 @@ export async function pullLatestFromNeon(force = false): Promise<boolean> {
             filterFictional(store.paymentRecords),
             filterFictional(dbStore.paymentRecords),
             paymentsFromTable
-          ),
+          ).filter((p) => !deletedPaymentSet.has(p.id)),
           paymentSchedules: mergeArrayById<PaymentScheduleItem>(
             filterFictional(store.paymentSchedules),
             filterFictional(dbStore.paymentSchedules),
             schedulesFromTable
+          ).filter(
+            (s) => !deletedScheduleSet.has(s.id) && !deletedEnrolmentSet.has((s as any).enrolmentId)
           ),
           enrolments: mergeArrayById<Enrolment>(
             filterFictional(store.enrolments),
             filterFictional(dbStore.enrolments),
             enrolmentsFromTable
+          ).filter((e) => !deletedEnrolmentSet.has(e.id)),
+          enquiries: mergeArrayById(store.enquiries, dbStore.enquiries).filter(
+            (e: EnquiryLead) => !deletedEnquirySet.has(e.id) && (isTest || !isSyntheticTestEnquiry(e))
           ),
-          enquiries: mergeArrayById(store.enquiries, dbStore.enquiries),
           bookings: mergeArrayById(store.bookings, dbStore.bookings),
           blogPosts: Array.isArray(dbStore.blogPosts) ? dbStore.blogPosts : store.blogPosts,
           userCredentials: mergedUsers,
@@ -2684,30 +2708,82 @@ export function deleteUserFromStore(userIdOrEmail: string): boolean {
   }
 }
 
-export function deletePaymentRecordFromStore(paymentId: string): boolean {
+/**
+ * Permanently deletes a payment record from disk, the Neon snapshot and the Neon payments table.
+ * If the payment had marked an instalment as paid (matched by reference), that instalment is
+ * reverted to pending so the outstanding balance is recalculated.
+ */
+export async function deletePaymentRecordEverywhere(paymentId: string): Promise<DeleteResult> {
   try {
     const store = loadPersistedRecords();
-    const initialLen = store.paymentRecords?.length || 0;
+    const target = (store.paymentRecords || []).find((p) => p.id === paymentId);
+    const before = (store.paymentRecords || []).length;
     store.paymentRecords = (store.paymentRecords || []).filter((p) => p.id !== paymentId);
+    let removed = before - store.paymentRecords.length;
+    addTombstones(store, "deletedPaymentIds", [paymentId]);
 
-    // Also remove in-memory reference
+    let reference = target?.reference?.trim() || "";
+
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { seedPaymentRecords } = require("@/lib/repositories/seedData");
       if (Array.isArray(seedPaymentRecords)) {
         const idx = seedPaymentRecords.findIndex((p: any) => p.id === paymentId);
-        if (idx >= 0) seedPaymentRecords.splice(idx, 1);
+        if (idx >= 0) {
+          if (!reference) reference = seedPaymentRecords[idx]?.reference?.trim() || "";
+          seedPaymentRecords.splice(idx, 1);
+          if (removed === 0) removed = 1;
+        }
       }
     } catch { }
 
-    const filePath = getStoreFilePath();
-    fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
-    syncPersistedRecords(true);
-    syncStoreSnapshotToNeon(store).catch(() => { });
-    return true;
+    const sql = await getNeonSqlIfConfigured();
+    if (sql) {
+      try {
+        const rows = (await sql`DELETE FROM payments WHERE id = ${paymentId} RETURNING reference, data`) as any[];
+        if (Array.isArray(rows) && rows.length > 0) {
+          if (removed === 0) removed = rows.length;
+          if (!reference) reference = (rows[0]?.reference || rows[0]?.data?.reference || "").trim();
+        }
+      } catch (dbErr) {
+        console.error("[deletePaymentRecordEverywhere] Neon delete failed:", dbErr);
+        await persistStoreEverywhere(store);
+        return { success: false, removed, error: "The database could not delete this payment. Please try again." };
+      }
+    }
+
+    // Revert any instalment that this payment had settled
+    if (reference) {
+      for (const s of store.paymentSchedules || []) {
+        const sRef = ((s as any).paymentReference || (s as any).reference || "").trim();
+        if (sRef && sRef === reference && s.status === "paid") {
+          s.status = "pending" as any;
+          delete (s as any).paidAt;
+        }
+      }
+      if (sql) {
+        await sql`
+          UPDATE payment_schedules
+          SET status = 'pending',
+              paid_at = NULL,
+              data = (data - 'paidAt') || jsonb_build_object('status', 'pending'),
+              updated_at = now()
+          WHERE payment_reference = ${reference} AND status = 'paid'
+        `.catch(() => { });
+      }
+    }
+
+    const synced = await persistStoreEverywhere(store);
+    if (!synced) {
+      return { success: false, removed, error: "The payment was removed but the database snapshot could not be updated. Please refresh and check." };
+    }
+    if (removed === 0) {
+      return { success: false, removed: 0, error: "This payment record was not found. It may already have been deleted." };
+    }
+    return { success: true, removed };
   } catch (err) {
     console.error("[persistedData] Failed to delete payment:", err);
-    return false;
+    return { success: false, removed: 0, error: "Failed to delete payment record." };
   }
 }
 
@@ -3188,98 +3264,217 @@ export function updateEnquiryInStore(enquiryId: string, updates: Partial<Enquiry
   }
 }
 
+/**
+ * Synthetic leads created by automated tests or early demo seeding.
+ * These must never appear in the live admissions pipeline.
+ */
+export function isSyntheticTestEnquiry(e: Pick<EnquiryLead, "id" | "email" | "fullName">): boolean {
+  const em = (e.email || "").toLowerCase();
+  const nm = (e.fullName || "").toLowerCase();
+  return (
+    em.endsWith("@example.com") ||
+    em.endsWith("@example.co.uk") ||
+    em.startsWith("visitor_") ||
+    em.startsWith("test_") ||
+    em.includes("assigned.lead@") ||
+    em.includes("mark.lead@") ||
+    em.includes("jane.test@") ||
+    /^enq-00[1-9]$/.test(e.id || "")
+  );
+}
+
+function addTombstones(store: PersistedRecordsStore, key: keyof PersistedRecordsStore, ids: string[]): void {
+  if (ids.length === 0) return;
+  const existing = (store[key] as string[] | undefined) || [];
+  (store as any)[key] = Array.from(new Set([...existing, ...ids]));
+}
+
+/**
+ * Persists the store everywhere (disk, in-memory cache and Neon snapshot) and waits for Neon.
+ * Returns false only when Neon is configured but the snapshot write failed.
+ */
+async function persistStoreEverywhere(store: PersistedRecordsStore): Promise<boolean> {
+  const filePath = getStoreFilePath();
+  writeStoreToDisk(filePath, store);
+  syncPersistedRecords(true);
+  if (!process.env.DATABASE_URL || isAutomatedTestEnv()) return true;
+  return syncStoreSnapshotToNeon(store);
+}
+
+async function getNeonSqlIfConfigured(): Promise<any | null> {
+  if (!process.env.DATABASE_URL || isAutomatedTestEnv()) return null;
+  try {
+    const { isDbConfigured, sql, ensureDbTablesExist } = await import("@/lib/db");
+    if (!isDbConfigured) return null;
+    await ensureDbTablesExist();
+    return sql;
+  } catch {
+    return null;
+  }
+}
+
 export function listAllEnquiries(): EnquiryLead[] {
   const store = loadPersistedRecords();
-  const isSyntheticTestLead = (e: EnquiryLead) => {
-    const em = (e.email || "").toLowerCase();
-    const nm = (e.fullName || "").toLowerCase();
-    return (
-      em.includes("example.com") ||
-      em.includes("example.co.uk") ||
-      em.startsWith("visitor_") ||
-      em.startsWith("test_") ||
-      em.includes("assigned.lead") ||
-      em.includes("mark.lead") ||
-      em.includes("jane.test") ||
-      nm.includes("robert frost") ||
-      nm.includes("elizabeth bennet") ||
-      /^enq-00[1-9]/.test(e.id)
-    );
-  };
-
-  const list: EnquiryLead[] = (store.enquiries || []).filter((e) => !isSyntheticTestLead(e));
+  const deleted = new Set(store.deletedEnquiryIds || []);
+  const isTest = isAutomatedTestEnv();
+  const list: EnquiryLead[] = (store.enquiries || []).filter(
+    (e) => !deleted.has(e.id) && (isTest || !isSyntheticTestEnquiry(e))
+  );
 
   return list.sort(
     (a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
   );
 }
 
-export function clearAllTestEnquiriesFromStore(): number {
+export interface DeleteResult {
+  success: boolean;
+  removed: number;
+  error?: string;
+}
+
+/** Permanently deletes one enquiry from disk, the Neon snapshot and the dev leads file. */
+export async function deleteEnquiryEverywhere(enquiryId: string): Promise<DeleteResult> {
   try {
     const store = loadPersistedRecords();
     const before = (store.enquiries || []).length;
-    const isSyntheticTestLead = (e: EnquiryLead) => {
-      const em = (e.email || "").toLowerCase();
-      const nm = (e.fullName || "").toLowerCase();
-      return (
-        em.includes("example.com") ||
-        em.includes("example.co.uk") ||
-        em.startsWith("visitor_") ||
-        em.startsWith("test_") ||
-        em.includes("assigned.lead") ||
-        em.includes("mark.lead") ||
-        em.includes("jane.test") ||
-        nm.includes("robert frost") ||
-        nm.includes("elizabeth bennet") ||
-        /^enq-00[1-9]/.test(e.id)
-      );
-    };
-    store.enquiries = (store.enquiries || []).filter((e) => !isSyntheticTestLead(e));
+    store.enquiries = (store.enquiries || []).filter((e) => e.id !== enquiryId);
     const removed = before - store.enquiries.length;
-    const filePath = getStoreFilePath();
-    fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
-    syncStoreSnapshotToNeon(store).catch(() => {});
-    return removed;
-  } catch (err) {
-    console.error("[clearAllTestEnquiriesFromStore] Error:", err);
-    return 0;
-  }
-}
+    addTombstones(store, "deletedEnquiryIds", [enquiryId]);
 
-export function removeEnrolmentFromStore(enrolmentId: string): boolean {
-  try {
-    const store = loadPersistedRecords();
-    if (store.enrolments) {
-      store.enrolments = store.enrolments.filter((e) => e.id !== enrolmentId);
-    }
-    if (store.paymentSchedules) {
-      store.paymentSchedules = store.paymentSchedules.filter((s) => s.enrolmentId !== enrolmentId);
-    }
-    const filePath = getStoreFilePath();
-    fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
-    syncStoreSnapshotToNeon(store).catch(() => {});
-
-    // Sync in-memory seed records as well
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const seedData = require("@/lib/repositories/seedData");
-    if (Array.isArray(seedData.seedEnrolments)) {
-      const idx = seedData.seedEnrolments.findIndex((e: any) => e.id === enrolmentId);
-      if (idx >= 0) seedData.seedEnrolments.splice(idx, 1);
-    }
-    if (Array.isArray(seedData.seedPaymentSchedules)) {
-      for (let i = seedData.seedPaymentSchedules.length - 1; i >= 0; i--) {
-        if (seedData.seedPaymentSchedules[i].enrolmentId === enrolmentId) {
-          seedData.seedPaymentSchedules.splice(i, 1);
+    try {
+      const devLeadsPath = path.join(process.cwd(), "data", "dev_leads.json");
+      if (fs.existsSync(devLeadsPath)) {
+        const leads = JSON.parse(fs.readFileSync(devLeadsPath, "utf-8"));
+        if (Array.isArray(leads)) {
+          const filtered = leads.filter((l: any) => l.id !== enquiryId && l._id !== enquiryId);
+          fs.writeFileSync(devLeadsPath, JSON.stringify(filtered, null, 2));
         }
       }
+    } catch { }
+
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { seedEnquiries } = require("@/lib/repositories/seedData");
+      if (Array.isArray(seedEnquiries)) {
+        const idx = seedEnquiries.findIndex((e: any) => e.id === enquiryId);
+        if (idx >= 0) seedEnquiries.splice(idx, 1);
+      }
+    } catch { }
+
+    const sql = await getNeonSqlIfConfigured();
+    if (sql) await sql`DELETE FROM leads WHERE id = ${enquiryId}`.catch(() => { });
+
+    const synced = await persistStoreEverywhere(store);
+    if (!synced) {
+      return { success: false, removed, error: "The enquiry was removed locally but the database could not be updated. Please try again." };
     }
-    return true;
+    if (removed === 0) {
+      return { success: false, removed: 0, error: "This enquiry was not found. It may already have been deleted." };
+    }
+    return { success: true, removed };
   } catch (err) {
-    console.error("[removeEnrolmentFromStore] Error:", err);
-    return false;
+    console.error("[deleteEnquiryEverywhere] Error:", err);
+    return { success: false, removed: 0, error: "Failed to delete enquiry." };
   }
 }
 
+/** Removes every synthetic test enquiry from disk, the Neon snapshot and the leads table. */
+export async function clearAllTestEnquiriesEverywhere(): Promise<DeleteResult> {
+  try {
+    const store = loadPersistedRecords();
+    const synthetic = (store.enquiries || []).filter((e) => isSyntheticTestEnquiry(e));
+    const ids = synthetic.map((e) => e.id);
+    store.enquiries = (store.enquiries || []).filter((e) => !isSyntheticTestEnquiry(e));
+    addTombstones(store, "deletedEnquiryIds", ids);
+
+    const sql = await getNeonSqlIfConfigured();
+    if (sql) {
+      await sql`
+        DELETE FROM leads
+        WHERE LOWER(email) LIKE '%@example.com'
+           OR LOWER(email) LIKE '%@example.co.uk'
+           OR LOWER(email) LIKE 'visitor\\_%'
+           OR LOWER(email) LIKE 'test\\_%'
+      `.catch(() => { });
+    }
+
+    const synced = await persistStoreEverywhere(store);
+    if (!synced) {
+      return { success: false, removed: ids.length, error: "Test leads were removed locally but the database could not be updated. Please try again." };
+    }
+    return { success: true, removed: ids.length };
+  } catch (err) {
+    console.error("[clearAllTestEnquiriesEverywhere] Error:", err);
+    return { success: false, removed: 0, error: "Failed to clear test leads." };
+  }
+}
+
+/**
+ * Permanently removes a mistaken course enrolment and its instalment schedule
+ * from disk, the Neon snapshot and the dedicated Neon tables.
+ * Payment records already received are kept (money was genuinely received) but unlinked
+ * schedules are removed so outstanding balances recalculate.
+ */
+export async function removeEnrolmentEverywhere(enrolmentId: string): Promise<DeleteResult> {
+  try {
+    const store = loadPersistedRecords();
+    const beforeEnr = (store.enrolments || []).length;
+    store.enrolments = (store.enrolments || []).filter((e) => e.id !== enrolmentId);
+    let removed = beforeEnr - store.enrolments.length;
+
+    const scheduleIds = (store.paymentSchedules || [])
+      .filter((s) => s.enrolmentId === enrolmentId)
+      .map((s) => s.id);
+    store.paymentSchedules = (store.paymentSchedules || []).filter((s) => s.enrolmentId !== enrolmentId);
+
+    addTombstones(store, "deletedEnrolmentIds", [enrolmentId]);
+    addTombstones(store, "deletedScheduleIds", scheduleIds);
+
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const seedData = require("@/lib/repositories/seedData");
+      if (Array.isArray(seedData.seedEnrolments)) {
+        const idx = seedData.seedEnrolments.findIndex((e: any) => e.id === enrolmentId);
+        if (idx >= 0) {
+          seedData.seedEnrolments.splice(idx, 1);
+          if (removed === 0) removed = 1;
+        }
+      }
+      if (Array.isArray(seedData.seedPaymentSchedules)) {
+        for (let i = seedData.seedPaymentSchedules.length - 1; i >= 0; i--) {
+          if (seedData.seedPaymentSchedules[i].enrolmentId === enrolmentId) {
+            seedData.seedPaymentSchedules.splice(i, 1);
+          }
+        }
+      }
+    } catch { }
+
+    const sql = await getNeonSqlIfConfigured();
+    if (sql) {
+      try {
+        await sql`DELETE FROM payment_schedules WHERE enrolment_id = ${enrolmentId}`;
+        const rows = (await sql`DELETE FROM enrolments WHERE id = ${enrolmentId} RETURNING id`) as any[];
+        if (Array.isArray(rows) && rows.length > 0 && removed === 0) removed = rows.length;
+      } catch (dbErr) {
+        console.error("[removeEnrolmentEverywhere] Neon delete failed:", dbErr);
+        await persistStoreEverywhere(store);
+        return { success: false, removed, error: "The database could not remove this course. Please try again." };
+      }
+    }
+
+    const synced = await persistStoreEverywhere(store);
+    if (!synced) {
+      return { success: false, removed, error: "The course was removed but the database snapshot could not be updated. Please refresh and check." };
+    }
+    if (removed === 0) {
+      return { success: false, removed: 0, error: "This course enrolment was not found. It may already have been removed." };
+    }
+    return { success: true, removed };
+  } catch (err) {
+    console.error("[removeEnrolmentEverywhere] Error:", err);
+    return { success: false, removed: 0, error: "Failed to remove course." };
+  }
+}
 
 export function savePasswordResetToken(
   token: string,

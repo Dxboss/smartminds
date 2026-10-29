@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
 import {
   Learner,
@@ -95,6 +96,11 @@ export const LearnersDirectory: React.FC<Props> = ({
   const [learners, setLearners] = useState<Learner[]>(initialLearners);
   const [enrolments, setEnrolments] = useState<Enrolment[]>(initialEnrolments);
   const [paymentPlans, setPaymentPlans] = useState<LearnerPaymentPlanSummary[]>(initialPaymentPlans);
+  const router = useRouter();
+
+  useEffect(() => setLearners(initialLearners), [initialLearners]);
+  useEffect(() => setEnrolments(initialEnrolments), [initialEnrolments]);
+  useEffect(() => setPaymentPlans(initialPaymentPlans), [initialPaymentPlans]);
   const canManagePayments = userRole === "owner_admin" || userRole === "super_admin";
   const [filter, setFilter] = useState<"all" | "active" | "paused" | "funded" | "archived">("all");
   const [search, setSearch] = useState("");
@@ -664,6 +670,7 @@ export const LearnersDirectory: React.FC<Props> = ({
         setFeedback(
           `Removed "${enr.courseTitle}" from ${learner.firstName} ${learner.lastName}'s record.`
         );
+        router.refresh();
         if (selectedLearner && selectedLearner.id === learner.id) {
           const remaining = enrolments.filter(
             (e) => e.learnerId === learner.id && e.id !== enr.id

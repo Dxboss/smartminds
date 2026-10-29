@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   PaymentRecord,
   LedgerSummary,
@@ -55,6 +56,13 @@ export function PaymentsLedgerView({
   const [plans, setPlans] = useState<LearnerPaymentPlanSummary[]>(initialLearnerPlans);
   const [summary, setSummary] = useState<LedgerSummary>(initialSummary);
   const [learners, setLearners] = useState<Learner[]>(initialLearners);
+  const router = useRouter();
+
+  // Re-sync local state when the server sends fresh data (after router.refresh())
+  useEffect(() => setRecords(initialRecords), [initialRecords]);
+  useEffect(() => setSchedules(initialSchedules), [initialSchedules]);
+  useEffect(() => setPlans(initialLearnerPlans), [initialLearnerPlans]);
+  useEffect(() => setSummary(initialSummary), [initialSummary]);
   const [searchQuery, setSearchQuery] = useState("");
   const [planFilter, setPlanFilter] = useState<"all" | "owing" | "overdue" | "settled">("all");
   const [scheduleStatusFilter, setScheduleStatusFilter] = useState<"all" | "due" | "overdue" | "paid">("all");
@@ -380,13 +388,17 @@ export function PaymentsLedgerView({
   };
 
   const handleDeletePaymentRecord = (paymentId: string) => {
-    if (!confirm("Are you sure you want to delete this test payment record from the college ledger?")) return;
+    if (!confirm("Are you sure you want to permanently delete this payment record from the college ledger? This will remove the transaction and update the learner's balance.")) return;
     startTransition(async () => {
       try {
         const res = await deletePaymentRecordAction(paymentId);
         if (res.success) {
           setRecords((prev) => prev.filter((r) => r.id !== paymentId));
-          setFeedbackNotice("Test payment record was successfully deleted from the ledger.");
+          setFeedbackNotice("Payment record was successfully deleted from the ledger.");
+          router.refresh();
+          setTimeout(() => setFeedbackNotice(null), 5000);
+        } else {
+          setFeedbackNotice(res.error || "Failed to delete payment record.");
         }
       } catch (err: any) {
         setFeedbackNotice(`Error deleting payment: ${err?.message || "Failed"}`);
@@ -1462,7 +1474,7 @@ export function PaymentsLedgerView({
                               onClick={() => handleDeletePaymentRecord(r.id)}
                               disabled={isPending}
                               className="p-1 rounded-xs text-ink-soft hover:text-red-700 hover:bg-red-50 transition-colors cursor-pointer"
-                              title="Delete test payment record"
+                              title="Delete payment record"
                             >
                               <Icon name="trash" size={14} />
                             </button>
