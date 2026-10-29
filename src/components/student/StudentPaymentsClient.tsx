@@ -3,6 +3,7 @@
 import React, { useState, useTransition } from "react";
 import { LearnerPaymentPlanSummary, PaymentScheduleItem } from "@/lib/repositories/types";
 import { formatCurrency } from "@/content/pricing";
+import { formatPaymentPlanLabel } from "@/content/plans";
 import { Icon } from "@/components/ui/Icon";
 import {
   reportBankTransferAction,
@@ -304,12 +305,22 @@ export function StudentPaymentsClient({
 
       {/* Header */}
       <div className="bg-white rounded-sm border border-line p-6 sm:p-8 space-y-1">
-        <h1 className="font-heading text-3xl sm:text-4xl font-bold text-navy-900">
-          My payment plan
-        </h1>
-        <p className="text-sm text-ink-soft">
-          Your instalment schedule, receipts and upcoming due dates.
-        </p>
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <h1 className="font-heading text-3xl sm:text-4xl font-bold text-navy-900">
+              My payment plan
+            </h1>
+            <p className="text-sm text-ink-soft">
+              Your instalment schedule, receipts and upcoming due dates.
+            </p>
+          </div>
+          <span className="px-2.5 py-1 rounded-xs bg-navy-900/10 text-navy-900 font-bold text-xs">
+            {formatPaymentPlanLabel({
+              planMonths: planSummary.planMonths || planSummary.schedule.length,
+              courseTitle: planSummary.courseTitle,
+            })}
+          </span>
+        </div>
       </div>
 
       {/* Summary */}
@@ -362,8 +373,11 @@ export function StudentPaymentsClient({
                           {c.courseLevelLabel || c.levelLabel}
                         </span>
                       )}
-                      <span className="text-xs text-ink-soft font-semibold capitalize">
-                        {c.planMonths && c.planMonths > 1 ? `${c.planMonths}-Month Plan` : "Full Payment"}
+                      <span className="text-xs text-ink-soft font-semibold">
+                        {formatPaymentPlanLabel({
+                          planMonths: c.planMonths,
+                          courseTitle: c.courseTitle,
+                        })}
                       </span>
                     </div>
                   </div>

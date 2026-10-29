@@ -546,7 +546,7 @@ export default function StudentPortalPage() {
                   Tuition & Payment Plan Ledger
                 </h2>
                 <p className="text-xs text-ink-soft">
-                  6-Month Flexible Payment Schedule • Total Course Fee: £1,350.00
+                  Flexible 0% Interest Tuition Schedule • Total Course Fee: £1,350.00
                 </p>
               </div>
               <button
