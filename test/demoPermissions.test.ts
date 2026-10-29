@@ -294,7 +294,7 @@ describe("Prompt D1: Demo Permissions & Data Layer Security Suite", () => {
       let schedules = await paymentRepo.getPaymentSchedules(ownerKemi);
       let target = schedules.find((s) => s.status !== "paid");
       if (!target && schedules.length > 0) {
-        schedules[0].status = "pending";
+        schedules[0].status = "due";
         target = schedules[0];
       }
       assert.ok(target, "Should have an unpaid schedule item");

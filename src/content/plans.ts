@@ -136,6 +136,49 @@ export function getTutoringPaymentPlans(): PaymentPlanTemplate[] {
 }
 
 /**
+ * Formats a clean human-readable plan badge/label that accurately describes
+ * the payment schedule without confusing admin staff or learners.
+ */
+export function formatPaymentPlanLabel(options: {
+  planMonths?: number;
+  totalInstalments?: number;
+  courseId?: string;
+  courseTitle?: string;
+  intervalWeeks?: number;
+  fundingType?: string;
+}): string {
+  if (options.fundingType === "funded") {
+    return "Government / AEB Funded";
+  }
+
+  const isTutoring =
+    isTutoringCourse(options.courseId) ||
+    (options.courseTitle && /tutoring/i.test(options.courseTitle)) ||
+    Boolean(options.intervalWeeks && options.intervalWeeks !== 4);
+
+  const count = options.totalInstalments || options.planMonths || 1;
+
+  if (count <= 1) {
+    return isTutoring ? "Full 12-Week Term Upfront (1 Payment)" : "Full Upfront Payment";
+  }
+
+  if (isTutoring) {
+    if (count === 6 || options.intervalWeeks === 2) {
+      return "6 Payments (Every 2 Weeks · 12-Week Term)";
+    }
+    if (count === 3 || options.intervalWeeks === 4) {
+      return "3 Payments (Every 4 Weeks · 12-Week Term)";
+    }
+    if (count === 2 || options.intervalWeeks === 8) {
+      return "2 Payments (Every 8 Weeks · 12-Week Term)";
+    }
+    return `${count} Payments (12-Week Tutoring Term)`;
+  }
+
+  return `${count} Monthly Payments`;
+}
+
+/**
  * Extracts the numeric qualification level from a level label (e.g. "Level 5 Diploma" -> 5).
  * Defaults to 3 if not specified or unparseable.
  */

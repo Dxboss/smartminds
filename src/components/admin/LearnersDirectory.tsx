@@ -24,7 +24,7 @@ import {
 } from "@/app/admin/actions";
 import { impersonateUserAction } from "@/app/super/actions";
 import type { Course } from "@/content/types";
-import { tutoringPaymentPlans } from "@/content/plans";
+import { tutoringPaymentPlans, formatPaymentPlanLabel } from "@/content/plans";
 
 function isLevelFiveOrAbove(levelLabel: string): boolean {
   if (!levelLabel) return false;
@@ -1098,7 +1098,12 @@ export const LearnersDirectory: React.FC<Props> = ({
                                             : "bg-emerald-50 text-emerald-900 border-emerald-200"
                                           }`}
                                       >
-                                        {pm > 1 ? `${pm}-Month Plan` : "Full Payment"}
+                                        {formatPaymentPlanLabel({
+                                          planMonths: pm,
+                                          courseId: itemEnr.courseId,
+                                          courseTitle: itemEnr.courseTitle,
+                                          fundingType: itemEnr.fundingType,
+                                        })}
                                       </span>
                                     </div>
                                     <div className="flex items-center gap-1 font-mono text-xs">
@@ -1705,11 +1710,12 @@ export const LearnersDirectory: React.FC<Props> = ({
                               <span className="font-bold text-navy-900 text-[11px] flex items-center gap-1.5">
                                 <span>Payment Plan:</span>
                                 <span className="px-1.5 py-0.5 rounded-xs bg-navy-900/10 text-navy-900 font-bold text-[10px]">
-                                  {itemEnr.fundingType === "funded"
-                                    ? "Funded"
-                                    : pm > 1
-                                      ? `${pm}-Month Instalment Plan`
-                                      : "Full Upfront Payment"}
+                                  {formatPaymentPlanLabel({
+                                    planMonths: pm,
+                                    courseId: itemEnr.courseId,
+                                    courseTitle: itemEnr.courseTitle,
+                                    fundingType: itemEnr.fundingType,
+                                  })}
                                 </span>
                               </span>
                               {itemPlan &&

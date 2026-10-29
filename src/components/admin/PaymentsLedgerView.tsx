@@ -13,6 +13,7 @@ import {
   PaymentGatewaySettings,
 } from "@/lib/repositories/types";
 import { formatCurrency } from "@/content/pricing";
+import { formatPaymentPlanLabel } from "@/content/plans";
 import { Icon } from "@/components/ui/Icon";
 import {
   recordBankTransferAction,
@@ -1478,7 +1479,12 @@ export function PaymentsLedgerView({
                             <td className="py-3.5 px-4 text-xs font-medium text-ink">
                               {p.planMonths ? (
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm bg-navy-900/5 text-navy-900 font-semibold">
-                                  <span>{p.planMonths} Monthly Payments</span>
+                                  <span>
+                                    {formatPaymentPlanLabel({
+                                      planMonths: p.planMonths,
+                                      courseTitle: p.courseTitle,
+                                    })}
+                                  </span>
                                 </span>
                               ) : (
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm bg-paper text-ink-soft">

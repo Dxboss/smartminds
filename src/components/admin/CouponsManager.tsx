@@ -436,3 +436,4 @@ export const CouponsManager: React.FC<Props> = ({
     </div>
   );
 };
+
