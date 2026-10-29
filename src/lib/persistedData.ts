@@ -3190,13 +3190,94 @@ export function updateEnquiryInStore(enquiryId: string, updates: Partial<Enquiry
 
 export function listAllEnquiries(): EnquiryLead[] {
   const store = loadPersistedRecords();
-  const list: EnquiryLead[] = (store.enquiries || []).filter(
-    (e) => !/^enq-00[1-9]/.test(e.id) && !e.email?.endsWith("@example.com")
-  );
+  const isSyntheticTestLead = (e: EnquiryLead) => {
+    const em = (e.email || "").toLowerCase();
+    const nm = (e.fullName || "").toLowerCase();
+    return (
+      em.includes("example.com") ||
+      em.includes("example.co.uk") ||
+      em.startsWith("visitor_") ||
+      em.startsWith("test_") ||
+      em.includes("assigned.lead") ||
+      em.includes("mark.lead") ||
+      em.includes("jane.test") ||
+      nm.includes("robert frost") ||
+      nm.includes("elizabeth bennet") ||
+      /^enq-00[1-9]/.test(e.id)
+    );
+  };
+
+  const list: EnquiryLead[] = (store.enquiries || []).filter((e) => !isSyntheticTestLead(e));
 
   return list.sort(
     (a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
   );
+}
+
+export function clearAllTestEnquiriesFromStore(): number {
+  try {
+    const store = loadPersistedRecords();
+    const before = (store.enquiries || []).length;
+    const isSyntheticTestLead = (e: EnquiryLead) => {
+      const em = (e.email || "").toLowerCase();
+      const nm = (e.fullName || "").toLowerCase();
+      return (
+        em.includes("example.com") ||
+        em.includes("example.co.uk") ||
+        em.startsWith("visitor_") ||
+        em.startsWith("test_") ||
+        em.includes("assigned.lead") ||
+        em.includes("mark.lead") ||
+        em.includes("jane.test") ||
+        nm.includes("robert frost") ||
+        nm.includes("elizabeth bennet") ||
+        /^enq-00[1-9]/.test(e.id)
+      );
+    };
+    store.enquiries = (store.enquiries || []).filter((e) => !isSyntheticTestLead(e));
+    const removed = before - store.enquiries.length;
+    const filePath = getStoreFilePath();
+    fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+    syncStoreSnapshotToNeon(store).catch(() => {});
+    return removed;
+  } catch (err) {
+    console.error("[clearAllTestEnquiriesFromStore] Error:", err);
+    return 0;
+  }
+}
+
+export function removeEnrolmentFromStore(enrolmentId: string): boolean {
+  try {
+    const store = loadPersistedRecords();
+    if (store.enrolments) {
+      store.enrolments = store.enrolments.filter((e) => e.id !== enrolmentId);
+    }
+    if (store.paymentSchedules) {
+      store.paymentSchedules = store.paymentSchedules.filter((s) => s.enrolmentId !== enrolmentId);
+    }
+    const filePath = getStoreFilePath();
+    fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+    syncStoreSnapshotToNeon(store).catch(() => {});
+
+    // Sync in-memory seed records as well
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const seedData = require("@/lib/repositories/seedData");
+    if (Array.isArray(seedData.seedEnrolments)) {
+      const idx = seedData.seedEnrolments.findIndex((e: any) => e.id === enrolmentId);
+      if (idx >= 0) seedData.seedEnrolments.splice(idx, 1);
+    }
+    if (Array.isArray(seedData.seedPaymentSchedules)) {
+      for (let i = seedData.seedPaymentSchedules.length - 1; i >= 0; i--) {
+        if (seedData.seedPaymentSchedules[i].enrolmentId === enrolmentId) {
+          seedData.seedPaymentSchedules.splice(i, 1);
+        }
+      }
+    }
+    return true;
+  } catch (err) {
+    console.error("[removeEnrolmentFromStore] Error:", err);
+    return false;
+  }
 }
 
 

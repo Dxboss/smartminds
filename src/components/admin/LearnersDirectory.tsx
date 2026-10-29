@@ -18,6 +18,7 @@ import {
   adminEnrolNewStudentAction,
   updateLearnerAndEnrolmentAction,
   logLearnerPaymentAction,
+  adminDeleteOrCancelEnrolmentAction,
 } from "@/app/admin/actions";
 import { impersonateUserAction } from "@/app/super/actions";
 import type { Course } from "@/content/types";
@@ -276,17 +277,43 @@ export const LearnersDirectory: React.FC<Props> = ({
     setEnrolDob(learner.dateOfBirth || "");
     setEnrolAddress(learner.address || "");
     setEnrolPostcode(learner.postcode || "");
-    const existingEnrs = enrolments.filter((e) => e.learnerId === learner.id);
+
+    const existingEnrs = enrolments.filter(
+      (e) => e.learnerId === learner.id && e.status !== "cancelled"
+    );
+    const existingPlan = paymentPlans.find((p) => p.learnerId === learner.id);
     const usedCourseIds = new Set(existingEnrs.map((e) => e.courseId));
     const nextCourse = availableCourses.find((c) => !usedCourseIds.has(c.id)) || availableCourses[0];
     const newBlock = createDefaultCourseSelection(nextCourse);
     if (learner.childName) newBlock.childName = learner.childName;
     if (learner.guardianName) newBlock.guardianName = learner.guardianName;
     setEnrolCourses([newBlock]);
-    setEnrolPrice(newBlock.price.toString());
-    setEnrolDeposit("150");
+
+    // Calculate current fee and amount already paid by student
+    const currentFee = existingPlan
+      ? existingPlan.totalAmountGbp
+      : existingEnrs.reduce((acc, enr) => {
+          const cObj = availableCourses.find((c) => c.id === enr.courseId);
+          const lvlObj = cObj?.levels?.find((l) => l.level_label === enr.courseLevelLabel) || cObj?.levels?.[0];
+          return acc + (lvlObj?.price_gbp || 1250);
+        }, 0);
+    const currentPaid = existingPlan ? existingPlan.totalPaidGbp : 0;
+    const mergedTotal = currentFee + newBlock.price;
+
+    setEnrolPrice(mergedTotal.toString());
+    setEnrolDeposit(currentPaid > 0 ? currentPaid.toString() : "0");
+    setEnrolAmountPaidToDate(currentPaid.toString());
+    setEnrolIsHistorical(currentPaid > 0);
+    setEnrolHistoricalNotes(`Multi-Course Merged Plan (Original Paid: £${currentPaid.toFixed(2)})`);
     setEnrolPaymentMethod("paid");
-    setEnrolIsHistorical(false);
+
+    const allLevels = [
+      ...existingEnrs.map((e) => e.courseLevelLabel || "Level 3"),
+      newBlock.levelLabel || "Level 3",
+    ];
+    const hasL5 = allLevels.some((l) => isLevelFiveOrAbove(l));
+    const allowedMonths = hasL5 ? [6, 10, 12, 14] : [3, 6, 10, 12];
+    setEnrolMonths(allowedMonths.includes(parseInt(enrolMonths, 10)) ? enrolMonths : allowedMonths[0].toString());
     setIsEnrolModalOpen(true);
   };
 
@@ -618,6 +645,40 @@ export const LearnersDirectory: React.FC<Props> = ({
     }
   };
 
+  const handleRemoveCourse = async (learner: Learner, enr: Enrolment) => {
+    if (
+      !confirm(
+        `Are you sure you want to remove the course "${enr.courseTitle}" from ${learner.firstName} ${learner.lastName}'s enrolments? If this was entered by mistake, this will remove the course and its enrolment record immediately.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const res = await adminDeleteOrCancelEnrolmentAction({
+        enrolmentId: enr.id,
+        learnerId: learner.id,
+      });
+      if (res && res.success) {
+        setEnrolments((prev) => prev.filter((e) => e.id !== enr.id));
+        setFeedback(
+          `Removed "${enr.courseTitle}" from ${learner.firstName} ${learner.lastName}'s record.`
+        );
+        if (selectedLearner && selectedLearner.id === learner.id) {
+          const remaining = enrolments.filter(
+            (e) => e.learnerId === learner.id && e.id !== enr.id
+          );
+          if (remaining.length === 0) {
+            setSelectedLearner(null);
+          }
+        }
+        setTimeout(() => setFeedback(null), 5000);
+      }
+    } catch (err: any) {
+      alert(err?.message || "Failed to remove course.");
+    }
+  };
+
   const handleMoveCohort = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!movingEnrolment || !targetClassId) return;
@@ -913,6 +974,27 @@ export const LearnersDirectory: React.FC<Props> = ({
                                       {itemEnr.tutoringRoomOrAddress ? ` — ${itemEnr.tutoringRoomOrAddress}` : ""}
                                     </span>
                                   )}
+                                </div>
+                                <div className="flex items-center gap-2 pt-1 text-[10px]">
+                                  <button
+                                    type="button"
+                                    onClick={() => openEditLearnerModal(learner, itemEnr)}
+                                    className="text-navy-900 hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+                                    title="Edit course details, cohort or payment plan"
+                                  >
+                                    <Icon name="edit" size={10} />
+                                    <span>Edit Course</span>
+                                  </button>
+                                  <span className="text-line">|</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveCourse(learner, itemEnr)}
+                                    className="text-rose-700 hover:text-rose-800 hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+                                    title="Remove or cancel this mistaken course enrolment"
+                                  >
+                                    <Icon name="trash" size={10} />
+                                    <span>Remove</span>
+                                  </button>
                                 </div>
                               </div>
                             );
@@ -1559,17 +1641,29 @@ export const LearnersDirectory: React.FC<Props> = ({
                             </div>
                           </div>
                           {selectedLearner.accessStatus !== "archived" && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const target = selectedLearner;
-                                setSelectedLearner(null);
-                                openEditLearnerModal(target, itemEnr);
-                              }}
-                              className="px-2 py-1 rounded-sm border border-line bg-paper hover:bg-navy-900 hover:text-white text-navy-900 font-semibold text-[11px] cursor-pointer shrink-0"
-                            >
-                              Edit
-                            </button>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const target = selectedLearner;
+                                  setSelectedLearner(null);
+                                  openEditLearnerModal(target, itemEnr);
+                                }}
+                                className="px-2 py-1 rounded-sm border border-line bg-paper hover:bg-navy-900 hover:text-white text-navy-900 font-semibold text-[11px] cursor-pointer"
+                              >
+                                Edit Course
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  handleRemoveCourse(selectedLearner, itemEnr);
+                                }}
+                                className="px-2 py-1 rounded-sm border border-rose-300 bg-rose-50 hover:bg-rose-700 hover:text-white text-rose-700 font-semibold text-[11px] cursor-pointer"
+                                title="Remove or cancel this mistaken course enrolment"
+                              >
+                                Remove
+                              </button>
+                            </div>
                           )}
                         </div>
 
@@ -2002,435 +2096,561 @@ export const LearnersDirectory: React.FC<Props> = ({
                 </div>
 
                 {/* 2. Course & Cohort Assignment */}
-                <div className="space-y-4 p-3.5 bg-paper rounded-sm border border-line">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-bold text-navy-900 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
-                      <Icon name="book-open" size={13} className="text-gold-700" />
-                      <span>2. Qualification &amp; Academic Cohort Assignment</span>
-                    </h4>
-                    <span className="text-[10px] font-bold text-navy-900 bg-navy-900/10 px-2 py-0.5 rounded-xs">
-                      {enrolCourses.length === 1 ? "1 Course Selected" : `${enrolCourses.length} Courses Selected`}
-                    </span>
-                  </div>
+                {(() => {
+                  const existingEnrolmentsForLearner = enrolExistingLearner
+                    ? enrolments.filter(
+                        (e) => e.learnerId === enrolExistingLearner.id && e.status !== "cancelled"
+                      )
+                    : [];
+                  const existingPlan = enrolExistingLearner
+                    ? paymentPlans.find((p) => p.learnerId === enrolExistingLearner.id)
+                    : null;
+                  const currentTotalFee = existingPlan
+                    ? existingPlan.totalAmountGbp
+                    : existingEnrolmentsForLearner.reduce((acc, enr) => {
+                        const cObj = availableCourses.find((c) => c.id === enr.courseId);
+                        const lvlObj = cObj?.levels?.find((l) => l.level_label === enr.courseLevelLabel) || cObj?.levels?.[0];
+                        return acc + (lvlObj?.price_gbp || 1250);
+                      }, 0);
+                  const currentPaidToDate = existingPlan ? existingPlan.totalPaidGbp : 0;
+                  const additionalCoursesPrice = enrolCourses.reduce((s, it) => s + it.price, 0);
+                  const mergedTotalPrice = enrolExistingLearner
+                    ? currentTotalFee + additionalCoursesPrice
+                    : additionalCoursesPrice;
+                  const mergedBalanceRemaining = Math.max(
+                    0,
+                    mergedTotalPrice - (enrolExistingLearner ? currentPaidToDate : (parseFloat(enrolDeposit) || 0))
+                  );
 
-                  <div className="space-y-3">
-                    {enrolCourses.map((cItem, cIdx) => {
-                      const cObj = availableCourses.find((c) => c.id === cItem.courseId) || availableCourses[0];
-                      const levelsList = cObj?.levels || [];
-                      const isOneToOne =
-                        cItem.courseId === "course-tutoring-children" ||
-                        cItem.classId === "class-tutoring-kids" ||
-                        Boolean(cObj?.is_private_tutoring);
+                  const allCourseSelections = enrolExistingLearner
+                    ? [
+                        ...existingEnrolmentsForLearner.map((e) => ({ levelLabel: e.courseLevelLabel })),
+                        ...enrolCourses,
+                      ]
+                    : enrolCourses;
+                  const hasAnyLevelFiveOrAbove = allCourseSelections.some((c) => isLevelFiveOrAbove(c.levelLabel || ""));
+                  const allowedInstalmentMonths = hasAnyLevelFiveOrAbove
+                    ? [6, 10, 12, 14]
+                    : [3, 6, 10, 12];
 
-                      return (
-                        <div
-                          key={cIdx}
-                          className="p-3 bg-white rounded-sm border border-line space-y-3"
-                        >
-                          <div className="flex items-center justify-between pb-1 border-b border-line/60">
-                            <span className="font-bold text-navy-900 text-xs">
-                              Course #{cIdx + 1}
-                            </span>
-                            {enrolCourses.length > 1 && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const updated = enrolCourses.filter((_, i) => i !== cIdx);
-                                  setEnrolCourses(updated);
-                                  setEnrolPrice(updated.reduce((s, it) => s + it.price, 0).toString());
-                                }}
-                                className="text-red-700 hover:text-red-800 text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                  return (
+                    <div className="space-y-4">
+                      <div className="space-y-4 p-3.5 bg-paper rounded-sm border border-line">
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-bold text-navy-900 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                            <Icon name="book-open" size={13} className="text-gold-700" />
+                            <span>2. Qualification &amp; Academic Cohort Assignment</span>
+                          </h4>
+                          <span className="text-[10px] font-bold text-navy-900 bg-navy-900/10 px-2 py-0.5 rounded-xs">
+                            {enrolExistingLearner
+                              ? `${enrolCourses.length} Additional Course${enrolCourses.length > 1 ? "s" : ""} to Add`
+                              : enrolCourses.length === 1
+                              ? "1 Course Selected"
+                              : `${enrolCourses.length} Courses Selected`}
+                          </span>
+                        </div>
+
+                        {/* Current Enrolled Courses for Existing Learner */}
+                        {enrolExistingLearner && existingEnrolmentsForLearner.length > 0 && (
+                          <div className="p-3 bg-white rounded-sm border border-emerald-300 shadow-2xs space-y-2">
+                            <div className="flex items-center justify-between border-b border-emerald-100 pb-1.5">
+                              <span className="font-bold text-navy-900 text-xs flex items-center gap-1.5">
+                                <Icon name="check-circle" size={13} className="text-emerald-700" />
+                                <span>Current Active Course(s) for {enrolExistingLearner.firstName} {enrolExistingLearner.lastName}</span>
+                              </span>
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-xs bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                Already Enrolled ({existingEnrolmentsForLearner.length})
+                              </span>
+                            </div>
+                            <div className="space-y-2">
+                              {existingEnrolmentsForLearner.map((currEnr) => {
+                                const cObj = availableCourses.find((c) => c.id === currEnr.courseId);
+                                const lvlObj = cObj?.levels?.find((l) => l.level_label === currEnr.courseLevelLabel) || cObj?.levels?.[0];
+                                const fee = lvlObj?.price_gbp || 1250;
+                                return (
+                                  <div key={currEnr.id} className="p-2.5 rounded-xs bg-paper border border-line text-xs flex items-center justify-between gap-3">
+                                    <div>
+                                      <strong className="text-navy-900 block">{currEnr.courseTitle}</strong>
+                                      <span className="text-[11px] text-ink-soft">
+                                        Level: <strong>{currEnr.courseLevelLabel}</strong> · Cohort: {classes.find((c) => c.id === currEnr.classId)?.name || "Evening Cohort"} · Tutor: {currEnr.tutorName || "Assigned"}
+                                      </span>
+                                    </div>
+                                    <div className="text-right shrink-0">
+                                      <span className="text-[11px] font-mono font-bold text-navy-900 block">
+                                        £{fee.toFixed(2)}
+                                      </span>
+                                      <span className="text-[10px] text-emerald-700 font-semibold block">
+                                        Current Active
+                                      </span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="space-y-3">
+                          {enrolCourses.map((cItem, cIdx) => {
+                            const cObj = availableCourses.find((c) => c.id === cItem.courseId) || availableCourses[0];
+                            const levelsList = cObj?.levels || [];
+                            const isOneToOne =
+                              cItem.courseId === "course-tutoring-children" ||
+                              cItem.classId === "class-tutoring-kids" ||
+                              Boolean(cObj?.is_private_tutoring);
+
+                            return (
+                              <div
+                                key={cIdx}
+                                className="p-3 bg-white rounded-sm border border-line space-y-3 shadow-2xs"
                               >
-                                <Icon name="trash" size={12} />
-                                <span>Remove</span>
-                              </button>
-                            )}
+                                <div className="flex items-center justify-between pb-1 border-b border-line/60">
+                                  <span className="font-bold text-navy-900 text-xs flex items-center gap-1.5">
+                                    <span className="w-5 h-5 rounded-full bg-navy-900 text-white text-[10px] flex items-center justify-center font-bold">
+                                      {cIdx + 1}
+                                    </span>
+                                    <span>
+                                      {enrolExistingLearner
+                                        ? `Additional Qualification to Add (Course #${cIdx + 1})`
+                                        : `Course #${cIdx + 1}`}
+                                    </span>
+                                  </span>
+                                  {enrolCourses.length > 1 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const updated = enrolCourses.filter((_, i) => i !== cIdx);
+                                        setEnrolCourses(updated);
+                                        const sum = updated.reduce((s, it) => s + it.price, 0);
+                                        setEnrolPrice((enrolExistingLearner ? currentTotalFee + sum : sum).toString());
+                                      }}
+                                      className="text-red-700 hover:text-red-800 text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                                    >
+                                      <Icon name="trash" size={12} />
+                                      <span>Remove</span>
+                                    </button>
+                                  )}
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                  <div className="sm:col-span-2">
+                                    <label className="block text-[11px] font-semibold text-navy-900 mb-1">Qualification *</label>
+                                    <select
+                                      value={cItem.courseId}
+                                      onChange={(e) => {
+                                        const newCid = e.target.value;
+                                        const courseObj = availableCourses.find((x) => x.id === newCid);
+                                        const isO2O = newCid === "course-tutoring-children" || Boolean(courseObj?.is_private_tutoring);
+                                        const newLvl = courseObj?.levels?.[0]?.level_label || "Level 3";
+                                        const newPrice = courseObj?.levels?.[0]?.price_gbp || 1250;
+                                        const updated = enrolCourses.map((item, i) =>
+                                          i === cIdx
+                                            ? {
+                                                ...item,
+                                                courseId: newCid,
+                                                levelLabel: newLvl,
+                                                price: newPrice,
+                                                classId: isO2O ? "class-tutoring-kids" : classes[0]?.id || item.classId,
+                                                sessionTiming: isO2O ? ("self_paced" as const) : ("evening" as const),
+                                              }
+                                            : item
+                                        );
+                                        setEnrolCourses(updated);
+                                        const sum = updated.reduce((s, it) => s + it.price, 0);
+                                        setEnrolPrice((enrolExistingLearner ? currentTotalFee + sum : sum).toString());
+                                      }}
+                                      className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-medium"
+                                    >
+                                      {availableCourses.map((c) => {
+                                        const levelSummary = (c.levels || [])
+                                          .map((l) => `${l.level_label}: £${l.price_gbp}`)
+                                          .join(", ");
+                                        return (
+                                          <option key={c.id} value={c.id}>
+                                            {c.title} ({c.category}){levelSummary ? ` — [${levelSummary}]` : ""}
+                                          </option>
+                                        );
+                                      })}
+                                    </select>
+                                  </div>
+
+                                  <div>
+                                    <label className="block text-[11px] font-semibold text-navy-900 mb-1">Qualification Level &amp; Fee</label>
+                                    <select
+                                      value={cItem.levelLabel}
+                                      onChange={(e) => {
+                                        const newLvl = e.target.value;
+                                        const courseObj = availableCourses.find((x) => x.id === cItem.courseId);
+                                        const lvlObj = courseObj?.levels?.find((l) => l.level_label === newLvl);
+                                        const newPrice = lvlObj?.price_gbp || cItem.price;
+                                        const updated = enrolCourses.map((item, i) =>
+                                          i === cIdx ? { ...item, levelLabel: newLvl, price: newPrice } : item
+                                        );
+                                        setEnrolCourses(updated);
+                                        const sum = updated.reduce((s, it) => s + it.price, 0);
+                                        setEnrolPrice((enrolExistingLearner ? currentTotalFee + sum : sum).toString());
+                                      }}
+                                      className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-medium"
+                                    >
+                                      {levelsList.length > 0 ? (
+                                        levelsList.map((lvl) => (
+                                          <option key={lvl.level_label} value={lvl.level_label}>
+                                            {lvl.level_label} (£{lvl.price_gbp})
+                                          </option>
+                                        ))
+                                      ) : (
+                                        <option value={cItem.levelLabel || "Level 3"}>
+                                          {cItem.levelLabel || "Level 3"}
+                                        </option>
+                                      )}
+                                    </select>
+                                  </div>
+
+                                  <div>
+                                    <label className="block text-[11px] font-semibold text-navy-900 mb-1">Class Cohort Group</label>
+                                    <select
+                                      value={cItem.classId}
+                                      onChange={(e) => {
+                                        const newClassId = e.target.value;
+                                        const cl = classes.find((c) => c.id === newClassId);
+                                        const updated = enrolCourses.map((item, i) =>
+                                          i === cIdx
+                                            ? {
+                                                ...item,
+                                                classId: newClassId,
+                                                tutorName: cl?.tutorName && !isFictionalTutorName(cl.tutorName) ? cl.tutorName : item.tutorName,
+                                              }
+                                            : item
+                                        );
+                                        setEnrolCourses(updated);
+                                      }}
+                                      className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
+                                    >
+                                      {classes.map((c) => (
+                                        <option key={c.id} value={c.id}>
+                                          {c.name} ({c.scheduleDescription || c.intakeLabel})
+                                        </option>
+                                      ))}
+                                      <option value="class-tutoring-kids">1-on-1 Academic Tutoring (After-School / Sat)</option>
+                                    </select>
+                                  </div>
+
+                                  <div>
+                                    <label className="block text-[11px] font-semibold text-navy-900 mb-1">Assigned Tutor</label>
+                                    <select
+                                      value={cItem.tutorName}
+                                      onChange={(e) => {
+                                        const newTutor = e.target.value;
+                                        setEnrolCourses((prev) =>
+                                          prev.map((item, i) => (i === cIdx ? { ...item, tutorName: newTutor } : item))
+                                        );
+                                      }}
+                                      className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
+                                    >
+                                      <option value="Unassigned / TBA">Unassigned / TBA</option>
+                                      {realTutors.map((t) => (
+                                        <option key={t.id} value={t.name}>
+                                          {t.name} ({t.email})
+                                        </option>
+                                      ))}
+                                      {cItem.tutorName &&
+                                        cItem.tutorName !== "Unassigned / TBA" &&
+                                        !isFictionalTutorName(cItem.tutorName) &&
+                                        !realTutors.some((t) => t.name === cItem.tutorName) && (
+                                          <option value={cItem.tutorName}>{cItem.tutorName}</option>
+                                        )}
+                                    </select>
+                                  </div>
+
+                                  <div>
+                                    <label className="block text-[11px] font-semibold text-navy-900 mb-1">Session Timing</label>
+                                    <select
+                                      value={cItem.sessionTiming}
+                                      onChange={(e) => {
+                                        const newTiming = e.target.value as "evening" | "afternoon" | "self_paced";
+                                        setEnrolCourses((prev) =>
+                                          prev.map((item, i) => (i === cIdx ? { ...item, sessionTiming: newTiming } : item))
+                                        );
+                                      }}
+                                      className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
+                                    >
+                                      <option value="evening">Evening Session (18:30 – 20:30)</option>
+                                      <option value="afternoon">Afternoon Session (14:00 – 16:00)</option>
+                                      <option value="self_paced">Flexible / 1-on-1 Tutoring</option>
+                                    </select>
+                                  </div>
+
+                                  {isOneToOne && (
+                                    <div className="sm:col-span-2 p-3 rounded-sm bg-navy-900/5 border border-navy-900/15 space-y-3 mt-1">
+                                      <span className="text-[11px] font-bold text-navy-900 uppercase tracking-wider block">
+                                        1-on-1 Tutoring Setup for this Course
+                                      </span>
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div>
+                                          <label className="block text-[11px] font-semibold text-navy-900 mb-1">Pupil Name</label>
+                                          <input
+                                            type="text"
+                                            value={cItem.childName}
+                                            onChange={(e) => {
+                                              const v = e.target.value;
+                                              setEnrolCourses((prev) =>
+                                                prev.map((item, i) => (i === cIdx ? { ...item, childName: v } : item))
+                                              );
+                                            }}
+                                            placeholder="Leave blank to use student name"
+                                            className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="block text-[11px] font-semibold text-navy-900 mb-1">Parent / Guardian</label>
+                                          <input
+                                            type="text"
+                                            value={cItem.guardianName}
+                                            onChange={(e) => {
+                                              const v = e.target.value;
+                                              setEnrolCourses((prev) =>
+                                                prev.map((item, i) => (i === cIdx ? { ...item, guardianName: v } : item))
+                                              );
+                                            }}
+                                            placeholder="e.g. Parent Name"
+                                            className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="block text-[11px] font-semibold text-navy-900 mb-1">Tutoring Slot</label>
+                                          <input
+                                            type="text"
+                                            value={cItem.tutoringSlot}
+                                            onChange={(e) => {
+                                              const v = e.target.value;
+                                              setEnrolCourses((prev) =>
+                                                prev.map((item, i) => (i === cIdx ? { ...item, tutoringSlot: v } : item))
+                                              );
+                                            }}
+                                            placeholder="e.g. Saturday, 10:00am"
+                                            className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="block text-[11px] font-semibold text-navy-900 mb-1">Delivery Mode</label>
+                                          <select
+                                            value={cItem.tutoringDeliveryMode}
+                                            onChange={(e) => {
+                                              const v = e.target.value as any;
+                                              setEnrolCourses((prev) =>
+                                                prev.map((item, i) => (i === cIdx ? { ...item, tutoringDeliveryMode: v } : item))
+                                              );
+                                            }}
+                                            className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-medium"
+                                          >
+                                            <option value="physical_centre">Gloucester College Centre</option>
+                                            <option value="online">Live 1-on-1 Online</option>
+                                            <option value="room_home_request">Home / Room Request</option>
+                                          </select>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const usedIds = new Set(enrolCourses.map((c) => c.courseId));
+                              const nextUnused = availableCourses.find((c) => !usedIds.has(c.id)) || availableCourses[0];
+                              const newCourseBlock = createDefaultCourseSelection(nextUnused);
+                              const updated = [...enrolCourses, newCourseBlock];
+                              setEnrolCourses(updated);
+                              const sumPrice = updated.reduce((s, item) => s + item.price, 0);
+                              setEnrolPrice((enrolExistingLearner ? currentTotalFee + sumPrice : sumPrice).toString());
+                            }}
+                            className="w-full py-2.5 border-2 border-dashed border-navy-900/40 hover:border-navy-900 rounded-sm text-xs font-bold text-navy-900 flex items-center justify-center gap-1.5 transition-colors cursor-pointer bg-white hover:bg-navy-50"
+                          >
+                            <Icon name="plus" size={14} />
+                            <span>+ Add Another Course to this Enrolment</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* 3. Tuition Fee & Payment Plan */}
+                      <div className="space-y-3 p-3.5 bg-paper rounded-sm border border-line">
+                        <div className="flex items-center justify-between flex-wrap gap-2">
+                          <h4 className="font-bold text-navy-900 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                            <Icon name="credit-card" size={13} className="text-gold-700" />
+                            <span>3. Tuition Fee &amp; Level-Based Instalment Plan</span>
+                          </h4>
+                          <span className="px-2 py-0.5 rounded-xs bg-navy-900/10 text-navy-900 font-bold text-[10px]">
+                            {hasAnyLevelFiveOrAbove
+                              ? "Level 5+: 6, 10, 12 & 14 Month Plans Available"
+                              : "Level 2–4: 3, 6, 10 & 12 Month Plans Available"}
+                          </span>
+                        </div>
+
+                        {/* Merged Tuition Overview if Adding to Existing Student */}
+                        {enrolExistingLearner && (
+                          <div className="p-3 bg-white rounded-sm border border-line space-y-2 text-xs">
+                            <div className="flex items-center justify-between border-b border-line/60 pb-1.5">
+                              <span className="font-bold text-navy-900 uppercase tracking-wider text-[11px]">
+                                Merged Tuition &amp; Multi-Course Balance
+                              </span>
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-xs ${hasAnyLevelFiveOrAbove ? "bg-gold-300 text-navy-900 font-bold" : "bg-navy-900/10 text-navy-900"}`}>
+                                {hasAnyLevelFiveOrAbove
+                                  ? "Level 5+ Rule Active (6, 10, 12, 14 Months)"
+                                  : "Level 2–4 Rule Active (3, 6, 10, 12 Months)"}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                              <div className="p-2 bg-paper rounded-xs border border-line">
+                                <span className="text-[10px] text-ink-soft block uppercase font-semibold">Current Course(s)</span>
+                                <span className="font-bold text-navy-900 text-xs">£{currentTotalFee.toFixed(2)}</span>
+                              </div>
+                              <div className="p-2 bg-paper rounded-xs border border-line">
+                                <span className="text-[10px] text-ink-soft block uppercase font-semibold">Paid to Date</span>
+                                <span className="font-bold text-emerald-700 text-xs">£{currentPaidToDate.toFixed(2)}</span>
+                              </div>
+                              <div className="p-2 bg-paper rounded-xs border border-line">
+                                <span className="text-[10px] text-ink-soft block uppercase font-semibold">New Course(s)</span>
+                                <span className="font-bold text-navy-900 text-xs">+£{additionalCoursesPrice.toFixed(2)}</span>
+                              </div>
+                              <div className="p-2 bg-navy-900/5 rounded-xs border border-navy-900/20">
+                                <span className="text-[10px] text-navy-900 block uppercase font-bold">Merged Balance</span>
+                                <span className="font-bold text-navy-900 text-xs">£{mergedBalanceRemaining.toFixed(2)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Historical Student / Previous Enrolment */}
+                        <div className="p-3 bg-amber-50/70 border border-amber-200/90 rounded-sm space-y-2.5">
+                          <label className="flex items-center gap-2 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={enrolIsHistorical}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                setEnrolIsHistorical(checked);
+                                if (checked && (!enrolAmountPaidToDate || enrolAmountPaidToDate === "0")) {
+                                  setEnrolAmountPaidToDate(enrolDeposit);
+                                }
+                              }}
+                              className="rounded text-navy-900 focus:ring-navy-900"
+                            />
+                            <span className="text-xs font-bold text-navy-900">
+                              Existing / Historical Student (Record Original Enrolment Date &amp; Notes)
+                            </span>
+                          </label>
+
+                          {enrolIsHistorical && (
+                            <div className="pt-2 border-t border-amber-200/60 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-[11px] font-semibold text-navy-900 mb-1">
+                                  Original Enrolment Date *
+                                </label>
+                                <input
+                                  type="date"
+                                  required={enrolIsHistorical}
+                                  value={enrolHistoricalDate}
+                                  onChange={(e) => setEnrolHistoricalDate(e.target.value)}
+                                  className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-mono"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[11px] font-semibold text-navy-900 mb-1">
+                                  Payment Reference / Notes
+                                </label>
+                                <input
+                                  type="text"
+                                  value={enrolHistoricalNotes}
+                                  onChange={(e) => setEnrolHistoricalNotes(e.target.value)}
+                                  placeholder="e.g. Paid via BACS in Sept (Receipts #402)"
+                                  className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div>
+                            <label className="block text-[11px] font-semibold text-navy-900 mb-1">Funding Classification</label>
+                            <select
+                              value={enrolFundingType}
+                              onChange={(e) => setEnrolFundingType(e.target.value as any)}
+                              className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
+                            >
+                              <option value="self_pay">Self-Pay Student</option>
+                              <option value="funded">Government / AEB Funded</option>
+                              <option value="sponsored">Workplace / Employer Sponsored</option>
+                            </select>
                           </div>
 
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div className="sm:col-span-2">
-                              <label className="block text-[11px] font-semibold text-navy-900 mb-1">Qualification *</label>
+                          <div>
+                            <label className="block text-[11px] font-semibold text-navy-900 mb-1">Payment Structure</label>
+                            <select
+                              value={enrolPlanType}
+                              onChange={(e) => {
+                                const pt = e.target.value as "full" | "instalments";
+                                setEnrolPlanType(pt);
+                                if (pt === "full") {
+                                  if (enrolIsHistorical) {
+                                    setEnrolAmountPaidToDate(enrolPrice);
+                                  } else {
+                                    setEnrolDeposit(enrolPrice);
+                                  }
+                                } else {
+                                  if (!allowedInstalmentMonths.includes(parseInt(enrolMonths, 10))) {
+                                    setEnrolMonths(allowedInstalmentMonths[0].toString());
+                                  }
+                                }
+                              }}
+                              className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-semibold"
+                            >
+                              <option value="instalments">Monthly 0% Instalments</option>
+                              <option value="full">Full Upfront Payment</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-semibold text-navy-900 mb-1">
+                              Total Tuition Fee (£) {enrolCourses.length > 1 && `(${enrolCourses.length} Courses)`}
+                            </label>
+                            <input
+                              type="number"
+                              value={enrolPrice}
+                              onChange={(e) => setEnrolPrice(e.target.value)}
+                              className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-mono font-bold text-navy-900"
+                            />
+                          </div>
+
+                          {enrolPlanType === "instalments" && (
+                            <div>
+                              <label className="block text-[11px] font-semibold text-navy-900 mb-1">
+                                Instalment Plan
+                              </label>
                               <select
-                                value={cItem.courseId}
-                                onChange={(e) => {
-                                  const newCid = e.target.value;
-                                  const courseObj = availableCourses.find((x) => x.id === newCid);
-                                  const isO2O = newCid === "course-tutoring-children" || Boolean(courseObj?.is_private_tutoring);
-                                  const newLvl = courseObj?.levels?.[0]?.level_label || "Level 3";
-                                  const newPrice = courseObj?.levels?.[0]?.price_gbp || 1250;
-                                  const updated = enrolCourses.map((item, i) =>
-                                    i === cIdx
-                                      ? {
-                                          ...item,
-                                          courseId: newCid,
-                                          levelLabel: newLvl,
-                                          price: newPrice,
-                                          classId: isO2O ? "class-tutoring-kids" : classes[0]?.id || item.classId,
-                                          sessionTiming: isO2O ? ("self_paced" as const) : ("evening" as const),
-                                        }
-                                      : item
-                                  );
-                                  setEnrolCourses(updated);
-                                  setEnrolPrice(updated.reduce((s, it) => s + it.price, 0).toString());
-                                }}
-                                className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-medium"
+                                value={enrolMonths}
+                                onChange={(e) => setEnrolMonths(e.target.value)}
+                                className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-mono font-bold text-navy-900"
                               >
-                                {availableCourses.map((c) => {
-                                  const levelSummary = (c.levels || [])
-                                    .map((l) => `${l.level_label}: £${l.price_gbp}`)
-                                    .join(", ");
+                                {allowedInstalmentMonths.map((m) => {
+                                  const totalNum = parseFloat(enrolPrice) || 0;
+                                  const paidNum = enrolIsHistorical
+                                    ? parseFloat(enrolAmountPaidToDate) || 0
+                                    : parseFloat(enrolDeposit) || 0;
+                                  const rem = Math.max(0, totalNum - paidNum);
+                                  const perMonth = m > 0 ? (rem / m).toFixed(2) : "0.00";
                                   return (
-                                    <option key={c.id} value={c.id}>
-                                      {c.title} ({c.category}){levelSummary ? ` — [${levelSummary}]` : ""}
+                                    <option key={m} value={m.toString()}>
+                                      {m} Months (£{perMonth}/mo)
                                     </option>
                                   );
                                 })}
                               </select>
                             </div>
-
-                            <div>
-                              <label className="block text-[11px] font-semibold text-navy-900 mb-1">Qualification Level &amp; Fee</label>
-                              <select
-                                value={cItem.levelLabel}
-                                onChange={(e) => {
-                                  const newLvl = e.target.value;
-                                  const courseObj = availableCourses.find((x) => x.id === cItem.courseId);
-                                  const lvlObj = courseObj?.levels?.find((l) => l.level_label === newLvl);
-                                  const newPrice = lvlObj?.price_gbp || cItem.price;
-                                  const updated = enrolCourses.map((item, i) =>
-                                    i === cIdx ? { ...item, levelLabel: newLvl, price: newPrice } : item
-                                  );
-                                  setEnrolCourses(updated);
-                                  setEnrolPrice(updated.reduce((s, it) => s + it.price, 0).toString());
-                                }}
-                                className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-medium"
-                              >
-                                {levelsList.length > 0 ? (
-                                  levelsList.map((lvl) => (
-                                    <option key={lvl.level_label} value={lvl.level_label}>
-                                      {lvl.level_label} (£{lvl.price_gbp})
-                                    </option>
-                                  ))
-                                ) : (
-                                  <option value={cItem.levelLabel || "Level 3"}>
-                                    {cItem.levelLabel || "Level 3"}
-                                  </option>
-                                )}
-                              </select>
-                            </div>
-
-                            <div>
-                              <label className="block text-[11px] font-semibold text-navy-900 mb-1">Class Cohort Group</label>
-                              <select
-                                value={cItem.classId}
-                                onChange={(e) => {
-                                  const newClassId = e.target.value;
-                                  const cl = classes.find((c) => c.id === newClassId);
-                                  const updated = enrolCourses.map((item, i) =>
-                                    i === cIdx
-                                      ? {
-                                          ...item,
-                                          classId: newClassId,
-                                          tutorName: cl?.tutorName && !isFictionalTutorName(cl.tutorName) ? cl.tutorName : item.tutorName,
-                                        }
-                                      : item
-                                  );
-                                  setEnrolCourses(updated);
-                                }}
-                                className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
-                              >
-                                {classes.map((c) => (
-                                  <option key={c.id} value={c.id}>
-                                    {c.name} ({c.scheduleDescription || c.intakeLabel})
-                                  </option>
-                                ))}
-                                <option value="class-tutoring-kids">1-on-1 Academic Tutoring (After-School / Sat)</option>
-                              </select>
-                            </div>
-
-                            <div>
-                              <label className="block text-[11px] font-semibold text-navy-900 mb-1">Assigned Tutor</label>
-                              <select
-                                value={cItem.tutorName}
-                                onChange={(e) => {
-                                  const newTutor = e.target.value;
-                                  setEnrolCourses((prev) =>
-                                    prev.map((item, i) => (i === cIdx ? { ...item, tutorName: newTutor } : item))
-                                  );
-                                }}
-                                className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
-                              >
-                                <option value="Unassigned / TBA">Unassigned / TBA</option>
-                                {realTutors.map((t) => (
-                                  <option key={t.id} value={t.name}>
-                                    {t.name} ({t.email})
-                                  </option>
-                                ))}
-                                {cItem.tutorName &&
-                                  cItem.tutorName !== "Unassigned / TBA" &&
-                                  !isFictionalTutorName(cItem.tutorName) &&
-                                  !realTutors.some((t) => t.name === cItem.tutorName) && (
-                                    <option value={cItem.tutorName}>{cItem.tutorName}</option>
-                                  )}
-                              </select>
-                            </div>
-
-                            <div>
-                              <label className="block text-[11px] font-semibold text-navy-900 mb-1">Session Timing</label>
-                              <select
-                                value={cItem.sessionTiming}
-                                onChange={(e) => {
-                                  const newTiming = e.target.value as "evening" | "afternoon" | "self_paced";
-                                  setEnrolCourses((prev) =>
-                                    prev.map((item, i) => (i === cIdx ? { ...item, sessionTiming: newTiming } : item))
-                                  );
-                                }}
-                                className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
-                              >
-                                <option value="evening">Evening Session (18:30 – 20:30)</option>
-                                <option value="afternoon">Afternoon Session (14:00 – 16:00)</option>
-                                <option value="self_paced">Flexible / 1-on-1 Tutoring</option>
-                              </select>
-                            </div>
-
-                            {isOneToOne && (
-                              <div className="sm:col-span-2 p-3 rounded-sm bg-navy-900/5 border border-navy-900/15 space-y-3 mt-1">
-                                <span className="text-[11px] font-bold text-navy-900 uppercase tracking-wider block">
-                                  1-on-1 Tutoring Setup for this Course
-                                </span>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                  <div>
-                                    <label className="block text-[11px] font-semibold text-navy-900 mb-1">Pupil Name</label>
-                                    <input
-                                      type="text"
-                                      value={cItem.childName}
-                                      onChange={(e) => {
-                                        const v = e.target.value;
-                                        setEnrolCourses((prev) =>
-                                          prev.map((item, i) => (i === cIdx ? { ...item, childName: v } : item))
-                                        );
-                                      }}
-                                      placeholder="Leave blank to use student name"
-                                      className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="block text-[11px] font-semibold text-navy-900 mb-1">Parent / Guardian</label>
-                                    <input
-                                      type="text"
-                                      value={cItem.guardianName}
-                                      onChange={(e) => {
-                                        const v = e.target.value;
-                                        setEnrolCourses((prev) =>
-                                          prev.map((item, i) => (i === cIdx ? { ...item, guardianName: v } : item))
-                                        );
-                                      }}
-                                      placeholder="e.g. Parent Name"
-                                      className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="block text-[11px] font-semibold text-navy-900 mb-1">Tutoring Slot</label>
-                                    <input
-                                      type="text"
-                                      value={cItem.tutoringSlot}
-                                      onChange={(e) => {
-                                        const v = e.target.value;
-                                        setEnrolCourses((prev) =>
-                                          prev.map((item, i) => (i === cIdx ? { ...item, tutoringSlot: v } : item))
-                                        );
-                                      }}
-                                      placeholder="e.g. Saturday, 10:00am"
-                                      className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="block text-[11px] font-semibold text-navy-900 mb-1">Delivery Mode</label>
-                                    <select
-                                      value={cItem.tutoringDeliveryMode}
-                                      onChange={(e) => {
-                                        const v = e.target.value as any;
-                                        setEnrolCourses((prev) =>
-                                          prev.map((item, i) => (i === cIdx ? { ...item, tutoringDeliveryMode: v } : item))
-                                        );
-                                      }}
-                                      className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-medium"
-                                    >
-                                      <option value="physical_centre">Gloucester College Centre</option>
-                                      <option value="online">Live 1-on-1 Online</option>
-                                      <option value="room_home_request">Home / Room Request</option>
-                                    </select>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const usedIds = new Set(enrolCourses.map((c) => c.courseId));
-                        const nextUnused = availableCourses.find((c) => !usedIds.has(c.id)) || availableCourses[0];
-                        const newCourseBlock = createDefaultCourseSelection(nextUnused);
-                        const updated = [...enrolCourses, newCourseBlock];
-                        setEnrolCourses(updated);
-                        const sumPrice = updated.reduce((s, item) => s + item.price, 0);
-                        setEnrolPrice(sumPrice.toString());
-                      }}
-                      className="w-full py-2.5 border-2 border-dashed border-navy-900/40 hover:border-navy-900 rounded-sm text-xs font-bold text-navy-900 flex items-center justify-center gap-1.5 transition-colors cursor-pointer bg-white hover:bg-navy-50"
-                    >
-                      <Icon name="plus" size={14} />
-                      <span>+ Add Another Course to this Enrolment</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* 3. Tuition Fee & Payment Plan */}
-                <div className="space-y-3 p-3.5 bg-paper rounded-sm border border-line">
-                  <div className="flex items-center justify-between flex-wrap gap-2">
-                    <h4 className="font-bold text-navy-900 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
-                      <Icon name="credit-card" size={13} className="text-gold-700" />
-                      <span>3. Tuition Fee &amp; Level-Based Instalment Plan</span>
-                    </h4>
-                    <span className="px-2 py-0.5 rounded-xs bg-navy-900/10 text-navy-900 font-bold text-[10px]">
-                      {enrolCourses.some((c) => isLevelFiveOrAbove(c.levelLabel))
-                        ? "Level 5+: 6, 10, 12 & 14 Month Plans Available"
-                        : "Level 2–4: 3, 6, 10 & 12 Month Plans Available"}
-                    </span>
-                  </div>
-
-                  {/* Historical Student / Previous Enrolment */}
-                  <div className="p-3 bg-amber-50/70 border border-amber-200/90 rounded-sm space-y-2.5">
-                    <label className="flex items-center gap-2 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={enrolIsHistorical}
-                        onChange={(e) => {
-                          const checked = e.target.checked;
-                          setEnrolIsHistorical(checked);
-                          if (checked && (!enrolAmountPaidToDate || enrolAmountPaidToDate === "0")) {
-                            setEnrolAmountPaidToDate(enrolDeposit);
-                          }
-                        }}
-                        className="rounded text-navy-900 focus:ring-navy-900"
-                      />
-                      <span className="text-xs font-bold text-navy-900">
-                        Existing / Historical Student (Record Original Enrolment Date &amp; Notes)
-                      </span>
-                    </label>
-
-                    {enrolIsHistorical && (
-                      <div className="pt-2 border-t border-amber-200/60 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-[11px] font-semibold text-navy-900 mb-1">
-                            Original Enrolment Date *
-                          </label>
-                          <input
-                            type="date"
-                            required={enrolIsHistorical}
-                            value={enrolHistoricalDate}
-                            onChange={(e) => setEnrolHistoricalDate(e.target.value)}
-                            className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-mono"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-semibold text-navy-900 mb-1">
-                            Payment Reference / Notes
-                          </label>
-                          <input
-                            type="text"
-                            value={enrolHistoricalNotes}
-                            onChange={(e) => setEnrolHistoricalNotes(e.target.value)}
-                            placeholder="e.g. Paid via BACS in Sept (Receipts #402)"
-                            className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div>
-                      <label className="block text-[11px] font-semibold text-navy-900 mb-1">Funding Classification</label>
-                      <select
-                        value={enrolFundingType}
-                        onChange={(e) => setEnrolFundingType(e.target.value as any)}
-                        className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
-                      >
-                        <option value="self_pay">Self-Pay Student</option>
-                        <option value="funded">Government / AEB Funded</option>
-                        <option value="sponsored">Workplace / Employer Sponsored</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-semibold text-navy-900 mb-1">Payment Structure</label>
-                      <select
-                        value={enrolPlanType}
-                        onChange={(e) => {
-                          const pt = e.target.value as "full" | "instalments";
-                          setEnrolPlanType(pt);
-                          if (pt === "full") {
-                            if (enrolIsHistorical) {
-                              setEnrolAmountPaidToDate(enrolPrice);
-                            } else {
-                              setEnrolDeposit(enrolPrice);
-                            }
-                          } else {
-                            const allowed = getInstalmentMonthsForCourseSelections(enrolCourses);
-                            if (!allowed.includes(parseInt(enrolMonths, 10))) {
-                              setEnrolMonths(allowed[0].toString());
-                            }
-                          }
-                        }}
-                        className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-semibold"
-                      >
-                        <option value="instalments">Monthly 0% Instalments</option>
-                        <option value="full">Full Upfront Payment</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-semibold text-navy-900 mb-1">
-                        Total Tuition Fee (£) {enrolCourses.length > 1 && `(${enrolCourses.length} Courses)`}
-                      </label>
-                      <input
-                        type="number"
-                        value={enrolPrice}
-                        onChange={(e) => setEnrolPrice(e.target.value)}
-                        className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-mono font-bold text-navy-900"
-                      />
-                    </div>
-
-                    {enrolPlanType === "instalments" && (
-                      <div>
-                        <label className="block text-[11px] font-semibold text-navy-900 mb-1">
-                          Instalment Plan
-                        </label>
-                        <select
-                          value={enrolMonths}
-                          onChange={(e) => setEnrolMonths(e.target.value)}
-                          className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs font-mono font-bold text-navy-900"
-                        >
-                          {getInstalmentMonthsForCourseSelections(enrolCourses).map((m) => {
-                            const totalNum = parseFloat(enrolPrice) || 0;
-                            const paidNum = enrolIsHistorical
-                              ? parseFloat(enrolAmountPaidToDate) || 0
-                              : parseFloat(enrolDeposit) || 0;
-                            const rem = Math.max(0, totalNum - paidNum);
-                            const perMonth = m > 0 ? (rem / m).toFixed(2) : "0.00";
-                            return (
-                              <option key={m} value={m.toString()}>
-                                {m} Months (£{perMonth}/mo)
-                              </option>
-                            );
-                          })}
-                        </select>
-                      </div>
-                    )}
+                          )}
 
                     <div>
                       <label className="block text-[11px] font-semibold text-navy-900 mb-1">
@@ -2557,6 +2777,9 @@ export const LearnersDirectory: React.FC<Props> = ({
                     );
                   })()}
                 </div>
+              </div>
+            );
+          })()}
 
                 <div className="flex items-center justify-end gap-2 pt-3 border-t border-line">
                   <button

@@ -450,6 +450,35 @@ export async function deleteEnquiryPermanentlyAction(enquiryId: string) {
   return { success: true };
 }
 
+export async function clearAllTestEnquiriesAction() {
+  const session = await getServerSession();
+  assertAdminAuthorized(session);
+
+  const { clearAllTestEnquiriesFromStore } = await import("@/lib/persistedData");
+  const count = clearAllTestEnquiriesFromStore();
+
+  revalidatePath("/admin/pipeline");
+  revalidatePath("/portal/admin");
+  return { success: true, count };
+}
+
+export async function adminDeleteOrCancelEnrolmentAction(input: {
+  enrolmentId: string;
+  learnerId: string;
+}) {
+  const session = await getServerSession();
+  assertAdminAuthorized(session);
+
+  const { removeEnrolmentFromStore } = await import("@/lib/persistedData");
+  removeEnrolmentFromStore(input.enrolmentId);
+
+  revalidatePath("/admin/learners");
+  revalidatePath("/admin/payments");
+  revalidatePath("/student/dashboard");
+  revalidatePath("/student/payments");
+  return { success: true };
+}
+
 
 
 export async function approveFundedEnrolmentAction(

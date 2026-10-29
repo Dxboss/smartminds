@@ -3,7 +3,12 @@
 import React, { useState } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { EnquiryLead, EnquiryStage } from "@/lib/repositories/types";
-import { updateEnquiryStageAction, approveFundedEnrolmentAction } from "@/app/admin/actions";
+import {
+  updateEnquiryStageAction,
+  approveFundedEnrolmentAction,
+  deleteEnquiryPermanentlyAction,
+  clearAllTestEnquiriesAction,
+} from "@/app/admin/actions";
 
 interface Props {
   initialEnquiries: EnquiryLead[];
@@ -123,6 +128,51 @@ export const EnquiryPipelineBoard: React.FC<Props> = ({
     }
   };
 
+  const handleDeleteEnquiry = async (enquiryId: string) => {
+    if (!confirm("Are you sure you want to permanently delete this lead from the pipeline?")) return;
+    try {
+      const res = await deleteEnquiryPermanentlyAction(enquiryId);
+      if (res && res.success) {
+        setEnquiries((prev) => prev.filter((e) => e.id !== enquiryId));
+        setFeedback("Lead permanently deleted.");
+        setTimeout(() => setFeedback(null), 4000);
+      }
+    } catch (err: any) {
+      alert(err?.message || "Failed to delete lead");
+    }
+  };
+
+  const handleClearTestLeads = async () => {
+    if (!confirm("Are you sure you want to purge all test and synthetic demo leads from the pipeline? Real customer submissions will be kept.")) return;
+    try {
+      const res = await clearAllTestEnquiriesAction();
+      if (res && res.success) {
+        setEnquiries((prev) =>
+          prev.filter((e) => {
+            const em = (e.email || "").toLowerCase();
+            const nm = (e.fullName || "").toLowerCase();
+            return (
+              !em.includes("example.com") &&
+              !em.includes("example.co.uk") &&
+              !em.startsWith("visitor_") &&
+              !em.startsWith("test_") &&
+              !em.includes("assigned.lead") &&
+              !em.includes("mark.lead") &&
+              !em.includes("jane.test") &&
+              !nm.includes("robert frost") &&
+              !nm.includes("elizabeth bennet") &&
+              !/^enq-00[1-9]/.test(e.id)
+            );
+          })
+        );
+        setFeedback(`Purged test leads. Pipeline is clean.`);
+        setTimeout(() => setFeedback(null), 5000);
+      }
+    } catch (err: any) {
+      alert(err?.message || "Failed to clear test leads");
+    }
+  };
+
   return (
     <div className="space-y-6">
       {feedback && (
@@ -135,25 +185,36 @@ export const EnquiryPipelineBoard: React.FC<Props> = ({
         </div>
       )}
 
-      {/* Cohort Picker for Funded Approvals */}
+      {/* Cohort Picker for Funded Approvals & Pipeline Controls */}
       <div className="bg-white rounded-md border border-line p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-sm">
         <div className="flex items-center gap-2">
           <Icon name="graduation-cap" size={16} className="text-navy-900" />
           <span className="font-bold text-navy-900">
             Target Cohort for Manual / Funded Enrolments:
           </span>
+          <select
+            value={selectedCohortId}
+            onChange={(e) => setSelectedCohortId(e.target.value)}
+            className="px-3 py-1.5 rounded-sm border border-line bg-paper text-navy-900 font-semibold focus:outline-none focus:ring-2 focus:ring-navy-900"
+          >
+            {availableCohorts.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
         </div>
-        <select
-          value={selectedCohortId}
-          onChange={(e) => setSelectedCohortId(e.target.value)}
-          className="px-3 py-1.5 rounded-sm border border-line bg-paper text-navy-900 font-semibold focus:outline-none focus:ring-2 focus:ring-navy-900"
-        >
-          {availableCohorts.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleClearTestLeads}
+            className="px-3 py-1.5 rounded-sm border border-line bg-paper hover:bg-red-50 hover:text-red-700 text-ink-soft text-xs font-semibold inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+            title="Clean synthetic test leads from the pipeline"
+          >
+            <Icon name="trash" size={13} />
+            <span>Purge Test Leads</span>
+          </button>
+        </div>
       </div>
 
       {/* Clean Pipeline State Notice */}
@@ -420,6 +481,15 @@ export const EnquiryPipelineBoard: React.FC<Props> = ({
                               Re-open lead
                             </button>
                           )}
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteEnquiry(enq.id)}
+                            className="ml-auto p-1 text-ink-soft hover:text-red-700 hover:bg-red-50 rounded-xs transition-colors cursor-pointer"
+                            title="Permanently delete lead from pipeline"
+                          >
+                            <Icon name="trash" size={13} />
+                          </button>
                         </div>
                       </div>
                     );
