@@ -593,6 +593,8 @@ export class PostgresPaymentRepo implements PaymentRepo {
         status: "paid",
         method: "bank_transfer",
         reference: item.reportedTransfer?.reference || `TRF-CONF-${Date.now().toString().slice(-6)}`,
+        receiptUrl: item.reportedTransfer?.receiptUrl,
+        receiptFileName: item.reportedTransfer?.receiptFileName,
         notes: data.notes || `Instalment ${item.instalmentNumber} of ${item.totalInstalments} bank transfer confirmed`,
         paidAt: now,
       };
@@ -651,6 +653,8 @@ export class PostgresPaymentRepo implements PaymentRepo {
         status: "paid",
         method: "bank_transfer",
         reference: item.reportedTransfer?.reference || `TRF-CONF-${Date.now().toString().slice(-6)}`,
+        receiptUrl: item.reportedTransfer?.receiptUrl,
+        receiptFileName: item.reportedTransfer?.receiptFileName,
         notes: data.notes || `Instalment ${item.instalmentNumber} of ${item.totalInstalments} bank transfer confirmed`,
         paidAt: now,
       };

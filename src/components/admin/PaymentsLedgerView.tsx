@@ -87,6 +87,7 @@ export function PaymentsLedgerView({
   } | null>(null);
   const [paidReceiptModal, setPaidReceiptModal] = useState<{
     receiptRef: string;
+    bacsRef?: string;
     learnerName: string;
     learnerEmail?: string;
     courseTitle: string;
@@ -95,6 +96,8 @@ export function PaymentsLedgerView({
     method?: string;
     instalmentText?: string;
     notes?: string;
+    receiptUrl?: string;
+    receiptFileName?: string;
   } | null>(null);
   const [queryModalSchedule, setQueryModalSchedule] =
     useState<PaymentScheduleItem | null>(null);
@@ -1453,15 +1456,34 @@ export function PaymentsLedgerView({
                             <button
                               type="button"
                               onClick={() => {
+                                const matchingSchedule = schedules.find(
+                                  (s) =>
+                                    (s.paymentReference && s.paymentReference === r.reference) ||
+                                    (s.reportedTransfer?.reference && s.reportedTransfer.reference === r.reference) ||
+                                    (s.enrolmentId === r.enrolmentId && Math.abs(s.amountGbp - r.amountGbp) < 0.01)
+                                );
+                                const receiptUrl = r.receiptUrl || matchingSchedule?.reportedTransfer?.receiptUrl;
+                                const receiptFileName = r.receiptFileName || matchingSchedule?.reportedTransfer?.receiptFileName;
+                                const rawRef = r.reference || matchingSchedule?.reportedTransfer?.reference || matchingSchedule?.paymentReference || "";
+                                const isRealReceiptId = rawRef.startsWith("REC-") || rawRef.startsWith("TRF-") || rawRef.startsWith("BACS-");
+                                const receiptRef = isRealReceiptId ? rawRef : `REC-${r.id.slice(-6).toUpperCase()}`;
+                                const bacsRef = matchingSchedule?.reportedTransfer?.reference || (rawRef && rawRef !== receiptRef ? rawRef : undefined);
+
                                 setPaidReceiptModal({
-                                  receiptRef: r.reference,
+                                  receiptRef,
+                                  bacsRef: bacsRef || (r.method === "bank_transfer" ? rawRef : undefined),
                                   learnerName: r.learnerName,
                                   learnerEmail: learners.find((l) => l.id === r.learnerId)?.email,
                                   courseTitle: r.courseTitle,
                                   amountGbp: r.amountGbp,
                                   paidAt: r.paidAt,
                                   method: r.method,
+                                  instalmentText: matchingSchedule
+                                    ? `Instalment ${matchingSchedule.instalmentNumber} of ${matchingSchedule.totalInstalments}`
+                                    : undefined,
                                   notes: r.notes,
+                                  receiptUrl,
+                                  receiptFileName,
                                 });
                               }}
                               className="px-2.5 py-1 text-xs font-semibold text-navy-900 bg-paper hover:bg-gold-300 rounded-sm border border-line transition-colors inline-flex items-center gap-1 shadow-2xs cursor-pointer"
@@ -1675,10 +1697,18 @@ export function PaymentsLedgerView({
                                     const matchingRecord = records.find(
                                       (r) =>
                                         r.learnerId === s.learnerId &&
-                                        (r.courseTitle === s.courseTitle || Math.abs(r.amountGbp - s.amountGbp) < 0.01)
+                                        (r.enrolmentId === s.enrolmentId || r.courseTitle === s.courseTitle || Math.abs(r.amountGbp - s.amountGbp) < 0.01)
                                     );
+                                    const receiptUrl = s.reportedTransfer?.receiptUrl || matchingRecord?.receiptUrl;
+                                    const receiptFileName = s.reportedTransfer?.receiptFileName || matchingRecord?.receiptFileName;
+                                    const rawRef = s.reportedTransfer?.reference || s.paymentReference || matchingRecord?.reference || "";
+                                    const isRealReceiptId = rawRef.startsWith("REC-") || rawRef.startsWith("TRF-") || rawRef.startsWith("BACS-");
+                                    const receiptRef = isRealReceiptId ? rawRef : `REC-${s.id.slice(-6).toUpperCase()}`;
+                                    const bacsRef = s.reportedTransfer?.reference || (rawRef && rawRef !== receiptRef ? rawRef : undefined);
+
                                     setPaidReceiptModal({
-                                      receiptRef: matchingRecord?.reference || `REC-${s.id.slice(-6).toUpperCase()}`,
+                                      receiptRef,
+                                      bacsRef: bacsRef || (s.method === "bank_transfer" || matchingRecord?.method === "bank_transfer" ? rawRef : undefined),
                                       learnerName: learner ? `${learner.firstName} ${learner.lastName}` : s.learnerId,
                                       learnerEmail: learner?.email,
                                       courseTitle: s.courseTitle || enrolment?.courseTitle || "Professional Qualification Course",
@@ -1687,6 +1717,8 @@ export function PaymentsLedgerView({
                                       method: matchingRecord?.method || s.method || "bank_transfer",
                                       instalmentText: `Instalment ${s.instalmentNumber} of ${s.totalInstalments}`,
                                       notes: matchingRecord?.notes,
+                                      receiptUrl,
+                                      receiptFileName,
                                     });
                                   }}
                                   className="px-2.5 py-1 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-sm border border-emerald-300 transition-colors inline-flex items-center gap-1.5 shadow-2xs cursor-pointer"
@@ -2325,8 +2357,11 @@ export function PaymentsLedgerView({
       )}
       {/* Receipt Proof Preview Modal */}
       {receiptPreviewModal && (
-        <div className="fixed inset-0 z-50 bg-navy-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-md border border-line shadow-2xl max-w-lg w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+        <div className="receipt-modal-overlay fixed inset-0 z-50 bg-navy-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div
+            id="printable-receipt-modal"
+            className="bg-white rounded-md border border-line shadow-2xl max-w-lg w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto print:max-h-none print:border-none print:shadow-none print:p-0 print:max-w-none"
+          >
             <div className="flex items-start justify-between border-b border-line pb-3">
               <div>
                 <h3 className="font-heading text-lg font-bold text-navy-900 flex items-center gap-2">
@@ -2341,7 +2376,7 @@ export function PaymentsLedgerView({
                 type="button"
                 onClick={() => setReceiptPreviewModal(null)}
                 aria-label="Close payment proof preview"
-                className="text-ink-soft hover:text-navy-900 p-1"
+                className="text-ink-soft hover:text-navy-900 p-1 no-print"
               >
                 <Icon name="close" size={18} />
               </button>
@@ -2426,7 +2461,16 @@ export function PaymentsLedgerView({
             </div>
 
             {/* Admin One-Click Actions inside the Modal */}
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-line">
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-line no-print">
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="px-3 py-2 text-xs font-semibold text-navy-900 bg-paper hover:bg-line border border-line rounded-sm inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+                title="Print or Save PDF of this proof"
+              >
+                <Icon name="download" size={14} />
+                <span>Print / Save PDF</span>
+              </button>
               <button
                 type="button"
                 onClick={() => {
@@ -2456,14 +2500,58 @@ export function PaymentsLedgerView({
 
       {/* Official Tuition Payment Receipt Modal */}
       {paidReceiptModal && (
-        <div className="fixed inset-0 z-50 bg-navy-950/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-md border border-line shadow-2xl max-w-lg w-full p-6 space-y-5 animate-fade-in">
+        <div className="receipt-modal-overlay fixed inset-0 z-50 bg-navy-950/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          {/* Scoped CSS for Crisp 1-Page PDF / Printer Output */}
+          <style jsx global>{`
+            @media print {
+              /* Hide everything in the body except the printable receipt modal */
+              body * {
+                visibility: hidden !important;
+              }
+              #printable-receipt-modal,
+              #printable-receipt-modal * {
+                visibility: visible !important;
+              }
+              #printable-receipt-modal {
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 24px !important;
+                border: 1px solid #1b1b2b !important;
+                border-radius: 4px !important;
+                box-shadow: none !important;
+                background: #ffffff !important;
+                z-index: 99999 !important;
+              }
+              .no-print {
+                display: none !important;
+              }
+              .receipt-modal-overlay {
+                position: static !important;
+                background: transparent !important;
+                padding: 0 !important;
+                inset: auto !important;
+              }
+              @page {
+                margin: 10mm 15mm;
+                size: portrait;
+              }
+            }
+          `}</style>
+
+          <div
+            id="printable-receipt-modal"
+            className="bg-white rounded-md border border-line shadow-2xl max-w-xl w-full p-6 space-y-4 animate-fade-in my-6 print:m-0 print:border-none print:shadow-none print:p-0 print:max-w-none"
+          >
             {/* Header */}
             <div className="flex items-start justify-between border-b border-line pb-4">
               <div>
                 <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-emerald-50 text-emerald-800 text-[11px] font-bold border border-emerald-200 mb-1">
                   <Icon name="check-circle" size={12} />
-                  <span>Verified & Cleared Payment</span>
+                  <span>Verified &amp; Cleared Payment</span>
                 </div>
                 <h3 className="font-heading text-xl font-bold text-navy-900">
                   Tuition Payment Receipt
@@ -2473,7 +2561,7 @@ export function PaymentsLedgerView({
                 type="button"
                 onClick={() => setPaidReceiptModal(null)}
                 aria-label="Close receipt modal"
-                className="text-ink-soft hover:text-navy-900 p-1 cursor-pointer"
+                className="text-ink-soft hover:text-navy-900 p-1 cursor-pointer no-print"
               >
                 <Icon name="close" size={18} />
               </button>
@@ -2487,14 +2575,22 @@ export function PaymentsLedgerView({
                     SMARTMINDS TRAINING COLLEGE
                   </span>
                   <span className="text-[11px] text-ink-soft">
-                    Registered Vocational & Further Education Centre
+                    Registered Vocational &amp; Further Education Centre
                   </span>
                 </div>
                 <div className="text-right">
                   <span className="text-[10px] uppercase font-bold text-ink-soft block">Receipt Reference</span>
-                  <span className="font-mono text-xs font-bold text-navy-900">
+                  <span className="font-mono text-xs font-bold text-navy-900 block">
                     {paidReceiptModal.receiptRef}
                   </span>
+                  {paidReceiptModal.bacsRef && (
+                    <div className="mt-1">
+                      <span className="text-[9px] uppercase font-bold text-ink-soft block">BACS / Payer Ref</span>
+                      <span className="font-mono text-[11px] font-bold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded-xs border border-emerald-200 inline-block">
+                        {paidReceiptModal.bacsRef}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -2541,7 +2637,7 @@ export function PaymentsLedgerView({
                   <span className="text-ink-soft block text-[11px]">Payment Status:</span>
                   <span className="inline-flex items-center gap-1 font-bold text-emerald-700 text-xs">
                     <Icon name="check" size={13} />
-                    Cleared & Settled
+                    Cleared &amp; Settled
                   </span>
                 </div>
               </div>
@@ -2556,8 +2652,66 @@ export function PaymentsLedgerView({
               </div>
             </div>
 
+            {/* Learner's Uploaded Transfer Receipt / Proof */}
+            {paidReceiptModal.receiptUrl ? (
+              <div className="border border-line rounded-sm p-3.5 bg-white space-y-2">
+                <div className="flex items-center justify-between border-b border-line pb-1.5">
+                  <span className="text-xs font-bold text-navy-900 flex items-center gap-1.5">
+                    <Icon name="file-text" size={13} className="text-gold-700" />
+                    <span>Learner Uploaded Bank Proof</span>
+                  </span>
+                  <span className="text-[10px] text-ink-soft font-mono">
+                    {paidReceiptModal.receiptFileName || "payment-receipt-proof"}
+                  </span>
+                </div>
+
+                {paidReceiptModal.receiptUrl.startsWith("data:image") ||
+                /\.(png|jpe?g|webp|gif)($|\?)/i.test(paidReceiptModal.receiptUrl) ? (
+                  <div className="space-y-2 text-center">
+                    <img
+                      src={paidReceiptModal.receiptUrl}
+                      alt="Learner uploaded bank receipt proof"
+                      className="max-h-72 w-auto mx-auto rounded border border-line object-contain shadow-2xs print:max-h-[460px]"
+                    />
+                    <div className="flex items-center justify-center gap-2 no-print">
+                      <a
+                        href={paidReceiptModal.receiptUrl}
+                        download={paidReceiptModal.receiptFileName || "payment-receipt-proof.png"}
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-navy-900 hover:text-navy-700 hover:underline"
+                      >
+                        <Icon name="download" size={12} />
+                        <span>Download Original Image</span>
+                      </a>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-4 bg-paper rounded border border-line text-center space-y-2">
+                    <Icon name="file-text" size={28} className="mx-auto text-navy-900" />
+                    <div>
+                      <p className="text-xs font-bold text-navy-900">PDF Document Proof Attached</p>
+                      <p className="text-[11px] text-ink-soft">{paidReceiptModal.receiptFileName || "payment-receipt.pdf"}</p>
+                    </div>
+                    <a
+                      href={paidReceiptModal.receiptUrl}
+                      download={paidReceiptModal.receiptFileName || "payment-receipt.pdf"}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="no-print inline-flex items-center gap-1.5 px-3 py-1.5 bg-navy-900 text-white rounded-sm text-xs font-bold hover:bg-navy-700 shadow-2xs"
+                    >
+                      <Icon name="download" size={12} />
+                      <span>Download / View Document</span>
+                    </a>
+                  </div>
+                )}
+              </div>
+            ) : paidReceiptModal.bacsRef ? (
+              <div className="p-2.5 rounded-sm bg-paper border border-line text-[11px] text-ink-soft">
+                <span className="font-semibold text-navy-900">BACS Verification:</span> Reconciled via BACS reference <code className="font-mono font-bold text-navy-900">{paidReceiptModal.bacsRef}</code> in the college bank account.
+              </div>
+            ) : null}
+
             {/* Actions */}
-            <div className="flex items-center justify-between pt-2 border-t border-line">
+            <div className="flex items-center justify-between pt-2 border-t border-line no-print">
               <span className="text-[11px] text-ink-soft">
                 Official document generated by Smartminds Finance System
               </span>

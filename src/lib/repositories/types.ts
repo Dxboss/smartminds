@@ -173,6 +173,8 @@ export interface PaymentRecord {
   paidAt: string;
   notes?: string;
   stripeSessionId?: string;
+  receiptUrl?: string;
+  receiptFileName?: string;
 }
 
 export interface PaymentScheduleItem {
@@ -185,6 +187,7 @@ export interface PaymentScheduleItem {
   dueDate: string;
   status: PaymentStatus;
   paidAt?: string;
+  paymentReference?: string;
   graceExpiryDate: string;
   description?: string;
   method?: string;

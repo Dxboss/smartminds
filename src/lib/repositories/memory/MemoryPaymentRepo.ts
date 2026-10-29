@@ -481,6 +481,8 @@ export class MemoryPaymentRepo implements PaymentRepo {
       amountGbp: item.amountGbp,
       method: "bank_transfer",
       reference: item.reportedTransfer?.reference || `TRF-CONF-${Date.now().toString().slice(-6)}`,
+      receiptUrl: item.reportedTransfer?.receiptUrl,
+      receiptFileName: item.reportedTransfer?.receiptFileName,
       status: "paid",
       paidAt: now,
       notes: data.notes || `Instalment ${item.instalmentNumber} of ${item.totalInstalments} confirmed by owner`,
