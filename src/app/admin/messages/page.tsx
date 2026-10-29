@@ -24,10 +24,13 @@ export default async function AdminMessagesPage() {
 
   const templateRepo = getTemplateRepo();
   const learnerRepo = getLearnerRepo();
+  const { listAllCoupons, pullLatestFromNeon } = await import("@/lib/persistedData");
+  await pullLatestFromNeon().catch(() => {});
 
   const templates = await templateRepo.listTemplates(session);
   const learners = await learnerRepo.listLearners(session);
   const emailSettings = getEmailSettings();
+  const coupons = listAllCoupons();
 
   const canManageSettings =
     session.role === "owner_admin" || session.role === "super_admin";
@@ -49,6 +52,7 @@ export default async function AdminMessagesPage() {
         learners={learners}
         emailSettings={emailSettings}
         canManageSettings={canManageSettings}
+        coupons={coupons}
       />
     </div>
   );

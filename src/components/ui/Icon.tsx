@@ -60,6 +60,7 @@ export type IconName =
   | "award"
   | "globe"
   | "lock"
+  | "tag"
   | "activity";
 
 export interface IconProps extends React.SVGAttributes<SVGElement> {
@@ -1009,6 +1010,15 @@ export const Icon: React.FC<IconProps> = ({
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2" strokeLinecap="round" strokeLinejoin="round" />
             <path d="M7 11V7a5 5 0 0 1 10 0v4" strokeLinecap="round" strokeLinejoin="round" />
           </>
+        );
+
+      case "tag":
+        return (
+          <path
+            d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z M7 7h.01"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         );
 
       case "activity":

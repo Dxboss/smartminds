@@ -72,6 +72,12 @@ export default function StudentPortalPage() {
       label: "Tuition & Instalments",
       icon: "credit-card",
     },
+    {
+      id: "progression",
+      label: "Alumni Rewards & Vouchers",
+      icon: "award",
+      badge: "15% Off",
+    },
   ];
 
   const courseUnits = [
@@ -172,6 +178,44 @@ export default function StudentPortalPage() {
       onSectionChange={setActiveSection}
     >
       <div className="space-y-8 max-w-7xl mx-auto">
+        {/* Alumni Progression & Loyalty Reward Banner */}
+        <div className="bg-gradient-to-r from-navy-900 via-navy-800 to-navy-900 text-white rounded-md p-4 sm:p-5 border border-gold-500/30 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-xs bg-gold-400 text-navy-900 text-[10px] font-bold uppercase tracking-wider">
+              <Icon name="tag" size={12} />
+              <span>Exclusive Alumni Progression Reward</span>
+            </div>
+            <h3 className="font-heading text-lg font-bold text-gold-300">
+              Claim 15% Off Your Next Qualification or 1-on-1 Tutoring
+            </h3>
+            <p className="text-xs text-slate-200">
+              As an active Smartminds student, use your exclusive code <code className="px-1.5 py-0.5 rounded-xs bg-white/10 font-mono font-bold text-white border border-white/20">ALUMNI15</code> to advance to Level 5 or book 1-on-1 private tutoring.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 self-start md:self-auto shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof window !== "undefined") {
+                  navigator.clipboard?.writeText("ALUMNI15");
+                  alert("Voucher code ALUMNI15 copied to clipboard!");
+                }
+              }}
+              className="px-3.5 py-2 rounded-sm bg-gold-500 text-navy-900 text-xs font-bold hover:bg-gold-400 transition-colors flex items-center gap-1.5 cursor-pointer"
+            >
+              <Icon name="copy" size={13} />
+              <span>Copy Code ALUMNI15</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveSection("progression")}
+              className="px-3.5 py-2 rounded-sm bg-white/10 border border-white/20 text-white text-xs font-semibold hover:bg-white/20 transition-colors cursor-pointer"
+            >
+              View Rewards &rarr;
+            </button>
+          </div>
+        </div>
+
         {/* Course Progress & Welcome Card */}
         <div className="bg-navy-900 text-white rounded-md p-6 sm:p-8 shadow-card relative overflow-hidden">
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -566,6 +610,140 @@ export default function StudentPortalPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* SECTION 5: Alumni Rewards & Progression */}
+        {activeSection === "progression" && (
+          <div className="bg-white rounded-md border border-line p-6 sm:p-8 shadow-card space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-line pb-4">
+              <div>
+                <h2 className="font-heading text-2xl font-bold uppercase text-navy-900 flex items-center gap-2">
+                  <Icon name="tag" size={20} className="text-gold-700" />
+                  <span>Alumni Loyalty &amp; Progression Vouchers</span>
+                </h2>
+                <p className="text-xs text-ink-soft">
+                  Exclusive rewards for continuing education, diploma advancement, and family 1-on-1 tutoring.
+                </p>
+              </div>
+              <Link
+                href="/contact"
+                className="px-4 py-2 bg-navy-900 text-gold-300 rounded-sm text-xs font-bold hover:bg-navy-800 transition-colors inline-flex items-center gap-1.5 self-start sm:self-auto"
+              >
+                <span>Book Free Admissions Advice &rarr;</span>
+              </Link>
+            </div>
+
+            {/* Vouchers Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="p-4 rounded-sm border-2 border-navy-900 bg-paper/60 space-y-3 relative overflow-hidden">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-sm font-bold text-navy-900 px-2 py-0.5 rounded-xs bg-white border border-navy-900/20">
+                    ALUMNI15
+                  </span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-xs bg-gold-300 text-navy-900">
+                    15% OFF
+                  </span>
+                </div>
+                <h4 className="font-bold text-navy-900 text-sm">
+                  Alumni Continuing Education Voucher
+                </h4>
+                <p className="text-xs text-ink-soft leading-relaxed">
+                  Valid towards Level 4 or Level 5 Diplomas in Care, CYPW, or AET teacher training.
+                </p>
+                <div className="pt-2 border-t border-line/60 flex items-center justify-between">
+                  <span className="text-[11px] text-ink-soft">Code: <strong className="text-navy-900 font-mono">ALUMNI15</strong></span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (typeof window !== "undefined") {
+                        navigator.clipboard?.writeText("ALUMNI15");
+                        alert("Code ALUMNI15 copied to clipboard!");
+                      }
+                    }}
+                    className="text-xs text-navy-900 font-bold underline hover:text-gold-700 cursor-pointer"
+                  >
+                    Copy Code
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-sm border border-line bg-paper/60 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-sm font-bold text-navy-900 px-2 py-0.5 rounded-xs bg-white border border-line">
+                    SMARTMINDS50
+                  </span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-xs bg-navy-900 text-white">
+                    £50 OFF
+                  </span>
+                </div>
+                <h4 className="font-bold text-navy-900 text-sm">
+                  Continuing Education Credit
+                </h4>
+                <p className="text-xs text-ink-soft leading-relaxed">
+                  £50 upfront credit applied towards registration or initial deposit on any new qualification.
+                </p>
+                <div className="pt-2 border-t border-line/60 flex items-center justify-between">
+                  <span className="text-[11px] text-ink-soft">Code: <strong className="text-navy-900 font-mono">SMARTMINDS50</strong></span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (typeof window !== "undefined") {
+                        navigator.clipboard?.writeText("SMARTMINDS50");
+                        alert("Code SMARTMINDS50 copied to clipboard!");
+                      }
+                    }}
+                    className="text-xs text-navy-900 font-bold underline hover:text-gold-700 cursor-pointer"
+                  >
+                    Copy Code
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-sm border border-line bg-paper/60 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-sm font-bold text-navy-900 px-2 py-0.5 rounded-xs bg-white border border-line">
+                    TUTOR10
+                  </span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-xs bg-gold-300 text-navy-900">
+                    10% OFF
+                  </span>
+                </div>
+                <h4 className="font-bold text-navy-900 text-sm">
+                  Family 1-on-1 Tutoring Voucher
+                </h4>
+                <p className="text-xs text-ink-soft leading-relaxed">
+                  Discount for children, siblings or relatives booking KS3/GCSE English or Mathematics.
+                </p>
+                <div className="pt-2 border-t border-line/60 flex items-center justify-between">
+                  <span className="text-[11px] text-ink-soft">Code: <strong className="text-navy-900 font-mono">TUTOR10</strong></span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (typeof window !== "undefined") {
+                        navigator.clipboard?.writeText("TUTOR10");
+                        alert("Code TUTOR10 copied to clipboard!");
+                      }
+                    }}
+                    className="text-xs text-navy-900 font-bold underline hover:text-gold-700 cursor-pointer"
+                  >
+                    Copy Code
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* How to Redeem Callout */}
+            <div className="p-4 bg-paper rounded-sm border border-line space-y-2">
+              <h4 className="font-bold text-navy-900 text-xs uppercase tracking-wider">
+                How to Redeem Your Voucher:
+              </h4>
+              <ul className="text-xs text-ink-soft space-y-1 list-disc list-inside">
+                <li><strong>Over the Phone:</strong> Quote your code to our admissions advisers when discussing your next enrolment.</li>
+                <li><strong>Online Enrolment:</strong> Paste your voucher code into the &ldquo;Promo Code&rdquo; field on the checkout page.</li>
+                <li><strong>Employer Sponsorship:</strong> Inform your care home manager or employer to quote this voucher on invoice bookings.</li>
+              </ul>
             </div>
           </div>
         )}

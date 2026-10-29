@@ -15,6 +15,7 @@ import {
   TutoringAttendanceRecord,
   TutoringDeliveryMode,
   TutoringAttendanceStatus,
+  Coupon,
 } from "@/lib/repositories/types";
 import type { Course } from "@/content/types";
 import type { BlogPost } from "@/content/blog";
@@ -134,6 +135,8 @@ export interface PersistedRecordsStore {
   deletedEnrolmentIds?: string[];
   deletedPaymentIds?: string[];
   deletedScheduleIds?: string[];
+  coupons?: Coupon[];
+  deletedCouponIds?: string[];
 }
 
 import { type ColorSwatch, DEFAULT_COLOR_SWATCHES } from "./colorSwatches";
@@ -4900,6 +4903,199 @@ export async function updateOneToOneEnrolmentAssignment(input: {
   }).catch(() => {});
   await syncStoreSnapshotToNeon(store).catch(() => {});
   return true;
+}
+
+export const DEFAULT_COUPONS: Coupon[] = [
+  {
+    id: "coupon-alumni-15",
+    code: "ALUMNI15",
+    description: "15% Alumni Progression Reward (Exclusive for Returning Learners)",
+    discountType: "percent",
+    discountValue: 15,
+    targetAudience: "existing_learners_only",
+    appliesTo: "all",
+    timesUsed: 4,
+    validUntil: "2027-12-31",
+    isActive: true,
+    createdAt: "2026-01-15T09:00:00Z",
+  },
+  {
+    id: "coupon-next-50",
+    code: "SMARTMINDS50",
+    description: "£50 Off Continuing Education / Additional Qualification",
+    discountType: "fixed_amount",
+    discountValue: 50,
+    targetAudience: "existing_learners_only",
+    appliesTo: "qualifications",
+    timesUsed: 7,
+    validUntil: "2027-12-31",
+    isActive: true,
+    createdAt: "2026-02-01T09:00:00Z",
+  },
+  {
+    id: "coupon-tutor-10",
+    code: "TUTOR10",
+    description: "10% Family 1-on-1 Tutoring Voucher",
+    discountType: "percent",
+    discountValue: 10,
+    targetAudience: "all",
+    appliesTo: "tutoring",
+    timesUsed: 2,
+    validUntil: "2027-12-31",
+    isActive: true,
+    createdAt: "2026-02-10T09:00:00Z",
+  },
+];
+
+export function listAllCoupons(): Coupon[] {
+  const store = loadPersistedRecords();
+  const deleted = new Set(store.deletedCouponIds || []);
+  const custom = (store.coupons || []).filter((c) => !deleted.has(c.id));
+  const customCodes = new Set(custom.map((c) => c.code.toUpperCase()));
+  const defaults = DEFAULT_COUPONS.filter(
+    (c) => !deleted.has(c.id) && !customCodes.has(c.code.toUpperCase())
+  );
+  return [...custom, ...defaults];
+}
+
+export function saveCouponRecord(coupon: Coupon): void {
+  const store = loadPersistedRecords();
+  if (!store.coupons) store.coupons = [];
+  const existingIdx = store.coupons.findIndex(
+    (c) => c.id === coupon.id || c.code.toUpperCase() === coupon.code.toUpperCase()
+  );
+  if (existingIdx >= 0) {
+    store.coupons[existingIdx] = coupon;
+  } else {
+    store.coupons.unshift(coupon);
+  }
+  const filePath = getStoreFilePath();
+  writeStoreToDisk(filePath, store);
+  syncStoreSnapshotToNeon(store).catch(() => {});
+}
+
+export function deleteCouponRecord(id: string): void {
+  const store = loadPersistedRecords();
+  if (!store.coupons) store.coupons = [];
+  if (!store.deletedCouponIds) store.deletedCouponIds = [];
+  if (!store.deletedCouponIds.includes(id)) {
+    store.deletedCouponIds.push(id);
+  }
+  store.coupons = store.coupons.filter((c) => c.id !== id);
+  const filePath = getStoreFilePath();
+  writeStoreToDisk(filePath, store);
+  syncStoreSnapshotToNeon(store).catch(() => {});
+}
+
+export function validateCoupon(
+  code: string,
+  options?: {
+    learnerEmail?: string;
+    courseId?: string;
+    price?: number;
+  }
+): {
+  valid: boolean;
+  discountAmount: number;
+  discountedPrice: number;
+  message: string;
+  coupon?: Coupon;
+} {
+  const cleanCode = (code || "").trim().toUpperCase();
+  const basePrice = options?.price && options.price > 0 ? options.price : 1250;
+  if (!cleanCode) {
+    return {
+      valid: false,
+      discountAmount: 0,
+      discountedPrice: basePrice,
+      message: "Please enter a voucher code.",
+    };
+  }
+
+  const coupons = listAllCoupons();
+  const coupon = coupons.find((c) => c.code.toUpperCase() === cleanCode);
+
+  if (!coupon) {
+    return {
+      valid: false,
+      discountAmount: 0,
+      discountedPrice: basePrice,
+      message: `Voucher code "${cleanCode}" was not found or is invalid.`,
+    };
+  }
+
+  if (!coupon.isActive) {
+    return {
+      valid: false,
+      discountAmount: 0,
+      discountedPrice: basePrice,
+      message: `Voucher code "${cleanCode}" is currently inactive.`,
+    };
+  }
+
+  if (coupon.validUntil && new Date(coupon.validUntil) < new Date()) {
+    return {
+      valid: false,
+      discountAmount: 0,
+      discountedPrice: basePrice,
+      message: `Voucher code "${cleanCode}" expired on ${new Date(coupon.validUntil).toLocaleDateString("en-GB")}.`,
+    };
+  }
+
+  // Check target audience
+  if (coupon.targetAudience === "existing_learners_only") {
+    const store = loadPersistedRecords();
+    const cleanEmail = (options?.learnerEmail || "").trim().toLowerCase();
+    const isExisting =
+      cleanEmail &&
+      (store.learners || []).some((l) => l.email.toLowerCase() === cleanEmail);
+    if (!isExisting && cleanEmail) {
+      return {
+        valid: false,
+        discountAmount: 0,
+        discountedPrice: basePrice,
+        message: `Voucher code "${cleanCode}" is exclusive to returning/existing Smartminds learners.`,
+      };
+    }
+  }
+
+  // Check appliesTo
+  const isTutoring =
+    options?.courseId === "course-tutoring-children" ||
+    (options?.courseId || "").includes("tutoring");
+  if (coupon.appliesTo === "tutoring" && !isTutoring) {
+    return {
+      valid: false,
+      discountAmount: 0,
+      discountedPrice: basePrice,
+      message: `Voucher code "${cleanCode}" is only applicable to 1-on-1 private tutoring.`,
+    };
+  }
+  if (coupon.appliesTo === "qualifications" && isTutoring) {
+    return {
+      valid: false,
+      discountAmount: 0,
+      discountedPrice: basePrice,
+      message: `Voucher code "${cleanCode}" is only applicable to accredited adult qualifications.`,
+    };
+  }
+
+  let discountAmount = 0;
+  if (coupon.discountType === "percent") {
+    discountAmount = Math.round((basePrice * (coupon.discountValue / 100)) * 100) / 100;
+  } else {
+    discountAmount = Math.min(basePrice, coupon.discountValue);
+  }
+
+  const discountedPrice = Math.max(0, Math.round((basePrice - discountAmount) * 100) / 100);
+
+  return {
+    valid: true,
+    discountAmount,
+    discountedPrice,
+    message: `Voucher applied: -£${discountAmount.toFixed(2)} (${coupon.description})`,
+    coupon,
+  };
 }
 
 

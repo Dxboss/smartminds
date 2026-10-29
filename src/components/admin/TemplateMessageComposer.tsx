@@ -9,21 +9,39 @@ interface Props {
   templates: MessageTemplate[];
   initialLogs: MessageLogEntry[];
   learners: Learner[];
+  presetTemplateKey?: string;
+  presetPlaceholders?: Record<string, string>;
 }
 
 export const TemplateMessageComposer: React.FC<Props> = ({
   templates,
   initialLogs,
   learners,
+  presetTemplateKey,
+  presetPlaceholders,
 }) => {
   const [selectedTemplateKey, setSelectedTemplateKey] = useState<string>(
-    templates[0]?.key || "welcome_induction"
+    presetTemplateKey || templates[0]?.key || "welcome_induction"
   );
   const [dispatchMode, setDispatchMode] = useState<"individual" | "broadcast">("individual");
   const [cohortCourseId, setCohortCourseId] = useState<string>("all");
   const [recipientEmail, setRecipientEmail] = useState("");
   const [recipientName, setRecipientName] = useState("");
-  const [placeholderValues, setPlaceholderValues] = useState<Record<string, string>>({});
+  const [placeholderValues, setPlaceholderValues] = useState<Record<string, string>>(
+    presetPlaceholders || {}
+  );
+
+  React.useEffect(() => {
+    if (presetTemplateKey) {
+      setSelectedTemplateKey(presetTemplateKey);
+    }
+  }, [presetTemplateKey]);
+
+  React.useEffect(() => {
+    if (presetPlaceholders) {
+      setPlaceholderValues((prev) => ({ ...prev, ...presetPlaceholders }));
+    }
+  }, [presetPlaceholders]);
   const [logs, setLogs] = useState<MessageLogEntry[]>(initialLogs);
   const [isSending, setIsSending] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);

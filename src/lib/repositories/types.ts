@@ -390,6 +390,22 @@ export interface MessageLogEntry {
   sentAt: string;
 }
 
+export interface Coupon {
+  id: string;
+  code: string;
+  description: string;
+  discountType: "percent" | "fixed_amount";
+  discountValue: number;
+  targetAudience?: "all" | "existing_learners_only" | "graduates_only";
+  appliesTo?: "all" | "qualifications" | "tutoring";
+  minSpendGbp?: number;
+  maxUsageLimit?: number;
+  timesUsed: number;
+  validUntil?: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
 export type FeatureModuleKey =
   | "payments_ledger"
   | "booking_native"

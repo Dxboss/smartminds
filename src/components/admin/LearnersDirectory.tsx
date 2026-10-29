@@ -20,6 +20,7 @@ import {
   updateLearnerAndEnrolmentAction,
   logLearnerPaymentAction,
   adminDeleteOrCancelEnrolmentAction,
+  validateCouponAction,
 } from "@/app/admin/actions";
 import { impersonateUserAction } from "@/app/super/actions";
 import type { Course } from "@/content/types";
@@ -228,6 +229,16 @@ export const LearnersDirectory: React.FC<Props> = ({
   });
   const [enrolAmountPaidToDate, setEnrolAmountPaidToDate] = useState("0");
   const [enrolHistoricalNotes, setEnrolHistoricalNotes] = useState("");
+
+  // Coupon & Loyalty Voucher State
+  const [enrolCouponInput, setEnrolCouponInput] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    code: string;
+    discountGbp: number;
+    originalPrice: number;
+    message: string;
+  } | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
 
   // Edit Learner & Enrolment Modal State
   const [editingLearner, setEditingLearner] = useState<Learner | null>(null);
@@ -2005,6 +2016,8 @@ export const LearnersDirectory: React.FC<Props> = ({
                       months: calculatedMonths,
                       intervalWeeks,
                       tutoringPlanId: isAnyTutoring ? enrolTutoringPlanId : undefined,
+                      couponCode: appliedCoupon?.code,
+                      discountGbp: appliedCoupon?.discountGbp,
                       paymentMethod: enrolPaymentMethod,
                       paymentStatus: enrolPaymentMethod,
                       isHistorical: enrolIsHistorical,
@@ -2659,6 +2672,118 @@ export const LearnersDirectory: React.FC<Props> = ({
                                   className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-white text-xs"
                                 />
                               </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Alumni / Loyalty Voucher Box */}
+                        <div className="p-3 bg-white rounded-sm border border-line space-y-2">
+                          <div className="flex items-center justify-between flex-wrap gap-1.5">
+                            <label className="text-[11px] font-bold text-navy-900 flex items-center gap-1.5">
+                              <Icon name="tag" size={13} className="text-gold-700" />
+                              <span>Alumni Loyalty &amp; Progression Voucher</span>
+                            </label>
+                            <div className="flex items-center gap-1.5 text-[10px]">
+                              <span className="text-ink-soft">Quick suggestions:</span>
+                              <button
+                                type="button"
+                                onClick={() => setEnrolCouponInput("ALUMNI15")}
+                                className="px-1.5 py-0.5 rounded-xs bg-paper border border-line text-navy-900 font-mono font-bold hover:bg-gold-300 transition-colors cursor-pointer"
+                              >
+                                ALUMNI15 (15%)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEnrolCouponInput("SMARTMINDS50")}
+                                className="px-1.5 py-0.5 rounded-xs bg-paper border border-line text-navy-900 font-mono font-bold hover:bg-gold-300 transition-colors cursor-pointer"
+                              >
+                                SMARTMINDS50 (£50)
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <input
+                              type="text"
+                              placeholder="e.g. ALUMNI15"
+                              value={enrolCouponInput}
+                              onChange={(e) => setEnrolCouponInput(e.target.value.toUpperCase())}
+                              className="px-2.5 py-1.5 rounded-sm border border-line bg-paper text-xs font-mono font-bold text-navy-900 uppercase w-44"
+                            />
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                setCouponError(null);
+                                if (!enrolCouponInput.trim()) {
+                                  setCouponError("Please type a voucher code.");
+                                  return;
+                                }
+                                try {
+                                  const rawSum = enrolCourses.reduce((s, it) => s + it.price, 0);
+                                  const baseTotal = enrolExistingLearner ? currentTotalFee + rawSum : rawSum;
+                                  const res = await validateCouponAction(enrolCouponInput, {
+                                    learnerEmail: enrolEmail,
+                                    courseId: enrolCourses[0]?.courseId,
+                                    price: baseTotal,
+                                  });
+                                  if (res.valid) {
+                                    setAppliedCoupon({
+                                      code: enrolCouponInput.trim().toUpperCase(),
+                                      discountGbp: res.discountAmount,
+                                      originalPrice: baseTotal,
+                                      message: res.message,
+                                    });
+                                    setEnrolPrice(res.discountedPrice.toString());
+                                    if (hasTutoringCourse) {
+                                      if (enrolPlanType === "full") {
+                                        setEnrolDeposit(res.discountedPrice.toString());
+                                      } else if (enrolTutoringPlanId === "tutoring-every-2-weeks") {
+                                        setEnrolDeposit((res.discountedPrice / 6).toFixed(2));
+                                      } else if (enrolTutoringPlanId === "tutoring-every-4-weeks") {
+                                        setEnrolDeposit((res.discountedPrice / 3).toFixed(2));
+                                      } else if (enrolTutoringPlanId === "tutoring-every-8-weeks") {
+                                        setEnrolDeposit((res.discountedPrice / 2).toFixed(2));
+                                      }
+                                    }
+                                  } else {
+                                    setCouponError(res.message);
+                                  }
+                                } catch (err) {
+                                  setCouponError(err instanceof Error ? err.message : "Failed to validate voucher.");
+                                }
+                              }}
+                              className="px-3 py-1.5 rounded-sm bg-navy-900 text-gold-300 text-xs font-bold hover:bg-navy-800 transition-colors cursor-pointer"
+                            >
+                              Apply Voucher
+                            </button>
+                            {appliedCoupon && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (appliedCoupon) {
+                                    setEnrolPrice(appliedCoupon.originalPrice.toString());
+                                    setAppliedCoupon(null);
+                                    setEnrolCouponInput("");
+                                    setCouponError(null);
+                                  }
+                                }}
+                                className="text-xs text-rose-700 hover:text-rose-900 font-bold ml-1 cursor-pointer"
+                              >
+                                Remove Voucher
+                              </button>
+                            )}
+                          </div>
+
+                          {appliedCoupon && (
+                            <div className="p-2 bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-xs text-xs font-semibold flex items-center gap-1.5">
+                              <Icon name="check-circle" size={13} className="text-emerald-700" />
+                              <span>{appliedCoupon.message}</span>
+                            </div>
+                          )}
+                          {couponError && (
+                            <div className="p-2 bg-rose-50 border border-rose-200 text-rose-800 rounded-xs text-xs font-semibold flex items-center gap-1.5">
+                              <Icon name="alert-circle" size={13} className="text-rose-700" />
+                              <span>{couponError}</span>
                             </div>
                           )}
                         </div>

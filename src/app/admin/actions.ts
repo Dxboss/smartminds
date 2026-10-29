@@ -2675,6 +2675,8 @@ export async function adminEnrolNewStudentAction(data: {
   months?: number;
   intervalWeeks?: number;
   tutoringPlanId?: string;
+  couponCode?: string;
+  discountGbp?: number;
   paymentMethod?: "bacs" | "card" | "direct_debit" | "website" | "website_payment" | "cash" | "employer" | "funded" | "paid";
   paymentStatus?: "paid" | "direct_debit" | "website_payment" | "pending";
   // Multi-course enrolment:
@@ -3943,6 +3945,99 @@ export async function deleteMediaLibraryItemAction(id: string) {
     success: true,
     items: getPersistedMediaLibrary(),
   };
+}
+
+export async function listCouponsAction() {
+  const session = await getServerSession();
+  assertAdminAuthorized(session);
+
+  const { listAllCoupons, pullLatestFromNeon } = await import("@/lib/persistedData");
+  await pullLatestFromNeon().catch(() => {});
+  return {
+    success: true,
+    coupons: listAllCoupons(),
+  };
+}
+
+export async function saveCouponAction(data: {
+  id?: string;
+  code: string;
+  description: string;
+  discountType: "percent" | "fixed_amount";
+  discountValue: number;
+  targetAudience?: "all" | "existing_learners_only" | "graduates_only";
+  appliesTo?: "all" | "qualifications" | "tutoring";
+  minSpendGbp?: number;
+  maxUsageLimit?: number;
+  validUntil?: string;
+  isActive: boolean;
+}) {
+  const session = await getServerSession();
+  assertAdminAuthorized(session);
+
+  if (!data.code.trim()) {
+    throw new Error("Coupon code is required.");
+  }
+
+  const { saveCouponRecord, listAllCoupons, pullLatestFromNeon } = await import("@/lib/persistedData");
+  await pullLatestFromNeon().catch(() => {});
+
+  const cleanCode = data.code.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, "");
+  const existing = listAllCoupons().find((c) => c.id === data.id || c.code.toUpperCase() === cleanCode);
+
+  const couponRecord: any = {
+    id: data.id || existing?.id || `coupon-${Date.now().toString(36)}`,
+    code: cleanCode,
+    description: data.description.trim() || `${data.discountValue}${data.discountType === "percent" ? "%" : "£"} Off`,
+    discountType: data.discountType,
+    discountValue: Number(data.discountValue) || 10,
+    targetAudience: data.targetAudience || "existing_learners_only",
+    appliesTo: data.appliesTo || "all",
+    minSpendGbp: data.minSpendGbp ? Number(data.minSpendGbp) : undefined,
+    maxUsageLimit: data.maxUsageLimit ? Number(data.maxUsageLimit) : undefined,
+    timesUsed: existing?.timesUsed || 0,
+    validUntil: data.validUntil || undefined,
+    isActive: data.isActive !== false,
+    createdAt: existing?.createdAt || new Date().toISOString(),
+  };
+
+  saveCouponRecord(couponRecord);
+  revalidatePath("/admin/messages");
+  revalidatePath("/admin/learners");
+
+  return {
+    success: true,
+    coupon: couponRecord,
+    coupons: listAllCoupons(),
+  };
+}
+
+export async function deleteCouponAction(id: string) {
+  const session = await getServerSession();
+  assertAdminAuthorized(session);
+
+  const { deleteCouponRecord, listAllCoupons } = await import("@/lib/persistedData");
+  deleteCouponRecord(id);
+  revalidatePath("/admin/messages");
+  revalidatePath("/admin/learners");
+
+  return {
+    success: true,
+    coupons: listAllCoupons(),
+  };
+}
+
+export async function validateCouponAction(
+  code: string,
+  options?: {
+    learnerEmail?: string;
+    courseId?: string;
+    price?: number;
+  }
+) {
+  const { validateCoupon, pullLatestFromNeon } = await import("@/lib/persistedData");
+  await pullLatestFromNeon().catch(() => {});
+  return validateCoupon(code, options);
 }
 
 

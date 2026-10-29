@@ -636,6 +636,22 @@ export const seedTemplates: MessageTemplate[] = [
     bodyTemplate:
       "Dear {first_name},\n\nThis is a notification regarding your payment plan with Smartminds Training College. Your next instalment of £{amount_due} is due on {due_date}.",
   },
+  {
+    id: "tmpl-alumni-coupon",
+    key: "alumni_progression_coupon",
+    title: "Alumni Loyalty & Progression Reward Voucher",
+    category: "enrolment",
+    subject: "Exclusive Alumni Voucher for {first_name}: {discount_text} off your next course",
+    allowedPlaceholders: [
+      "first_name",
+      "coupon_code",
+      "discount_text",
+      "expiry_date",
+      "course_recommendation",
+    ],
+    bodyTemplate:
+      "Dear {first_name},\n\nAs a valued learner at Smartminds Training College, we are pleased to offer you an exclusive Alumni Progression Voucher for continuing your qualifications or booking 1-on-1 private tutoring.\n\nYour Exclusive Code: {coupon_code}\nReward Value: {discount_text}\nValid Until: {expiry_date}\nRecommended Progression: {course_recommendation}\n\nYou can quote this voucher to our admissions team or enter it directly in your Student Portal under 'Progression & Additional Qualifications'.",
+  },
 ];
 
 // ============================================================================
