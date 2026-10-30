@@ -1829,7 +1829,12 @@ export function getPersistedCohorts(): any[] {
     const { seedClasses } = require("@/lib/repositories/seedData");
     const store = loadPersistedRecords();
     const deletedSet = new Set(store.deletedCohortIds || []);
-    return (seedClasses || []).filter((c: any) => !deletedSet.has(c.id));
+    const persistedCohorts = (store.cohorts || []).filter((c: any) => !deletedSet.has(c.id));
+    const persistedIds = new Set(persistedCohorts.map((c: any) => c.id));
+    const baseClasses = (seedClasses || []).filter(
+      (c: any) => !deletedSet.has(c.id) && !persistedIds.has(c.id)
+    );
+    return [...persistedCohorts, ...baseClasses];
   } catch {
     return [];
   }

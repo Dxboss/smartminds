@@ -120,17 +120,38 @@ export const StaffDirectory: React.FC<Props> = ({
   });
 
   // Calculate workload metrics
-  const getTutorClasses = (tutorId?: string) => {
-    if (!tutorId) return [];
-    return classes.filter((c) => c.tutorId === tutorId);
+  const getUserCohorts = (user: UserProfile) => {
+    const uName = (user.name || "").toLowerCase().trim();
+    const uEmail = (user.email || "").toLowerCase().trim();
+    const uId = user.id;
+    const uTutorId = user.tutorId;
+
+    return classes.filter((c: any) => {
+      if (c.status === "completed" || c.status === "archived") return false;
+      if (uTutorId && c.tutorId === uTutorId) return true;
+      if (uId && (c.tutorId === uId || c.assignedStaffId === uId)) return true;
+      if (uEmail && (c.tutorEmail?.toLowerCase().trim() === uEmail || c.tutorId?.toLowerCase().trim() === uEmail)) return true;
+      if (uName && c.tutorName && c.tutorName.toLowerCase().trim() === uName) return true;
+      return false;
+    });
   };
 
   const getStaffBookings = (userId: string) => {
-    return bookings.filter((b) => b.assignedStaffId === userId);
+    return bookings.filter(
+      (b) =>
+        b.assignedStaffId === userId &&
+        b.status !== "completed" &&
+        b.status !== "cancelled"
+    );
   };
 
   const getStaffTasks = (userId: string) => {
-    return tasks.filter((t) => t.assignedToId === userId && t.status !== "completed");
+    return tasks.filter(
+      (t) =>
+        t.assignedToId === userId &&
+        (t.status as string) !== "completed" &&
+        (t.status as string) !== "cancelled"
+    );
   };
 
   const handleToggleStatus = async (userId: string, currentStatus: boolean) => {
@@ -466,7 +487,7 @@ export const StaffDirectory: React.FC<Props> = ({
                 </tr>
               ) : (
                 filteredUsers.map((u) => {
-                  const tutorCohorts = getTutorClasses(u.tutorId);
+                  const userCohorts = getUserCohorts(u);
                   const staffBookings = getStaffBookings(u.id);
                   const openTasks = getStaffTasks(u.id);
 
@@ -535,34 +556,24 @@ export const StaffDirectory: React.FC<Props> = ({
                       {/* Workload */}
                       <td className="py-3.5 px-4">
                         {u.role === "tutor" ? (
-                          tutorCohorts.length > 0 ? (
-                            <div className="space-y-1">
-                              <span className="text-[11px] font-semibold text-navy-900 block">
-                                {tutorCohorts.length} Live Cohort{tutorCohorts.length > 1 ? "s" : ""}
-                              </span>
-                              <div className="flex flex-wrap gap-1">
-                                {tutorCohorts.map((c) => (
-                                  <span
-                                    key={c.id}
-                                    className="px-1.5 py-0.5 rounded-sm text-[10px] bg-paper text-ink-soft border border-line"
-                                  >
-                                    {c.courseLevelLabel}
-                                  </span>
-                                ))}
-                              </div>
+                          <div className="space-y-0.5 text-[11px]">
+                            <div className={`font-semibold ${userCohorts.length > 0 ? "text-navy-900" : "text-ink-soft"}`}>
+                              {userCohorts.length} Cohort{userCohorts.length === 1 ? "" : "s"}
                             </div>
-                          ) : (
-                            <span className="text-[11px] text-ink-soft">
-                              No cohorts assigned
-                            </span>
-                          )
+                            <div className={`text-[11px] ${openTasks.length > 0 ? "text-navy-900 font-medium" : "text-ink-soft"}`}>
+                              {openTasks.length} Open Task{openTasks.length === 1 ? "" : "s"}
+                            </div>
+                          </div>
                         ) : u.role === "admin_staff" ? (
                           <div className="space-y-0.5 text-[11px]">
-                            <div className="text-navy-900 font-medium">
-                              {staffBookings.length} Assigned Consultation{staffBookings.length === 1 ? "" : "s"}
+                            <div className={`font-semibold ${staffBookings.length > 0 ? "text-navy-900" : "text-ink-soft"}`}>
+                              {staffBookings.length} Consultation{staffBookings.length === 1 ? "" : "s"}
                             </div>
-                            <div className="text-ink-soft">
+                            <div className={`text-[11px] ${openTasks.length > 0 ? "text-navy-900 font-medium" : "text-ink-soft"}`}>
                               {openTasks.length} Open Task{openTasks.length === 1 ? "" : "s"}
+                            </div>
+                            <div className={`text-[11px] ${userCohorts.length > 0 ? "text-navy-900 font-medium" : "text-ink-soft"}`}>
+                              {userCohorts.length} Cohort{userCohorts.length === 1 ? "" : "s"}
                             </div>
                           </div>
                         ) : (
@@ -617,6 +628,19 @@ export const StaffDirectory: React.FC<Props> = ({
                               >
                                 <Icon name="eye" size={12} />
                                 <span>{isImpersonatingId === (u.email || u.id) ? "Loading..." : "View as Tutor"}</span>
+                              </button>
+                            )}
+
+                            {u.role === "admin_staff" && (
+                              <button
+                                type="button"
+                                disabled={isImpersonatingId === (u.email || u.id)}
+                                onClick={() => handleImpersonate(u.email || u.id, u.name)}
+                                className="px-2.5 py-1 rounded-sm border border-navy-900 bg-blue-50 hover:bg-navy-900 hover:text-white text-navy-900 text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                                title="View Staff Portal as this administrative staff member"
+                              >
+                                <Icon name="eye" size={12} />
+                                <span>{isImpersonatingId === (u.email || u.id) ? "Loading..." : "View as Staff"}</span>
                               </button>
                             )}
 

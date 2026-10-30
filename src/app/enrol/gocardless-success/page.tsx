@@ -107,3 +107,4 @@ export default async function GoCardlessSuccessPage({ searchParams }: PageProps)
     </div>
   );
 }
+
