@@ -1556,7 +1556,7 @@ export function CoursesManagerView({
                         ) : c.attendance_type === "blended_practical" || c.delivery === "blended" || (c.training_locations && c.training_locations.length > 0) ? (
                           <span className="px-1.5 py-0.5 rounded-xs bg-purple-100 text-purple-900 border border-purple-300 text-[10px] font-bold flex items-center gap-1">
                             <Icon name="layers" size={11} className="text-purple-800" />
-                            <span>Blended Practical {c.training_locations?.length ? `(${c.training_locations.length})` : ""}</span>
+                            <span>Blended Learning {c.training_locations?.length ? `(${c.training_locations.length})` : ""}</span>
                           </span>
                         ) : (
                           <span className="px-1.5 py-0.5 rounded-xs bg-slate-100 text-slate-800 border border-slate-300 text-[10px] font-bold flex items-center gap-1">
@@ -1621,7 +1621,7 @@ export function CoursesManagerView({
                             ? "Physical Venue / Campus"
                             : c.delivery === "live_online"
                             ? "Live Online (Zoom)"
-                            : "Blended Practical")}
+                            : "Blended Learning")}
                       </span>
                       {c.custom_delivery_text && (
                         <span className="block text-[10px] text-ink-soft">
@@ -2232,7 +2232,7 @@ export function CoursesManagerView({
                                 : "text-emerald-700"
                             }
                           />
-                          <span>Blended Practical</span>
+                          <span>Blended Learning</span>
                         </div>
                         <span className="text-[10px] opacity-80 block leading-tight">
                           Online theory + physical campus practicals
@@ -4444,7 +4444,7 @@ export function CoursesManagerView({
                   >
                     <div className="flex items-center gap-1.5 font-bold text-xs">
                       <Icon name="layers" size={13} className={newAttendanceType === "blended_practical" ? "text-gold-300" : "text-navy-900"} />
-                      <span>Blended Practical</span>
+                      <span>Blended Learning</span>
                     </div>
                     <p className={`text-[10px] mt-0.5 ${newAttendanceType === "blended_practical" ? "text-navy-100" : "text-ink-soft"}`}>
                       Online theory + practical assessment days.

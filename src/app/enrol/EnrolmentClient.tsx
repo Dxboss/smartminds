@@ -146,7 +146,7 @@ export const EnrolmentClient: React.FC<Props> = ({
   const [childConcerns, setChildConcerns] = useState("");
   const [emergencyPhone, setEmergencyPhone] = useState("");
 
-  // Campus practical location for blended practical qualifications
+  // Campus practical location for blended learning qualifications
   const [selectedLocation, setSelectedLocation] = useState<string>(
     currentCourse?.training_locations?.[0] || ""
   );
