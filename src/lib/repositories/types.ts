@@ -376,7 +376,8 @@ export interface MessageTemplate {
   subject: string;
   bodyTemplate: string;
   allowedPlaceholders: string[];
-  category: "enrolment" | "attendance" | "assignment" | "payment" | "general";
+  category: "enrolment" | "attendance" | "assignment" | "payment" | "general" | "promotion" | "celebration";
+  targetAudience?: "individual" | "broadcast" | "both";
 }
 
 export interface MessageLogEntry {

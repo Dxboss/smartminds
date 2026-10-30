@@ -38,8 +38,31 @@ export const TemplateMessageComposer: React.FC<Props> = ({
     presetPlaceholders || {}
   );
 
+  // Filter templates by current dispatch mode (Individual vs Broadcast)
+  const applicableTemplates = useMemo(() => {
+    return templates.filter((t) => {
+      const audience = t.targetAudience || "both";
+      if (dispatchMode === "individual") {
+        return audience === "individual" || audience === "both";
+      }
+      return audience === "broadcast" || audience === "both";
+    });
+  }, [templates, dispatchMode]);
+
+  // Ensure selectedTemplateKey stays valid when dispatchMode switches
+  React.useEffect(() => {
+    if (applicableTemplates.length > 0) {
+      const isValid = applicableTemplates.some((t) => t.key === selectedTemplateKey);
+      if (!isValid) {
+        setSelectedTemplateKey(applicableTemplates[0].key);
+        setPlaceholderValues({});
+      }
+    }
+  }, [applicableTemplates, selectedTemplateKey]);
+
   React.useEffect(() => {
     if (presetTemplateKey) {
+      setDispatchMode("individual");
       setSelectedTemplateKey(presetTemplateKey);
     }
   }, [presetTemplateKey]);
@@ -49,14 +72,39 @@ export const TemplateMessageComposer: React.FC<Props> = ({
       setPlaceholderValues((prev) => ({ ...prev, ...presetPlaceholders }));
     }
   }, [presetPlaceholders]);
+
   const [logs, setLogs] = useState<MessageLogEntry[]>(initialLogs);
   const [isSending, setIsSending] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
 
   const selectedTemplate = useMemo(
-    () => templates.find((t) => t.key === selectedTemplateKey) || templates[0],
-    [templates, selectedTemplateKey]
+    () => applicableTemplates.find((t) => t.key === selectedTemplateKey) || applicableTemplates[0] || templates[0],
+    [applicableTemplates, selectedTemplateKey, templates]
   );
+
+  // Group applicable templates by functional category for clear optgroup dropdown
+  const groupedTemplates = useMemo(() => {
+    const groups: Record<string, MessageTemplate[]> = {};
+    const categoryLabels: Record<string, string> = {
+      promotion: "Promotions & Vouchers",
+      celebration: "Special Celebrations & Birthdays",
+      attendance: "Live Sessions & Class Attendance",
+      assignment: "Coursework & Assignment Reminders",
+      payment: "Payment & Tuition Accounts",
+      enrolment: "Induction & Enrolment",
+      general: "General Communications",
+    };
+
+    applicableTemplates.forEach((t) => {
+      const groupKey = categoryLabels[t.category] || "General Notifications";
+      if (!groups[groupKey]) {
+        groups[groupKey] = [];
+      }
+      groups[groupKey].push(t);
+    });
+
+    return groups;
+  }, [applicableTemplates]);
 
   const activeCoupons = useMemo(() => {
     return coupons.filter((c) => c.isActive !== false);
@@ -345,13 +393,17 @@ export const TemplateMessageComposer: React.FC<Props> = ({
                 }}
                 className="w-full px-3 py-2 rounded-sm border border-line bg-paper text-navy-900 font-semibold focus:outline-none focus:ring-1 focus:ring-navy-900"
               >
-                {templates.length === 0 ? (
-                  <option value="">No templates available</option>
+                {applicableTemplates.length === 0 ? (
+                  <option value="">No templates available for this mode</option>
                 ) : (
-                  templates.map((t) => (
-                    <option key={t.key} value={t.key}>
-                      {t.title} ({t.category.toUpperCase()})
-                    </option>
+                  Object.entries(groupedTemplates).map(([groupTitle, list]) => (
+                    <optgroup key={groupTitle} label={groupTitle}>
+                      {list.map((t) => (
+                        <option key={t.key} value={t.key}>
+                          {t.title}
+                        </option>
+                      ))}
+                    </optgroup>
                   ))
                 )}
               </select>

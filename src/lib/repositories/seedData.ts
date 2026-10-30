@@ -601,6 +601,7 @@ export const seedTemplates: MessageTemplate[] = [
     key: "welcome_induction",
     title: "Course Welcome & Induction Pack",
     category: "enrolment",
+    targetAudience: "both",
     subject: "Welcome to Smartminds Training College — {course_title}",
     allowedPlaceholders: ["first_name", "course_title", "intake_date"],
     bodyTemplate:
@@ -611,6 +612,7 @@ export const seedTemplates: MessageTemplate[] = [
     key: "zoom_session_link",
     title: "Live Class Zoom Access Link",
     category: "attendance",
+    targetAudience: "broadcast",
     subject: "Live Class Link: {class_name} ({session_date})",
     allowedPlaceholders: ["first_name", "class_name", "session_date", "zoom_link"],
     bodyTemplate:
@@ -621,6 +623,7 @@ export const seedTemplates: MessageTemplate[] = [
     key: "assignment_due_reminder",
     title: "Assignment Deadline Reminder",
     category: "assignment",
+    targetAudience: "both",
     subject: "Reminder: {assignment_title} due on {deadline_date}",
     allowedPlaceholders: ["first_name", "assignment_title", "deadline_date"],
     bodyTemplate:
@@ -631,6 +634,7 @@ export const seedTemplates: MessageTemplate[] = [
     key: "payment_instalment_due",
     title: "Payment Plan Instalment Notice",
     category: "payment",
+    targetAudience: "individual",
     subject: "Notice: Instalment of £{amount_due} due on {due_date}",
     allowedPlaceholders: ["first_name", "amount_due", "due_date"],
     bodyTemplate:
@@ -640,7 +644,8 @@ export const seedTemplates: MessageTemplate[] = [
     id: "tmpl-alumni-coupon",
     key: "alumni_progression_coupon",
     title: "Alumni Loyalty & Progression Reward Voucher",
-    category: "enrolment",
+    category: "promotion",
+    targetAudience: "individual",
     subject: "Exclusive Alumni Voucher for {first_name}: {discount_text} off your next course",
     allowedPlaceholders: [
       "first_name",
@@ -656,7 +661,8 @@ export const seedTemplates: MessageTemplate[] = [
     id: "tmpl-individual-coupon",
     key: "individual_student_promo",
     title: "Student Special Promo & Exclusive Voucher",
-    category: "enrolment",
+    category: "promotion",
+    targetAudience: "individual",
     subject: "Special Academic Voucher for {first_name}: {discount_text} with code {coupon_code}",
     allowedPlaceholders: [
       "first_name",
@@ -672,7 +678,8 @@ export const seedTemplates: MessageTemplate[] = [
     id: "tmpl-cohort-promo",
     key: "cohort_advance_promo",
     title: "Cohort Advance Enrolment & Progression Discount",
-    category: "enrolment",
+    category: "promotion",
+    targetAudience: "broadcast",
     subject: "Cohort Special Offer for {first_name}: {discount_text} with code {coupon_code}",
     allowedPlaceholders: [
       "first_name",
@@ -688,8 +695,9 @@ export const seedTemplates: MessageTemplate[] = [
     id: "tmpl-birthday-greeting",
     key: "student_birthday_greeting",
     title: "Student Birthday Celebration & Gift Voucher",
-    category: "enrolment",
-    subject: "Happy Birthday from Smartminds Training College, {first_name}! 🎂",
+    category: "celebration",
+    targetAudience: "individual",
+    subject: "Happy Birthday from Smartminds Training College, {first_name}!",
     allowedPlaceholders: [
       "first_name",
       "coupon_code",
@@ -697,7 +705,7 @@ export const seedTemplates: MessageTemplate[] = [
       "expiry_date",
     ],
     bodyTemplate:
-      "Dear {first_name},\n\nOn behalf of the Centre Director, your tutors, and the entire Smartminds Training College team, we wish you a very Happy Birthday! 🎂\n\nTo celebrate your special day and support your ongoing professional development, here is a birthday gift voucher:\n\nBirthday Code: {coupon_code}\nGift Value: {discount_text}\nValid Until: {expiry_date}\n\nHave a fantastic day celebrating!\n\nWarmest regards,\nSmartminds Training College Team",
+      "Dear {first_name},\n\nOn behalf of the Centre Director, your tutors, and the entire Smartminds Training College team, we wish you a very Happy Birthday!\n\nTo celebrate your special day and support your ongoing professional development, here is a birthday gift voucher:\n\nBirthday Code: {coupon_code}\nGift Value: {discount_text}\nValid Until: {expiry_date}\n\nHave a fantastic day celebrating!\n\nWarmest regards,\nSmartminds Training College Team",
   },
 ];
 

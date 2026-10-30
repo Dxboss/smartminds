@@ -130,12 +130,12 @@ export const AdminCommunicationsHub: React.FC<Props> = ({
 
   return (
     <div className="space-y-6">
-      {/* 🎂 Birthdays Around the Corner Alert Banner */}
+      {/* Birthdays Around the Corner Alert Banner */}
       {upcomingBirthdays.length > 0 && (
         <div className="p-4 rounded-md border border-gold-500/40 bg-gradient-to-r from-paper via-white to-amber-50/40 space-y-3 shadow-xs">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2">
-              <span className="text-xl">🎂</span>
+              <Icon name="gift" className="w-5 h-5 text-gold-500" />
               <h2 className="font-heading font-bold text-sm text-navy-900 uppercase tracking-wider">
                 Birthdays Around the Corner ({upcomingBirthdays.length})
               </h2>
