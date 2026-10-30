@@ -128,6 +128,7 @@ export interface PersistedRecordsStore {
   assignments?: any[];
   submissions?: any[];
   deletedCohortIds?: string[];
+  pendingPaymentFlows?: any[];
   tutoringAttendance?: TutoringAttendanceRecord[];
   deletedTutoringAttendanceIds?: string[];
   /** Tombstones: IDs permanently deleted by admins. Prevents merge from resurrecting them. */
@@ -802,6 +803,7 @@ export function savePersistedRecord(data: {
   paymentSchedules?: PaymentScheduleItem[];
   tempPassword?: string;
   mustChangePassword?: boolean;
+  pendingPaymentFlow?: any;
 }): Promise<void> {
   let syncedUserRec: PersistedUserRecord | undefined;
   let updatedStore: PersistedRecordsStore | undefined;
@@ -878,6 +880,16 @@ export function savePersistedRecord(data: {
         } else {
           store.paymentSchedules.push(sched);
         }
+      }
+    }
+
+    if (data.pendingPaymentFlow) {
+      if (!store.pendingPaymentFlows) store.pendingPaymentFlows = [];
+      const idx = store.pendingPaymentFlows.findIndex((p: any) => p.id === data.pendingPaymentFlow!.id);
+      if (idx >= 0) {
+        store.pendingPaymentFlows[idx] = data.pendingPaymentFlow;
+      } else {
+        store.pendingPaymentFlows.unshift(data.pendingPaymentFlow);
       }
     }
 

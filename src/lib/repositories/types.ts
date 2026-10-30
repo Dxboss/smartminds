@@ -142,6 +142,7 @@ export interface Enrolment {
 
 export type PaymentMethod =
   | "stripe"
+  | "gocardless"
   | "bank_transfer"
   | "bacs"
   | "card"
@@ -173,6 +174,8 @@ export interface PaymentRecord {
   paidAt: string;
   notes?: string;
   stripeSessionId?: string;
+  gocardlessPaymentId?: string;
+  gocardlessMandateId?: string;
   receiptUrl?: string;
   receiptFileName?: string;
 }

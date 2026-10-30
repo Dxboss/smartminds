@@ -8,6 +8,7 @@ import { Icon } from "@/components/ui/Icon";
 import {
   reportBankTransferAction,
   payInstalmentWithStripeAction,
+  switchInstalmentsToGoCardlessAction,
 } from "@/app/actions/studentPaymentActions";
 
 interface CollegeBankDetails {
@@ -34,7 +35,7 @@ export function StudentPaymentsClient({
   collegeBankSettings,
 }: StudentPaymentsClientProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState<"choose" | "stripe" | "transfer">("transfer");
+  const [modalMode, setModalMode] = useState<"choose" | "stripe" | "gocardless" | "transfer">("stripe");
   const [payerRef, setPayerRef] = useState("");
   const [transferAmount, setTransferAmount] = useState<string>("");
   const [receiptFileName, setReceiptFileName] = useState<string | null>(null);
@@ -102,7 +103,7 @@ export function StudentPaymentsClient({
   };
 
   const openPaymentModal = (
-    defaultTab: "choose" | "stripe" | "transfer" = "transfer",
+    defaultTab: "choose" | "stripe" | "gocardless" | "transfer" = "stripe",
     targetItem?: PaymentScheduleItem
   ) => {
     const item = targetItem || activeModalItem;
@@ -115,6 +116,30 @@ export function StudentPaymentsClient({
     setReceiptDataUrl(null);
     setModalMode(defaultTab);
     setIsModalOpen(true);
+  };
+
+  const handleSwitchToGoCardless = () => {
+    if (!activeModalItem) return;
+    setModalError(null);
+    startTransition(async () => {
+      try {
+        const res = await switchInstalmentsToGoCardlessAction(
+          activeModalItem.id,
+          window.location.origin
+        );
+        if (res.hasGoCardless && res.redirectUrl) {
+          window.location.href = res.redirectUrl;
+          return;
+        }
+        setNotice(res.message || "Direct Debit mandate successfully configured.");
+      } catch (err: unknown) {
+        setModalError(
+          err instanceof Error
+            ? err.message
+            : "Direct Debit setup failed. Please try again."
+        );
+      }
+    });
   };
 
   const handleReportBankTransfer = () => {
@@ -602,28 +627,88 @@ export function StudentPaymentsClient({
                 )}
 
                 {/* Tabs for Payment Mode */}
-                <div className="flex border-b border-line gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setModalMode("transfer")}
-                    className={`pb-2 px-3 text-xs font-bold transition-colors border-b-2 ${modalMode === "transfer"
-                        ? "border-navy-900 text-navy-900"
-                        : "border-transparent text-ink-soft hover:text-navy-900"
-                      }`}
-                  >
-                    BACS Bank Transfer
-                  </button>
+                <div className="flex border-b border-line gap-2 flex-wrap">
                   <button
                     type="button"
                     onClick={() => setModalMode("stripe")}
-                    className={`pb-2 px-3 text-xs font-bold transition-colors border-b-2 ${modalMode === "stripe"
+                    className={`pb-2 px-3 text-xs font-bold transition-colors border-b-2 ${
+                      modalMode === "stripe"
                         ? "border-navy-900 text-navy-900"
                         : "border-transparent text-ink-soft hover:text-navy-900"
-                      }`}
+                    }`}
                   >
                     Card / Stripe (Instant)
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setModalMode("gocardless")}
+                    className={`pb-2 px-3 text-xs font-bold transition-colors border-b-2 ${
+                      modalMode === "gocardless"
+                        ? "border-navy-900 text-navy-900"
+                        : "border-transparent text-ink-soft hover:text-navy-900"
+                    }`}
+                  >
+                    Direct Debit (GoCardless)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setModalMode("transfer")}
+                    className={`pb-2 px-3 text-xs font-bold transition-colors border-b-2 ${
+                      modalMode === "transfer"
+                        ? "border-navy-900 text-navy-900"
+                        : "border-transparent text-ink-soft hover:text-navy-900"
+                    }`}
+                  >
+                    Manual Bank Transfer
+                  </button>
                 </div>
+
+                {/* Tab: Direct Debit (GoCardless) */}
+                {modalMode === "gocardless" && (
+                  <div className="space-y-4">
+                    <div className="p-4 bg-paper rounded-sm border border-line space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Icon name="layers" size={18} className="text-navy-900" />
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-navy-900">
+                          UK Direct Debit Mandate
+                        </h4>
+                      </div>
+                      <p className="text-xs text-ink-soft leading-relaxed">
+                        Connect your UK bank account (Sort Code &amp; Account Number). Your instalments will be automatically collected by GoCardless on their scheduled due dates, protected by the UK Direct Debit Guarantee.
+                      </p>
+                      <div className="p-3 bg-white rounded-xs border border-line text-xs space-y-1.5">
+                        <div className="flex justify-between">
+                          <span className="text-ink-soft">Target Instalment:</span>
+                          <strong>Instalment {activeModalItem.instalmentNumber} of {activeModalItem.totalInstalments}</strong>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-ink-soft">Amount to Debit:</span>
+                          <strong className="font-mono text-navy-900">{formatCurrency(activeModalItem.amountGbp)}</strong>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-ink-soft">Due Date:</span>
+                          <span>{activeModalItem.dueDate}</span>
+                        </div>
+                      </div>
+                      <div className="pt-2">
+                        <button
+                          type="button"
+                          id="confirm-gocardless-btn"
+                          disabled={isPending}
+                          onClick={handleSwitchToGoCardless}
+                          className="w-full min-h-[44px] rounded-sm bg-navy-900 text-white hover:bg-navy-700 font-heading font-semibold text-sm transition-colors shadow-sm disabled:opacity-60 flex items-center justify-center gap-2"
+                        >
+                          <Icon name="shield-check" size={16} />
+                          <span>
+                            {isPending
+                              ? "Setting up Direct Debit..."
+                              : `Set Up Direct Debit with GoCardless`}
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Tab: Card / Stripe */}
                 {modalMode === "stripe" && (

@@ -301,6 +301,71 @@ export async function payInstalmentWithStripeAction(
 }
 
 /**
+ * Switch an instalment or future schedule to Direct Debit (GoCardless).
+ */
+export async function switchInstalmentsToGoCardlessAction(
+  scheduleItemId: string,
+  origin: string
+) {
+  const session = await getServerSession();
+  if (!session || session.role !== "student") {
+    throw new Error("Must be logged in as a student.");
+  }
+
+  const { isGoCardlessConfigured, createGoCardlessRedirectFlow } = await import(
+    "@/lib/gocardless"
+  );
+  const { seedPaymentSchedules } = await import(
+    "@/lib/repositories/seedData"
+  );
+  const { updatePaymentScheduleStatusInStore } = await import(
+    "@/lib/persistedData"
+  );
+  const { randomBytes } = await import("node:crypto");
+
+  const item = seedPaymentSchedules.find((s) => s.id === scheduleItemId);
+  if (!item) throw new Error("Instalment not found.");
+
+  if (isGoCardlessConfigured()) {
+    const sessionToken = randomBytes(16).toString("hex");
+    const successUrl = `${origin}/student/payments?gocardless_mandate_setup=1`;
+
+    const nameParts = session.name.split(" ");
+    const flow = await createGoCardlessRedirectFlow({
+      sessionToken,
+      successRedirectUrl: successUrl,
+      description: `Smartminds Tuition Direct Debit: ${item.courseTitle || "Instalments"}`,
+      prefilledCustomer: {
+        givenName: nameParts[0] || "Learner",
+        familyName: nameParts.slice(1).join(" ") || "Student",
+        email: session.email,
+      },
+    });
+
+    return {
+      hasGoCardless: true,
+      redirectUrl: flow.redirectUrl,
+    };
+  }
+
+  // Demo fallback: update schedule method to Direct Debit
+  item.method = "gocardless";
+  updatePaymentScheduleStatusInStore(item.id, {
+    method: "gocardless",
+  });
+
+  try {
+    revalidatePath("/student/payments");
+  } catch {}
+
+  return {
+    hasGoCardless: false,
+    success: true,
+    message: "Upcoming instalments successfully switched to Direct Debit (GoCardless).",
+  };
+}
+
+/**
  * Fetch active college bank details for display to students.
  */
 export async function getCollegeBankDetailsForStudentAction() {

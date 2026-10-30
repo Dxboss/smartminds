@@ -16,6 +16,7 @@ import { globalSettings } from "@/content/globals";
 import {
   processSelfEnrolmentAction,
   createStripeCheckoutAction,
+  createGoCardlessCheckoutAction,
   verifyExistingStudentAction,
 } from "@/app/actions/enrolmentActions";
 import {
@@ -124,6 +125,8 @@ export const EnrolmentClient: React.FC<Props> = ({
       ? initialPaymentOption
       : "full"
   );
+  // Payment gateway: Card (Stripe) vs Direct Debit (GoCardless)
+  const [selectedGateway, setSelectedGateway] = useState<"stripe" | "gocardless">("stripe");
   const [preferredSession, setPreferredSession] = useState<"evening" | "afternoon">("evening");
 
   // Course audience checks: Adult vocational (18+) vs Minor/Child Tutoring vs All
@@ -383,7 +386,80 @@ export const EnrolmentClient: React.FC<Props> = ({
 
     startTransition(async () => {
       try {
-        // 1. Check if live Stripe Checkout is available
+        // 1. Process GoCardless Direct Debit checkout flow if selected
+        if (selectedGateway === "gocardless") {
+          const gcRes = await createGoCardlessCheckoutAction({
+            courseId: currentCourse.id,
+            levelLabel: currentLevel?.level_label,
+            planId: paymentOption === "full" ? "full" : (activePlan?.id || activePlan?.months?.toString() || "plan-6m"),
+            fullName: effectiveName,
+            email: effectiveEmail,
+            phone: effectivePhone,
+            dob: accountType === "existing" ? undefined : dob,
+            address: accountType === "existing" ? undefined : address,
+            postcode: accountType === "existing" ? undefined : postcode,
+            preferredSession,
+            preferredTimeSlot: isTutoringCourse ? selectedTutoringSlot : undefined,
+            couponCode: appliedCoupon?.code,
+            paymentOption,
+            learnerType,
+            childName: learnerType === "child" ? childName.trim() : undefined,
+            childYearGroup: learnerType === "child" ? childYearGroup.trim() : undefined,
+            childConcerns: learnerType === "child" ? childConcerns.trim() : undefined,
+            emergencyPhone: learnerType === "child" ? emergencyPhone.trim() : undefined,
+            trainingLocation: currentCourse?.training_locations?.length ? selectedLocation : undefined,
+            origin: window.location.origin,
+          });
+
+          if (gcRes.hasGoCardless && gcRes.checkoutUrl) {
+            window.location.href = gcRes.checkoutUrl;
+            return;
+          }
+
+          if (gcRes.error) {
+            setErrorMsg(`Direct Debit Gateway: ${gcRes.error}`);
+            return;
+          }
+
+          // Simulated fallback when GoCardless keys are pending
+          const result = await processSelfEnrolmentAction({
+            courseId: currentCourse.id,
+            levelLabel: currentLevel?.level_label,
+            planId: paymentOption === "full" ? "full" : (activePlan?.id || activePlan?.months?.toString() || "plan-6m"),
+            fullName: effectiveName,
+            email: effectiveEmail,
+            phone: effectivePhone,
+            dob: accountType === "existing" ? undefined : dob,
+            address: accountType === "existing" ? undefined : address,
+            postcode: accountType === "existing" ? undefined : postcode,
+            preferredSession,
+            preferredTimeSlot: isTutoringCourse ? selectedTutoringSlot : undefined,
+            paymentOption,
+            paymentGateway: "gocardless",
+            cardNumberLast4: "Direct Debit (Bacs)",
+            couponCode: appliedCoupon?.code,
+            termsAccepted,
+            learnerType,
+            childName: learnerType === "child" ? childName.trim() : undefined,
+            childYearGroup: learnerType === "child" ? childYearGroup.trim() : undefined,
+            childConcerns: learnerType === "child" ? childConcerns.trim() : undefined,
+            emergencyPhone: learnerType === "child" ? emergencyPhone.trim() : undefined,
+            guardianName: learnerType === "child" ? effectiveName : undefined,
+            guardianPhone: learnerType === "child" ? effectivePhone : undefined,
+            guardianEmail: learnerType === "child" ? effectiveEmail : undefined,
+            trainingLocation: currentCourse?.training_locations?.length ? selectedLocation : undefined,
+          });
+
+          if (result.success) {
+            setConfirmedResult(result);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          } else {
+            setErrorMsg((result as any).error || "Direct Debit enrolment failed. Please check your details and try again.");
+          }
+          return;
+        }
+
+        // 2. Otherwise process Stripe Card Checkout
         const stripeRes = await createStripeCheckoutAction({
           courseId: currentCourse.id,
           levelLabel: currentLevel?.level_label,
@@ -417,7 +493,7 @@ export const EnrolmentClient: React.FC<Props> = ({
           return;
         }
 
-        // 2. Otherwise process instant enrolment simulation
+        // Simulated fallback when Stripe keys are pending
         const result = await processSelfEnrolmentAction({
           courseId: currentCourse.id,
           levelLabel: currentLevel?.level_label,
@@ -431,6 +507,7 @@ export const EnrolmentClient: React.FC<Props> = ({
           preferredSession,
           preferredTimeSlot: isTutoringCourse ? selectedTutoringSlot : undefined,
           paymentOption,
+          paymentGateway: "stripe",
           cardNumberLast4: cardNumber.replace(/\D/g, "").slice(-4) || "4242",
           couponCode: appliedCoupon?.code,
           termsAccepted,
@@ -1455,15 +1532,71 @@ export const EnrolmentClient: React.FC<Props> = ({
               )}
             </div>
 
-            {/* Step 3: Payment Card Details */}
+            {/* Step 3: Payment Method & Activation */}
             <div className="space-y-4 pt-4 border-t border-line">
               <div className="flex items-center gap-2.5 pb-2 border-b border-line">
                 <span className="w-6 h-6 rounded-full bg-navy-900 text-gold-300 text-xs font-bold flex items-center justify-center">
                   3
                 </span>
                 <h2 className="font-heading text-xl font-bold text-navy-900">
-                  Payment & Activation
+                  Payment Method &amp; Activation
                 </h2>
+              </div>
+
+              {/* Side-by-Side Payment Method Selection */}
+              <div>
+                <label className="block text-xs font-bold text-navy-900 mb-2 uppercase tracking-wider">
+                  Choose Payment Method
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Stripe Card / Apple Pay Option */}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedGateway("stripe")}
+                    className={`p-3.5 rounded-sm border text-left transition-all cursor-pointer ${
+                      selectedGateway === "stripe"
+                        ? "border-navy-900 bg-white ring-2 ring-navy-900 shadow-xs"
+                        : "border-line bg-paper hover:bg-white"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-1.5 font-bold text-xs text-navy-900">
+                        <Icon name="credit-card" size={14} className={selectedGateway === "stripe" ? "text-navy-900" : "text-ink-soft"} />
+                        <span>Card / Apple Pay (Stripe)</span>
+                      </div>
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-xs bg-navy-900/10 text-navy-900">
+                        Instant
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-ink-soft leading-snug">
+                      Debit or credit card, Apple Pay, Google Pay. Instant verified access.
+                    </p>
+                  </button>
+
+                  {/* GoCardless Direct Debit Option */}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedGateway("gocardless")}
+                    className={`p-3.5 rounded-sm border text-left transition-all cursor-pointer ${
+                      selectedGateway === "gocardless"
+                        ? "border-navy-900 bg-white ring-2 ring-navy-900 shadow-xs"
+                        : "border-line bg-paper hover:bg-white"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-1.5 font-bold text-xs text-navy-900">
+                        <Icon name="layers" size={14} className={selectedGateway === "gocardless" ? "text-navy-900" : "text-ink-soft"} />
+                        <span>Direct Debit (GoCardless)</span>
+                      </div>
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-xs bg-emerald-100 text-emerald-900 border border-emerald-200">
+                        {paymentOption === "instalments" ? "Recommended" : "UK Bank"}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-ink-soft leading-snug">
+                      UK Sort Code &amp; Account Number. Protected by the Direct Debit Guarantee.
+                    </p>
+                  </button>
+                </div>
               </div>
 
               {/* Secure Payment Review Panel */}
@@ -1475,14 +1608,18 @@ export const EnrolmentClient: React.FC<Props> = ({
                     </div>
                     <div>
                       <span className="text-xs font-bold text-navy-900 block leading-tight">
-                        Secured by Stripe
+                        {selectedGateway === "gocardless"
+                          ? "Secured by GoCardless Direct Debit"
+                          : "Secured by Stripe"}
                       </span>
                       <span className="text-[10px] text-ink-soft">
-                        256-bit SSL encrypted • Apple Pay • Google Pay • Debit/Credit Card
+                        {selectedGateway === "gocardless"
+                          ? "FCA-authorised • UK Direct Debit Guarantee • Bank-grade encryption"
+                          : "256-bit SSL encrypted • Apple Pay • Google Pay • Debit/Credit Card"}
                       </span>
                     </div>
                   </div>
-                  <PaymentCardTrustIcons />
+                  {selectedGateway === "stripe" && <PaymentCardTrustIcons />}
                 </div>
 
                 <div className="bg-white p-4 rounded-xs border border-line space-y-2.5">
@@ -1517,7 +1654,9 @@ export const EnrolmentClient: React.FC<Props> = ({
                     <span>How your payment is completed:</span>
                   </p>
                   <p className="text-[11px] text-ink-soft leading-relaxed pl-5">
-                    Clicking the button below connects to Stripe’s secure payment checkout. You can pay using your preferred method—including Apple Pay, Google Pay, or any UK/international bank card. Your student account activates immediately upon confirmation.
+                    {selectedGateway === "gocardless"
+                      ? "Clicking the button below connects to GoCardless's official UK Direct Debit authorization. You can confirm with your UK bank Sort Code and Account Number. Your initial deposit is debited and scheduled instalments are handled automatically."
+                      : "Clicking the button below connects to Stripe’s secure payment checkout. You can pay using your preferred method—including Apple Pay, Google Pay, or any UK/international bank card. Your student account activates immediately upon confirmation."}
                   </p>
                 </div>
               </div>
@@ -1559,7 +1698,9 @@ export const EnrolmentClient: React.FC<Props> = ({
                   <span className="flex items-center justify-center gap-2">
                     <Icon name="shield-check" size={16} />
                     <span>
-                      Pay {formatCurrency(amountToChargeNow)} Securely via Stripe &rarr;
+                      {selectedGateway === "gocardless"
+                        ? `Set Up Direct Debit & Pay ${formatCurrency(amountToChargeNow)} \u2192`
+                        : `Pay ${formatCurrency(amountToChargeNow)} Securely via Card \u2192`}
                     </span>
                   </span>
                 )}

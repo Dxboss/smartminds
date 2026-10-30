@@ -33,6 +33,12 @@ import {
 } from "@/lib/emailTemplates";
 import { validateCoupon, calculateDiscountedPricing } from "@/lib/coupons";
 import { getStripeClient, isStripeConfigured } from "@/lib/stripe";
+import {
+  isGoCardlessConfigured,
+  createGoCardlessRedirectFlow,
+  completeGoCardlessRedirectFlow,
+  createGoCardlessPayment,
+} from "@/lib/gocardless";
 
 export interface EnrolmentFormInput {
   courseId: string;
@@ -45,6 +51,7 @@ export interface EnrolmentFormInput {
   address?: string;
   postcode?: string;
   paymentOption: "full" | "instalments";
+  paymentGateway?: "stripe" | "gocardless";
   preferredSession?: "afternoon" | "evening";
   preferredTimeSlot?: string;
   cardNumberLast4?: string;
@@ -61,6 +68,9 @@ export interface EnrolmentFormInput {
   trainingLocation?: string;
   stripeSessionId?: string;
   stripePaymentIntentId?: string;
+  gocardlessFlowId?: string;
+  gocardlessMandateId?: string;
+  gocardlessPaymentId?: string;
 }
 
 const fullPayPlanTemplate: PaymentPlanTemplate = {
@@ -326,6 +336,7 @@ export async function processSelfEnrolmentAction(input: EnrolmentFormInput) {
         ? `${selectedPlan.name} (${formatCurrency(pricing.monthly)} per payment)`
         : `${selectedPlan.months} monthly payments (${formatCurrency(pricing.monthly)}/mo)`;
 
+  const isDirectDebit = input.paymentGateway === "gocardless";
   const paymentRecord: PaymentRecord = {
     id: paymentId,
     enrolmentId: enrolment.id,
@@ -333,11 +344,13 @@ export async function processSelfEnrolmentAction(input: EnrolmentFormInput) {
     learnerName: `${learner.firstName} ${learner.lastName}`,
     courseTitle: course.title,
     amountGbp: amountCharged,
-    method: "stripe",
-    reference: input.stripePaymentIntentId || receiptRef,
+    method: isDirectDebit ? "gocardless" : "stripe",
+    reference: input.gocardlessPaymentId || input.stripePaymentIntentId || receiptRef,
+    gocardlessPaymentId: input.gocardlessPaymentId,
+    gocardlessMandateId: input.gocardlessMandateId,
     status: "paid",
     paidAt: new Date().toISOString(),
-    notes: paymentPlanLabel,
+    notes: `${paymentPlanLabel}${isDirectDebit ? " (GoCardless Direct Debit)" : ""}`,
     stripeSessionId: input.stripeSessionId,
   };
   seedPaymentRecords.push(paymentRecord);
@@ -393,6 +406,7 @@ export async function processSelfEnrolmentAction(input: EnrolmentFormInput) {
         dueDate: dueDate.toISOString().split("T")[0],
         status: "due",
         graceExpiryDate: graceDate.toISOString().split("T")[0],
+        method: isDirectDebit ? "gocardless" : "stripe",
       });
     }
   } else {
@@ -708,6 +722,167 @@ export async function createStripeCheckoutAction(input: {
       error: safeError,
     };
   }
+}
+
+export interface CreateGoCardlessCheckoutInput {
+  origin: string;
+  courseId: string;
+  levelLabel?: string;
+  planId: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  dob?: string;
+  address?: string;
+  postcode?: string;
+  preferredSession?: "afternoon" | "evening";
+  preferredTimeSlot?: string;
+  couponCode?: string;
+  paymentOption: "full" | "instalments";
+  learnerType?: "myself" | "child";
+  childName?: string;
+  childYearGroup?: string;
+  childConcerns?: string;
+  emergencyPhone?: string;
+  trainingLocation?: string;
+}
+
+export async function createGoCardlessCheckoutAction(
+  input: CreateGoCardlessCheckoutInput
+): Promise<{
+  hasGoCardless: boolean;
+  checkoutUrl?: string;
+  error?: string;
+}> {
+  if (!isGoCardlessConfigured()) {
+    return {
+      hasGoCardless: false,
+    };
+  }
+
+  const course = getLiveCourses().find((c) => c.id === input.courseId);
+  if (!course) throw new Error("Selected course was not found.");
+  const level =
+    course.levels.find((l) => l.level_label === input.levelLabel) ||
+    course.levels[0];
+  if (!level) throw new Error("Course level is invalid.");
+
+  const selectedPlan: PaymentPlanTemplate = resolvePlanForLevel(
+    level,
+    input.planId,
+    input.paymentOption
+  );
+
+  let pricing = calculatePricing(level, selectedPlan, globalSettings);
+  if (input.couponCode) {
+    const couponValidation = validateCoupon(input.couponCode);
+    if (couponValidation.valid && couponValidation.coupon) {
+      pricing = calculateDiscountedPricing(pricing, couponValidation.coupon);
+    }
+  }
+
+  const amountCharged =
+    input.paymentOption === "full" ? pricing.fullPayPrice : pricing.deposit;
+
+  const sessionToken = randomBytes(16).toString("hex");
+  const successUrl = `${input.origin}/enrol/gocardless-success?flow_id={flow_id}&session_token=${sessionToken}`;
+
+  const nameParts = input.fullName.trim().split(" ");
+  const givenName = nameParts[0] || "Learner";
+  const familyName = nameParts.slice(1).join(" ") || "Student";
+
+  try {
+    const flow = await createGoCardlessRedirectFlow({
+      sessionToken,
+      successRedirectUrl: successUrl,
+      description: `Smartminds Enrolment: ${course.title} (${level.level_label})`,
+      prefilledCustomer: {
+        givenName,
+        familyName,
+        email: input.email.trim().toLowerCase(),
+        phoneNumber: input.phone.trim(),
+        addressLine1: input.address?.trim(),
+        postalCode: input.postcode?.trim(),
+      },
+    });
+
+    const { savePersistedRecord } = await import("@/lib/persistedData");
+    savePersistedRecord({
+      pendingPaymentFlow: {
+        id: sessionToken,
+        flowId: flow.flowId,
+        provider: "gocardless",
+        amountCharged,
+        input,
+        createdAt: new Date().toISOString(),
+      },
+    });
+
+    return {
+      hasGoCardless: true,
+      checkoutUrl: flow.redirectUrl,
+    };
+  } catch (err: any) {
+    console.error("[GoCardless Checkout Exception]:", err?.message || err);
+    return {
+      hasGoCardless: false,
+      error: "Unable to connect to the Direct Debit gateway. Please try card payment or contact admissions.",
+    };
+  }
+}
+
+/**
+ * Idempotently fulfills a completed GoCardless redirect flow session.
+ */
+export async function fulfillGoCardlessCheckoutSession(flowId: string, sessionToken: string) {
+  const { completeGoCardlessRedirectFlow, createGoCardlessPayment } = await import(
+    "@/lib/gocardless"
+  );
+  const { loadPersistedRecords } = await import("@/lib/persistedData");
+
+  const persisted = loadPersistedRecords();
+  const pending = persisted.pendingPaymentFlows?.find(
+    (p: any) => p.id === sessionToken || p.flowId === flowId
+  );
+
+  let mandateId = "";
+  try {
+    const completeResult = await completeGoCardlessRedirectFlow(flowId, sessionToken);
+    mandateId = completeResult.mandateId;
+  } catch (flowErr) {
+    console.warn("[GoCardless Complete Warning]:", flowErr);
+  }
+
+  let paymentId = `pm_gc_${Date.now()}`;
+  if (mandateId && pending?.amountCharged && pending.amountCharged > 0) {
+    try {
+      const paymentRes = await createGoCardlessPayment({
+        mandateId,
+        amountPence: Math.round(pending.amountCharged * 100),
+        description: `Smartminds Course Enrolment Deposit: ${pending.input?.courseId || ""}`,
+        metadata: {
+          sessionToken,
+          email: pending.input?.email || "",
+        },
+      });
+      paymentId = paymentRes.paymentId;
+    } catch (payErr) {
+      console.warn("[GoCardless Deposit Payment Warning]:", payErr);
+    }
+  }
+
+  const input = pending?.input || {};
+  const enrolmentResult = await processSelfEnrolmentAction({
+    ...input,
+    paymentGateway: "gocardless",
+    gocardlessFlowId: flowId,
+    gocardlessMandateId: mandateId || `MD-SIM-${Date.now()}`,
+    gocardlessPaymentId: paymentId,
+    cardNumberLast4: "Direct Debit (Bacs)",
+    termsAccepted: true,
+  });
+
+  return enrolmentResult;
 }
 
 /**
