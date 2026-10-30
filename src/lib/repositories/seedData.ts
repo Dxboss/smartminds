@@ -652,6 +652,53 @@ export const seedTemplates: MessageTemplate[] = [
     bodyTemplate:
       "Dear {first_name},\n\nAs a valued learner at Smartminds Training College, we are pleased to offer you an exclusive Alumni Progression Voucher for continuing your qualifications or booking 1-on-1 private tutoring.\n\nYour Exclusive Code: {coupon_code}\nReward Value: {discount_text}\nValid Until: {expiry_date}\nRecommended Progression: {course_recommendation}\n\nYou can quote this voucher to our admissions team or enter it directly in your Student Portal under 'Progression & Additional Qualifications'.",
   },
+  {
+    id: "tmpl-individual-coupon",
+    key: "individual_student_promo",
+    title: "Student Special Promo & Exclusive Voucher",
+    category: "enrolment",
+    subject: "Special Academic Voucher for {first_name}: {discount_text} with code {coupon_code}",
+    allowedPlaceholders: [
+      "first_name",
+      "coupon_code",
+      "discount_text",
+      "expiry_date",
+      "course_recommendation",
+    ],
+    bodyTemplate:
+      "Dear {first_name},\n\nWe are pleased to provide you with an exclusive promotional tuition voucher for Smartminds Training College.\n\nVoucher Code: {coupon_code}\nBenefit: {discount_text}\nValid Until: {expiry_date}\nApplicable For: {course_recommendation}\n\nTo redeem, simply apply this voucher code during enrolment or quote it to our administrative team.",
+  },
+  {
+    id: "tmpl-cohort-promo",
+    key: "cohort_advance_promo",
+    title: "Cohort Advance Enrolment & Progression Discount",
+    category: "enrolment",
+    subject: "Cohort Special Offer for {first_name}: {discount_text} with code {coupon_code}",
+    allowedPlaceholders: [
+      "first_name",
+      "cohort_name",
+      "coupon_code",
+      "discount_text",
+      "expiry_date",
+    ],
+    bodyTemplate:
+      "Dear {first_name},\n\nAs a member of {cohort_name}, we are pleased to offer you an advance enrolment discount to support your continued professional qualifications at Smartminds Training College.\n\nCohort Promo Code: {coupon_code}\nExclusive Savings: {discount_text}\nOffer Expiry: {expiry_date}\n\nApply this code when enrolling in your next qualification or 1-on-1 academic tutoring.",
+  },
+  {
+    id: "tmpl-birthday-greeting",
+    key: "student_birthday_greeting",
+    title: "Student Birthday Celebration & Gift Voucher",
+    category: "enrolment",
+    subject: "Happy Birthday from Smartminds Training College, {first_name}! 🎂",
+    allowedPlaceholders: [
+      "first_name",
+      "coupon_code",
+      "discount_text",
+      "expiry_date",
+    ],
+    bodyTemplate:
+      "Dear {first_name},\n\nOn behalf of the Centre Director, your tutors, and the entire Smartminds Training College team, we wish you a very Happy Birthday! 🎂\n\nTo celebrate your special day and support your ongoing professional development, here is a birthday gift voucher:\n\nBirthday Code: {coupon_code}\nGift Value: {discount_text}\nValid Until: {expiry_date}\n\nHave a fantastic day celebrating!\n\nWarmest regards,\nSmartminds Training College Team",
+  },
 ];
 
 // ============================================================================

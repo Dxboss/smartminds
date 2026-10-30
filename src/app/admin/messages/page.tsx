@@ -1,8 +1,8 @@
 import React from "react";
 import { redirect } from "next/navigation";
 import { getServerSession } from "@/lib/session";
-import { getTemplateRepo, getLearnerRepo } from "@/lib/repositories";
-import { seedMessageLogs } from "@/lib/repositories/seedData";
+import { getTemplateRepo, getLearnerRepo, getEnrolmentRepo } from "@/lib/repositories";
+import { seedMessageLogs, seedClasses } from "@/lib/repositories/seedData";
 import { getEmailSettings } from "@/lib/emailSettings";
 import { AdminCommunicationsHub } from "@/components/admin/AdminCommunicationsHub";
 
@@ -24,13 +24,18 @@ export default async function AdminMessagesPage() {
 
   const templateRepo = getTemplateRepo();
   const learnerRepo = getLearnerRepo();
-  const { listAllCoupons, pullLatestFromNeon } = await import("@/lib/persistedData");
+  const enrolmentRepo = getEnrolmentRepo();
+  const { listAllCoupons, getDefaultEventCoupons, pullLatestFromNeon } = await import("@/lib/persistedData");
   await pullLatestFromNeon().catch(() => {});
 
-  const templates = await templateRepo.listTemplates(session);
-  const learners = await learnerRepo.listLearners(session);
+  const [templates, learners, enrolments] = await Promise.all([
+    templateRepo.listTemplates(session),
+    learnerRepo.listLearners(session),
+    enrolmentRepo.listEnrolments(session),
+  ]);
   const emailSettings = getEmailSettings();
   const coupons = listAllCoupons();
+  const defaultEventCoupons = getDefaultEventCoupons();
 
   const canManageSettings =
     session.role === "owner_admin" || session.role === "super_admin";
@@ -50,9 +55,12 @@ export default async function AdminMessagesPage() {
         templates={templates}
         initialLogs={seedMessageLogs}
         learners={learners}
+        enrolments={enrolments}
+        classes={seedClasses}
         emailSettings={emailSettings}
         canManageSettings={canManageSettings}
         coupons={coupons}
+        defaultEventCoupons={defaultEventCoupons}
       />
     </div>
   );

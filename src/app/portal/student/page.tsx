@@ -392,15 +392,14 @@ export default function StudentPortalPage() {
                         </span>
                       </div>
                       <span
-                        className={`text-xs font-bold px-2.5 py-1 rounded border ${
-                          unit.status === "passed"
+                        className={`text-xs font-bold px-2.5 py-1 rounded border ${unit.status === "passed"
                             ? "bg-emerald-50 text-emerald-800 border-emerald-200"
                             : unit.status === "in_progress"
-                            ? "bg-gold-300/30 text-navy-900 border-gold-500/50"
-                            : unit.status === "submitted"
-                            ? "bg-blue-50 text-blue-800 border-blue-200"
-                            : "bg-paper text-ink-soft border-line"
-                        }`}
+                              ? "bg-gold-300/30 text-navy-900 border-gold-500/50"
+                              : unit.status === "submitted"
+                                ? "bg-blue-50 text-blue-800 border-blue-200"
+                                : "bg-paper text-ink-soft border-line"
+                          }`}
                       >
                         {unit.grade}
                       </span>
@@ -595,13 +594,12 @@ export default function StudentPortalPage() {
                       <td className="py-3 px-4 text-ink-soft">{item.dueDate}</td>
                       <td className="py-3 px-4">
                         <span
-                          className={`text-[11px] font-bold px-2.5 py-0.5 rounded border uppercase ${
-                            item.status === "paid"
+                          className={`text-[11px] font-bold px-2.5 py-0.5 rounded border uppercase ${item.status === "paid"
                               ? "bg-emerald-50 text-emerald-800 border-emerald-200"
                               : item.status === "upcoming"
-                              ? "bg-amber-50 text-amber-900 border-amber-200"
-                              : "bg-paper text-ink-soft border-line"
-                          }`}
+                                ? "bg-amber-50 text-amber-900 border-amber-200"
+                                : "bg-paper text-ink-soft border-line"
+                            }`}
                         >
                           {item.status}
                         </span>

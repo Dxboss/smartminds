@@ -624,14 +624,30 @@ export async function broadcastTemplateMessageAction(data: {
     throw new Error(`Owner-approved template "${data.templateKey}" not found.`);
   }
 
-  const { getLearnerRepo } = await import("@/lib/repositories");
+  const { getLearnerRepo, getEnrolmentRepo } = await import("@/lib/repositories");
   const learnerRepo = getLearnerRepo();
+  const enrolmentRepo = getEnrolmentRepo();
   const allLearners = await learnerRepo.listLearners(session!);
+  const allEnrolments = await enrolmentRepo.listEnrolments(session!);
 
-  const targetLearners =
-    data.cohortCourseId && data.cohortCourseId !== "all"
-      ? allLearners.filter((l) => l.courseId === data.cohortCourseId)
-      : allLearners;
+  let targetLearners = allLearners;
+  if (data.cohortCourseId && data.cohortCourseId !== "all") {
+    if (data.cohortCourseId.startsWith("cohort-") || data.cohortCourseId.startsWith("class-")) {
+      const classId = data.cohortCourseId.replace(/^cohort-/, "");
+      const matchingLearnerIds = new Set(
+        allEnrolments.filter((e: any) => e.classId === classId).map((e: any) => e.learnerId)
+      );
+      targetLearners = allLearners.filter((l) => matchingLearnerIds.has(l.id));
+    } else {
+      // Course ID match (either on learner profile or in enrolments)
+      const matchingLearnerIds = new Set(
+        allEnrolments.filter((e: any) => e.courseId === data.cohortCourseId).map((e: any) => e.learnerId)
+      );
+      targetLearners = allLearners.filter(
+        (l) => l.courseId === data.cohortCourseId || matchingLearnerIds.has(l.id)
+      );
+    }
+  }
 
   if (targetLearners.length === 0) {
     throw new Error("No learners found matching the selected broadcast cohort.");
@@ -4038,6 +4054,23 @@ export async function validateCouponAction(
   const { validateCoupon, pullLatestFromNeon } = await import("@/lib/persistedData");
   await pullLatestFromNeon().catch(() => {});
   return validateCoupon(code, options);
+}
+
+export async function getDefaultEventCouponsAction() {
+  const { getDefaultEventCoupons } = await import("@/lib/persistedData");
+  return getDefaultEventCoupons();
+}
+
+export async function saveDefaultEventCouponsAction(input: {
+  defaultBirthdayCouponCode?: string;
+  defaultAlumniCouponCode?: string;
+}) {
+  const session = await getServerSession();
+  assertAdminAuthorized(session);
+  const { saveDefaultEventCoupons, getDefaultEventCoupons } = await import("@/lib/persistedData");
+  saveDefaultEventCoupons(input);
+  revalidatePath("/admin/messages");
+  return { success: true, settings: getDefaultEventCoupons() };
 }
 
 

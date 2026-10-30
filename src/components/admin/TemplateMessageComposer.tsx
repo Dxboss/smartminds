@@ -2,13 +2,16 @@
 
 import React, { useState, useMemo } from "react";
 import { Icon } from "@/components/ui/Icon";
-import { MessageTemplate, MessageLogEntry, Learner } from "@/lib/repositories/types";
+import { MessageTemplate, MessageLogEntry, Learner, Enrolment, ClassCohort, Coupon } from "@/lib/repositories/types";
 import { sendTemplateMessageAction, broadcastTemplateMessageAction } from "@/app/admin/actions";
 
 interface Props {
   templates: MessageTemplate[];
   initialLogs: MessageLogEntry[];
   learners: Learner[];
+  enrolments?: Enrolment[];
+  classes?: ClassCohort[];
+  coupons?: Coupon[];
   presetTemplateKey?: string;
   presetPlaceholders?: Record<string, string>;
 }
@@ -17,6 +20,9 @@ export const TemplateMessageComposer: React.FC<Props> = ({
   templates,
   initialLogs,
   learners,
+  enrolments = [],
+  classes = [],
+  coupons = [],
   presetTemplateKey,
   presetPlaceholders,
 }) => {
@@ -27,6 +33,7 @@ export const TemplateMessageComposer: React.FC<Props> = ({
   const [cohortCourseId, setCohortCourseId] = useState<string>("all");
   const [recipientEmail, setRecipientEmail] = useState("");
   const [recipientName, setRecipientName] = useState("");
+  const [selectedCouponCode, setSelectedCouponCode] = useState<string>("");
   const [placeholderValues, setPlaceholderValues] = useState<Record<string, string>>(
     presetPlaceholders || {}
   );
@@ -51,20 +58,111 @@ export const TemplateMessageComposer: React.FC<Props> = ({
     [templates, selectedTemplateKey]
   );
 
-  const courseOptions = useMemo(() => {
-    const map = new Map<string, string>();
-    learners.forEach((l) => {
-      if (l.courseId && l.courseTitle) {
-        map.set(l.courseId, l.courseTitle);
+  const activeCoupons = useMemo(() => {
+    return coupons.filter((c) => c.isActive !== false);
+  }, [coupons]);
+
+  const hasCouponPlaceholder = useMemo(() => {
+    return (selectedTemplate?.allowedPlaceholders || []).includes("coupon_code");
+  }, [selectedTemplate]);
+
+  // Handle selecting a coupon from the smart dropdown
+  const handleSelectCoupon = (code: string) => {
+    setSelectedCouponCode(code);
+    if (!code) {
+      setPlaceholderValues((prev) => ({
+        ...prev,
+        coupon_code: "",
+        discount_text: "",
+        expiry_date: "",
+      }));
+      return;
+    }
+
+    const c = coupons.find((it) => it.code.toUpperCase() === code.toUpperCase());
+    if (c) {
+      const discountText =
+        c.discountType === "percent" ? `${c.discountValue}% discount` : `£${c.discountValue} voucher`;
+      const expiry = c.validUntil
+        ? new Date(c.validUntil).toLocaleDateString("en-GB", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+          })
+        : "Next 30 Days";
+      const reco =
+        c.appliesTo === "tutoring"
+          ? "1-on-1 Academic Tutoring"
+          : c.appliesTo === "qualifications"
+          ? "Accredited Level 3 or Level 5 Diploma"
+          : "All Smartminds Courses & Tutoring";
+
+      setPlaceholderValues((prev) => ({
+        ...prev,
+        coupon_code: c.code,
+        discount_text: discountText,
+        expiry_date: expiry,
+        course_recommendation: prev.course_recommendation || reco,
+      }));
+    }
+  };
+
+  const cohortOptions = useMemo(() => {
+    const list: Array<{ id: string; label: string; count: number }> = [];
+
+    // 1. By Classes / Cohorts
+    classes.forEach((cl) => {
+      const count = enrolments.filter((e) => e.classId === cl.id).length;
+      list.push({
+        id: `cohort-${cl.id}`,
+        label: `Cohort: ${cl.name} (${cl.scheduleDescription || cl.intakeLabel || "Blended"})`,
+        count,
+      });
+    });
+
+    // 2. By Courses
+    const courseMap = new Map<string, { title: string; count: number }>();
+    enrolments.forEach((e) => {
+      if (e.courseId && e.courseTitle) {
+        const cur = courseMap.get(e.courseId) || { title: e.courseTitle, count: 0 };
+        cur.count++;
+        courseMap.set(e.courseId, cur);
       }
     });
-    return Array.from(map.entries()).map(([id, title]) => ({ id, title }));
-  }, [learners]);
+
+    learners.forEach((l) => {
+      if (l.courseId && l.courseTitle && !courseMap.has(l.courseId)) {
+        courseMap.set(l.courseId, { title: l.courseTitle, count: 1 });
+      }
+    });
+
+    courseMap.forEach((val, id) => {
+      list.push({
+        id,
+        label: `Course: ${val.title}`,
+        count: val.count,
+      });
+    });
+
+    return list;
+  }, [classes, enrolments, learners]);
 
   const targetLearnerCount = useMemo(() => {
     if (cohortCourseId === "all") return learners.length;
-    return learners.filter((l) => l.courseId === cohortCourseId).length;
-  }, [learners, cohortCourseId]);
+    if (cohortCourseId.startsWith("cohort-")) {
+      const classId = cohortCourseId.replace(/^cohort-/, "");
+      const matchingLearnerIds = new Set(
+        enrolments.filter((e) => e.classId === classId).map((e) => e.learnerId)
+      );
+      return learners.filter((l) => matchingLearnerIds.has(l.id)).length;
+    }
+    const matchingLearnerIds = new Set(
+      enrolments.filter((e) => e.courseId === cohortCourseId).map((e) => e.learnerId)
+    );
+    return learners.filter(
+      (l) => l.courseId === cohortCourseId || matchingLearnerIds.has(l.id)
+    ).length;
+  }, [learners, enrolments, cohortCourseId]);
 
   const handleSelectLearner = (learnerId: string) => {
     const l = learners.find((item) => item.id === learnerId);
@@ -315,7 +413,7 @@ export const TemplateMessageComposer: React.FC<Props> = ({
               <div className="space-y-3 p-3 bg-paper border border-line rounded-sm">
                 <div>
                   <label className="font-bold text-navy-900 block mb-1">
-                    Select Target Learner Cohort
+                    Select Target Learner Cohort or Course
                   </label>
                   <select
                     value={cohortCourseId}
@@ -325,10 +423,9 @@ export const TemplateMessageComposer: React.FC<Props> = ({
                     <option value="all">
                       All Enrolled Learners Across All Courses ({learners.length} active learners)
                     </option>
-                    {courseOptions.map((c) => (
+                    {cohortOptions.map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.title} (
-                        {learners.filter((l) => l.courseId === c.id).length} learners)
+                        {c.label} ({c.count} learner{c.count === 1 ? "" : "s"})
                       </option>
                     ))}
                   </select>
@@ -346,6 +443,36 @@ export const TemplateMessageComposer: React.FC<Props> = ({
               </div>
             )}
 
+            {/* Smart Coupon Selector (Only shows when template needs coupon_code) */}
+            {hasCouponPlaceholder && (
+              <div className="p-3.5 bg-paper rounded-sm border border-gold-500/30 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-navy-900 flex items-center gap-1.5 text-[11px] uppercase tracking-wider">
+                    <Icon name="tag" size={13} className="text-gold-700" />
+                    <span>Select Active Voucher / Promo Code</span>
+                  </label>
+                  <span className="text-[10px] text-emerald-800 font-bold bg-emerald-50 px-2 py-0.5 rounded-xs border border-emerald-200">
+                    Auto-fills code, discount &amp; expiry
+                  </span>
+                </div>
+                <select
+                  value={selectedCouponCode}
+                  onChange={(e) => handleSelectCoupon(e.target.value)}
+                  className="w-full px-3 py-2 rounded-sm border border-line bg-white text-navy-900 font-bold text-xs focus:outline-none focus:ring-1 focus:ring-navy-900"
+                >
+                  <option value="">-- Choose from Created Vouchers --</option>
+                  {activeCoupons.map((c) => (
+                    <option key={c.id} value={c.code}>
+                      {c.code} — {c.discountType === "percent" ? `${c.discountValue}% Off` : `£${c.discountValue} Off`} ({c.description})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-ink-soft">
+                  Selecting a voucher automatically sets <code>{`{coupon_code}`}</code>, <code>{`{discount_text}`}</code> and <code>{`{expiry_date}`}</code> across your template.
+                </p>
+              </div>
+            )}
+
             {/* Dynamic Placeholder Inputs */}
             <div className="pt-2 border-t border-line space-y-3">
               <span className="font-bold text-navy-900 block uppercase tracking-wider text-[11px]">
@@ -353,18 +480,33 @@ export const TemplateMessageComposer: React.FC<Props> = ({
               </span>
               {(selectedTemplate?.allowedPlaceholders || []).map((ph) => {
                 const label = ph.replace(/_/g, " ");
+                const isAutoFilledByCoupon =
+                  (ph === "coupon_code" || ph === "discount_text" || ph === "expiry_date") &&
+                  Boolean(selectedCouponCode);
+
                 return (
                   <div key={ph}>
-                    <label className="capitalize font-semibold text-navy-900 block mb-1 text-[11px]">
-                      {label} <code className="font-mono text-ink-soft">({`{${ph}}`})</code>
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="capitalize font-semibold text-navy-900 text-[11px]">
+                        {label} <code className="font-mono text-ink-soft">({`{${ph}}`})</code>
+                      </label>
+                      {isAutoFilledByCoupon && (
+                        <span className="text-[9px] text-emerald-700 font-bold flex items-center gap-1">
+                          <Icon name="check" size={10} /> Auto-filled from voucher
+                        </span>
+                      )}
+                    </div>
                     <input
                       type="text"
                       required
                       value={placeholderValues[ph] || ""}
                       onChange={(e) => handlePlaceholderChange(ph, e.target.value)}
                       placeholder={`Enter ${label}...`}
-                      className="w-full px-3 py-1.5 rounded-sm border border-line bg-white text-ink text-xs focus:outline-none focus:ring-1 focus:ring-navy-900"
+                      className={`w-full px-3 py-1.5 rounded-sm border text-xs focus:outline-none focus:ring-1 focus:ring-navy-900 ${
+                        isAutoFilledByCoupon
+                          ? "bg-emerald-50/50 border-emerald-300 font-semibold text-emerald-950"
+                          : "border-line bg-white text-ink"
+                      }`}
                     />
                   </div>
                 );

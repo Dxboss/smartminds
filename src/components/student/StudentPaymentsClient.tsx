@@ -181,10 +181,10 @@ export function StudentPaymentsClient({
   const bannerTone = hasAdminQuery
     ? "bg-rose-50 border-rose-300 text-rose-900"
     : isOverdue
-    ? "bg-red-50 border-red-300 text-red-900"
-    : isSoon
-    ? "bg-amber-50 border-amber-300 text-amber-900"
-    : "bg-white border-line text-navy-900";
+      ? "bg-red-50 border-red-300 text-red-900"
+      : isSoon
+        ? "bg-amber-50 border-amber-300 text-amber-900"
+        : "bg-white border-line text-navy-900";
 
   return (
     <div className="space-y-6">
@@ -227,10 +227,10 @@ export function StudentPaymentsClient({
                 {hasAdminQuery
                   ? "Action required — Payment query"
                   : isOverdue
-                  ? "Instalment overdue"
-                  : isSoon
-                  ? "Instalment due soon"
-                  : "Next instalment"}
+                    ? "Instalment overdue"
+                    : isSoon
+                      ? "Instalment due soon"
+                      : "Next instalment"}
                 {" · "}
                 {nextUnpaid.instalmentNumber} of {nextUnpaid.totalInstalments}
               </p>
@@ -290,11 +290,10 @@ export function StudentPaymentsClient({
               type="button"
               id="open-pay-instalment"
               onClick={() => openPaymentModal("transfer")}
-              className={`w-full sm:w-auto px-4 py-2.5 rounded-sm font-heading font-semibold text-sm transition-colors min-h-[44px] inline-flex items-center justify-center gap-2 ${
-                isCardPaymentUnlocked && !isAwaitingConf
+              className={`w-full sm:w-auto px-4 py-2.5 rounded-sm font-heading font-semibold text-sm transition-colors min-h-[44px] inline-flex items-center justify-center gap-2 ${isCardPaymentUnlocked && !isAwaitingConf
                   ? "bg-white border border-line text-navy-900 hover:bg-paper"
                   : "bg-navy-900 text-white hover:bg-navy-700"
-              }`}
+                }`}
             >
               <Icon name="calendar" size={16} />
               <span>{hasAdminQuery ? "Update Transfer Notice" : "Bank Transfer"}</span>
@@ -382,11 +381,10 @@ export function StudentPaymentsClient({
                     </div>
                   </div>
                   <span
-                    className={`px-2 py-0.5 rounded-xs text-[10px] font-bold uppercase tracking-wider ${
-                      c.balanceRemainingGbp <= 0
+                    className={`px-2 py-0.5 rounded-xs text-[10px] font-bold uppercase tracking-wider ${c.balanceRemainingGbp <= 0
                         ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
                         : "bg-amber-50 text-amber-800 border border-amber-200"
-                    }`}
+                      }`}
                   >
                     {c.balanceRemainingGbp <= 0 ? "Settled" : "Active"}
                   </span>
@@ -408,11 +406,10 @@ export function StudentPaymentsClient({
                   <div className="bg-white p-2 rounded border border-line">
                     <span className="text-[10px] text-ink-soft block">Remaining</span>
                     <strong
-                      className={`font-mono ${
-                        c.balanceRemainingGbp <= 0
+                      className={`font-mono ${c.balanceRemainingGbp <= 0
                           ? "text-emerald-700"
                           : "text-amber-800"
-                      }`}
+                        }`}
                     >
                       {formatCurrency(c.balanceRemainingGbp)}
                     </strong>
@@ -467,27 +464,26 @@ export function StudentPaymentsClient({
                     <td className="py-3 px-3 font-semibold text-navy-900">{formatCurrency(item.amountGbp)}</td>
                     <td className="py-3 px-3">
                       <span
-                        className={`px-2 py-0.5 rounded-sm font-semibold text-[11px] inline-flex items-center gap-1 ${
-                          item.status === "paid"
+                        className={`px-2 py-0.5 rounded-sm font-semibold text-[11px] inline-flex items-center gap-1 ${item.status === "paid"
                             ? "bg-emerald-50 text-emerald-800"
                             : item.status === "action_required" || item.adminQuery
-                            ? "bg-rose-50 text-rose-800 border border-rose-200"
-                            : item.status === "awaiting_confirmation" || reportedIds.includes(item.id)
-                            ? "bg-amber-50 text-amber-900"
-                            : item.status === "overdue"
-                            ? "bg-red-50 text-red-800"
-                            : "bg-paper text-ink"
-                        }`}
+                              ? "bg-rose-50 text-rose-800 border border-rose-200"
+                              : item.status === "awaiting_confirmation" || reportedIds.includes(item.id)
+                                ? "bg-amber-50 text-amber-900"
+                                : item.status === "overdue"
+                                  ? "bg-red-50 text-red-800"
+                                  : "bg-paper text-ink"
+                          }`}
                       >
                         {item.status === "paid"
                           ? `Paid ${item.paidAt ? new Date(item.paidAt).toLocaleDateString("en-GB") : ""}`
                           : item.status === "action_required" || item.adminQuery
-                          ? "Query — Action required"
-                          : item.status === "awaiting_confirmation" || reportedIds.includes(item.id)
-                          ? "Awaiting confirmation"
-                          : item.status === "overdue"
-                          ? "Overdue"
-                          : "Due"}
+                            ? "Query — Action required"
+                            : item.status === "awaiting_confirmation" || reportedIds.includes(item.id)
+                              ? "Awaiting confirmation"
+                              : item.status === "overdue"
+                                ? "Overdue"
+                                : "Due"}
                       </span>
                     </td>
                     <td className="py-3 px-3 text-ink-soft font-mono text-[11px]">{item.graceExpiryDate}</td>
@@ -610,22 +606,20 @@ export function StudentPaymentsClient({
                   <button
                     type="button"
                     onClick={() => setModalMode("transfer")}
-                    className={`pb-2 px-3 text-xs font-bold transition-colors border-b-2 ${
-                      modalMode === "transfer"
+                    className={`pb-2 px-3 text-xs font-bold transition-colors border-b-2 ${modalMode === "transfer"
                         ? "border-navy-900 text-navy-900"
                         : "border-transparent text-ink-soft hover:text-navy-900"
-                    }`}
+                      }`}
                   >
                     BACS Bank Transfer
                   </button>
                   <button
                     type="button"
                     onClick={() => setModalMode("stripe")}
-                    className={`pb-2 px-3 text-xs font-bold transition-colors border-b-2 ${
-                      modalMode === "stripe"
+                    className={`pb-2 px-3 text-xs font-bold transition-colors border-b-2 ${modalMode === "stripe"
                         ? "border-navy-900 text-navy-900"
                         : "border-transparent text-ink-soft hover:text-navy-900"
-                    }`}
+                      }`}
                   >
                     Card / Stripe (Instant)
                   </button>

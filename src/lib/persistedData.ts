@@ -137,6 +137,8 @@ export interface PersistedRecordsStore {
   deletedScheduleIds?: string[];
   coupons?: Coupon[];
   deletedCouponIds?: string[];
+  defaultBirthdayCouponCode?: string;
+  defaultAlumniCouponCode?: string;
 }
 
 import { type ColorSwatch, DEFAULT_COLOR_SWATCHES } from "./colorSwatches";
@@ -4945,6 +4947,19 @@ export const DEFAULT_COUPONS: Coupon[] = [
     isActive: true,
     createdAt: "2026-02-10T09:00:00Z",
   },
+  {
+    id: "coupon-birthday-15",
+    code: "BDAY15",
+    description: "15% Student Birthday Celebration Reward Voucher",
+    discountType: "percent",
+    discountValue: 15,
+    targetAudience: "existing_learners_only",
+    appliesTo: "all",
+    timesUsed: 1,
+    validUntil: "2027-12-31",
+    isActive: true,
+    createdAt: "2026-02-15T09:00:00Z",
+  },
 ];
 
 export function listAllCoupons(): Coupon[] {
@@ -5096,6 +5111,33 @@ export function validateCoupon(
     message: `Voucher applied: -£${discountAmount.toFixed(2)} (${coupon.description})`,
     coupon,
   };
+}
+
+export function getDefaultEventCoupons(): {
+  defaultBirthdayCouponCode?: string;
+  defaultAlumniCouponCode?: string;
+} {
+  const store = loadPersistedRecords();
+  return {
+    defaultBirthdayCouponCode: store.defaultBirthdayCouponCode || "BDAY15",
+    defaultAlumniCouponCode: store.defaultAlumniCouponCode || "ALUMNI15",
+  };
+}
+
+export function saveDefaultEventCoupons(input: {
+  defaultBirthdayCouponCode?: string;
+  defaultAlumniCouponCode?: string;
+}): void {
+  const store = loadPersistedRecords();
+  if (input.defaultBirthdayCouponCode !== undefined) {
+    store.defaultBirthdayCouponCode = input.defaultBirthdayCouponCode;
+  }
+  if (input.defaultAlumniCouponCode !== undefined) {
+    store.defaultAlumniCouponCode = input.defaultAlumniCouponCode;
+  }
+  const filePath = getStoreFilePath();
+  writeStoreToDisk(filePath, store);
+  syncStoreSnapshotToNeon(store).catch(() => {});
 }
 
 

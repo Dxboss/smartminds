@@ -3,15 +3,24 @@
 import React, { useState } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { Coupon } from "@/lib/repositories/types";
-import { saveCouponAction, deleteCouponAction } from "@/app/admin/actions";
+import {
+  saveCouponAction,
+  deleteCouponAction,
+  saveDefaultEventCouponsAction,
+} from "@/app/admin/actions";
 
 interface Props {
   initialCoupons: Coupon[];
+  defaultEventCoupons?: {
+    defaultBirthdayCouponCode?: string;
+    defaultAlumniCouponCode?: string;
+  };
   onSelectCouponForMessage?: (coupon: Coupon) => void;
 }
 
 export const CouponsManager: React.FC<Props> = ({
   initialCoupons,
+  defaultEventCoupons,
   onSelectCouponForMessage,
 }) => {
   const [coupons, setCoupons] = useState<Coupon[]>(initialCoupons);
@@ -20,6 +29,15 @@ export const CouponsManager: React.FC<Props> = ({
   const [editingCoupon, setEditingCoupon] = useState<Coupon | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Default Event Settings
+  const [defaultBirthdayCode, setDefaultBirthdayCode] = useState(
+    defaultEventCoupons?.defaultBirthdayCouponCode || "BDAY15"
+  );
+  const [defaultAlumniCode, setDefaultAlumniCode] = useState(
+    defaultEventCoupons?.defaultAlumniCouponCode || "ALUMNI15"
+  );
+  const [isSavingDefaults, setIsSavingDefaults] = useState(false);
 
   // Form State
   const [code, setCode] = useState("");
@@ -146,6 +164,92 @@ export const CouponsManager: React.FC<Props> = ({
             className="px-3.5 py-1.5 bg-navy-900 text-white rounded-sm text-xs font-bold hover:bg-navy-800 transition-colors flex items-center gap-1.5 shrink-0"
           >
             <span>+ Create Voucher</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Default Automated Event Vouchers (Owner Settings) */}
+      <div className="p-4 rounded-md border border-line bg-paper space-y-3">
+        <div className="flex items-center justify-between flex-wrap gap-2 border-b border-line pb-2.5">
+          <div className="flex items-center gap-2">
+            <Icon name="sparkles" size={16} className="text-gold-700" />
+            <h3 className="font-heading font-bold text-sm text-navy-900 uppercase tracking-wider">
+              Automated Event Vouchers (College Defaults)
+            </h3>
+          </div>
+          <span className="text-[10px] text-ink-soft">
+            Controls which vouchers are applied automatically on birthdays and course completions
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+          {/* Default Birthday Voucher */}
+          <div className="p-3 bg-white rounded-sm border border-line space-y-1.5">
+            <label className="font-bold text-navy-900 block text-xs">
+              🎂 Default Student Birthday Voucher
+            </label>
+            <p className="text-[11px] text-ink-soft">
+              Sent when wishing students happy birthday or during automated birthday greetings.
+            </p>
+            <select
+              value={defaultBirthdayCode}
+              onChange={(e) => setDefaultBirthdayCode(e.target.value)}
+              className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-paper text-xs font-semibold text-navy-900"
+            >
+              <option value="none">None (Greeting Message Only — No Voucher)</option>
+              {coupons.map((c) => (
+                <option key={c.id} value={c.code}>
+                  {c.code} — {c.discountType === "percent" ? `${c.discountValue}% Off` : `£${c.discountValue} Off`} ({c.description})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Default Alumni / Graduation Voucher */}
+          <div className="p-3 bg-white rounded-sm border border-line space-y-1.5">
+            <label className="font-bold text-navy-900 block text-xs">
+              🎓 Default Course Completion / Alumni Progression Voucher
+            </label>
+            <p className="text-[11px] text-ink-soft">
+              Included in graduation &amp; completion notices to encourage continuing qualification progression.
+            </p>
+            <select
+              value={defaultAlumniCode}
+              onChange={(e) => setDefaultAlumniCode(e.target.value)}
+              className="w-full px-2.5 py-1.5 rounded-sm border border-line bg-paper text-xs font-semibold text-navy-900"
+            >
+              <option value="none">None (Congratulations Message Only — No Voucher)</option>
+              {coupons.map((c) => (
+                <option key={c.id} value={c.code}>
+                  {c.code} — {c.discountType === "percent" ? `${c.discountValue}% Off` : `£${c.discountValue} Off`} ({c.description})
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="flex justify-end pt-1">
+          <button
+            type="button"
+            disabled={isSavingDefaults}
+            onClick={async () => {
+              setIsSavingDefaults(true);
+              try {
+                await saveDefaultEventCouponsAction({
+                  defaultBirthdayCouponCode: defaultBirthdayCode,
+                  defaultAlumniCouponCode: defaultAlumniCode,
+                });
+                setFeedback("Default automated event vouchers updated successfully.");
+                setTimeout(() => setFeedback(null), 5000);
+              } catch (err) {
+                alert(err instanceof Error ? err.message : "Failed to update default event vouchers.");
+              } finally {
+                setIsSavingDefaults(false);
+              }
+            }}
+            className="px-4 py-1.5 rounded-sm bg-navy-900 text-gold-300 font-bold text-xs hover:bg-navy-800 transition-colors cursor-pointer disabled:opacity-50"
+          >
+            {isSavingDefaults ? "Saving Defaults..." : "Save Default Event Vouchers"}
           </button>
         </div>
       </div>
