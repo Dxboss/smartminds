@@ -388,8 +388,10 @@ export async function processAbandonedCheckoutRecovery(): Promise<{
     let targetStage = 0;
 
     if (draft.recoveryStage === 0) {
-      // Stage 1: 1 hour after creation
-      if (now - createdTime >= 1 * 60 * 60 * 1000) {
+      // Stage 1: 20 minutes after drop-off (configurable via CHECKOUT_RECOVERY_STAGE_1_MINUTES)
+      const stage1DelayMs =
+        (Number(process.env.CHECKOUT_RECOVERY_STAGE_1_MINUTES) || 20) * 60 * 1000;
+      if (now - createdTime >= stage1DelayMs) {
         targetStage = 1;
       }
     } else if (draft.recoveryStage === 1) {
