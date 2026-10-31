@@ -798,10 +798,11 @@ export async function createGoCardlessCheckoutAction(
   const familyName = nameParts.slice(1).join(" ") || "Student";
 
   try {
+    const cleanTitle = course.title.length > 70 ? `${course.title.slice(0, 67)}...` : course.title;
     const flow = await createGoCardlessRedirectFlow({
       sessionToken,
       successRedirectUrl: successUrl,
-      description: `Smartminds Enrolment: ${course.title} (${level.level_label})`,
+      description: `Smartminds: ${cleanTitle}`.slice(0, 100),
       prefilledCustomer: {
         givenName,
         familyName,

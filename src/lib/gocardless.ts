@@ -59,6 +59,11 @@ export async function createGoCardlessRedirectFlow(params: {
   }
 
   const baseUrl = getApiBaseUrl(config.environment);
+  const safeDescription = (params.description || "Smartminds Enrolment")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 100);
+
   const res = await fetch(`${baseUrl}/redirect_flows`, {
     method: "POST",
     headers: {
@@ -68,7 +73,7 @@ export async function createGoCardlessRedirectFlow(params: {
     },
     body: JSON.stringify({
       redirect_flows: {
-        description: params.description,
+        description: safeDescription,
         session_token: params.sessionToken,
         success_redirect_url: params.successRedirectUrl,
         prefilled_customer: params.prefilledCustomer
@@ -180,6 +185,11 @@ export async function createGoCardlessPayment(params: {
     headers["Idempotency-Key"] = params.idempotencyKey;
   }
 
+  const safeDescription = (params.description || "Smartminds Course Payment")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 100);
+
   const res = await fetch(`${baseUrl}/payments`, {
     method: "POST",
     headers,
@@ -187,7 +197,7 @@ export async function createGoCardlessPayment(params: {
       payments: {
         amount: Math.round(params.amountPence),
         currency: "GBP",
-        description: params.description,
+        description: safeDescription,
         links: {
           mandate: params.mandateId,
         },
