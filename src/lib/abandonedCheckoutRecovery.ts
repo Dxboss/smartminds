@@ -395,23 +395,31 @@ export async function processAbandonedCheckoutRecovery(): Promise<{
         targetStage = 1;
       }
     } else if (draft.recoveryStage === 1) {
-      // Stage 2: 24 hours after Stage 1
-      if (now - lastSentTime >= 24 * 60 * 60 * 1000) {
+      // Stage 2: 4 hours (240 min) after Stage 1 (configurable via CHECKOUT_RECOVERY_STAGE_2_MINUTES)
+      const stage2DelayMs =
+        (Number(process.env.CHECKOUT_RECOVERY_STAGE_2_MINUTES) || 240) * 60 * 1000;
+      if (now - lastSentTime >= stage2DelayMs) {
         targetStage = 2;
       }
     } else if (draft.recoveryStage === 2) {
-      // Stage 3: 48 hours after Stage 2 (Day 3)
-      if (now - lastSentTime >= 48 * 60 * 60 * 1000) {
+      // Stage 3: 24 hours (1440 min) after Stage 2 (configurable via CHECKOUT_RECOVERY_STAGE_3_MINUTES)
+      const stage3DelayMs =
+        (Number(process.env.CHECKOUT_RECOVERY_STAGE_3_MINUTES) || 1440) * 60 * 1000;
+      if (now - lastSentTime >= stage3DelayMs) {
         targetStage = 3;
       }
     } else if (draft.recoveryStage === 3) {
-      // Stage 4: 48 hours after Stage 3 (Day 5 - Bursary)
-      if (now - lastSentTime >= 48 * 60 * 60 * 1000) {
+      // Stage 4: 48 hours (2880 min) after Stage 3 (configurable via CHECKOUT_RECOVERY_STAGE_4_MINUTES)
+      const stage4DelayMs =
+        (Number(process.env.CHECKOUT_RECOVERY_STAGE_4_MINUTES) || 2880) * 60 * 1000;
+      if (now - lastSentTime >= stage4DelayMs) {
         targetStage = 4;
       }
     } else if (draft.recoveryStage === 4) {
-      // Stage 5: 48 hours after Stage 4 (Day 7 - Final Expiry)
-      if (now - lastSentTime >= 48 * 60 * 60 * 1000) {
+      // Stage 5: 48 hours (2880 min) after Stage 4 (configurable via CHECKOUT_RECOVERY_STAGE_5_MINUTES)
+      const stage5DelayMs =
+        (Number(process.env.CHECKOUT_RECOVERY_STAGE_5_MINUTES) || 2880) * 60 * 1000;
+      if (now - lastSentTime >= stage5DelayMs) {
         targetStage = 5;
       }
     }
