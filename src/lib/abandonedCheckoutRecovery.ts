@@ -519,9 +519,14 @@ export async function processAbandonedCheckoutRecovery(): Promise<{
 
   if (sentCount > 0) {
     try {
-      fs.writeFileSync(getStoreFilePath(), JSON.stringify(store, null, 2));
-      syncPersistedRecords(true);
-    } catch {}
+      const { persistStoreEverywhere } = await import("@/lib/persistedData");
+      await persistStoreEverywhere(store);
+    } catch {
+      try {
+        fs.writeFileSync(getStoreFilePath(), JSON.stringify(store, null, 2));
+        syncPersistedRecords(true);
+      } catch {}
+    }
   }
 
   return { processed: drafts.length, sent: sentCount, logs };

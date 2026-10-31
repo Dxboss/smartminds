@@ -294,6 +294,7 @@ export function loadPersistedRecords(): PersistedRecordsStore {
       learningMaterials: Array.isArray(parsed.learningMaterials) ? parsed.learningMaterials : undefined,
       mediaLibrary: Array.isArray(parsed.mediaLibrary) ? parsed.mediaLibrary : undefined,
       deletedMediaIds: Array.isArray(parsed.deletedMediaIds) ? parsed.deletedMediaIds : undefined,
+      abandonedCheckouts: Array.isArray(parsed.abandonedCheckouts) ? parsed.abandonedCheckouts : [],
     };
     cachedStore = loaded;
     return loaded;
@@ -352,6 +353,37 @@ function mergeUsersByEmail(...lists: (PersistedUserRecord[] | undefined)[]): Per
         });
       } else {
         map.set(key, u);
+      }
+    }
+  }
+  return Array.from(map.values());
+}
+
+function mergeAbandonedCheckouts(...lists: (any[] | undefined)[]): any[] {
+  const map = new Map<string, any>();
+  for (const list of lists) {
+    if (!Array.isArray(list)) continue;
+    for (const item of list) {
+      if (!item || !item.id) continue;
+      const existing = map.get(item.id);
+      if (!existing) {
+        map.set(item.id, { ...item });
+      } else {
+        const completed = Boolean(existing.completed || item.completed);
+        const recoveryStage = Math.max(existing.recoveryStage || 0, item.recoveryStage || 0);
+        const newer =
+          new Date(item.updatedAt || 0).getTime() >= new Date(existing.updatedAt || 0).getTime()
+            ? item
+            : existing;
+
+        map.set(item.id, {
+          ...existing,
+          ...item,
+          ...newer,
+          completed,
+          recoveryStage,
+          lastEmailSentAt: item.lastEmailSentAt || existing.lastEmailSentAt,
+        });
       }
     }
   }
@@ -503,27 +535,27 @@ async function purgeFictionalDemoRecordsFromNeonOnce(): Promise<void> {
            OR id = 'user-tutor-eleanor'
            OR learner_id = ANY(${demoIds}::text[])
            OR tutor_id = ANY(${demoIds}::text[])
-      `.catch(() => {}),
+      `.catch(() => { }),
       sql`
         DELETE FROM learners
         WHERE LOWER(email) LIKE '%@example.com'
            OR id = ANY(${demoIds}::text[])
            OR user_id = ANY(${demoIds}::text[])
-      `.catch(() => {}),
+      `.catch(() => { }),
       sql`
         DELETE FROM enrolments
         WHERE learner_id = ANY(${demoIds}::text[])
-      `.catch(() => {}),
+      `.catch(() => { }),
       sql`
         DELETE FROM payments
         WHERE learner_id = ANY(${demoIds}::text[])
-      `.catch(() => {}),
+      `.catch(() => { }),
       sql`
         DELETE FROM payment_schedules
         WHERE learner_id = ANY(${demoIds}::text[])
-      `.catch(() => {}),
+      `.catch(() => { }),
     ]);
-  } catch {}
+  } catch { }
 }
 
 export async function pullLatestFromNeon(force = false): Promise<boolean> {
@@ -546,7 +578,7 @@ export async function pullLatestFromNeon(force = false): Promise<boolean> {
       if (!isDbConfigured) return false;
 
       await ensureDbTablesExist();
-      purgeFictionalDemoRecordsFromNeonOnce().catch(() => {});
+      purgeFictionalDemoRecordsFromNeonOnce().catch(() => { });
 
       const timeout = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error("Neon pullLatest timeout")), 8000)
@@ -775,6 +807,10 @@ export async function pullLatestFromNeon(force = false): Promise<boolean> {
             (r) =>
               !(store.deletedTutoringAttendanceIds || []).includes(r.id) &&
               !(dbStore.deletedTutoringAttendanceIds || []).includes(r.id)
+          ),
+          abandonedCheckouts: mergeAbandonedCheckouts(
+            store.abandonedCheckouts,
+            dbStore.abandonedCheckouts
           ),
         };
 
@@ -4319,7 +4355,7 @@ export function getCohortsForTutor(session: {
     if (Array.isArray(seedEnrolments)) {
       allEnrolments.push(...seedEnrolments);
     }
-  } catch {}
+  } catch { }
 
   for (const e of allEnrolments) {
     if (!e?.classId) continue;
@@ -4578,7 +4614,7 @@ export async function savePersistedMediaItem(input: {
 
   const filePath = getStoreFilePath();
   writeStoreToDisk(filePath, store);
-  syncStoreSnapshotToNeon(store).catch(() => {});
+  syncStoreSnapshotToNeon(store).catch(() => { });
 
   try {
     const { isDbConfigured, sql, ensureDbTablesExist } = await import("@/lib/db");
@@ -4605,9 +4641,9 @@ export async function savePersistedMediaItem(input: {
           mime_type = EXCLUDED.mime_type,
           category = EXCLUDED.category,
           data = EXCLUDED.data;
-      `.catch(() => {});
+      `.catch(() => { });
     }
-  } catch {}
+  } catch { }
 
   return item;
 }
@@ -4624,14 +4660,14 @@ export async function deletePersistedMediaItem(id: string): Promise<boolean> {
 
   const filePath = getStoreFilePath();
   writeStoreToDisk(filePath, store);
-  syncStoreSnapshotToNeon(store).catch(() => {});
+  syncStoreSnapshotToNeon(store).catch(() => { });
 
   try {
     const { isDbConfigured, sql } = await import("@/lib/db");
     if (isDbConfigured) {
-      await sql`DELETE FROM media_library WHERE id = ${id}`.catch(() => {});
+      await sql`DELETE FROM media_library WHERE id = ${id}`.catch(() => { });
     }
-  } catch {}
+  } catch { }
 
   return true;
 }
@@ -4855,7 +4891,7 @@ export async function saveTutoringAttendanceRecord(
 
   const filePath = getStoreFilePath();
   writeStoreToDisk(filePath, store);
-  await syncStoreSnapshotToNeon(store).catch(() => {});
+  await syncStoreSnapshotToNeon(store).catch(() => { });
 
   return saved;
 }
@@ -4872,7 +4908,7 @@ export async function deleteTutoringAttendanceRecord(recordId: string): Promise<
 
   const filePath = getStoreFilePath();
   writeStoreToDisk(filePath, store);
-  await syncStoreSnapshotToNeon(store).catch(() => {});
+  await syncStoreSnapshotToNeon(store).catch(() => { });
   return true;
 }
 
@@ -4920,8 +4956,8 @@ export async function updateOneToOneEnrolmentAssignment(input: {
   await savePersistedRecord({
     learner,
     enrolment: enr,
-  }).catch(() => {});
-  await syncStoreSnapshotToNeon(store).catch(() => {});
+  }).catch(() => { });
+  await syncStoreSnapshotToNeon(store).catch(() => { });
   return true;
 }
 
@@ -5004,7 +5040,7 @@ export function saveCouponRecord(coupon: Coupon): void {
   }
   const filePath = getStoreFilePath();
   writeStoreToDisk(filePath, store);
-  syncStoreSnapshotToNeon(store).catch(() => {});
+  syncStoreSnapshotToNeon(store).catch(() => { });
 }
 
 export function deleteCouponRecord(id: string): void {
@@ -5017,7 +5053,7 @@ export function deleteCouponRecord(id: string): void {
   store.coupons = store.coupons.filter((c) => c.id !== id);
   const filePath = getStoreFilePath();
   writeStoreToDisk(filePath, store);
-  syncStoreSnapshotToNeon(store).catch(() => {});
+  syncStoreSnapshotToNeon(store).catch(() => { });
 }
 
 export function validateCoupon(
@@ -5155,7 +5191,7 @@ export function saveDefaultEventCoupons(input: {
   }
   const filePath = getStoreFilePath();
   writeStoreToDisk(filePath, store);
-  syncStoreSnapshotToNeon(store).catch(() => {});
+  syncStoreSnapshotToNeon(store).catch(() => { });
 }
 
 
