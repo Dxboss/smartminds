@@ -569,6 +569,12 @@ export async function processSelfEnrolmentAction(input: EnrolmentFormInput) {
     // In Next.js, revalidatePath cannot be invoked during Server Component render (e.g. /enrol/success)
   }
 
+  // 10. Mark any checkout recovery draft as completed
+  try {
+    const { markCheckoutDraftCompleted } = await import("@/lib/abandonedCheckoutRecovery");
+    await markCheckoutDraftCompleted(cleanEmail, course.id);
+  } catch {}
+
   return {
     success: true,
     studentId,
@@ -1139,4 +1145,51 @@ export async function submitSafeguardingFormAction(input: {
 
   return { success: true };
 }
+
+export async function recordCheckoutDraftAction(input: {
+  fullName: string;
+  email: string;
+  phone: string;
+  courseId: string;
+  courseTitle: string;
+  levelLabel?: string;
+  planId?: string;
+  paymentOption?: "full" | "instalments";
+  learnerType?: "myself" | "child";
+  dob?: string;
+  address?: string;
+  postcode?: string;
+  trainingLocation?: string;
+  preferredTimeSlot?: string;
+  couponCode?: string;
+  depositAmount?: number;
+  totalAmount?: number;
+}) {
+  try {
+    if (!input.email || !input.fullName) {
+      return { success: false, error: "Email and Name are required" };
+    }
+    const { saveCheckoutDraft } = await import("@/lib/abandonedCheckoutRecovery");
+    const draft = await saveCheckoutDraft(input);
+    return { success: true, draftId: draft.id };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Failed to record draft",
+    };
+  }
+}
+
+export async function getCheckoutDraftAction(draftId: string) {
+  try {
+    if (!draftId) return { success: false };
+    const { getCheckoutDraft } = await import("@/lib/abandonedCheckoutRecovery");
+    const draft = await getCheckoutDraft(draftId);
+    if (!draft || draft.completed) return { success: false };
+    return { success: true, draft };
+  } catch {
+    return { success: false };
+  }
+}
+
 

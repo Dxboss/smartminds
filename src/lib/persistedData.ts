@@ -140,6 +140,7 @@ export interface PersistedRecordsStore {
   deletedCouponIds?: string[];
   defaultBirthdayCouponCode?: string;
   defaultAlumniCouponCode?: string;
+  abandonedCheckouts?: any[];
 }
 
 import { type ColorSwatch, DEFAULT_COLOR_SWATCHES } from "./colorSwatches";

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useTransition } from "react";
+import React, { useState, useEffect, useTransition, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
@@ -18,6 +18,7 @@ import {
   createStripeCheckoutAction,
   createGoCardlessCheckoutAction,
   verifyExistingStudentAction,
+  recordCheckoutDraftAction,
 } from "@/app/actions/enrolmentActions";
 import {
   validateCoupon,
@@ -44,6 +45,8 @@ interface Props {
   initialLevelLabel?: string;
   initialPaymentOption?: "full" | "instalments";
   initialPlanId?: string;
+  initialCouponCode?: string;
+  resumedDraft?: any;
   currentUser?: CurrentUserProps;
   cohortSchedule?: CohortScheduleConfig;
 }
@@ -63,6 +66,8 @@ export const EnrolmentClient: React.FC<Props> = ({
   initialLevelLabel,
   initialPaymentOption,
   initialPlanId,
+  initialCouponCode,
+  resumedDraft,
   currentUser,
   cohortSchedule,
 }) => {
@@ -172,12 +177,12 @@ export const EnrolmentClient: React.FC<Props> = ({
   }, [currentCourse, isMinorCourse, isAdultOnly, selectedLocation]);
 
   // Form Fields
-  const [fullName, setFullName] = useState(currentUser?.name || "");
-  const [email, setEmail] = useState(currentUser?.email || "");
-  const [phone, setPhone] = useState("");
-  const [dob, setDob] = useState("");
-  const [address, setAddress] = useState("");
-  const [postcode, setPostcode] = useState("");
+  const [fullName, setFullName] = useState(resumedDraft?.fullName || currentUser?.name || "");
+  const [email, setEmail] = useState(resumedDraft?.email || currentUser?.email || "");
+  const [phone, setPhone] = useState(resumedDraft?.phone || "");
+  const [dob, setDob] = useState(resumedDraft?.dob || "");
+  const [address, setAddress] = useState(resumedDraft?.address || "");
+  const [postcode, setPostcode] = useState(resumedDraft?.postcode || "");
   const [termsAccepted, setTermsAccepted] = useState(false);
 
   // Existing student verification state
@@ -205,11 +210,18 @@ export const EnrolmentClient: React.FC<Props> = ({
       : null
   );
 
-  // Coupon / Birthday voucher state
-  const [couponCodeInput, setCouponCodeInput] = useState("");
-  const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
+  // Coupon / Voucher state
+  const initialVoucherCode = initialCouponCode || resumedDraft?.couponCode || "";
+  const [couponCodeInput, setCouponCodeInput] = useState(initialVoucherCode);
+  const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(() => {
+    if (initialVoucherCode) {
+      const res = validateCoupon(initialVoucherCode);
+      if (res.valid && res.coupon) return res.coupon;
+    }
+    return null;
+  });
   const [couponError, setCouponError] = useState<string | null>(null);
-  const [isCouponBoxOpen, setIsCouponBoxOpen] = useState(false);
+  const [isCouponBoxOpen, setIsCouponBoxOpen] = useState(Boolean(initialVoucherCode));
 
   const handleApplyCoupon = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -307,6 +319,56 @@ export const EnrolmentClient: React.FC<Props> = ({
     currentLevel?.full_pay_discount_percent !== undefined
       ? currentLevel.full_pay_discount_percent
       : globalSettings.default_full_pay_discount_percent;
+
+  // Auto-record checkout draft when contact info is entered
+  const lastSavedDraftRef = useRef<string>("");
+  useEffect(() => {
+    const cleanEmail = email.trim();
+    const cleanName = fullName.trim();
+    const cleanPhone = phone.trim();
+    if (cleanEmail && cleanEmail.includes("@") && cleanName.length >= 2 && currentCourse) {
+      const draftKey = `${cleanEmail}-${currentCourse.id}-${selectedPlanId}-${paymentOption}-${appliedCoupon?.code || ""}`;
+      if (lastSavedDraftRef.current !== draftKey) {
+        lastSavedDraftRef.current = draftKey;
+        recordCheckoutDraftAction({
+          fullName: cleanName,
+          email: cleanEmail,
+          phone: cleanPhone,
+          courseId: currentCourse.id,
+          courseTitle: currentCourse.title,
+          levelLabel: currentLevel?.level_label,
+          planId: paymentOption === "full" ? "full" : selectedPlanId,
+          paymentOption,
+          learnerType,
+          dob,
+          address,
+          postcode,
+          trainingLocation: selectedLocation,
+          preferredTimeSlot: selectedTutoringSlot,
+          couponCode: appliedCoupon?.code,
+          depositAmount: pricing?.deposit,
+          totalAmount: pricing?.total,
+        }).catch(() => {});
+      }
+    }
+  }, [
+    email,
+    fullName,
+    phone,
+    currentCourse,
+    selectedPlanId,
+    paymentOption,
+    learnerType,
+    dob,
+    address,
+    postcode,
+    selectedLocation,
+    selectedTutoringSlot,
+    appliedCoupon?.code,
+    currentLevel?.level_label,
+    pricing?.deposit,
+    pricing?.total,
+  ]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1790,12 +1852,12 @@ export const EnrolmentClient: React.FC<Props> = ({
                         className="text-xs font-bold text-navy-900 hover:text-navy-700 underline flex items-center gap-1.5 cursor-pointer"
                       >
                         <Icon name="sparkles" size={13} className="text-gold-500" />
-                        <span>Insert birthday coupon</span>
+                        <span>Have a coupon code?</span>
                       </button>
                     ) : (
                       <div className="space-y-1.5 bg-paper p-2.5 rounded-sm border border-line">
                         <label className="block text-[11px] font-bold text-navy-900">
-                          Birthday Coupon Code
+                          Coupon / Voucher Code
                         </label>
                         <div className="flex gap-1.5">
                           <input

@@ -341,15 +341,22 @@ export const EnquiryPipelineBoard: React.FC<Props> = ({
                                 ? "bg-navy-900 text-gold-300 border-navy-900 font-bold shadow-2xs"
                                 : enq.formType === "funding_check"
                                 ? "bg-amber-50 text-amber-900 border-amber-200 font-bold"
+                                : enq.formType === "abandoned_checkout"
+                                ? "bg-amber-100 text-amber-950 border-amber-300 font-bold"
                                 : "bg-navy-900/5 text-navy-900 border-line"
                             }`}
                           >
                             {enq.formType === "consultation_booking" && (
                               <Icon name="calendar" size={11} className="text-gold-300" />
                             )}
+                            {enq.formType === "abandoned_checkout" && (
+                              <Icon name="clock" size={11} className="text-amber-800" />
+                            )}
                             <span>
                               {enq.formType === "consultation_booking"
                                 ? "Booked Call"
+                                : enq.formType === "abandoned_checkout"
+                                ? "Checkout Drop-off"
                                 : enq.formType.replace(/_/g, " ")}
                             </span>
                           </span>

@@ -17,6 +17,8 @@ interface PageProps {
     level?: string;
     mode?: "full" | "instalments";
     plan?: string;
+    resume?: string;
+    coupon?: string;
   }>;
 }
 
@@ -30,6 +32,16 @@ export default async function EnrolPage({ searchParams }: PageProps) {
   const initialLevelLabel = params.level;
   const initialPaymentOption = params.mode;
   const initialPlanId = params.plan;
+  const initialCouponCode = params.coupon;
+
+  let resumedDraft: any = null;
+  if (params.resume) {
+    try {
+      const { getCheckoutDraft } = await import("@/lib/abandonedCheckoutRecovery");
+      resumedDraft = await getCheckoutDraft(params.resume);
+    } catch {}
+  }
+
   const session = await getServerSession();
   const allCourses = getLiveCourses();
   const publishedCourses = allCourses.filter((c) => c.published);
@@ -40,10 +52,12 @@ export default async function EnrolPage({ searchParams }: PageProps) {
       <Suspense fallback={<div className="max-w-4xl mx-auto p-12 text-center text-ink-soft">Loading enrolment form...</div>}>
         <EnrolmentClient
           courses={publishedCourses.length > 0 ? publishedCourses : allCourses}
-          initialCourseId={initialCourseId}
-          initialLevelLabel={initialLevelLabel}
-          initialPaymentOption={initialPaymentOption}
-          initialPlanId={initialPlanId}
+          initialCourseId={resumedDraft?.courseId || initialCourseId}
+          initialLevelLabel={resumedDraft?.levelLabel || initialLevelLabel}
+          initialPaymentOption={resumedDraft?.paymentOption || initialPaymentOption}
+          initialPlanId={resumedDraft?.planId || initialPlanId}
+          initialCouponCode={resumedDraft?.couponCode || initialCouponCode}
+          resumedDraft={resumedDraft}
           cohortSchedule={cohortSchedule}
           currentUser={
             session
