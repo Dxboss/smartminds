@@ -407,7 +407,7 @@ let lastNeonPullPerf = 0;
 let lastNeonPullTimestamp = 0;
 let pullingPromise: Promise<boolean> | null = null;
 let fictionalDemoPurgedFromNeon = false;
-const NEON_PULL_TTL_MS = 30000; // 30 seconds cache to avoid DB storming across concurrent components
+const NEON_PULL_TTL_MS = 300000; // 5 minutes cache to prevent DB storms and conserve Neon memory
 
 export function isAutomatedTestEnv(): boolean {
   return (

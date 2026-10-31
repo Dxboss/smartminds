@@ -13,6 +13,8 @@ import {
 } from "@/lib/persistedData";
 import { SectionRenderer } from "@/components/cms/SectionRenderer";
 
+export const revalidate = 60;
+
 export const metadata: Metadata = {
   title: "All Qualifications & Courses | Smartminds Training College",
   description:
@@ -26,11 +28,7 @@ export const metadata: Metadata = {
 };
 
 export default async function CoursesPage() {
-  try {
-    await pullLatestFromNeon();
-  } catch (err) {
-    console.warn("[courses/page] Notice: pullLatestFromNeon warning:", err);
-  }
+  pullLatestFromNeon().catch(() => {});
 
   let customSections: any[] = [];
   try {

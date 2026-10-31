@@ -9,6 +9,8 @@ import {
   pullLatestFromNeon,
 } from "@/lib/persistedData";
 
+export const revalidate = 60;
+
 
 const RESERVED_SLUGS = [
   "",
@@ -72,7 +74,7 @@ export async function generateMetadata({
   }
 
   const path = "/" + slug;
-  await pullLatestFromNeon();
+  pullLatestFromNeon().catch(() => { });
   const sections = getPublishedCmsPageSections(path);
 
   if (!sections || sections.length === 0) {
@@ -118,7 +120,7 @@ async function CmsPageContent({
   }
 
   const path = "/" + slug;
-  await pullLatestFromNeon();
+  pullLatestFromNeon().catch(() => { });
   const sections = getPublishedCmsPageSections(path);
 
   if (!sections || sections.length === 0) {

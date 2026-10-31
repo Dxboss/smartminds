@@ -19,8 +19,10 @@ export const metadata: Metadata = {
   },
 };
 
+export const revalidate = 60;
+
 export default async function BookPage() {
-  await pullLatestFromNeon();
+  pullLatestFromNeon().catch(() => { });
   const liveCourses = getLiveCourses();
   const customSections = getPublishedCmsPageSections("/book");
   if (customSections && customSections.length > 0) {

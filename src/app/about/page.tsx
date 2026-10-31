@@ -26,8 +26,10 @@ export const metadata: Metadata = {
   },
 };
 
+export const revalidate = 60;
+
 export default async function AboutPage() {
-  await pullLatestFromNeon();
+  pullLatestFromNeon().catch(() => { });
   const customSections = getPublishedCmsPageSections("/about");
   if (customSections && customSections.length > 0) {
     return (

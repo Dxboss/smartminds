@@ -25,8 +25,10 @@ export const metadata: Metadata = {
   },
 };
 
+export const revalidate = 60;
+
 export default async function FundingPage() {
-  await pullLatestFromNeon();
+  pullLatestFromNeon().catch(() => {});
   const customSections = getPublishedCmsPageSections("/funding");
   if (customSections && customSections.length > 0) {
     return (

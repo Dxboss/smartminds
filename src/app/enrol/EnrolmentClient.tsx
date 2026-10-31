@@ -201,12 +201,12 @@ export const EnrolmentClient: React.FC<Props> = ({
   } | null>(
     currentUser
       ? {
-          id: currentUser.learnerId || currentUser.id,
-          fullName: currentUser.name,
-          studentId: currentUser.id,
-          email: currentUser.email,
-          phone: "",
-        }
+        id: currentUser.learnerId || currentUser.id,
+        fullName: currentUser.name,
+        studentId: currentUser.id,
+        email: currentUser.email,
+        phone: "",
+      }
       : null
   );
 
@@ -298,8 +298,8 @@ export const EnrolmentClient: React.FC<Props> = ({
     paymentOption === "full"
       ? fullPayPlanTemplate
       : availablePlans.find((p) => getPlanIdentifier(p) === selectedPlanId) ||
-        availablePlans[0] ||
-        defaultPlan6Months;
+      availablePlans[0] ||
+      defaultPlan6Months;
 
   const basePricing = currentLevel
     ? calculatePricing(currentLevel, activePlan, globalSettings)
@@ -316,9 +316,9 @@ export const EnrolmentClient: React.FC<Props> = ({
     basePricing?.hasPriceSlash
       ? 0
       : currentLevel?.full_pay_discount_percent !== null &&
-    currentLevel?.full_pay_discount_percent !== undefined
-      ? currentLevel.full_pay_discount_percent
-      : globalSettings.default_full_pay_discount_percent;
+        currentLevel?.full_pay_discount_percent !== undefined
+        ? currentLevel.full_pay_discount_percent
+        : globalSettings.default_full_pay_discount_percent;
 
   // Auto-record checkout draft when contact info is entered
   const lastSavedDraftRef = useRef<string>("");
@@ -348,7 +348,7 @@ export const EnrolmentClient: React.FC<Props> = ({
           couponCode: appliedCoupon?.code,
           depositAmount: pricing?.deposit,
           totalAmount: pricing?.total,
-        }).catch(() => {});
+        }).catch(() => { });
       }
     }
   }, [
@@ -655,8 +655,8 @@ export const EnrolmentClient: React.FC<Props> = ({
               {isReturning
                 ? "Your new course has been successfully linked to your existing student portal."
                 : confirmedResult.learnerType === "child"
-                ? `Enrolment for ${confirmedResult.childName || "your child"} is confirmed. Your parent/guardian portal is now active.`
-                : "Your official student profile has been created and your enrolment is now active."}
+                  ? `Enrolment for ${confirmedResult.childName || "your child"} is confirmed. Your parent/guardian portal is now active.`
+                  : "Your official student profile has been created and your enrolment is now active."}
             </p>
           </div>
 
@@ -749,8 +749,8 @@ export const EnrolmentClient: React.FC<Props> = ({
                 {isReturning
                   ? "We have emailed your additional course confirmation and updated induction timetable."
                   : confirmedResult.learnerType === "child"
-                  ? "We have emailed your parent credentials, tuition schedule, and the pre-session safeguarding confirmation."
-                  : "We have emailed your portal credentials, official payment receipt, and induction webinar timetable."}
+                    ? "We have emailed your parent credentials, tuition schedule, and the pre-session safeguarding confirmation."
+                    : "We have emailed your portal credentials, official payment receipt, and induction webinar timetable."}
               </p>
             </div>
           </div>
@@ -853,11 +853,10 @@ export const EnrolmentClient: React.FC<Props> = ({
                             setSelectedPlanId(getPlanIdentifier(lvl.plans[0]));
                           }
                         }}
-                        className={`p-3 rounded-sm border text-left transition-all ${
-                          selectedLevelLabel === lvl.level_label
+                        className={`p-3 rounded-sm border text-left transition-all ${selectedLevelLabel === lvl.level_label
                             ? "border-navy-900 bg-navy-50 font-bold"
                             : "border-line bg-white hover:bg-paper"
-                        }`}
+                          }`}
                       >
                         <span className="block text-xs font-bold text-navy-900">{lvl.level_label}</span>
                         <span className="text-[11px] text-ink-soft">{formatCurrency(lvl.price_gbp)} standard</span>
@@ -877,11 +876,10 @@ export const EnrolmentClient: React.FC<Props> = ({
                   <button
                     type="button"
                     onClick={() => setPaymentOption("full")}
-                    className={`p-4 rounded-sm border text-left transition-all relative ${
-                      paymentOption === "full"
+                    className={`p-4 rounded-sm border text-left transition-all relative ${paymentOption === "full"
                         ? "border-navy-900 bg-navy-50/60 ring-2 ring-navy-900"
                         : "border-line bg-white hover:bg-paper"
-                    }`}
+                      }`}
                   >
                     {discountPercent > 0 && (
                       <span className="absolute top-2 right-2 px-2 py-0.5 rounded-xs text-[10px] font-bold bg-gold-500 text-navy-900 uppercase">
@@ -905,11 +903,10 @@ export const EnrolmentClient: React.FC<Props> = ({
                   <button
                     type="button"
                     onClick={() => setPaymentOption("instalments")}
-                    className={`p-4 rounded-sm border text-left transition-all relative ${
-                      paymentOption === "instalments"
+                    className={`p-4 rounded-sm border text-left transition-all relative ${paymentOption === "instalments"
                         ? "border-navy-900 bg-navy-50/60 ring-2 ring-navy-900"
                         : "border-line bg-white hover:bg-paper"
-                    }`}
+                      }`}
                   >
                     <span className="absolute top-2 right-2 px-2 py-0.5 rounded-xs text-[10px] font-bold bg-navy-900 text-gold-300 uppercase">
                       No interest
@@ -933,11 +930,10 @@ export const EnrolmentClient: React.FC<Props> = ({
                       {isTutoringCourse ? "Choose payment interval:" : "Choose monthly schedule:"}
                     </label>
                     <div
-                      className={`grid gap-2 ${
-                        availablePlans.length > 2
+                      className={`grid gap-2 ${availablePlans.length > 2
                           ? "grid-cols-2 sm:grid-cols-4"
                           : "grid-cols-1 sm:grid-cols-2"
-                      }`}
+                        }`}
                     >
                       {availablePlans.map((p) => {
                         const pId = getPlanIdentifier(p);
@@ -946,11 +942,10 @@ export const EnrolmentClient: React.FC<Props> = ({
                             key={pId}
                             type="button"
                             onClick={() => setSelectedPlanId(pId)}
-                            className={`py-2 px-2.5 text-xs font-semibold rounded-xs border text-center transition-colors cursor-pointer ${
-                              selectedPlanId === pId
+                            className={`py-2 px-2.5 text-xs font-semibold rounded-xs border text-center transition-colors cursor-pointer ${selectedPlanId === pId
                                 ? "bg-navy-900 text-gold-300 border-navy-900 shadow-xs"
                                 : "bg-white text-ink-soft border-line hover:border-navy-700"
-                            }`}
+                              }`}
                           >
                             <span className="block font-bold">
                               {p.interval_weeks ? p.name : `${p.months} Month${p.months > 1 ? "s" : ""}`}
@@ -988,11 +983,10 @@ export const EnrolmentClient: React.FC<Props> = ({
                     <button
                       type="button"
                       onClick={() => setLearnerType("myself")}
-                      className={`p-3.5 rounded-sm border text-left transition-all relative cursor-pointer ${
-                        learnerType === "myself"
+                      className={`p-3.5 rounded-sm border text-left transition-all relative cursor-pointer ${learnerType === "myself"
                           ? "border-navy-900 bg-navy-50/60 ring-2 ring-navy-900"
                           : "border-line bg-white hover:bg-paper"
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-navy-900">
@@ -1010,11 +1004,10 @@ export const EnrolmentClient: React.FC<Props> = ({
                     <button
                       type="button"
                       onClick={() => setLearnerType("child")}
-                      className={`p-3.5 rounded-sm border text-left transition-all relative cursor-pointer ${
-                        learnerType === "child"
+                      className={`p-3.5 rounded-sm border text-left transition-all relative cursor-pointer ${learnerType === "child"
                           ? "border-navy-900 bg-navy-50/60 ring-2 ring-navy-900"
                           : "border-line bg-white hover:bg-paper"
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-navy-900">
@@ -1064,24 +1057,24 @@ export const EnrolmentClient: React.FC<Props> = ({
                         {isTutoringCourse
                           ? "Preferred 1-on-1 Tutoring Delivery Mode *"
                           : currentCourse.attendance_type === "physical_venue"
-                          ? "Campus Venue & Training Centre *"
-                          : "Practical Assessment & Clinical Training Hub *"}
+                            ? "Campus Venue & Training Centre *"
+                            : "Practical Assessment & Clinical Training Hub *"}
                       </label>
                     </div>
                     <span className="text-[10px] font-bold uppercase tracking-wider bg-gold-300/30 text-navy-900 px-2 py-0.5 rounded-xs border border-gold-500/30">
                       {isTutoringCourse
                         ? "Centre, Online or Home/Room"
                         : currentCourse.attendance_type === "physical_venue"
-                        ? "Campus Venue Attendance"
-                        : "Mandatory Practical Sessions"}
+                          ? "Campus Venue Attendance"
+                          : "Mandatory Practical Sessions"}
                     </span>
                   </div>
                   <p className="text-[11px] text-ink-soft">
                     {isTutoringCourse
                       ? "Choose how you would like your child's 1-on-1 lessons delivered (in-person at our Gloucester Centre, live online, or requested home/room tutoring):"
                       : currentCourse.attendance_type === "physical_venue"
-                      ? "This qualification is delivered at our approved UK training campuses. Please choose your preferred campus location:"
-                      : "This accredited qualification includes hands-on clinical and practical assessments. Please choose your preferred training centre:"}
+                        ? "This qualification is delivered at our approved UK training campuses. Please choose your preferred campus location:"
+                        : "This accredited qualification includes hands-on clinical and practical assessments. Please choose your preferred training centre:"}
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
                     {currentCourse.training_locations.map((loc) => (
@@ -1089,11 +1082,10 @@ export const EnrolmentClient: React.FC<Props> = ({
                         key={loc}
                         type="button"
                         onClick={() => setSelectedLocation(loc)}
-                        className={`p-3 rounded-xs border text-left transition-all cursor-pointer ${
-                          selectedLocation === loc
+                        className={`p-3 rounded-xs border text-left transition-all cursor-pointer ${selectedLocation === loc
                             ? "bg-navy-900 text-gold-300 border-navy-900 shadow-xs"
                             : "bg-white text-ink-soft border-line hover:border-navy-700"
-                        }`}
+                          }`}
                       >
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-bold block">{loc}</span>
@@ -1133,11 +1125,10 @@ export const EnrolmentClient: React.FC<Props> = ({
                       setAddress("");
                     }
                   }}
-                  className={`flex-1 py-2 text-xs font-bold rounded-xs transition-all cursor-pointer ${
-                    accountType === "new"
+                  className={`flex-1 py-2 text-xs font-bold rounded-xs transition-all cursor-pointer ${accountType === "new"
                       ? "bg-navy-900 text-gold-300 shadow-xs"
                       : "text-ink-soft hover:text-navy-900"
-                  }`}
+                    }`}
                 >
                   New Learner Registration
                 </button>
@@ -1154,11 +1145,10 @@ export const EnrolmentClient: React.FC<Props> = ({
                       setAddress("");
                     }
                   }}
-                  className={`flex-1 py-2 text-xs font-bold rounded-xs transition-all cursor-pointer ${
-                    accountType === "existing"
+                  className={`flex-1 py-2 text-xs font-bold rounded-xs transition-all cursor-pointer ${accountType === "existing"
                       ? "bg-navy-900 text-gold-300 shadow-xs"
                       : "text-ink-soft hover:text-navy-900"
-                  }`}
+                    }`}
                 >
                   Existing College Student
                 </button>
@@ -1215,7 +1205,7 @@ export const EnrolmentClient: React.FC<Props> = ({
                               <span>Student ID: <strong className="font-mono">{verifiedStudent.studentId}</strong></span>
                               <span>Email: <strong>{verifiedStudent.email}</strong></span>
                             </div>
-                          <p className="text-[11px] text-emerald-700 pt-0.5">
+                            <p className="text-[11px] text-emerald-700 pt-0.5">
                               Your identity and contact details are already verified on file. Choose your preferred lesson time below to complete enrolment.
                             </p>
                           </div>
@@ -1256,11 +1246,10 @@ export const EnrolmentClient: React.FC<Props> = ({
                           <button
                             type="button"
                             onClick={() => setPreferredSession("afternoon")}
-                            className={`p-3.5 rounded-sm border text-left transition-all relative cursor-pointer ${
-                              preferredSession === "afternoon"
+                            className={`p-3.5 rounded-sm border text-left transition-all relative cursor-pointer ${preferredSession === "afternoon"
                                 ? "border-navy-900 bg-navy-50/60 ring-2 ring-navy-900"
                                 : "border-line bg-white hover:bg-paper"
-                            }`}
+                              }`}
                           >
                             <div className="flex items-center justify-between">
                               <span className="text-xs font-bold text-navy-900">
@@ -1275,11 +1264,10 @@ export const EnrolmentClient: React.FC<Props> = ({
                           <button
                             type="button"
                             onClick={() => setPreferredSession("evening")}
-                            className={`p-3.5 rounded-sm border text-left transition-all relative cursor-pointer ${
-                              preferredSession === "evening"
+                            className={`p-3.5 rounded-sm border text-left transition-all relative cursor-pointer ${preferredSession === "evening"
                                 ? "border-navy-900 bg-navy-50/60 ring-2 ring-navy-900"
                                 : "border-line bg-white hover:bg-paper"
-                            }`}
+                              }`}
                           >
                             <div className="flex items-center justify-between">
                               <span className="text-xs font-bold text-navy-900">
@@ -1321,11 +1309,10 @@ export const EnrolmentClient: React.FC<Props> = ({
                       <button
                         type="button"
                         onClick={() => setPreferredSession("afternoon")}
-                        className={`p-3.5 rounded-sm border text-left transition-all relative cursor-pointer ${
-                          preferredSession === "afternoon"
+                        className={`p-3.5 rounded-sm border text-left transition-all relative cursor-pointer ${preferredSession === "afternoon"
                             ? "border-navy-900 bg-navy-50/60 ring-2 ring-navy-900"
                             : "border-line bg-white hover:bg-paper"
-                        }`}
+                          }`}
                       >
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-bold text-navy-900">
@@ -1340,11 +1327,10 @@ export const EnrolmentClient: React.FC<Props> = ({
                       <button
                         type="button"
                         onClick={() => setPreferredSession("evening")}
-                        className={`p-3.5 rounded-sm border text-left transition-all relative cursor-pointer ${
-                          preferredSession === "evening"
+                        className={`p-3.5 rounded-sm border text-left transition-all relative cursor-pointer ${preferredSession === "evening"
                             ? "border-navy-900 bg-navy-50/60 ring-2 ring-navy-900"
                             : "border-line bg-white hover:bg-paper"
-                        }`}
+                          }`}
                       >
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-bold text-navy-900">
@@ -1465,9 +1451,8 @@ export const EnrolmentClient: React.FC<Props> = ({
                               value={email}
                               onChange={(e) => setEmail(e.target.value)}
                               placeholder="parent@example.co.uk"
-                              className={`w-full px-3.5 py-2 rounded-sm border border-line text-sm focus:ring-2 focus:ring-gold-500 focus:outline-none min-h-[44px] bg-white ${
-                                currentUser ? "bg-paper text-ink-soft cursor-not-allowed" : ""
-                              }`}
+                              className={`w-full px-3.5 py-2 rounded-sm border border-line text-sm focus:ring-2 focus:ring-gold-500 focus:outline-none min-h-[44px] bg-white ${currentUser ? "bg-paper text-ink-soft cursor-not-allowed" : ""
+                                }`}
                             />
                           </div>
 
@@ -1542,9 +1527,8 @@ export const EnrolmentClient: React.FC<Props> = ({
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           placeholder="student@example.co.uk"
-                          className={`w-full px-3.5 py-2 rounded-sm border border-line text-sm focus:ring-2 focus:ring-gold-500 focus:outline-none min-h-[44px] ${
-                            currentUser ? "bg-paper text-ink-soft cursor-not-allowed" : ""
-                          }`}
+                          className={`w-full px-3.5 py-2 rounded-sm border border-line text-sm focus:ring-2 focus:ring-gold-500 focus:outline-none min-h-[44px] ${currentUser ? "bg-paper text-ink-soft cursor-not-allowed" : ""
+                            }`}
                         />
                       </div>
 
@@ -1615,11 +1599,10 @@ export const EnrolmentClient: React.FC<Props> = ({
                   <button
                     type="button"
                     onClick={() => setSelectedGateway("stripe")}
-                    className={`p-3.5 rounded-sm border text-left transition-all cursor-pointer ${
-                      selectedGateway === "stripe"
+                    className={`p-3.5 rounded-sm border text-left transition-all cursor-pointer ${selectedGateway === "stripe"
                         ? "border-navy-900 bg-white ring-2 ring-navy-900 shadow-xs"
                         : "border-line bg-paper hover:bg-white"
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center justify-between mb-1.5">
                       <div className="flex items-center gap-1.5 font-bold text-xs text-navy-900">
@@ -1639,11 +1622,10 @@ export const EnrolmentClient: React.FC<Props> = ({
                   <button
                     type="button"
                     onClick={() => setSelectedGateway("gocardless")}
-                    className={`p-3.5 rounded-sm border text-left transition-all cursor-pointer ${
-                      selectedGateway === "gocardless"
+                    className={`p-3.5 rounded-sm border text-left transition-all cursor-pointer ${selectedGateway === "gocardless"
                         ? "border-navy-900 bg-white ring-2 ring-navy-900 shadow-xs"
                         : "border-line bg-paper hover:bg-white"
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center justify-between mb-1.5">
                       <div className="flex items-center gap-1.5 font-bold text-xs text-navy-900">

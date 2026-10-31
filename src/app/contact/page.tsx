@@ -24,8 +24,10 @@ export const metadata: Metadata = {
   },
 };
 
+export const revalidate = 60;
+
 export default async function ContactPage() {
-  await pullLatestFromNeon();
+  pullLatestFromNeon().catch(() => {});
   const customSections = getPublishedCmsPageSections("/contact");
   if (customSections && customSections.length > 0) {
     return (

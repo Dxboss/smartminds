@@ -24,10 +24,10 @@ export const metadata: Metadata = {
   },
 };
 
+export const revalidate = 60;
+
 export default async function PrivateTutoringPage() {
-  try {
-    await pullLatestFromNeon();
-  } catch {}
+  pullLatestFromNeon().catch(() => {});
 
   const customSections = getPublishedCmsPageSections("/private-tutoring");
   if (customSections && customSections.length > 0) {

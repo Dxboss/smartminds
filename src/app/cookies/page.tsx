@@ -15,8 +15,10 @@ export const metadata: Metadata = {
   },
 };
 
+export const revalidate = 300;
+
 export default async function CookiesPage() {
-  await pullLatestFromNeon();
+  pullLatestFromNeon().catch(() => {});
   const sections = getPublishedCmsPageSections("/cookies");
 
   if (sections && sections.length > 0) {

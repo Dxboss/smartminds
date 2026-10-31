@@ -26,10 +26,10 @@ export const metadata: Metadata = {
   },
 };
 
+export const revalidate = 60;
+
 export default async function CPDPage() {
-  try {
-    await pullLatestFromNeon();
-  } catch {}
+  pullLatestFromNeon().catch(() => {});
 
   const allCourses = getLiveCourses();
   const cpdCourses = allCourses.filter((c) => c.type === "cpd" && c.published);

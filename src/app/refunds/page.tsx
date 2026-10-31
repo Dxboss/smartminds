@@ -16,8 +16,10 @@ export const metadata: Metadata = {
   },
 };
 
+export const revalidate = 300;
+
 export default async function RefundsPage() {
-  await pullLatestFromNeon();
+  pullLatestFromNeon().catch(() => {});
   const sections = getPublishedCmsPageSections("/refunds");
 
   if (sections && sections.length > 0) {

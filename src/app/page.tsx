@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { getPublishedCmsPageSections, getLiveCourses, pullLatestFromNeon } from "@/lib/persistedData";
 import { SectionRenderer } from "@/components/cms/SectionRenderer";
 
+export const revalidate = 60;
+
 export const metadata: Metadata = {
   title: "Smartminds Training College | Live Classes with Real Tutors",
   description:
@@ -16,9 +18,7 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  try {
-    await pullLatestFromNeon();
-  } catch {}
+  pullLatestFromNeon().catch(() => {});
 
   const sections = getPublishedCmsPageSections("/");
   const liveCourses = getLiveCourses();

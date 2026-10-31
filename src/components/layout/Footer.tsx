@@ -480,6 +480,7 @@ export const Footer: React.FC<FooterProps> = ({
                         />
                         <a
                           href={`tel:${effectiveFooter.phone.replace(/\s+/g, "")}`}
+                          aria-label={`Call Smartminds Admissions at ${effectiveFooter.phone}`}
                           className={`${
                             isLightFooter ? "hover:text-[#0B4D4E]" : "hover:text-white"
                           } transition-colors inline-block whitespace-nowrap`}
@@ -499,6 +500,7 @@ export const Footer: React.FC<FooterProps> = ({
                         />
                         <a
                           href={`mailto:${effectiveFooter.email}`}
+                          aria-label={`Email Smartminds Admissions at ${effectiveFooter.email}`}
                           className={`${
                             isLightFooter ? "hover:text-[#0B4D4E]" : "hover:text-white"
                           } transition-colors inline-block whitespace-nowrap`}
@@ -524,6 +526,7 @@ export const Footer: React.FC<FooterProps> = ({
                             )}?text=Hello%20Smartminds%2C%20I%20would%20like%20course%20advice`}
                             target="_blank"
                             rel="noopener noreferrer"
+                            aria-label={`Chat with Smartminds Admissions on WhatsApp at ${effectiveFooter.whatsappNumber}`}
                             className={`${
                               isLightFooter ? "hover:text-[#0B4D4E]" : "hover:text-white"
                             } transition-colors`}

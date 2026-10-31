@@ -15,8 +15,10 @@ export const metadata: Metadata = {
   },
 };
 
+export const revalidate = 300;
+
 export default async function TermsPage() {
-  await pullLatestFromNeon();
+  pullLatestFromNeon().catch(() => {});
   const sections = getPublishedCmsPageSections("/terms");
 
   if (sections && sections.length > 0) {

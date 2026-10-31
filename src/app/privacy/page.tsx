@@ -16,8 +16,10 @@ export const metadata: Metadata = {
   },
 };
 
+export const revalidate = 300;
+
 export default async function PrivacyPage() {
-  await pullLatestFromNeon();
+  pullLatestFromNeon().catch(() => {});
   const sections = getPublishedCmsPageSections("/privacy");
 
   if (sections && sections.length > 0) {
