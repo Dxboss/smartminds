@@ -70,7 +70,7 @@ export const blogPosts: BlogPost[] = [
       "Average UK Registered Care Manager salaries range from £38,000 to over £55,000, depending on home size and specialist nursing provision.",
       "Working adults can complete the qualification in 12 months through weekly evening Zoom seminars without stepping down from their current shift roles.",
     ],
-    relatedCourseId: "c-adult-care-l5",
+    relatedCourseId: "course-leadership-care",
     sections: [
       {
         subheading: "What Does a Registered Care Manager Actually Do?",
@@ -158,7 +158,7 @@ export const blogPosts: BlogPost[] = [
       "You do NOT always need to complete Level 3 before Level 5 if you already possess substantial workplace supervisory experience.",
       "Both qualifications are fully regulated by Ofqual and feature 0% written exams (100% evidence portfolio).",
     ],
-    relatedCourseId: "c-adult-care-l3",
+    relatedCourseId: "course-adult-care",
     sections: [
       {
         subheading: "Understanding the RQF Level Framework",
@@ -238,7 +238,7 @@ export const blogPosts: BlogPost[] = [
       "Many UK healthcare practitioners hold BOTH qualifications to work as dual Lecturer/Assessors or freelance internal verifiers.",
       "Neither course requires written exams; AET involves a 15-minute micro-teach, while CAVA requires observing real vocational learners.",
     ],
-    relatedCourseId: "c-aet-l3",
+    relatedCourseId: "course-aet",
     sections: [
       {
         subheading: "The Teaching Route: Level 3 AET (Formerly PTLLS)",
@@ -283,6 +283,178 @@ export const blogPosts: BlogPost[] = [
         question: "How do I do the micro-teach if I am studying online?",
         answer:
           "At Smartminds, you deliver your 15-minute micro-teach live on Zoom to your tutor and fellow adult students. You receive immediate constructive feedback and complete the requirement in an evening.",
+      },
+    ],
+  },
+  {
+    id: "post-functional-skills-maths-english",
+    slug: "functional-skills-maths-and-english-level-2-guide",
+    title: "Functional Skills English & Maths Level 2: The Fast-Track GCSE Equivalent (2026 Guide)",
+    metaTitle: "Functional Skills Level 2 Online: Fast GCSE Equivalent Guide 2026",
+    metaDescription:
+      "Everything you need to know about Functional Skills Level 2 in English and Maths. Compare to GCSEs (Grade 4/C), discover university nursing entry rules, online exam setups, and fast-track pass strategies.",
+    publishedAt: "2026-10-02",
+    updatedAt: "2026-10-25",
+    category: "Funding & Advice",
+    readTimeMinutes: 6,
+    author: {
+      name: "Marcus Adebayo",
+      role: "Head of Functional Skills & Numeracy Lead",
+      credentials: "BSc, PGCE, Level 5 Subject Specialist",
+    },
+    image: "/images/hero-learner-live.webp",
+    imageAlt: "Adult learner preparing for Functional Skills Level 2 online exam at home with live tutor support",
+    excerpt:
+      "Missing a GCSE Grade 4 (C) in English or Maths to enter university, start an apprenticeship, or get promoted? A regulated Level 2 Functional Skills qualification offers the exact legal equivalence in a fraction of the time.",
+    keyTakeaways: [
+      "Functional Skills Level 2 in English and Maths is officially recognized by UK employers, the NHS, and over 95% of UK universities as identical to a GCSE Grade 4 / Grade C.",
+      "Unlike traditional GCSEs that take 1 to 2 years and have fixed summer exams, Functional Skills exams can be booked year-round and completed 100% online from home.",
+      "Most adult students pass their Level 2 exam in 4 to 8 weeks with targeted live tutor classes and past-paper revision.",
+      "Assessment is focused on practical, real-world communication and calculations rather than abstract academic theories.",
+    ],
+    relatedCourseId: "course-functional-skills",
+    sections: [
+      {
+        subheading: "What Is Functional Skills Level 2 and How Does It Compare to GCSE?",
+        paragraphs: [
+          "Functional Skills qualifications were created by the UK Department for Education (DfE) and regulated by Ofqual to provide a direct, practical alternative to traditional GCSE examinations.",
+          "While GCSE Maths and English often test complex literary analysis or theoretical algebra, Functional Skills focuses on competencies required in modern British workplaces: interpreting statistics, calculating percentages and VAT, composing professional reports, and communicating effectively.",
+        ],
+        callout: {
+          title: "Official Government & University Recognition",
+          text: "Under the UK Regulated Qualifications Framework (RQF), a Level 2 Functional Skills qualification is legally equivalent to GCSE Grade 4 (legacy Grade C). It satisfies the entry criteria for UK university nursing degrees, teacher training, policing, and Level 3–5 apprenticeships.",
+          variant: "highlight",
+        },
+      },
+      {
+        subheading: "Why Adult Learners Choose Functional Skills Over GCSE",
+        paragraphs: [
+          "For working adults with shift rotas, family responsibilities, or urgent promotion deadlines, enrolling in a 9-month evening GCSE course at a local college is impractical.",
+          "Functional Skills provides four critical advantages for busy adults:",
+        ],
+        bulletPoints: [
+          "Year-Round Flexible Exam Dates: Exams are available every month rather than waiting for May/June.",
+          "Rapid Completion: Average study time is 4 to 8 weeks compared to 1 to 2 academic years for GCSE.",
+          "Remote Online Invigilation: Sit your official exam securely from your own laptop at home without travelling to an exam centre.",
+          "No Coursework Deadlines: You only take the mock exams when you and your tutor feel 100% ready.",
+        ],
+      },
+      {
+        subheading: "What Does the Functional Skills Level 2 Exam Involve?",
+        paragraphs: [
+          "Functional Skills English consists of three distinct components: Reading, Writing, and a Speaking, Listening & Communicating (SLC) session conducted in a small group via Zoom.",
+          "Functional Skills Maths consists of two sections taken back-to-back: a 25-minute non-calculator section testing mental arithmetic and fundamental calculations, followed by an 80-minute calculator section applying maths to practical scenarios like household budgeting and workplace measurements.",
+        ],
+      },
+      {
+        subheading: "How Smartminds Guarantees First-Time Pass Readiness",
+        paragraphs: [
+          "At Smartminds Training College, learners receive weekly live evening classes on Zoom with an expert tutor, complete unlimited marked practice papers, and get direct 1-to-1 feedback before booking the real exam.",
+          "We offer flexible payment instalment plans (£100 deposit) and free funding checks for eligible London and Essex residents.",
+        ],
+      },
+    ],
+    faqs: [
+      {
+        question: "Does NHS and UCAS accept Functional Skills Level 2 for Nursing?",
+        answer:
+          "Yes. Almost all UK nursing programmes and NHS trusts accept Level 2 Functional Skills English and Maths as fulfilling the GCSE Grade 4/C entry criteria. Always check with your specific university admissions office to confirm course-specific guidelines.",
+      },
+      {
+        question: "Can I take the exam online from home?",
+        answer:
+          "Yes. Our examinations are officially invigilated via secure remote proctoring software. You take the exam on your personal laptop or desktop computer with a working webcam and microphone in a quiet room.",
+      },
+      {
+        question: "How quickly do I get my exam results and certificate?",
+        answer:
+          "Provisional results are returned within 6 to 10 working days, and your official Ofqual-regulated certificate from TQUK/NCFE is dispatched shortly thereafter.",
+      },
+    ],
+  },
+  {
+    id: "post-early-years-educator-guide",
+    slug: "how-to-become-a-qualified-early-years-educator",
+    title: "How to Become a Qualified Early Years Educator (EYE) in the UK (2026 Route)",
+    metaTitle: "How to Become an Early Years Educator (Level 3 EYE Guide 2026)",
+    metaDescription:
+      "Complete career guide to becoming a qualified Nursery Practitioner and Early Years Educator (EYE) in the UK. Understand Level 3 Diploma requirements, staff ratios, salary bands (£22k–£32k), and study options.",
+    publishedAt: "2026-10-08",
+    updatedAt: "2026-10-28",
+    category: "Career Pathways",
+    readTimeMinutes: 7,
+    author: {
+      name: "Sarah Jenkins",
+      role: "Senior Admissions & Career Pathway Advisor",
+      credentials: "BA (Hons), Level 4 Assessor Coach",
+    },
+    image: "/images/early-years-training.jpg",
+    imageAlt: "Early Years Educator reading with young children in an accredited UK nursery setting",
+    excerpt:
+      "Working with young children from birth to 5 years is one of the most rewarding vocations in the UK education sector. Here is the verified regulatory route to gaining your full 'license to practise' as a qualified Early Years Educator.",
+    keyTakeaways: [
+      "The Level 3 Diploma for the Early Years Educator (EYE) is the mandatory benchmark qualification required by the UK Department for Education to count in staff-to-child ratios.",
+      "Unqualified nursery assistants often earn minimum wage, while qualified Level 3 Early Years Practitioners command £22,000 to £32,000 per annum with opportunities to advance to Room Leader or Nursery Deputy Manager.",
+      "You can study your theoretical modules live online via weekly Zoom evening seminars while working or volunteering in a registered nursery setting.",
+      "Assessment is 100% coursework and practical workplace observations — there are zero timed written exams.",
+    ],
+    relatedCourseId: "course-childcare-ey",
+    sections: [
+      {
+        subheading: "What Is a Full and Relevant Early Years Educator (EYE) Qualification?",
+        paragraphs: [
+          "In England, the Early Years Foundation Stage (EYFS) statutory framework strictly governs staff qualification ratios in nurseries, preschools, and reception classes.",
+          "To count within the statutory staffing ratios as a qualified Level 3 practitioner, your qualification must be recognized by the Department for Education as 'full and relevant'. The Level 3 Diploma for the Early Years Educator (EYE) provides this exact regulatory license-to-practise.",
+        ],
+        callout: {
+          title: "EYFS Staff-to-Child Ratio Benefit",
+          text: "Nurseries are legally required to maintain at least 50% qualified staff in every room. Holding a recognised Level 3 EYE diploma makes you instantly employable across private day nurseries, school nurseries, and children's centres.",
+          variant: "highlight",
+        },
+      },
+      {
+        subheading: "Key Subjects Covered in the Level 3 Diploma",
+        paragraphs: [
+          "The qualification equips you with deep professional expertise across child development and early pedagogy:",
+        ],
+        bulletPoints: [
+          "Holistic child development milestones from birth to 5 years (and up to 7 years)",
+          "Promoting speech, language, literacy, and early mathematical concepts through play",
+          "Safeguarding children, child protection laws, and statutory EYFS reporting duties",
+          "Supporting children with Special Educational Needs and Disabilities (SEND)",
+          "Building effective working partnerships with parents, carers, and external health agencies",
+        ],
+      },
+      {
+        subheading: "How Practical Workplace Placement Works",
+        paragraphs: [
+          "Because this is a practice-based license, learners must complete placement hours in a registered early years setting (either through paid employment or voluntary placement).",
+          "Your dedicated Smartminds workplace assessor evaluates your practical skills through direct observation and professional discussions, providing support every step of the way.",
+        ],
+      },
+      {
+        subheading: "Career Progression: From Room Leader to Nursery Manager",
+        paragraphs: [
+          "Earning your Level 3 EYE qualification opens the door to rapid career progression in early childhood education. Practitioners routinely advance to Senior Room Leader, Special Educational Needs Coordinator (SENCo), and Nursery Deputy Manager.",
+          "Furthermore, it serves as the direct entry springboard to our Level 5 Diploma in Leadership & Management for Children and Young People's Services.",
+        ],
+      },
+    ],
+    faqs: [
+      {
+        question: "Do I need GCSE Maths and English to enrol on the Level 3 EYE?",
+        answer:
+          "You can enrol without GCSEs, but to count in Level 3 ratios upon completion, government rules require holding Level 2 Functional Skills or GCSE Grade 4/C in English and Maths. Smartminds allows you to study Functional Skills alongside your Early Years diploma.",
+      },
+      {
+        question: "Can I complete the placement in my current nursery job?",
+        answer:
+          "Yes! If you are already employed as a nursery assistant or support worker in an Ofsted-registered setting, your normal working hours count toward your practical placement requirements.",
+      },
+      {
+        question: "Are there any exams on this course?",
+        answer:
+          "No. The qualification is assessed entirely through written coursework assignments, longitudinal child observations, and practical portfolio evidence verified by your 1-to-1 assessor.",
       },
     ],
   },
