@@ -395,6 +395,10 @@ export async function processAbandonedCheckoutRecovery(): Promise<{
   sent: number;
   logs: string[];
 }> {
+  try {
+    const { pullLatestFromNeon } = await import("@/lib/persistedData");
+    await pullLatestFromNeon();
+  } catch {}
   const store = loadPersistedRecords();
   const drafts = store.abandonedCheckouts || [];
   const now = Date.now();

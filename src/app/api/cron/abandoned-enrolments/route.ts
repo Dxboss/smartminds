@@ -18,6 +18,11 @@ export async function GET(req: Request) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
+    try {
+      const { pullLatestFromNeon } = await import("@/lib/persistedData");
+      await pullLatestFromNeon();
+    } catch {}
+
     const result = await processAbandonedCheckoutRecovery();
     return NextResponse.json({
       success: true,
