@@ -320,37 +320,48 @@ export const EnrolmentClient: React.FC<Props> = ({
         ? currentLevel.full_pay_discount_percent
         : globalSettings.default_full_pay_discount_percent;
 
-  // Auto-record checkout draft when contact info is entered
+  // Auto-record checkout draft when contact info is entered (debounced 1.5s + strict email format)
   const lastSavedDraftRef = useRef<string>("");
   useEffect(() => {
     const cleanEmail = email.trim();
     const cleanName = fullName.trim();
     const cleanPhone = phone.trim();
-    if (cleanEmail && cleanEmail.includes("@") && cleanName.length >= 2 && currentCourse) {
-      const draftKey = `${cleanEmail}-${currentCourse.id}-${selectedPlanId}-${paymentOption}-${appliedCoupon?.code || ""}`;
-      if (lastSavedDraftRef.current !== draftKey) {
-        lastSavedDraftRef.current = draftKey;
-        recordCheckoutDraftAction({
-          fullName: cleanName,
-          email: cleanEmail,
-          phone: cleanPhone,
-          courseId: currentCourse.id,
-          courseTitle: currentCourse.title,
-          levelLabel: currentLevel?.level_label,
-          planId: paymentOption === "full" ? "full" : selectedPlanId,
-          paymentOption,
-          learnerType,
-          dob,
-          address,
-          postcode,
-          trainingLocation: selectedLocation,
-          preferredTimeSlot: selectedTutoringSlot,
-          couponCode: appliedCoupon?.code,
-          depositAmount: pricing?.deposit,
-          totalAmount: pricing?.total,
-        }).catch(() => { });
-      }
+
+    // Must be a complete, syntactically valid email (e.g. user@domain.com) and name >= 2 chars
+    const isValidEmail = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(cleanEmail);
+    if (!isValidEmail || cleanName.length < 2 || !currentCourse) {
+      return;
     }
+
+    const draftKey = `${cleanEmail.toLowerCase()}-${currentCourse.id}-${selectedPlanId}-${paymentOption}-${appliedCoupon?.code || ""}`;
+    if (lastSavedDraftRef.current === draftKey) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      lastSavedDraftRef.current = draftKey;
+      recordCheckoutDraftAction({
+        fullName: cleanName,
+        email: cleanEmail,
+        phone: cleanPhone,
+        courseId: currentCourse.id,
+        courseTitle: currentCourse.title,
+        levelLabel: currentLevel?.level_label,
+        planId: paymentOption === "full" ? "full" : selectedPlanId,
+        paymentOption,
+        learnerType,
+        dob,
+        address,
+        postcode,
+        trainingLocation: selectedLocation,
+        preferredTimeSlot: selectedTutoringSlot,
+        couponCode: appliedCoupon?.code,
+        depositAmount: pricing?.deposit,
+        totalAmount: pricing?.total,
+      }).catch(() => { });
+    }, 1500);
+
+    return () => clearTimeout(timer);
   }, [
     email,
     fullName,

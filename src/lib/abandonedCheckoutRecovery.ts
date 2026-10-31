@@ -56,6 +56,11 @@ export async function saveCheckoutDraft(
   if (!store.abandonedCheckouts) store.abandonedCheckouts = [];
 
   const cleanEmail = input.email.trim().toLowerCase();
+  const isValidEmail = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(cleanEmail);
+  if (!isValidEmail) {
+    throw new Error("Incomplete or invalid email format for checkout draft");
+  }
+
   const existingIdx = store.abandonedCheckouts.findIndex(
     (c: AbandonedCheckoutDraft) =>
       c.email.toLowerCase() === cleanEmail &&
@@ -105,9 +110,16 @@ export async function saveCheckoutDraft(
 
   // Also record in admissions enquiries pipeline so staff have visibility
   if (!store.enquiries) store.enquiries = [];
+  const cleanPhone = (input.phone || "").replace(/\D/g, "");
+
+  // Match existing enquiry by email or phone (to update in-place rather than duplicate)
   const existingEnqIdx = store.enquiries.findIndex(
-    (e: any) => e.email?.toLowerCase() === cleanEmail && e.formType === "abandoned_checkout"
+    (e: any) =>
+      e.formType === "abandoned_checkout" &&
+      (e.email?.toLowerCase() === cleanEmail ||
+        (cleanPhone.length >= 7 && (e.phone || "").replace(/\D/g, "") === cleanPhone))
   );
+
   const enqData = {
     id: existingEnqIdx >= 0 ? store.enquiries[existingEnqIdx].id : `enq-chk-${draft.id}`,
     fullName: draft.fullName,
@@ -119,10 +131,24 @@ export async function saveCheckoutDraft(
     submittedAt: now,
     notes: `Checkout started. Selected plan: ${draft.paymentOption === "full" ? "Pay in Full" : "Flexible Instalments"}. Recovery stage: ${draft.recoveryStage}/5.`,
   };
+
   if (existingEnqIdx >= 0) {
     store.enquiries[existingEnqIdx] = { ...store.enquiries[existingEnqIdx], ...enqData };
   } else {
     store.enquiries.unshift(enqData as any);
+  }
+
+  // Clean up any stale partial/malformed abandoned checkout records for this phone/person
+  if (cleanPhone.length >= 7) {
+    store.enquiries = store.enquiries.filter(
+      (e: any) =>
+        !(
+          e.formType === "abandoned_checkout" &&
+          e.email?.toLowerCase() !== cleanEmail &&
+          (e.phone || "").replace(/\D/g, "") === cleanPhone &&
+          !/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(e.email || "")
+        )
+    );
   }
 
   try {
