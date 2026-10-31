@@ -3316,7 +3316,7 @@ function addTombstones(store: PersistedRecordsStore, key: keyof PersistedRecords
  * Persists the store everywhere (disk, in-memory cache and Neon snapshot) and waits for Neon.
  * Returns false only when Neon is configured but the snapshot write failed.
  */
-async function persistStoreEverywhere(store: PersistedRecordsStore): Promise<boolean> {
+export async function persistStoreEverywhere(store: PersistedRecordsStore): Promise<boolean> {
   const filePath = getStoreFilePath();
   writeStoreToDisk(filePath, store);
   syncPersistedRecords(true);

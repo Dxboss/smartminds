@@ -152,10 +152,15 @@ export async function saveCheckoutDraft(
   }
 
   try {
-    fs.writeFileSync(getStoreFilePath(), JSON.stringify(store, null, 2));
-    syncPersistedRecords(true);
-  } catch (err) {
-    console.error("[abandonedCheckout] Error saving draft:", err);
+    const { persistStoreEverywhere } = await import("@/lib/persistedData");
+    await persistStoreEverywhere(store);
+  } catch {
+    try {
+      fs.writeFileSync(getStoreFilePath(), JSON.stringify(store, null, 2));
+      syncPersistedRecords(true);
+    } catch (err) {
+      console.error("[abandonedCheckout] Error saving draft:", err);
+    }
   }
 
   return draft;
@@ -181,29 +186,55 @@ export async function markCheckoutDraftCompleted(
   email: string,
   courseId?: string
 ): Promise<boolean> {
+  try {
+    const { pullLatestFromNeon } = await import("@/lib/persistedData");
+    await pullLatestFromNeon();
+  } catch {}
+
   const store = loadPersistedRecords();
-  if (!store.abandonedCheckouts) return false;
+  if (!store.abandonedCheckouts && !store.enquiries) return false;
 
   const cleanEmail = email.trim().toLowerCase();
   let updated = false;
 
-  for (const c of store.abandonedCheckouts) {
-    if (
-      c.email.toLowerCase() === cleanEmail &&
-      (!courseId || c.courseId === courseId) &&
-      !c.completed
-    ) {
-      c.completed = true;
-      c.updatedAt = new Date().toISOString();
-      updated = true;
+  if (store.abandonedCheckouts) {
+    for (const c of store.abandonedCheckouts) {
+      if (
+        c.email.toLowerCase() === cleanEmail &&
+        (!courseId || c.courseId === courseId) &&
+        !c.completed
+      ) {
+        c.completed = true;
+        c.updatedAt = new Date().toISOString();
+        updated = true;
+      }
+    }
+  }
+
+  // Also transition matching admissions pipeline enquiry to 'enrolled'
+  if (store.enquiries) {
+    for (const enq of store.enquiries) {
+      if (
+        enq.email?.toLowerCase() === cleanEmail &&
+        enq.stage !== "enrolled"
+      ) {
+        enq.stage = "enrolled";
+        enq.notes = `Payment confirmed. Student enrolled in ${enq.courseInterest || courseId || "course"}.`;
+        updated = true;
+      }
     }
   }
 
   if (updated) {
     try {
-      fs.writeFileSync(getStoreFilePath(), JSON.stringify(store, null, 2));
-      syncPersistedRecords(true);
-    } catch {}
+      const { persistStoreEverywhere } = await import("@/lib/persistedData");
+      await persistStoreEverywhere(store);
+    } catch {
+      try {
+        fs.writeFileSync(getStoreFilePath(), JSON.stringify(store, null, 2));
+        syncPersistedRecords(true);
+      } catch {}
+    }
   }
 
   return updated;
